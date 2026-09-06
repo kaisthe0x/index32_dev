@@ -14,12 +14,12 @@ public partial class Music : Node
     // key -> res:// path. ONE entry per track.
     private static readonly Dictionary<string, string> Tracks = new()
     {
-        { "level", "res://music/the_omnific_the_stoic.mp3" }, // main gameplay loop
+        { "level", "res://music/bg_music.ogg" },              // main gameplay loop
         { "base_rest", "res://music/base_rest.mp3" },         // calmer bed while a cleared exit/reward is open
     };
 
     private static readonly StringName Bus = "Music";
-    private const float DefaultVolumeDb = -17.0f; // the "full" music level once faded in
+    private const float DefaultVolumeDb = -6.0f; // the "full" music level once faded in
     private const float SilenceDb = -60.0f;
     private const float Fade = 1.5f;
 
