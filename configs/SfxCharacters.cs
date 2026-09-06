@@ -79,7 +79,7 @@ public static class SfxCharacters
             ["attack_ora_ora"] = new GDict { [2] = "ora_ora.2", [4] = "ora_ora.4" },
             ["attack_cherry_shots"] = new GDict { [3] = "cherry_shots.3", [7] = "cherry_shots.7" },
             ["attack_spear"] = new GDict { [6] = "spear.6", [9] = "spear.9", [13] = "spear.13" },
-            ["attack_bakshen"] = new GDict { [1] = "bakshen" },
+            ["attack_bakshen"] = new GDict { [3] = "bakshen" }, // slash sound on the RELEASE frame (3), not the 1s windup (frame 1) — so a stagger mid-windup makes no sound
             ["attack_zahluq"] = new GDict { [2] = "zahluq" },
             ["special_ground_breaker"] = new GDict { [1] = "ground_breaker", [3] = "ground_breaker.3" },
             ["special_frenemy"] = new GDict { [3] = "frenemy" },

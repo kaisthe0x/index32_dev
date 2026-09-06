@@ -17,6 +17,7 @@ public partial class Sfx : Node
 {
     private static readonly StringName Bus = "SFX";
     private const int Pool = 12;
+    private const float LimiterCeilingDb = -2.0f; // peak ceiling for the summed SFX bus (see InstallLimiter)
     // Pin a specific output device (this machine routes "Default" to a silent sink). "" = system default.
     private const string PreferredOutput = "alsa_output.usb-ACTIONS_Pebble_V3-00.analog-stereo";
 
@@ -44,6 +45,27 @@ public partial class Sfx : Node
             AddChild(p);
             _pos.Add(p);
         }
+        InstallLimiter();
+    }
+
+    /// <summary>Brick-wall PEAK CEILING on the SFX bus. Sounds SUM (many overlapping cues in a fight stack their
+    /// waveforms — two identical copies ≈ +6 dB), so busy moments spike far past a single cue's authored level. The
+    /// limiter caps the summed output at <see cref="LimiterCeilingDb"/>: inaudible under light load, only clamping the
+    /// heat-of-battle peaks. Added in CODE (not the .tres bus layout) so it can't be clobbered by an open editor.
+    ///
+    /// TODO(sfx-loudness): the limiter is a safety net, not a full fix. Ways to improve later —
+    ///   1. A gentle COMPRESSOR before it (AudioEffectCompressor, ~-18 dB threshold / ~4:1) so loud moments duck
+    ///      smoothly instead of hard-clamping — more polished dynamics.
+    ///   2. Per-cue CONCURRENCY CAP / dedupe: skip or duck a cue already playing N copies (or fired within a few ms),
+    ///      which tackles the ROOT (the same sound stacking) rather than the summed symptom.
+    ///   3. Author per-cue base levels (a `volume_db` in the Sfx* configs) so loud cues (Bakshen/Nasen) sit lower at
+    ///      the source, reducing how hard the limiter has to work.
+    ///   4. Expose the ceiling / limiter on-off to the options menu for players who want it off.
+    private void InstallLimiter()
+    {
+        if (AudioServer.GetBusIndex(_bus) == -1)
+            return;
+        AudioBus.AddEffect(_bus, new AudioEffectHardLimiter { CeilingDb = LimiterCeilingDb });
     }
 
     public void set_volume(float v) => AudioBus.SetVolumeLinear(Bus, v);

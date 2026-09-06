@@ -614,6 +614,20 @@ public partial class Player : Combatant
     /// <summary>Zero the dash cooldown so the follow-up dash is free (Chain Dash on-dash).</summary>
     public void reset_dash_cooldown() => _dashCd = 0.0f;
 
+    /// <summary>Global cooldown fairness: an action whose windup is interrupted by a stagger BEFORE its hit came out
+    /// never actually fired, so it shouldn't burn its cooldown. An ATTACK still short of its hit frame
+    /// (<see cref="_segEnd"/>) or a SPECIAL short of its strike frame is "uncommitted" → zero the matching cooldown.
+    /// Called from <see cref="OnHurt"/> the instant a hurt is about to knock the player into HURT (windup cancelled).</summary>
+    private void RefundUncommittedCooldown()
+    {
+        if (_sprite == null)
+            return;
+        if (_state == State.ATTACK && _sprite.Frame < _segEnd)
+            _attackCd = 0.0f;
+        else if (_state == State.SPECIAL && _sprite.Frame < SpecialStrikeFrame())
+            _specialCd = 0.0f;
+    }
+
     // --- DEBUG: playtest the buff catalog (triggered from RunManager's input; REMOVE before release) -------
     private int _debugBuffIdx = 0;
 
@@ -845,6 +859,7 @@ public partial class Player : Combatant
         float stagger = ApplyKnockback(hit, _facing);
         if (flinch_on_all_damage || stagger > 0.0f)
         {
+            RefundUncommittedCooldown(); // staggered mid-windup: read state BEFORE we leave ATTACK/SPECIAL for HURT
             float flinch = Mathf.Max(stagger, AnimDuration("hurt"));
             if (_state == State.HURT)
                 _stunLeft = Mathf.Max(_stunLeft, flinch);
