@@ -19,7 +19,7 @@ public partial class Music : Node
     };
 
     private static readonly StringName Bus = "Music";
-    private const float DefaultVolumeDb = -6.0f; // the "full" music level once faded in
+    private const float DefaultVolumeDb = -3.0f; // the "full" music level once faded in
     private const float SilenceDb = -60.0f;
     private const float Fade = 1.5f;
 
