@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b4ro024vw7sba"
-path="res://.godot/imported/neon-tree2.png-ef1aad36cff97108a5a430f4305f6d6c.ctex"
+uid="uid://bi34lrgfcd4lu"
+path="res://.godot/imported/fada_fig.png-a42ea5104488c66ebe06d57d2922fcfa.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/terrain/stage1/neon-tree2.png"
-dest_files=["res://.godot/imported/neon-tree2.png-ef1aad36cff97108a5a430f4305f6d6c.ctex"]
+source_file="res://assets/things/fada_fig.png"
+dest_files=["res://.godot/imported/fada_fig.png-a42ea5104488c66ebe06d57d2922fcfa.ctex"]
 
 [params]
 

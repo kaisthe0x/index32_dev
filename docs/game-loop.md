@@ -24,7 +24,7 @@ is *charging* — a single, shared **Warden-strength** (health + damage) that **
 **Sealing a Fissure** (a 2 s channel costing a flat **3 Ruh**) makes its Warden **burst out** at *whatever
 strength has accumulated so far* — its strength then **locks** — and each Seal **brakes** the growth for the
 Fissures still charging *and* **ramps the grunt swarm**. Wardens are **relentless teleporting pursuers** you
-can't out-run. Kills pay **Lira** and **Ruh**; the **Chest** is open from the start (spend Lira → pick 1 of 5
+can't out-run. Kills pay **Fada Figs** and **Ruh**; the **Chest** is open from the start (spend Fada Figs → pick 1 of 5
 permanent buffs). **Kill all three Wardens → next stage. Three stages, permadeath.** Greed is gone — the
 tension is the Warden-charge bar, and it's on screen.
 
@@ -36,9 +36,9 @@ There are no scripted beats; there's one continuous fight and one decision you m
 Fissure now, or let it charge?**
 
 - **Seal early** → the Warden bursts out **weak**, and the brake keeps the others weaker too — **but** your
-  build is still thin (little time to farm Lira / buy Chest buffs) and every Seal **thickens the swarm**, so a
+  build is still thin (little time to farm Fada Figs / buy Chest buffs) and every Seal **thickens the swarm**, so a
   rush ends in a **swarm-heavy** fight against three feeble Wardens.
-- **Seal late** → you've banked buffs and Lira and the swarm is still thin — **but** the Warden bursts out a
+- **Seal late** → you've banked buffs and Fada Figs and the swarm is still thin — **but** the Warden bursts out a
   **titan** (capped), so a patient run ends in a **warden-heavy** fight against monsters you're built to face.
 
 Both are viable and *feel different* (a horde fight vs. a titan fight). The charge is **capped**, so waiting
@@ -87,7 +87,7 @@ exactly why healing is never safe.)
 - **Placeholders:** Wardens don't exist yet → build with **beefed-up grunts** (tankier/faster/more-Ruh-on-hit,
   a stand-in charge value + teleport) and drop real Wardens in later as data + art (`art/wardens/`).
 
-**Progression = kill all three Wardens → next stage.** The grunt swarm is **ambient** (Ruh/Lira farm + pressure);
+**Progression = kill all three Wardens → next stage.** The grunt swarm is **ambient** (Ruh/Fada Figs farm + pressure);
 it does **not** gate the stage.
 
 ---
@@ -97,17 +97,17 @@ it does **not** gate the stage.
 | Thing | What | From | Carries across stages? |
 |---|---|---|---|
 | **Ruh** | the meter (seal + surge + heal) | landing hits (+ Wardens) | meter resets per stage |
-| **Lira** | currency for the Chest | every kill (100%, small) | **yes** (for now) |
+| **Fada Figs** | currency for the Chest | every kill (100%, small) | **yes** (for now) |
 | **Buffs** | run power | 3 sources below | depends on source |
 
 ### Three buff sources (choose vs. random is the key axis)
 - **Grunt drops** — **Common–Rare**, **temp** (wiped at stage end), **random**, tiered chance (low tiers more
   common), **constant** rate (they're disposable, no need to throttle).
-- **Warden kills** — **≥ Rare**, **random**, can be permanent; may also drop a Lira lump / health / a Ruh-cap
+- **Warden kills** — **≥ Rare**, **random**, can be permanent; may also drop a Fada Fig lump / health / a Ruh-cap
   bump. This is the relocated prize — you **earn** it by beating the elite, not by opening its cage. **A rung
   below Chest quality** so the Chest stays the build destination.
 - **Chest** — **Hot–Epic**, **permanent**, **you choose 1 of 5**. The build-crafting tool. **Open from the
-  start** for a modest Lira price; **cost rises each use**; **resets each stage**; after **3 uses**, a **10%
+  start** for a modest Fada Figs price; **cost rises each use**; **resets each stage**; after **3 uses**, a **10%
   close chance, +10% per subsequent use**. The rising cost + lock are the **anti-turtle throttle** — they're
   what stops "farm forever, buy everything, then stomp a capped Warden."
 
@@ -137,7 +137,7 @@ it does **not** gate the stage.
 - **3 stages.** Each = a new art skin (see `art-direction.md`) **and** harder: tankier/nastier grunts, worse
   Wardens (higher base + charge rate + cap, weirder abilities), a higher swarm ramp. Keep it a **per-stage
   multiplier table** so "add a stage" stays data entry.
-- **Carry across stages:** Chest (permanent) buffs + Lira. **Don't carry:** grunt-dropped (temp) buffs — wiped
+- **Carry across stages:** Chest (permanent) buffs + Fada Figs. **Don't carry:** grunt-dropped (temp) buffs — wiped
   at stage end.
 - **Failure = the DPS race.** No hard timer: if the Wardens you spawned outscale your damage, you can't kill
   them before they grind you down. **Permadeath** — death ends the run.
@@ -222,7 +222,7 @@ the catalog against. Full tiered list: **`buff-catalog.md`**.
   **brakes** the remaining charge, **ramps** the swarm.
 - **Warden** — the elite that bursts out on Seal (one per Fissure); a capped, locked-at-spawn, **teleporting**
   relentless pursuer. The stage's climax; killing all three advances.
-- **Ruh** — the meter (seal + surge + heal). **Lira** — currency (Chest).
+- **Ruh** — the meter (seal + surge + heal). **Fada Figs** — currency (Chest).
 - **Redere Shield** — default Special: a **frontal damage-block** (back/flanks stay exposed). **Aegis** —
   default Surge (5 s invuln, 1 Ruh charge).
 - **Sigil** — *future* pre-run item (a run-rule modifier with tradeoffs), chosen alongside the attack.

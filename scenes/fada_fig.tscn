@@ -1,0 +1,39 @@
+[gd_scene format=3 uid="uid://dwfnl78kuptxw"]
+
+[ext_resource type="Script" uid="uid://bmehgrqg73mtt" path="res://scripts/collectibles/FadaFig.cs" id="1_fada_fig"]
+[ext_resource type="Texture2D" uid="uid://bi34lrgfcd4lu" path="res://assets/things/fada_fig.png" id="2_tex"]
+
+[sub_resource type="PhysicsMaterial" id="phys"]
+friction = 0.5
+bounce = 0.35
+
+[sub_resource type="CircleShape2D" id="body_shape"]
+radius = 3.0
+
+[sub_resource type="CircleShape2D" id="pickup_shape"]
+radius = 7.0
+
+[node name="FadaFig" type="RigidBody2D" unique_id=1729489798]
+z_index = -1
+collision_layer = 0
+mass = 0.2
+physics_material_override = SubResource("phys")
+gravity_scale = 1.5
+linear_damp = 0.5
+angular_damp = 3.0
+script = ExtResource("1_fada_fig")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=2117642326]
+texture_filter = 1
+scale = Vector2(0.1, 0.1)
+texture = ExtResource("2_tex")
+
+[node name="Body" type="CollisionShape2D" parent="." unique_id=415581471]
+shape = SubResource("body_shape")
+
+[node name="Pickup" type="Area2D" parent="." unique_id=1905203268]
+collision_layer = 0
+collision_mask = 2
+
+[node name="PickupShape" type="CollisionShape2D" parent="Pickup" unique_id=49035477]
+shape = SubResource("pickup_shape")

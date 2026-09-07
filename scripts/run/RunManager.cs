@@ -1,28 +1,42 @@
 using Godot;
 using GDict = Godot.Collections.Dictionary;
-using GArr = Godot.Collections.Array;
 
 namespace MyGame;
 
 /// <summary>
-/// The roguelite run driver + the <c>arena.tscn</c> root. Builds each arena from Levels data, drops in start
-/// enemies, refills finite BATCHES as the arena clears, banks Ruh on hits, opens the exit once every batch is
-/// dead, runs the reward pick, advances levels, and restarts the run on death. Owns the player spawn, camera
-/// follow, and death/spawn flair. C# port of <c>scripts/run/run_manager.gd</c> (Phase 5b).
+/// The run driver + the <c>arena.tscn</c> root. Builds ONE continuous arena (levels/exits are retired — the pivot's
+/// single Fissure arena), then trickles enemies in at a STEADY rate from a mixed roster, proximity-placed around the
+/// player. Banks Ruh on hits, drops Fada Figs + (at a ramping chance) a random BUFF on each kill, and restarts the run
+/// on death. Owns the player spawn, camera follow, and death/spawn flair. C# port of <c>scripts/run/run_manager.gd</c>.
 ///
-/// <para>Talks to the C# body tree (Player/Enemy) + reward system (Rewards) directly; BRIDGES the still-GDScript
-/// config/autoload/UI layer (Terrain/Levels/SfxCharacters/SaveData via <c>GD.Load&lt;GDScript&gt;().Call</c> or the
-/// constant map, Music/Sfx via <c>/root/*</c>, ExitGate/RewardUI/AttackSelect/LaunchOrb via <c>.New()</c> + signals).
-/// Those bridges dissolve as phase 6/7 port those layers.</para>
+/// <para>Talks to the C# body tree (Player/Enemy) + collectibles (FadaFig/BuffDrop) directly; BRIDGES the still-GDScript
+/// config/autoload layer (Terrain/Levels via the constant map, Music/Sfx via <c>/root/*</c>, AttackSelect/LaunchOrb via
+/// <c>.New()</c> + signals). Levels data survives only as the arena's palette source; the reward-door system is parked.</para>
 /// </summary>
 [GlobalClass]
 public partial class RunManager : Node2D
 {
-    private const int RewardsOffered = 3;
     private static readonly Vector2 SpawnFxOffset = new(0, -22);
     private static readonly Vector2 DamageNumberOffset = new(0, -42);
     private const float DeathY = 320.0f;
     private const string StartCharacter = "khalid";
+
+    // --- continuous spawn (no levels/exits): enemies trickle in at a STEADY rate. Tunable when seals arrive. ---
+    private const float SpawnInterval = 2.0f;   // seconds between spawn ticks ("waves")
+    private const int EnemiesPerWave = 1;        // enemies dropped in per tick
+    private const int MaxAlive = 8;             // pause spawning past this many living non-optional enemies
+    // Buff drops: a dying enemy drops a random buff at a chance that RAMPS per wave — 40% → 70% cap.
+    private const float BuffDropBase = 0.40f;
+    private const float BuffDropStep = 0.03f;    // +per wave (hits the cap after ~10 waves)
+    private const float BuffDropCap = 0.70f;
+
+    /// <summary>The roster the continuous spawner draws from (uniform random) — a mixed assortment of grunts plus the
+    /// flyer (Ein) and the stationary sleeper (Nasen). Wardens (Kroj) are elite/pivot-only, not part of the trickle.</summary>
+    private static readonly GDict[] SpawnPool =
+    {
+        EnemyKits.KEBUS, EnemyKits.BAGHEL, EnemyKits.MAZAB, EnemyKits.MATAT,
+        EnemyKits.TARRI, EnemyKits.BRESKI, EnemyKits.EIN, EnemyKits.NASEN,
+    };
 
     // Camera follow (speed-adaptive).
     private const float CamFollowBase = 0.002f;
@@ -38,27 +52,16 @@ public partial class RunManager : Node2D
     private const float DeathFadeIn = 0.55f;
     private const float DeathFadeOut = 0.6f;
     private const float DeathFreeze = 0.5f;
-    private const float ClearSlowmoScale = 0.3f;
-    private const float ClearSlowmoHold = 0.7f;
-    private const float ClearSlowmoRamp = 0.55f;
-    private const int TerrainZ = -5;
-    private const int PlantZ = -4;
-    private const int TreeZ = -15;
 
     [Export] public NodePath player_path = "Player";
 
     private Player _player;
     private Camera2D _camera;
 
-    private int _levelIndex = 0;
-    private int _clearedThisRun = 0;
-    private int _waveIndex = 0;
-    private int _alive = 0;
-    private bool _cleared = false;
-    private DoorType _doorType = DoorType.Health;
-    private bool _transitioning = false;
+    private int _alive = 0;            // living NON-optional enemies (the spawn-cap looks at this)
+    private int _waveCount = 0;        // spawn ticks so far this run — ramps the buff-drop chance
+    private float _spawnAccum = 0.0f;  // seconds accrued toward the next spawn tick
     private Node2D _content;
-    private ExitGate _gate;
     private ColorRect _bg;
     private Sprite2D _bgSky;
     private Vector2 _bgImgSize;
@@ -77,7 +80,7 @@ public partial class RunManager : Node2D
     // --- bridges (cached in _Ready) ---
     private Music _music;
     private Sfx _sfx;
-    private PackedScene _enemyScene, _spawnFx, _ruhOrb;
+    private PackedScene _enemyScene, _spawnFx, _ruhOrb, _fadaFigScene;
 
     public override void _Ready()
     {
@@ -88,6 +91,7 @@ public partial class RunManager : Node2D
         _enemyScene = GD.Load<PackedScene>("res://scenes/enemy.tscn");
         _spawnFx = GD.Load<PackedScene>("res://vfx/spawn/enemy_spawn.tscn");
         _ruhOrb = GD.Load<PackedScene>("res://vfx/character/khalid/ruh_orb/ruh_orb.tscn");
+        _fadaFigScene = GD.Load<PackedScene>("res://scenes/fada_fig.tscn");
 
         Engine.TimeScale = 1.0;
         AddGlow();
@@ -95,7 +99,7 @@ public partial class RunManager : Node2D
         BuildFloor();
         if (_player != null)
             _player.character = StartCharacter;
-        BuildLevel(0);
+        BuildArena();
         if (_player != null)
             _player.spawn();
         if (_camera != null)
@@ -108,8 +112,6 @@ public partial class RunManager : Node2D
         if (_player == null)
             return;
         float delta = (float)deltaD;
-        if (_gate != null && IsInstanceValid(_gate))
-            _gate.Reflect(_cleared);
 
         if (_player.is_dead())
         {
@@ -133,13 +135,16 @@ public partial class RunManager : Node2D
             _spawning = false;
             ZoomTo(CamZoomNormal, 0.4f);
         }
+        _spawnAccum += delta;
+        if (_spawnAccum >= SpawnInterval)
+        {
+            _spawnAccum = 0.0f;
+            SpawnWave();
+        }
         FollowCamera(delta);
     }
 
-    // --- level building -------------------------------------------------------
-
-    private GDict Level(int i) => Levels.GetLevel(i);
-    private int LevelCount() => Levels.Count();
+    // --- arena building -------------------------------------------------------
 
     /// <summary>Every hand-painted layout variant for the stage (<c>stage1_v*.tscn</c>). Auto-uses whatever exists —
     /// add a variant to the folder and it joins the random pool with no code change.</summary>
@@ -163,25 +168,25 @@ public partial class RunManager : Node2D
         return list.ToArray();
     }
 
-    private void BuildLevel(int index)
+    private void BuildArena()
     {
         _music.play("level");
-        _levelIndex = Mathf.Clamp(index, 0, LevelCount() - 1);
-        _waveIndex = 0;
         _alive = 0;
-        _cleared = false;
-        _transitioning = false;
+        _waveCount = 0;
+        _spawnAccum = 0.0f;
+        SaveData.SetCurrentWaves(0);
         if (_content != null && IsInstanceValid(_content))
             _content.QueueFree();
         _content = new Node2D();
         AddChild(_content);
 
-        var lv = Level(_levelIndex);
-        Color tint = lv["bg"].As<Color>();
+        // Levels are retired, but index 0 still holds the arena's background palette (a single source of the look).
+        Color tint = Levels.GetLevel(0)["bg"].As<Color>();
         if (Terrain.BackgroundTexture() != null)
             tint.A = Terrain.BackgroundTintAlpha;
         _bg.Color = tint;
-        // Load one of the stage's hand-painted layouts at RANDOM (terrain + collision + spawn markers).
+
+        // Load one of the stage's hand-painted layouts at RANDOM (terrain + collision + ground tiles for spawning).
         _layout = null;
         var layoutPaths = StageLayoutPaths();
         if (layoutPaths.Length > 0)
@@ -196,219 +201,114 @@ public partial class RunManager : Node2D
         }
         else
         {
-            GD.PushWarning("RunManager: no stage1_v*.tscn layouts under scenes/levels/stage1/ — level will be empty.");
+            GD.PushWarning("RunManager: no stage1_v*.tscn layouts under scenes/levels/stage1/ — arena will be empty.");
         }
-        _playerSpawn = _layout != null ? _layout.PlayerSpawn() : lv["player_spawn"].As<Vector2>();
+        _playerSpawn = _layout != null ? _layout.PlayerSpawn() : Vector2.Zero;
 
         foreach (var op in _layout?.Orbs() ?? new System.Collections.Generic.List<Vector2>())
             _content.AddChild(new LaunchOrb { Position = op });
 
-        _doorType = DoorTypes.All[GD.Randi() % (uint)DoorTypes.All.Length];
-        _gate = new ExitGate();
-        _gate.Setup(_doorType);
-        _gate.Position = _layout != null ? _layout.ExitPoint() : lv["exit_pos"].As<Vector2>();
-        _gate.touched += OnGateTouched;
-        _content.AddChild(_gate);
-
-        SpawnGroup(lv["start"].As<GArr>(), false);
-        if (_alive <= 0)
-            Callable.From(AdvanceBatch).CallDeferred();
-
+        SpawnWave(); // seed the arena so the player isn't waiting on the first tick
         if (_player != null)
             PlaceAt(_player, _playerSpawn);
     }
 
-    private void BuildPlatform(float centerX, float topY, float width, float height)
-    {
-        var body = new StaticBody2D
-        {
-            CollisionLayer = (uint)Combat.Layer.World,
-            CollisionMask = 0,
-            Position = new Vector2(centerX, topY),
-        };
-        body.AddToGroup("oneway_platform");
-        var col = MakeBox(new Vector2(width, height), new Vector2(0, height / 2.0f));
-        col.OneWayCollision = true;
-        body.AddChild(col);
-        PaintSurface(body, new Vector2(-width / 2.0f, 0), width, 0);
-        ScatterPlants(body, new Vector2(-width / 2.0f, 0), width, 0.35f);
-        _content.AddChild(body);
-    }
+    // --- continuous spawning --------------------------------------------------
 
-    // --- terrain painting (visual skin over the colliders) --------------------
-
-    private void PaintSurface(Node parent, Vector2 origin, float width, int fillRows)
+    /// <summary>One spawn tick ("wave"): drop in <see cref="EnemiesPerWave"/> random enemies from the pool, unless
+    /// we're already at the living-enemy cap. Always bumps the wave counter (which ramps the buff-drop chance).</summary>
+    private void SpawnWave()
     {
-        var sheet = Terrain.Sheet();
-        if (sheet == null)
-        {
-            var r = new ColorRect
-            {
-                Color = Terrain.PLATFORM_FALLBACK,
-                Position = origin,
-                Size = new Vector2(width, Mathf.Max(Terrain.TILE, (fillRows + 1) * Terrain.TILE)),
-                ZIndex = TerrainZ,
-            };
-            parent.AddChild(r);
+        if (_player == null || _player.is_dead() || _player.is_spawning())
             return;
-        }
-        float t = Terrain.TILE;
-        int full = (int)(width / t);
-        float rem = width - full * t;
-        int cols = full + (rem > 2.0f ? 1 : 0);
-        for (int row = 0; row < fillRows + 1; row++)
-        {
-            var cells = row == 0 ? Terrain.TOP_CELLS : Terrain.FILL_CELLS;
-            for (int c = 0; c < cols; c++)
-            {
-                var cell = cells[(c + row) % cells.Length];
-                float w = c < full ? t : rem;
-                var at = Terrain.CellTexture(sheet, cell);
-                if (w < t)
-                    at.Region = new Rect2(at.Region.Position, new Vector2(w, t));
-                var spr = new Sprite2D
-                {
-                    Texture = at,
-                    Centered = false,
-                    TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
-                    Position = origin + new Vector2(c * t, row * t),
-                    ZIndex = TerrainZ,
-                };
-                parent.AddChild(spr);
-            }
-        }
+        _waveCount += 1;
+        SaveData.SetCurrentWaves(_waveCount);   // live HUD counter (survival metric)
+        for (int i = 0; i < EnemiesPerWave && _alive < MaxAlive; i++)
+            SpawnOne(SpawnPool[GD.Randi() % (uint)SpawnPool.Length]);
     }
 
-    private void ScatterPlants(Node parent, Vector2 origin, float width, float density)
+    /// <summary>Spawn ONE enemy from a kit: proximity-place it (near/overhead/far by type, never on the player), puff +
+    /// wire its died/damaged signals, and count it toward the cap.</summary>
+    private void SpawnOne(GDict kit)
     {
-        var ps = Terrain.PlantsSheet();
-        if (ps == null)
+        Vector2 pos = SpawnPosition(kit, _playerSpawn);
+        SpawnFx(pos);
+        var enemy = SpawnEnemy(kit, pos);
+        if (enemy == null)
             return;
-        int slots = (int)(width / Terrain.TILE);
-        for (int i = 0; i < slots; i++)
-        {
-            if (GD.Randf() > density)
-                continue;
-            Vector2I cell = GD.Randf() < 0.2f
-                ? Terrain.MUSHROOM_CELL
-                : Terrain.PLANT_CELLS[(int)(GD.Randi() % (uint)Terrain.PLANT_CELLS.Length)];
-            var spr = new Sprite2D
-            {
-                Texture = Terrain.CellTexture(ps, cell),
-                Centered = false,
-                TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
-                Position = origin + new Vector2(i * Terrain.TILE + GD.Randf() * 6.0f, -Terrain.TILE),
-                ZIndex = PlantZ,
-            };
-            parent.AddChild(spr);
-        }
+        var e = enemy; // stable capture for the bound handlers
+        enemy.Connect(Enemy.SignalName.died, Callable.From(() => OnEnemyDied(e)));
+        enemy.Connect(Enemy.SignalName.damaged, Callable.From((float amount, Node source) => OnEnemyDamaged(amount, source, e)));
+        if (!enemy.optional)
+            _alive += 1;
     }
 
-    private void PlaceTrees()
+    // Proximity-spawn tuning (px). Ground grunts appear within a fair band — far enough that the player can react,
+    // never on top of him; stationary enemies (Nasen) much farther; flyers (Ein) overhead with dodge room.
+    private const float GroundSpawnMin = 170.0f;
+    private const float GroundSpawnMax = 440.0f;
+    private const float StationarySpawnMin = 500.0f;
+    private const float StationarySpawnMax = 920.0f;
+    private const float FlyerHeightMin = 130.0f;
+    private const float FlyerHeightMax = 210.0f;
+    private const float FlyerXSpread = 90.0f;
+
+    /// <summary>Where to drop this enemy relative to the player: flyers overhead (with headroom), stationary far on a
+    /// ground tile, grunts near on a ground tile — always at least the min band away. <paramref name="fallback"/> is
+    /// the authored spec position, used only if the layout has no usable ground tiles.</summary>
+    private Vector2 SpawnPosition(GDict kit, Vector2 fallback)
     {
-        if (Terrain.TreeTexture(0) == null)
-            return;
-        float[] spots = { -360.0f, 240.0f, -80.0f };
-        for (int i = 0; i < Mathf.Min(2, spots.Length); i++)
+        Vector2 player = _player?.GlobalPosition ?? Vector2.Zero;
+        if (kit.ContainsKey("air") && kit["air"].AsBool())
         {
-            var tex = Terrain.TreeTexture(_levelIndex + i);
-            if (tex == null)
-                continue;
-            var spr = new Sprite2D
-            {
-                Texture = tex,
-                Centered = false,
-                TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
-                Position = new Vector2(spots[i] - tex.GetWidth() / 2.0f, -tex.GetHeight()),
-                ZIndex = TreeZ,
-            };
-            AddLeafFall(spr, tex.GetWidth(), tex.GetHeight());
-            _content.AddChild(spr);
+            float x = player.X + (float)GD.RandRange(-FlyerXSpread, FlyerXSpread);
+            float up = (float)GD.RandRange(FlyerHeightMin, Mathf.Max(FlyerHeightMin, HeadroomAbove(player)));
+            return new Vector2(x, player.Y - up);
         }
+        bool stationary = kit.ContainsKey("movement") && kit["movement"].AsInt32() == (int)EnemyMovement.Stationary;
+        float min = stationary ? StationarySpawnMin : GroundSpawnMin;
+        float max = stationary ? StationarySpawnMax : GroundSpawnMax;
+        return PickGroundSurface(player.X, min, max) ?? fallback;
     }
 
-    /// <summary>
-    /// Attach a gently-falling "leaves" particle emitter to a tree. The tree sprite is Centered=false, so its LOCAL
-    /// space runs (0,0) top-left → (w,h) bottom-right; leaves spawn across the CANOPY band up top and drift down.
-    /// This is a plain <c>CpuParticles2D</c> — every knob below is a dial you can tune (or copy for other props).
-    /// </summary>
-    private static void AddLeafFall(Node2D tree, float w, float h)
+    /// <summary>Clear vertical space above <paramref name="from"/> up to <see cref="FlyerHeightMax"/> — so a flyer isn't
+    /// spawned inside a ceiling. Returns how high it can safely sit.</summary>
+    private float HeadroomAbove(Vector2 from)
     {
-        var leafTex = GD.Load<Texture2D>("res://vfx/shared/textures/soft_dot.png"); // swap for a real leaf sprite later
-        var leaves = new CpuParticles2D
-        {
-            Emitting = true,          // run continuously
-            LocalCoords = false,      // leaves keep falling in WORLD space (don't snap to the tree)
-            ZIndex = TreeZ + 1,       // in front of the trunk
-            Texture = leafTex,
-
-            // WHERE they're born: a rectangle across the top of the canopy.
-            EmissionShape = CpuParticles2D.EmissionShapeEnum.Rectangle,
-            EmissionRectExtents = new Vector2(w * 0.42f, h * 0.18f), // half-size of the spawn band
-            Position = new Vector2(w * 0.5f, h * 0.26f),             // centred over the canopy (tree-local)
-
-            // HOW MANY / HOW LONG: sparse + slow = calm, not a blizzard.
-            Amount = 10,              // leaves alive at once — raise for denser fall
-            Lifetime = 5.0,          // seconds each leaf lives (how long it falls)
-            Explosiveness = 0.0f,    // 0 = steady trickle; 1 = all at once (bursts)
-            Preprocess = 3.0,        // start mid-fall so leaves are already drifting when a level loads
-
-            // MOTION: a floaty downward fall with sway + tumble.
-            Direction = new Vector2(0, 1), // down
-            Spread = 30.0f,                // ± degrees of fan-out
-            Gravity = new Vector2(0, 24),  // gentle pull (low = leaf-light; raise = heavier fall)
-            InitialVelocityMin = 6.0f,
-            InitialVelocityMax = 18.0f,
-            DampingMin = 6.0f,             // air resistance — slows them so they *drift*, not plummet
-            DampingMax = 12.0f,
-            AngularVelocityMin = -70.0f,   // tumble/spin (deg/s)
-            AngularVelocityMax = 70.0f,
-
-            // SIZE: small motes.
-            ScaleAmountMin = 0.15f,
-            ScaleAmountMax = 0.35f,
-        };
-        // LOOK over life: born a soft violet, fade to transparent electric-blue as they settle (Arcane-Void palette).
-        var ramp = new Gradient();
-        ramp.SetColor(0, new Color(0.72f, 0.45f, 1.0f, 0.9f));
-        ramp.SetColor(1, new Color(0.45f, 0.55f, 1.0f, 0.0f));
-        leaves.ColorRamp = ramp;
-        tree.AddChild(leaves);
+        var space = GetWorld2D()?.DirectSpaceState;
+        if (space == null)
+            return FlyerHeightMax;
+        var q = PhysicsRayQueryParameters2D.Create(from, from + new Vector2(0.0f, -(FlyerHeightMax + 16.0f)), (uint)Combat.Layer.World);
+        var hit = space.IntersectRay(q);
+        if (hit.Count == 0)
+            return FlyerHeightMax;
+        return Mathf.Clamp(from.Y - hit["position"].As<Vector2>().Y - 14.0f, FlyerHeightMin * 0.5f, FlyerHeightMax);
     }
 
-    // --- spawning + waves -----------------------------------------------------
-
-    private void SpawnGroup(GArr specs, bool withFx)
+    /// <summary>A random exposed ground-tile position whose horizontal distance from <paramref name="fromX"/> is in
+    /// [min,max]; if none fall in that band, the nearest tile that is still ≥ min away (so it's never adjacent to the
+    /// player); null only if the layout has no ground tiles at all.</summary>
+    private Vector2? PickGroundSurface(float fromX, float min, float max)
     {
-        // Positions come from the LAYOUT's spawn markers (ground for walkers, air for flyers), assigned round-robin.
-        // The roster (WHICH enemies) is the shared per-level data; each spec's own `pos` is only a fallback.
-        var ground = _layout?.GroundSpawns() ?? new System.Collections.Generic.List<Vector2>();
-        var air = _layout?.AirSpawns() ?? new System.Collections.Generic.List<Vector2>();
-        int gi = 0, ai = 0;
-        foreach (Variant specV in specs)
+        var surfaces = _layout?.GroundSurfaces();
+        if (surfaces == null || surfaces.Count == 0)
+            return null;
+        var band = new System.Collections.Generic.List<Vector2>();
+        Vector2? nearestFair = null;
+        float nearestFairScore = float.MaxValue;
+        Vector2 farthest = surfaces[0];
+        float farthestD = -1.0f;
+        foreach (Vector2 s in surfaces)
         {
-            var spec = specV.As<GDict>();
-            var kit = spec["kit"].As<GDict>();
-            bool isAir = kit.ContainsKey("air") && kit["air"].AsBool();
-            Vector2 pos;
-            if (isAir && air.Count > 0)
-                pos = air[ai++ % air.Count];
-            else if (ground.Count > 0)
-                pos = ground[gi++ % ground.Count];
-            else
-                pos = spec["pos"].As<Vector2>(); // no markers → fall back to the authored position
-            if (withFx)
-                SpawnFx(pos);
-            var enemy = SpawnEnemy(kit, pos);
-            if (enemy != null)
-            {
-                var e = enemy; // stable per-iteration capture for the bound handlers
-                enemy.Connect(Enemy.SignalName.died, Callable.From(() => OnEnemyDied(e)));
-                enemy.Connect(Enemy.SignalName.damaged, Callable.From((float amount, Node source) => OnEnemyDamaged(amount, source, e)));
-                if (!enemy.optional)
-                    _alive += 1;
-            }
+            float d = Mathf.Abs(s.X - fromX);
+            if (d >= min && d <= max)
+                band.Add(s);
+            if (d >= min && d < nearestFairScore) { nearestFairScore = d; nearestFair = s; }
+            if (d > farthestD) { farthestD = d; farthest = s; }
         }
+        if (band.Count > 0)
+            return band[(int)(GD.Randi() % (uint)band.Count)];
+        return nearestFair ?? farthest; // band empty → closest tile still ≥min; if even that fails, the farthest we have
     }
 
     private Enemy SpawnEnemy(GDict kit, Vector2 pos)
@@ -425,10 +325,22 @@ public partial class RunManager : Node2D
             else
                 enemy.Set(k, kit[key]);
         }
+        // FadaFig drop count defaults from the advisory tier unless the kit set fada_fig_drop explicitly (Wardens do).
+        if (!kit.ContainsKey("fada_fig_drop") && kit.ContainsKey("tier"))
+            enemy.fada_fig_drop = FadaFigsForTier((EnemyTier)kit["tier"].AsInt32());
         enemy.Position = pos;
         _content.AddChild(enemy);
         return enemy;
     }
+
+    /// <summary>Default fada_figs dropped by an enemy of a given advisory tier (Wardens override via their kit).</summary>
+    private static int FadaFigsForTier(EnemyTier tier) => tier switch
+    {
+        EnemyTier.Chip => 1,
+        EnemyTier.Mid => 2,
+        EnemyTier.Strong => 3,
+        _ => 1,
+    };
 
     private void SpawnFx(Vector2 pos)
     {
@@ -445,11 +357,43 @@ public partial class RunManager : Node2D
 
     private void OnEnemyDied(Enemy enemy)
     {
-        if (enemy.optional)
+        // Death fires INSIDE a physics query flush (Hitbox callback), where adding a RigidBody is illegal
+        // ("Can't change this state while flushing queries"). Capture the values (the enemy frees) + defer the drops.
+        Vector2 at = enemy.GlobalPosition;
+        int figs = enemy.fada_fig_drop;
+        bool buff = GD.Randf() < BuffDropChance();  // ramping chance, rolled at death (optional enemies drop too, if killed)
+        Callable.From(() =>
+        {
+            SpawnFadaFigs(at, figs);
+            if (buff)
+                SpawnBuffDrop(at);
+        }).CallDeferred();
+        if (!enemy.optional)
+            _alive -= 1;   // free a slot in the concurrency cap
+    }
+
+    /// <summary>Current buff-drop chance — ramps from <see cref="BuffDropBase"/> up to <see cref="BuffDropCap"/> as waves
+    /// accrue (steady early → richer as the run wears on). A steady rate for now; retuned when seals arrive.</summary>
+    private float BuffDropChance() => Mathf.Min(BuffDropCap, BuffDropBase + BuffDropStep * _waveCount);
+
+    private void SpawnBuffDrop(Vector2 at)
+    {
+        var drop = new BuffDrop();
+        _content.AddChild(drop);
+        PlaceAt(drop, at + new Vector2(0, -12));
+    }
+
+    /// <summary>Scatter <paramref name="count"/> collectible fada_figs out of a corpse (they bounce, roll, and settle).</summary>
+    private void SpawnFadaFigs(Vector2 at, int count)
+    {
+        if (_fadaFigScene == null)
             return;
-        _alive -= 1;
-        if (_alive <= 0 && !_transitioning && !_cleared)
-            Callable.From(AdvanceBatch).CallDeferred();
+        for (int i = 0; i < count; i++)
+        {
+            var fada_fig = _fadaFigScene.Instantiate<Node2D>();
+            _content.AddChild(fada_fig);
+            PlaceAt(fada_fig, at + new Vector2((float)GD.RandRange(-10, 10), -12));
+        }
     }
 
     private void SpawnRuhOrb(Vector2 at, bool completedCharge)
@@ -463,34 +407,6 @@ public partial class RunManager : Node2D
         orb.Call("launch", _player, completedCharge);
     }
 
-    private void AdvanceBatch()
-    {
-        if (_alive > 0 || _transitioning || _cleared)
-            return;
-        if (!SpawnNextWave())
-        {
-            _cleared = true;
-            CelebrateClear();
-            _sfx.play("level_cleared");
-            _music.play("base_rest");
-        }
-        else if (_alive <= 0)
-        {
-            Callable.From(AdvanceBatch).CallDeferred();
-        }
-    }
-
-    private void CelebrateClear()
-    {
-        Engine.TimeScale = ClearSlowmoScale;
-        var t = CreateTween().SetIgnoreTimeScale(true);
-        t.TweenInterval(ClearSlowmoHold);
-        t.TweenMethod(Callable.From<float>(SetTimeScale), ClearSlowmoScale, 1.0f, ClearSlowmoRamp)
-            .SetTrans(Tween.TransitionType.Sine).SetEase(Tween.EaseType.Out);
-    }
-
-    private static void SetTimeScale(float v) => Engine.TimeScale = v;
-
     private void OnEnemyDamaged(float amount, Node source, Enemy enemy)
     {
         if (_player != null && source == _player)
@@ -503,53 +419,14 @@ public partial class RunManager : Node2D
         }
     }
 
-    private bool SpawnNextWave()
-    {
-        var waves = Level(_levelIndex)["waves"].As<GArr>();
-        if (_waveIndex >= waves.Count)
-            return false;
-        SpawnGroup(waves[_waveIndex].As<GArr>(), true);
-        _waveIndex += 1;
-        return true;
-    }
-
-    // --- exit gate -> reward -> next level -------------------------------------
-
-    private void OnGateTouched()
-    {
-        if (_transitioning || _player == null || !_cleared)
-            return;
-        _transitioning = true;
-        OfferReward();
-    }
-
-    private void OfferReward()
-    {
-        var ui = new RewardUI();
-        AddChild(ui);
-        ui.chosen += OnRewardChosen;
-        ui.Open(new Rewards().offer_for(_doorType, _player, RewardsOffered), _doorType);
-    }
-
-    private void OnRewardChosen(string id)
-    {
-        new Rewards().apply(id, _player);
-        _clearedThisRun += 1;
-        SaveData.SetCurrentCleared(_clearedThisRun);
-        if (_levelIndex >= LevelCount() - 1)
-            RestartRun();
-        else
-            BuildLevel(_levelIndex + 1);
-    }
+    // --- run restart (on death) -----------------------------------------------
 
     private void RestartRun()
     {
         Engine.TimeScale = 1.0;
-        SaveData.ReportRun(_clearedThisRun);
-        _clearedThisRun = 0;
-        SaveData.SetCurrentCleared(0);
+        SaveData.ReportRun(_waveCount);   // persist a new best (most waves survived) before the arena resets
         _deadPrev = false;
-        BuildLevel(0);
+        BuildArena();
         if (_player != null)
         {
             _player.begin_run();
@@ -790,7 +667,7 @@ public partial class RunManager : Node2D
     {
         if (@event.IsActionPressed("debug_respawn"))
         {
-            BuildLevel(_levelIndex);
+            BuildArena();
             return;
         }
         if (_player == null)
@@ -812,7 +689,4 @@ public partial class RunManager : Node2D
         node.GlobalPosition = pos;
         node.ResetPhysicsInterpolation();
     }
-
-    private static CollisionShape2D MakeBox(Vector2 size, Vector2 offset) =>
-        new() { Shape = new RectangleShape2D { Size = size }, Position = offset };
 }

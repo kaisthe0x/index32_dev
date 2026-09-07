@@ -111,7 +111,10 @@ public partial class SleeperEnemy : Enemy
     /// <summary>The rage AoE: the `aoe` Strike scene centred on us, our rage numbers injected.</summary>
     private void SpawnRageAoe()
     {
-        SpawnAttack(VfxScene("aoe"),
+        var node = SpawnAttack(VfxScene("aoe"),
             new SegmentData { Damage = rage_damage, Knockback = rage_knockback }, false, VfxPos("aoe"));
+        if (conform_ground && node != null)
+            GroundContour.Conform(node, GetWorld2D()?.DirectSpaceState); // ground-band flames hug the slope, like the slam
+
     }
 }

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b6fcd6il7belk"
-path="res://.godot/imported/ground_plants-Sheet.png-a22471156ba18bd5df1bcca6acb2319d.ctex"
+uid="uid://uwdg5vhd1klx"
+path="res://.godot/imported/man_choking_statue.png-7a868b6aae7491a46c70621acad65626.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/terrain/stage1/ground_plants-Sheet.png"
-dest_files=["res://.godot/imported/ground_plants-Sheet.png-a22471156ba18bd5df1bcca6acb2319d.ctex"]
+source_file="res://assets/terrain/stage1/man_choking_statue.png"
+dest_files=["res://.godot/imported/man_choking_statue.png-7a868b6aae7491a46c70621acad65626.ctex"]
 
 [params]
 

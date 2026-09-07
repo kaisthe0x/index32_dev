@@ -26,7 +26,6 @@ public partial class Player : Combatant
     // --- path templates (mirror CharacterConfig; hardcoded so C# needn't read GDScript consts) ---
     private const string FramesPathTmpl = "res://resources/characters/{0}.tres";
     private const string PortraitPathTmpl = "res://assets/portraits/{0}.png";
-    private static readonly string[] CharacterIds = { "khalid" };
 
     // --- bridged GDScript statics/singletons (cached in _Ready) ---
     private Sfx _sfx = null!;
@@ -452,6 +451,16 @@ public partial class Player : Combatant
     /// <summary>Push the current buff loadout to the HUD's active-buff list (autoload).</summary>
     private void RefreshBuffHud() => GetNodeOrNull<HUD>("/root/HUD")?.RefreshBuffs(_passives);
 
+    /// <summary>FadaFigs banked this run — the Chest currency. Reset by <see cref="begin_run"/>.</summary>
+    public int fada_figs { get; private set; } = 0;
+
+    /// <summary>Collect <paramref name="n"/> fada_fig(s) (a FadaFig touched the player) — bank them + update the HUD.</summary>
+    public void collect_fada_fig(int n = 1)
+    {
+        fada_figs += n;
+        GetNodeOrNull<HUD>("/root/HUD")?.SetFadaFigs(fada_figs);
+    }
+
     public void notify_hit_dealt(float amount, Node target)
     {
         foreach (var p in _passives)
@@ -604,6 +613,20 @@ public partial class Player : Combatant
 
     /// <summary>Zero the dash cooldown so the follow-up dash is free (Chain Dash on-dash).</summary>
     public void reset_dash_cooldown() => _dashCd = 0.0f;
+
+    /// <summary>Global cooldown fairness: an action whose windup is interrupted by a stagger BEFORE its hit came out
+    /// never actually fired, so it shouldn't burn its cooldown. An ATTACK still short of its hit frame
+    /// (<see cref="_segEnd"/>) or a SPECIAL short of its strike frame is "uncommitted" → zero the matching cooldown.
+    /// Called from <see cref="OnHurt"/> the instant a hurt is about to knock the player into HURT (windup cancelled).</summary>
+    private void RefundUncommittedCooldown()
+    {
+        if (_sprite == null)
+            return;
+        if (_state == State.ATTACK && _sprite.Frame < _segEnd)
+            _attackCd = 0.0f;
+        else if (_state == State.SPECIAL && _sprite.Frame < SpecialStrikeFrame())
+            _specialCd = 0.0f;
+    }
 
     // --- DEBUG: playtest the buff catalog (triggered from RunManager's input; REMOVE before release) -------
     private int _debugBuffIdx = 0;
@@ -836,6 +859,7 @@ public partial class Player : Combatant
         float stagger = ApplyKnockback(hit, _facing);
         if (flinch_on_all_damage || stagger > 0.0f)
         {
+            RefundUncommittedCooldown(); // staggered mid-windup: read state BEFORE we leave ATTACK/SPECIAL for HURT
             float flinch = Mathf.Max(stagger, AnimDuration("hurt"));
             if (_state == State.HURT)
                 _stunLeft = Mathf.Max(_stunLeft, flinch);
@@ -1109,6 +1133,8 @@ public partial class Player : Combatant
     {
         _dead = false;
         _deathFinished = false;
+        fada_figs = 0;
+        GetNodeOrNull<HUD>("/root/HUD")?.SetFadaFigs(0);
         EndSurge();
         _shakeLeft = 0.0f;
         if (_sprite != null)

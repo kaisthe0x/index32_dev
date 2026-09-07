@@ -18,13 +18,15 @@ stays fully character-agnostic, so bringing one back is just its assets + data r
 
 Main scene: `scenes/palette_preview.tscn` (the pre-game colour pickers) — press F5; picking a look loads the run scene `scenes/arena.tscn` (root `RunManager`). To jump straight into a run, open `scenes/arena.tscn` and press F6.
 
-**Game premise & the run loop:** *(current/old loop — being replaced, see the pivot banner above +
+**Game premise & the run loop:** *(mid-migration toward the pivot — see the banner above +
 [`docs/game-loop.md`](docs/game-loop.md))* see [`docs/game-design.md`](docs/game-design.md) — a roguelite
-arena crawler: clear each level's enemy batches, cast **specials** (now **free and unlimited**), and
+arena crawler. **Levels/exits are retired:** it's now ONE endless arena where enemies **trickle in at a
+steady rate** from a mixed roster and you survive. Cast **specials** (now **free and unlimited**), and
 spend **Ruh** on your **Aegis** surge for an on-demand burst of invincibility (each use costs one
 **Ruh** charge — you start a run with 3, and refill Ruh by **landing hits**; Ruh is the only gate, no
-cooldown), then pick a buff at one random **reward door** per level. Attack is chosen at run start and
-locked; die and the run restarts.
+cooldown). Killing enemies drops **Fada Figs** + (at a ramping chance) a random **buff** you grab off the
+ground. Attack is chosen at run start and locked; die and the run restarts. *(The old reward-door / next-level
+machinery is parked, not wired — see `scripts/run/README.md`.)*
 
 > Potential names for the game:
 > - Index32
@@ -43,7 +45,7 @@ resources/characters/ GENERATED SpriteFrames -- do not hand-edit
 resources/enemies/    GENERATED enemy SpriteFrames -- do not hand-edit
 scenes/               player, level, hud
 scripts/              player, hud
-scripts/run/          the roguelite run: levels, batches, Ruh, reward doors, attack picker (see scripts/run/README.md)
+scripts/run/          the roguelite run: continuous arena, steady spawner, Ruh, buff drops, attack picker (see scripts/run/README.md)
 scripts/abilities/    Passive/Buff base (C#) + reward passives (Leech/ParryMend/ReaperEdge.cs) + reward-tier/trigger types (RewardTypes.cs)
 scripts/combat/       Hurtbox, hitbox, Combatant base, health bar, floating text, status overlay — all C# now (constants -> configs/Combat.cs)
 scripts/enemies/      Enemy base + projectile
@@ -114,28 +116,25 @@ debug damage/heal, `0` rebuild-level) live in that same file.
 
 **The game is a roguelite run** (premise: [`docs/game-design.md`](docs/game-design.md)). At run start
 you **pick an attack** (locked for the run; scrollable picker built to scale to 12+). You drop into
-low, mostly-horizontal **arena levels** that spawn enemies in **escalating batches**. You **start each
+a low, mostly-horizontal **endless arena** that **trickles enemies in at a steady rate** (a mixed roster,
+proximity-spawned near you — capped so it never floods). You **start each
 run with 3 Ruh charges** — the surge meter, shown in charges (100 each), no decay — and refill it by
 **landing hits** (~5 hits = 1 charge; kills don't count, and a special's own hits don't self-pay).
 **Specials are now free and unlimited** (only a tiny anti-spam lag). Ruh instead fuels the **Aegis
 surge** (a passive on its own button): it grants ~5s of invincibility on demand without interrupting
 you, and **each use spends one Ruh charge** — Ruh is the only gate, no cooldown (see below). **HP is separate**: damage hits it only, heals
-*only* from rewards. Clear every batch → the **reward door** opens (one random type per level: **Health
-/ Athletic / Attack / Special**, each iconned) → **pick one buff** → next level. The instant the **last
-required** enemy falls and the exit unlocks, a brief **"you did it!" slow-motion** plays
-(`RunManager._celebrate_clear` drops `Engine.time_scale` and ramps it back via a real-time tween) —
-**optional** enemies (Nasen) never trigger it, since only required kills reach the clear. Moves are
-independent — they **upgrade by layering buffs**, not by turning into a different move (Dual Executioner
-& Redere Frisbee are now standalone swaps, not successors). Rewards are **build-aware** — a reward can
-`require` something equipped (a per-move buff like *Reaper's Edge* only shows once Twin Reaper is),
-weight its odds by `synergy`, or grant a **behavioural passive / buff** (Leech) — see the
-*Passives, abilities & buffs* section + [`configs/RewardsCatalog.cs`](configs/RewardsCatalog.cs). Take 0
-HP and the run restarts. All of this — the 5 levels, the enemy roster, the reward pools, the attack
-picker — lives in [`scripts/run/`](scripts/run/README.md) (`RunManager` is `arena.tscn`'s root;
-`Levels` / `EnemyKits` / `Rewards` / `RewardsCatalog` / `Build` / `Icons` are the data + logic). The `.tscn` stays minimal because the editor
-clobbers it, so the level content is built in code from that data. The **look** is a 32px tileset
-skin ([`configs/Terrain.cs`](configs/Terrain.cs)) stamped as sprites over the colliders — tiled
-neon terrain, ground plants, tree props — art in `assets/terrain/`, gameplay unchanged.
+*only* from buffs. **Killing an enemy** always drops **Fada Figs** (the run currency) and, at a chance that
+**ramps from 40% up to a 70% cap** as the run wears on, a **`BuffDrop`** — a glowing orb you touch to gain a
+random generally-useful buff (tier weighted low; move-gated buffs stay out of the drop pool so a pickup is
+never wasted). Moves are independent — they **upgrade by layering buffs**, not by turning into a different move
+(Dual Executioner & Redere Frisbee are now standalone swaps, not successors). Take 0 HP and the run restarts
+(a fresh arena; buffs cleared, HP + Ruh refilled). All of this — the spawner, the enemy roster, the buff pool,
+the attack picker — lives in [`scripts/run/`](scripts/run/README.md) (`RunManager` is `arena.tscn`'s root;
+`EnemyKits` is the roster, `BuffDrop` + `BuffCatalog` the drops; the old `Levels` / `Rewards` / `RewardsCatalog`
+/ `Build` reward-door code is **parked, not wired**, kept for the pivot's reward phase). The `.tscn` stays minimal because the editor
+clobbers it, so the level content is built in code from that data. The **look** of the terrain itself is the
+hand-painted `TileMapLayer` in each stage layout (see the run README); the old procedural tileset/plant/tree
+"skin" is **retired**, and `configs/Terrain.cs` now only holds the backdrop config.
 The **background** (`RunManager.BuildBg`/`LayoutBg`, on a `-100` CanvasLayer) is a **single** star image
 (`assets/terrain/stage1/bg1.png`, no tiling) centred and scaled to `Terrain.BackgroundZoom` of the viewport
 (**1.0 = fills**, lower = zoomed out a little, over a dark backing sampled from the image's own edge so the
@@ -143,6 +142,18 @@ gap never reads as a cut). Over it sits an optional **animated element** — an 
 (`stage1/planet_moon.png`, a 10-frame 48px strip) placed by `BackgroundAnimRatio` *within the image's rect*
 and scaled to match it. Both live in `Terrain.cs`, re-layout on viewport resize, under the per-level colour
 tint (`BackgroundTintAlpha`).
+
+**Fada Figs** — the collectible run currency (the Chest spends these; the old "Lira" idea is retired). Every enemy
+drops some on death: `RunManager.OnEnemyDied` → `SpawnFadaFigs` scatters `Enemy.fada_fig_drop` copies of
+[`scenes/fada_fig.tscn`](scenes/fada_fig.tscn) ([`scripts/collectibles/FadaFig.cs`](scripts/collectibles/FadaFig.cs), a
+`RigidBody2D`) which pop out, bounce/tumble, and settle on the terrain. The player collects one by **physically
+touching** it — the Fada Fig's child `Pickup` Area detects the `PlayerBody`, calls `Player.collect_fada_fig`, plays
+`fada_fig_collect` (placeholder sfx), and frees. `FadaFig.magnetize(target)` is a ready hook for a FUTURE reward that
+makes loose Fada Figs fly to the player like a Ruh soul (not wired yet). Drop counts default by advisory
+`EnemyTier` (`RunManager.FadaFigsForTier`: Chip 1 / Mid 2 / Strong 3), overridable per kit — **Wardens drop 12**
+(`KROJ` kit). The banked total shows on the HUD next to the Ruh meter (`HUD.SetFadaFigs`); `Player.begin_run` zeroes it.
+The sprite wears a shared **`vfx/shaders/world/pulse_glow.gdshader`** material (assigned in `FadaFig._Ready`, one
+instance for all Fada Figs) that breathes its brightness above 1.0 so it **blooms** — reads as an energy mote and pops.
 
 ---
 
@@ -582,6 +593,28 @@ Slam **particles** are authored per character in `EmittersCharacters` under the 
 animation: a `sustained` wind-streak trail on the descent frames (`0–2`) and a `burst`
 on the impact frames (`3–4`). Keep those frame ranges consistent so `slam_hold_frame`
 (the last descent frame) lines up.
+
+**Ground attacks hug the terrain.** Two shared building blocks in `scripts/combat/`:
+[`GroundProbe`](scripts/combat/GroundProbe.cs) (`TryAt` — one downward `World` ray → surface point +
+normal, the single "where's the ground here?") and [`GroundContour`](scripts/combat/GroundContour.cs)
+(walks `GroundProbe` across a width into one contiguous contour centred on the impact, stopping at the
+first gap each side so an effect doesn't leap a pit). Used three ways:
+
+- **Static bursts (`conform_to_ground`)** — the slam + Ground Breaker emitter rows flag it;
+  `ParticleDirector` calls `GroundContour.Conform(node, space)` at spawn. Each Rectangle **emitter** is
+  switched to `DirectedPoints` (contour as `emission_points` + `emission_normals`, so dust erupts
+  perpendicular to the slope); each box **hitbox** swaps its rect for a `CollisionPolygon2D` **band**
+  following the contour (as tall as the rect). No ground → the burst is discarded. (Replaced the old
+  horizontal-only `clip_to_ground`, a no-op on the TileMapLayer.)
+- **Enemy static AoEs (`conform_ground` kit flag)** — Matat sets it (`Enemy.SpawnMeleeStrike`) and Nasen
+  sets it (`SleeperEnemy.SpawnRageAoe` — the sleeper spawns its rage aoe on its own path, not the melee one);
+  each runs the *same* `GroundContour.Conform` on the spawned `AoeStrike`. (Enemies bypass `ParticleDirector`,
+  hence a kit flag rather than an emitter-row flag — but one conform path. Any new enemy attack spawned by a
+  bespoke method must call `GroundContour.Conform` itself to honour the flag.)
+- **Traveling wave (`Projectile.ground_follow`)** — Baghel's `ground_wave` `far_mode` sets it; each
+  `_PhysicsProcess` the projectile `GroundProbe.TryAt`s under itself, snaps its Y to the surface
+  (`ground_follow_offset` above it) and tilts to the normal, so the wave ripples up/down slopes as it
+  rolls; it runs off a ledge → `Expire`. Facing stays on `Scale.X`, tilt on `Rotation`.
 
 **Slam needs room below (`slam_min_clearance`, 50px).** The air press only slams when
 the nearest platform *straight down* is at least `slam_min_clearance` away — a ray from
@@ -1080,11 +1113,11 @@ Background **music** has its own sibling autoload, **`Music`** (`scripts/audio/M
 player while the new one fades in on the other, **always started from the top** — so switching beds is
 smooth and re-entering a level restarts its music fresh. `Music.stop()` fades to silence;
 `Music.pause()`/`resume()` freeze/continue at position. `.mp3`/`.ogg`/`.wav` are all force-looped.
-Register tracks in `Music.TRACKS`. In the run: the `"level"` bed starts (from the top) on every level
-via `RunManager._build_level`; on a **level clear** it crossfades to the calm **`"base_rest"`** bed
-(with a `level_cleared` cue) while the exit/reward is open, and that **crossfades back out** as the next
-level builds. Plays on a `"Music"` bus if present (else Master), and is a silent no-op until the file
-exists. Same "drop a file, add one line" workflow as `Sfx`.
+Register tracks in `Music.TRACKS`. In the run: the `"level"` bed starts (from the top) when the arena
+builds via `RunManager.BuildArena` (and again on a death-restart). *(The old `"base_rest"` clear/exit
+crossfade is gone with levels; that track is registered but no longer triggered by the run.)* Plays on a
+`"Music"` bus if present (else Master), and is a silent no-op until the file exists. Same "drop a file,
+add one line" workflow as `Sfx`.
 
 - **The one place to check what sounds we use:** each config's **`CUES`** dict — a `key → path`
   master list per area. **Paths live only there**; nothing else hardcodes a `res://sfx/…` path.
@@ -1280,15 +1313,18 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
 - **`contact_damage`** (default **0 = off**): when set, touching the player
   deals it on `contact_interval`. Also per-instance.
 - **The far attack** fires from the **muzzle** (the `Emitters` config `<id> → projectile → pos`) on the
-  animation's hit frame (`hit_frames` metadata). Three `far_mode`s:
-  - `"aimed"` — a `scripts/combat/Projectile.cs` that points at the player's torso **the moment it fires**
-    (Kebus' staff bolt). The shot doesn't steer after that (`homing = 0` for enemies), but
-    that fire-time aim is what reads as "homing." **To stop enemies tracking you, set
-    `far_mode = "forward"`** (per instance / roster entry). Separately, `aggro`
-    (default off) is what makes an enemy *chase* — leave it off to have them guard.
-  - `"forward"` — a `scripts/combat/Projectile.cs` that surges straight ahead in the enemy's facing for
-    `far_travel` px then fizzles, hitting whatever it passes — ignores where you are
-    (Baghel's red energy). The look comes from the Emitters `projectile` scene.
+  animation's hit frame (`hit_frames` metadata). Four `far_mode`s:
+  - `"aimed"` (the default) — a `scripts/combat/Projectile.cs` that fires at the player's **body** and
+    **tracks their elevation** at fire time (`can_fly_up` + `rotate_to_heading`, so it can angle up/down at a
+    player a level away and points along its flight). **`far_aim_cap`** clamps the tilt to ±that° off horizontal
+    (Kebus = 45), so a player far above/below never makes the shot near-vertical — it just fires at the cap.
+    Pair with a wide **`attack_align_y`** (Kebus = 120) so he'll *engage* across levels, not only when level with you.
+    The shot doesn't steer after firing (`homing = 0`). Kebus' staff bolt.
+  - `"forward"` — a straight, **non-tracking** bolt: flies dead ahead in the enemy's facing for `far_travel`
+    px then fizzles, ignoring where you are. (Use it for a dumb straight shooter; `aggro` still governs chasing.)
+  - `"ground_wave"` — a `Projectile` that rolls forward along the ground and **hugs the terrain surface**
+    (`ground_follow`, + a scorch `ground_trail`), rippling up/down slopes; fizzles at `far_travel` or when
+    it runs off a ledge — Baghel's red energy surge.
   - `"lob"` — a **`LobProjectile`** (`scripts/combat/LobProjectile.cs`), a *thrown bomb*
     (Mazab). It arcs out of the muzzle **aimed** at a spot next to the player (`lob_land_offset`,
     biased toward the thrower), then **flies ballistically** until it lands on a real surface,
@@ -1642,7 +1678,10 @@ lunge/armor. A **null** `hit` (empty `segments`) means "the effect scene carries
   director world-parents them at the muzzle and reads facing from `scale.x` so they fly
   off. Khalid's **Cherry Shots** fires two — a small bolt on frame 3, a big one on frame 7,
   each its own per-frame file (`attack_cherry_shots_3/_7.tscn`), a red laser `Line2D` bolt
-  with its own damage from the tuning array.
+  with its own damage from the tuning array. Both **home on the closest enemy ahead**: the
+  emitter rows `set` `homing = 8` + `can_fly_up` (overriding the scenes' `homing = 0`), so each
+  shot acquires the nearest target via `Projectile.NearestTargetAhead` and steers into it,
+  including one a level up (`can_fly_up` skips the `vertical_reach` gate + allows upward steering).
 - A character with **no effect scene** for an attack deals no damage (Khalid, for now);
   a character with an **empty specials pool** (`Actions.get_action` returns null) simply can't
   special — the button no-ops.
@@ -1655,18 +1694,17 @@ through projectiles and attacks unharmed.
 
 ### Spawning & the run
 
-`scripts/run/RunManager.cs` (`RunManager`, the level-scene root) builds each level in code
-from the `Levels` data, to avoid clobbering `level.tscn` while the editor holds it open. See
-[`scripts/run/README.md`](scripts/run/README.md) for the full loop; the build basics:
+`scripts/run/RunManager.cs` (`RunManager`, the `arena.tscn` root) builds ONE continuous arena in code, then
+trickles enemies in at a steady rate. See [`scripts/run/README.md`](scripts/run/README.md) for the full loop;
+the build basics:
 
-- **Platforms** — per level `[center_x, top_y, width]`, one-way `StaticBody2D`s on the world
-  layer — a handful of **low** ledges (no staircase to climb). One-way means you jump up
-  *through* them and land on top.
-- **Enemies** — each level's `start` + escalating `waves` are `{kit, pos}` specs. A **kit**
-  (`EnemyKits.KEBUS`, …) is either an `id` (built from the generic `enemy.tscn` with that
-  `enemy_id`) or a `scene` (a custom enemy — `nasen.tscn` sleeper, `ein.tscn` kamikaze), plus
-  any Enemy `@export` overrides. `RunManager._spawn_enemy` applies them; the enemy's `died`
-  signal banks Ruh (unless the kill was by the special) and counts toward clearing the arena.
+- **Terrain** — a hand-painted `TileMapLayer` with per-tile collision, loaded from a random `stage1_v*.tscn`
+  layout (see the run README + `docs/painting-levels.md`). Its exposed ground tops feed proximity spawning.
+- **Enemies** — `SpawnWave()` fires every `SpawnInterval`, picking `EnemiesPerWave` **kits** at random from
+  `RunManager.SpawnPool` (up to a `MaxAlive` cap). A **kit** (`EnemyKits.KEBUS`, …) is either an `id` (built
+  from the generic `enemy.tscn` with that `enemy_id`) or a `scene` (a custom enemy — `sleeper_enemy.tscn`,
+  `diver_enemy.tscn`), plus any Enemy `@export` overrides. `RunManager.SpawnEnemy` applies them; the enemy's
+  `died` signal frees a cap slot and rolls the Fada-Fig + buff drops.
   On a Ruh-granting kill it also pops a **Ruh soul** (`vfx/shared/ruh_orb/`, `RuhOrb`): a glowing
   crimson orb that flies a **curved, parabolic path** to the player — a quadratic Bezier from the
   death spot to the player's live position, bowed by `arc_height` — always reaching him at the end
@@ -1768,8 +1806,8 @@ instead of a fixed fps that desyncs the moment speed changes. `run_anim_speed`
   back out** to normal the instant it ends. Because the spawn and death zooms match, a
   death → respawn → spawn stays smoothly zoomed the whole way and only reveals the level
   once you have control. Also in `RunManager` — tune/disable there.
-- **Dev key `0`** rebuilds the current level fresh (`RunManager._build_level`) — a quick way
-  to reset the arena while iterating.
+- **Dev key `0`** rebuilds the arena fresh (`RunManager.BuildArena`) — a quick way
+  to reset while iterating.
 
 ---
 
@@ -1809,13 +1847,12 @@ immune to the zoom. Tunables (`MARGIN`, `SIZE_*`, `FADE_*`, `ALPHA_*`) live at t
 
 ### Persistent record — `SaveData` (`scripts/SaveData.cs`)
 
-The best-ever *levels cleared in one run* survives between sessions. `SaveData` is
+The best-ever *waves survived in one run* survives between sessions (levels are retired). `SaveData` is
 an all-static helper backed by a `ConfigFile` at `user://save.cfg`:
-- `RunManager` counts a level cleared when its exit is paid (`_on_reward_chosen`),
-  writing `SaveData.current_cleared`; on run end (death **or** completion, both via
-  `_restart_run`) it calls `SaveData.report_run(cleared)`, which persists a new best.
-- The HUD reads `SaveData.current_cleared` / `SaveData.levels_record()` each frame
-  (in-memory after the first load — no per-frame disk I/O).
+- `RunManager.SpawnWave` writes `SaveData.SetCurrentWaves(_waveCount)` each tick; on death
+  (`RestartRun`) it calls `SaveData.ReportRun(_waveCount)`, which persists a new best (key `waves_record`).
+- The HUD reads `SaveData.GetCurrentWaves()` / `SaveData.WavesRecord()` each frame
+  (in-memory after the first load — no per-frame disk I/O), shown as `WAVES n · BEST m`.
 
 It's the first thing saved to disk; add future persisted stats as more keys in the
 same file.

@@ -56,7 +56,6 @@ public static class Combat
     /// <summary>A knockback always freezes the victim at least this long, or the AI/input overwrites the shove next frame.</summary>
     public const float MinStagger = 0.18f;
     /// <summary>How long a discrete melee strike's hitbox stays live for one swing.</summary>
-    public const float StrikeActive = 0.12f;
     /// <summary>Red tint a hit flashes, fading back over <see cref="HitFlashTime"/>.</summary>
     public static readonly Color HitFlash = new(1.0f, 0.4f, 0.4f);
     public const float HitFlashTime = 0.16f;

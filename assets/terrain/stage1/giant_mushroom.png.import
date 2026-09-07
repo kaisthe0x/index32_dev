@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bonwchqs3daht"
-path="res://.godot/imported/background.png-b4f74ea891db7d8d29854457aaa7312a.ctex"
+uid="uid://bfoye17x53vnm"
+path="res://.godot/imported/giant_mushroom.png-54d1e902073b2b33b504a6ed00b04827.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/terrain/background.png"
-dest_files=["res://.godot/imported/background.png-b4f74ea891db7d8d29854457aaa7312a.ctex"]
+source_file="res://assets/terrain/stage1/giant_mushroom.png"
+dest_files=["res://.godot/imported/giant_mushroom.png-54d1e902073b2b33b504a6ed00b04827.ctex"]
 
 [params]
 

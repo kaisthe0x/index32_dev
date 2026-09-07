@@ -3,92 +3,49 @@ using Godot;
 namespace MyGame;
 
 /// <summary>
-/// The terrain SKIN — the art that dresses each level: a 32px tileset, ground plants, tree props, an optional
-/// background image. Data + helpers; RunManager does the placing. Missing sheet → flat-colour fallback. C# port
-/// of <c>configs/terrain.gd</c>.
+/// The stage BACKDROP: a full-screen background image (+ an optional animated element) behind the per-level colour
+/// tint. Data + helpers; RunManager places it. C# port of <c>configs/terrain.gd</c>. (The old procedural tileset /
+/// ground-plant / tree "skin" it used to carry is retired — stages are hand-painted layouts now.)
 /// </summary>
 public static class Terrain
 {
-    public const int TILE = 32;
+	// Full-screen background image behind the per-level colour tint. RunManager shows the SINGLE image (no tiling)
+	// scaled to BackgroundZoom of the viewport, centred, over a dark backing sampled from the image's own edge.
+	// 1.0 = fills the screen (the original look); LOWER = zoomed out a little (the starfield sits in a bit more
+	// space). Raising above 1.0 zooms in (the edges crop).
+	public const string BackgroundTexturePath = "res://assets/terrain/stage1/bg1.png";
+	public const float BackgroundZoom = 1.0f;  // bg1 is 640x360 → fills at 1.0 (no border) while still reading zoomed-out
+	public const float BackgroundTintAlpha = 0.4f;
 
-    // Stage 1 art set (assets/terrain/stage1/).
-    private const string SheetPath = "res://assets/terrain/stage1/tileset1-Sheet.png";
-    private const string PlantsSheetPath = "res://assets/terrain/stage1/ground_plants-Sheet.png";
-    private static readonly string[] TREES =
-    {
-        "res://assets/terrain/stage1/neon-tree1.png",
-        "res://assets/terrain/stage1/neon-tree2.png",
-    };
+	// Optional ANIMATED background element (an orbiting planet), drawn over the bg, scaled with the bg's zoom.
+	public const string BackgroundAnimPath = "res://assets/terrain/stage1/planet_moon.png";
+	public const int BackgroundAnimFrameSize = 48;   // square frame side (sheet is a horizontal strip)
+	public const int BackgroundAnimFrameCount = 10;  // 480 / 48
+	public const float BackgroundAnimFps = 6.0f;
+	public static readonly Vector2 BackgroundAnimRatio = new(0.7f, 0.18f);  // its centre as a fraction of the viewport
+	public const float BackgroundAnimScale = 2.0f;   // extra multiplier on top of BackgroundZoom
 
-    // Atlas cells (col,row) by role, from stage1_tileset1 (10x8 @32px). TOP = walkable lip; FILL = body below.
-    // Only fully-opaque cells are pooled (a transparent cell would punch holes in a platform); the sheet's
-    // sparse/partial cells (rows 6-7, a few gaps) are intentionally left out. Placement picks randomly per tile.
-    public static readonly Vector2I[] TOP_CELLS =
-    {
-        new(0, 0), new(1, 0), new(2, 0), new(3, 0), new(4, 0), new(5, 0), new(6, 0), new(7, 0), new(8, 0),
-        new(1, 3), new(2, 3),
-    };
-    public static readonly Vector2I[] FILL_CELLS =
-    {
-        new(0, 1), new(1, 1), new(2, 1), new(3, 1), new(5, 1), new(6, 1), new(7, 1), new(8, 1),
-        new(0, 2), new(1, 2), new(2, 2), new(3, 2), new(5, 2), new(7, 2), new(8, 2),
-        new(5, 3), new(6, 3), new(7, 3), new(8, 3),
-        new(3, 4), new(4, 4), new(5, 4), new(6, 4), new(7, 4), new(8, 4),
-        new(7, 5), new(8, 5),
-        new(7, 6),
-    };
-    public static readonly Vector2I[] PLANT_CELLS = { new(0, 0), new(1, 0) };
-    public static readonly Vector2I MUSHROOM_CELL = new(0, 1);
+	private static Texture2D Load(string path) => ResourceLoader.Exists(path) ? GD.Load<Texture2D>(path) : null;
 
-    public static readonly Color PLATFORM_FALLBACK = new(0.22f, 0.23f, 0.30f);
-    public static readonly Color FLOOR_FALLBACK = new(0.16f, 0.17f, 0.22f);
+	public static Texture2D BackgroundTexture() => Load(BackgroundTexturePath);
 
-    // Full-screen background image behind the per-level colour tint. RunManager shows the SINGLE image (no tiling)
-    // scaled to BackgroundZoom of the viewport, centred, over a dark backing sampled from the image's own edge.
-    // 1.0 = fills the screen (the original look); LOWER = zoomed out a little (the starfield sits in a bit more
-    // space). Raising above 1.0 zooms in (the edges crop).
-    public const string BackgroundTexturePath = "res://assets/terrain/stage1/bg1.png";
-    public const float BackgroundZoom = 1.0f;  // bg1 is 640x360 → fills at 1.0 (no border) while still reading zoomed-out
-    public const float BackgroundTintAlpha = 0.4f;
-
-    // Optional ANIMATED background element (an orbiting planet), drawn over the bg, scaled with the bg's zoom.
-    public const string BackgroundAnimPath = "res://assets/terrain/stage1/planet_moon.png";
-    public const int BackgroundAnimFrameSize = 48;   // square frame side (sheet is a horizontal strip)
-    public const int BackgroundAnimFrameCount = 10;  // 480 / 48
-    public const float BackgroundAnimFps = 8.0f;
-    public static readonly Vector2 BackgroundAnimRatio = new(0.72f, 0.26f);  // its centre as a fraction of the viewport
-    public const float BackgroundAnimScale = 1.0f;   // extra multiplier on top of BackgroundZoom
-
-    private static Texture2D Load(string path) => ResourceLoader.Exists(path) ? GD.Load<Texture2D>(path) : null;
-
-    public static Texture2D Sheet() => Load(SheetPath);
-    public static Texture2D PlantsSheet() => Load(PlantsSheetPath);
-    public static Texture2D BackgroundTexture() => Load(BackgroundTexturePath);
-
-    /// <summary>SpriteFrames for the animated background element (one looping "orbit" clip), or null if absent.</summary>
-    public static SpriteFrames BackgroundAnimFrames()
-    {
-        var tex = Load(BackgroundAnimPath);
-        if (tex == null)
-            return null;
-        var sf = new SpriteFrames();
-        sf.RemoveAnimation("default");
-        sf.AddAnimation("orbit");
-        sf.SetAnimationLoop("orbit", true);
-        sf.SetAnimationSpeed("orbit", BackgroundAnimFps);
-        for (int i = 0; i < BackgroundAnimFrameCount; i++)
-            sf.AddFrame("orbit", new AtlasTexture
-            {
-                Atlas = tex,
-                Region = new Rect2(i * BackgroundAnimFrameSize, 0, BackgroundAnimFrameSize, BackgroundAnimFrameSize),
-            });
-        return sf;
-    }
-
-    /// <summary>An AtlasTexture for one 32px cell of `tex`.</summary>
-    public static AtlasTexture CellTexture(Texture2D tex, Vector2I cell) =>
-        new() { Atlas = tex, Region = new Rect2(cell.X * TILE, cell.Y * TILE, TILE, TILE) };
-
-    /// <summary>A tree prop texture by index (wraps), or null if none present.</summary>
-    public static Texture2D TreeTexture(int i) => TREES.Length == 0 ? null : Load(TREES[i % TREES.Length]);
+	/// <summary>SpriteFrames for the animated background element (one looping "orbit" clip), or null if absent.</summary>
+	public static SpriteFrames BackgroundAnimFrames()
+	{
+		var tex = Load(BackgroundAnimPath);
+		if (tex == null)
+			return null;
+		var sf = new SpriteFrames();
+		sf.RemoveAnimation("default");
+		sf.AddAnimation("orbit");
+		sf.SetAnimationLoop("orbit", true);
+		sf.SetAnimationSpeed("orbit", BackgroundAnimFps);
+		for (int i = 0; i < BackgroundAnimFrameCount; i++)
+			sf.AddFrame("orbit", new AtlasTexture
+			{
+				Atlas = tex,
+				Region = new Rect2(i * BackgroundAnimFrameSize, 0, BackgroundAnimFrameSize, BackgroundAnimFrameSize),
+			});
+		return sf;
+	}
 }

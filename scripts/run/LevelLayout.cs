@@ -9,10 +9,10 @@ namespace MyGame;
 /// instantiates ONE random variant per level and reads these, so each entry into a level is a hand-made look.
 ///
 /// <para>AUTHORING (in the editor): paint the <b>Terrain</b> layer with the terrain TileSet; drag the
-/// <b>PlayerSpawn</b> + <b>Exit</b> markers where you want them; add enemy-spawn <c>Marker2D</c>s and put each in
-/// the <b>spawn_ground</b> or <b>spawn_air</b> group (ground = walkers, air = flyers). Optional launch-orb spots go
-/// in the <b>orb</b> group. WHICH enemies appear is the shared per-level roster in <see cref="Levels"/>; this scene
-/// only says WHERE they can appear.</para>
+/// <b>PlayerSpawn</b> + <b>Exit</b> markers where you want them. Enemy spawn positions are NO LONGER authored —
+/// RunManager proximity-spawns around the player using the Terrain's exposed ground tiles (<see cref="GroundSurfaces"/>),
+/// so old <c>spawn_ground</c>/<c>spawn_air</c> markers are unused and can be deleted. Optional launch-orb spots still
+/// go in the <b>orb</b> group. WHICH enemies appear is the shared per-level roster in <see cref="Levels"/>.</para>
 /// </summary>
 [GlobalClass]
 public partial class LevelLayout : Node2D
@@ -23,14 +23,31 @@ public partial class LevelLayout : Node2D
     /// <summary>World position of the exit door.</summary>
     public Vector2 ExitPoint() => MarkerPos("Exit");
 
-    /// <summary>Ground enemy spawn positions (walkers).</summary>
-    public List<Vector2> GroundSpawns() => GroupPositions("spawn_ground");
-
-    /// <summary>Air enemy spawn positions (flyers).</summary>
-    public List<Vector2> AirSpawns() => GroupPositions("spawn_air");
-
     /// <summary>Optional launch-orb positions.</summary>
     public List<Vector2> Orbs() => GroupPositions("orb");
+
+    private List<Vector2> _groundSurfaces;
+
+    /// <summary>World positions on TOP of exposed ground tiles — a solid Terrain cell whose cell ABOVE is empty, i.e.
+    /// walkable footing. RunManager proximity-spawns ground/stationary enemies onto these (near the player, but never
+    /// on him). Computed once from the Terrain tilemap; empty if the layout has no Terrain layer.</summary>
+    public List<Vector2> GroundSurfaces()
+    {
+        if (_groundSurfaces != null)
+            return _groundSurfaces;
+        _groundSurfaces = new List<Vector2>();
+        var tm = GetNodeOrNull<TileMapLayer>("Terrain");
+        if (tm?.TileSet == null)
+            return _groundSurfaces;
+        float halfH = tm.TileSet.TileSize.Y * 0.5f;
+        foreach (Vector2I cell in tm.GetUsedCells())
+        {
+            if (tm.GetCellSourceId(cell + new Vector2I(0, -1)) != -1)
+                continue; // something sits directly above -> not an exposed top
+            _groundSurfaces.Add(tm.ToGlobal(tm.MapToLocal(cell) - new Vector2(0.0f, halfH))); // tile-top, world space
+        }
+        return _groundSurfaces;
+    }
 
     private Vector2 MarkerPos(string childName)
     {

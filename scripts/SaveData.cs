@@ -6,41 +6,41 @@ namespace MyGame;
 
 /// <summary>
 /// Persistent run record + the current run's progress, shared between RunManager (writes) and the HUD (reads), plus
-/// saved character COLOUR SCHEMES from the picker. C# port of <c>scripts/save_data.gd</c>. The RECORD (most levels
-/// cleared in one run, ever) persists to user://; the current run's cleared count is session-only, in memory. All
-/// static: one record, no instance needed.
+/// saved character COLOUR SCHEMES from the picker. C# port of <c>scripts/save_data.gd</c>. The RECORD (most WAVES
+/// survived in one run, ever — levels are retired) persists to user://; the current run's wave count is session-only,
+/// in memory. All static: one record, no instance needed.
 /// </summary>
 public static class SaveData
 {
     private const string PATH = "user://save.cfg";
 
-    private static int _record = -1;   // lazy-loaded best-ever levels cleared (-1 = not read from disk yet)
-    /// <summary>Levels cleared in the CURRENT run. RunManager sets it; the HUD shows it next to the record.</summary>
-    public static int CurrentCleared = 0;
+    private static int _record = -1;   // lazy-loaded best-ever waves survived (-1 = not read from disk yet)
+    /// <summary>Waves survived in the CURRENT run. RunManager sets it; the HUD shows it next to the record.</summary>
+    public static int CurrentWaves = 0;
 
-    public static void SetCurrentCleared(int n) => CurrentCleared = n;
-    public static int GetCurrentCleared() => CurrentCleared;
+    public static void SetCurrentWaves(int n) => CurrentWaves = n;
+    public static int GetCurrentWaves() => CurrentWaves;
 
-    /// <summary>The record: most levels cleared in a single run, ever. Read from disk once, then cached.</summary>
-    public static int LevelsRecord()
+    /// <summary>The record: most waves survived in a single run, ever. Read from disk once, then cached.</summary>
+    public static int WavesRecord()
     {
         if (_record < 0)
         {
             var cfg = new ConfigFile();
-            _record = cfg.Load(PATH) == Error.Ok ? cfg.GetValue("run", "levels_record", 0).As<int>() : 0;
+            _record = cfg.Load(PATH) == Error.Ok ? cfg.GetValue("run", "waves_record", 0).As<int>() : 0;
         }
         return _record;
     }
 
-    /// <summary>Report a finished run's cleared count; persist a new best if it beats the record. True on a new best.</summary>
-    public static bool ReportRun(int cleared)
+    /// <summary>Report a finished run's wave count; persist a new best if it beats the record. True on a new best.</summary>
+    public static bool ReportRun(int waves)
     {
-        if (cleared <= LevelsRecord())
+        if (waves <= WavesRecord())
             return false;
-        _record = cleared;
+        _record = waves;
         var cfg = new ConfigFile();
         cfg.Load(PATH); // keep any other keys already saved
-        cfg.SetValue("run", "levels_record", _record);
+        cfg.SetValue("run", "waves_record", _record);
         cfg.Save(PATH);
         return true;
     }

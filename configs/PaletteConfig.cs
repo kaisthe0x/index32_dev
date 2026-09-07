@@ -15,7 +15,6 @@ public static class PaletteConfig
 {
     public static readonly string[] MATERIALS = { "hair", "skin", "jacket", "trim", "pants", "metal" };
     public const int SHADES_PER = 6;  // 5 shades + 1 rim, light → dark
-    public const int COUNT = 36;      // MATERIALS.Length * SHADES_PER — the shader LUT length
 
     /// <summary>Default per-material HDR glow push (sprite_palette.gdshader `glow`), index-aligned to MATERIALS.</summary>
     public static readonly float[] MATERIAL_GLOW = { 3.2f, 0.0f, 0.0f, 0.8f, 0.0f, 0.4f };  // hair, skin, jacket, trim, pants, metal

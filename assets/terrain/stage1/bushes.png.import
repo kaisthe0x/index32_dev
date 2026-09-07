@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b10b11lurll5r"
-path="res://.godot/imported/bakshen_texture.png-4ee96ff8aa6ce987d5d4c80ae9f6057c.ctex"
+uid="uid://4813dwdkbtfw"
+path="res://.godot/imported/bushes.png-8f7b68aa3d6490639c2976ad25c7860c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://vfx/character/khalid/attack/bakshen/bakshen_texture.png"
-dest_files=["res://.godot/imported/bakshen_texture.png-4ee96ff8aa6ce987d5d4c80ae9f6057c.ctex"]
+source_file="res://assets/terrain/stage1/bushes.png"
+dest_files=["res://.godot/imported/bushes.png-8f7b68aa3d6490639c2976ad25c7860c.ctex"]
 
 [params]
 

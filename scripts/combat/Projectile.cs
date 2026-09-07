@@ -42,6 +42,14 @@ public partial class Projectile : Node2D, ITunable
     /// <summary>Lay red embers along the floor as it rolls past (a ground surge scorch trail).</summary>
     [Export] public bool ground_trail { get; set; }
 
+    /// <summary>Ride the terrain surface as it travels — snap onto the ground each frame + tilt to the slope, so a
+    /// forward "ground wave" hugs curves instead of flying flat. It dissipates when it runs off the ground (a ledge).</summary>
+    [Export] public bool ground_follow { get; set; }
+    /// <summary>How high above the sampled surface the wave rides (its particles/hitbox are authored around this).</summary>
+    [Export] public float ground_follow_offset { get; set; }
+
+    private const float GroundFollowReach = 40.0f;
+
     /// <summary>Who fired it (knockback credit); set by the spawner.</summary>
     public Node? source;
     /// <summary>A straight (homing == 0) shot moves by this; set by the spawner. A homing shot derives its own dir.</summary>
@@ -109,6 +117,20 @@ public partial class Projectile : Node2D, ITunable
         }
     }
 
+    /// <summary>Ground-follow: drop onto the terrain surface beneath the wave and tilt to its normal (facing stays on
+    /// Scale.X from <see cref="Orient"/>). False when the ground ran out here (a ledge / pit) so the caller ends it.</summary>
+    private bool SnapToGround()
+    {
+        var space = GetWorld2D()?.DirectSpaceState;
+        if (space == null)
+            return true; // can't sample -> keep travelling rather than vanishing
+        if (!GroundProbe.TryAt(space, GlobalPosition.X, GlobalPosition.Y, GroundFollowReach, out Vector2 point, out Vector2 normal))
+            return false;
+        GlobalPosition = new Vector2(GlobalPosition.X, point.Y - ground_follow_offset);
+        Rotation = normal.Angle() + Mathf.Pi / 2.0f; // stand perpendicular to the surface
+        return true;
+    }
+
     public override void _PhysicsProcess(double delta)
     {
         float d = (float)delta;
@@ -144,6 +166,11 @@ public partial class Projectile : Node2D, ITunable
         }
         GlobalPosition += _dir * speed * d;
         Orient();
+        if (ground_follow && !SnapToGround())
+        {
+            Expire(); // ran off the ground (a ledge / pit) -> the wave dissipates
+            return;
+        }
         _traveled += speed * d;
 
         _life += d;
