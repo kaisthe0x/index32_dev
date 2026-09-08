@@ -1108,16 +1108,17 @@ is pure data in per-area files — **`SfxCharacters`**, **`SfxEnemies`**, **`Sfx
 — and the autoload **`Sfx`** (`scripts/audio/Sfx.cs`) is just the runtime that plays them. Files live in
 **`sfx/`**.
 
-Background **music** has its own sibling autoload, **`Music`** (`scripts/audio/Music.cs`), files in
-**`music/`**. It's a **two-player crossfader**: `Music.play("key")` fades the current track out on one
-player while the new one fades in on the other, **always started from the top** — so switching beds is
-smooth and re-entering a level restarts its music fresh. `Music.stop()` fades to silence;
-`Music.pause()`/`resume()` freeze/continue at position. `.mp3`/`.ogg`/`.wav` are all force-looped.
-Register tracks in `Music.TRACKS`. In the run: the `"level"` bed starts (from the top) when the arena
-builds via `RunManager.BuildArena` (and again on a death-restart). *(The old `"base_rest"` clear/exit
-crossfade is gone with levels; that track is registered but no longer triggered by the run.)* Plays on a
-`"Music"` bus if present (else Master), and is a silent no-op until the file exists. Same "drop a file,
-add one line" workflow as `Sfx`.
+Background **music** has its own sibling autoload, **`Music`** (`scripts/audio/Music.cs`), files organised
+**per stage** under **`music/<stage>/`**. Each stage owns an ordered **playlist** (`Music.StagePlaylists`);
+`Music.play_stage("stage1")` plays its tracks in sequence, **crossfading gently between them** (a two-player
+ping-pong: one fades out as the next fades in) and **looping back to the first** — so a stage has an endless,
+varied bed rather than one repeating loop. The crossfade lands right at each seam (position-based, tuned by
+`CrossfadeBetween`); `Music.stop()` fades to silence + ends the playlist; `Music.pause()`/`resume()` freeze at
+position. `.mp3`/`.ogg`/`.wav` are all force-looped as a safety net. In the run, `RunManager.BuildArena` calls
+`play_stage("stage1")` on every run start + death-restart. Plays on a `"Music"` bus if present (else Master),
+and a missing file warns + plays nothing (no crash). To add a stage's music: drop files in `music/<stage>/`,
+add the ordered list to `StagePlaylists`. *(Levels are retired, so there's no per-level bed or clear/rest
+crossfade anymore — one continuous stage playlist.)*
 
 - **The one place to check what sounds we use:** each config's **`CUES`** dict — a `key → path`
   master list per area. **Paths live only there**; nothing else hardcodes a `res://sfx/…` path.

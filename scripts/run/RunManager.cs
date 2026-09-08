@@ -170,7 +170,7 @@ public partial class RunManager : Node2D
 
     private void BuildArena()
     {
-        _music.play("level");
+        _music.play_stage("stage1");
         _alive = 0;
         _waveCount = 0;
         _spawnAccum = 0.0f;
