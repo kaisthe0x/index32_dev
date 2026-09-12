@@ -87,6 +87,11 @@ public partial class Enemy : Combatant
 	[Export] public float aggro_range { get; set; } = 480.0f;
 	[Export] public float alert_duration { get; set; } = 5.0f;
 	[Export] public bool friendly_fire { get; set; }
+	/// <summary>World Y past which an enemy has fallen off into the void below the platforms → it dies (see _PhysicsProcess).
+	/// A bit deeper than the player's own fall line so it's unambiguously the void.</summary>
+	private const float FallDeathY = 360.0f;
+	/// <summary>Set when this enemy died from falling into the void (RunManager skips its loot — it'd be unreachable).</summary>
+	public bool fell_off { get; private set; }
 	[Export] public float contact_damage { get; set; }
 	[Export] public float contact_knockback { get; set; } = 120.0f;
 	[Export] public float contact_interval { get; set; } = 0.6f;
@@ -292,6 +297,14 @@ public partial class Enemy : Combatant
 		float d = (float)delta;
 		if (State == EState.Dead)
 			return;
+
+		// Fell off a platform into the void below → die (frees a spawn-cap slot; no loot, it'd be unreachable).
+		if (GlobalPosition.Y > FallDeathY)
+		{
+			fell_off = true;
+			Die();
+			return;
+		}
 
 		TickDot(d);
 		if (State == EState.Dead)

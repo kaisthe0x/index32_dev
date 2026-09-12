@@ -4,27 +4,19 @@ using System.Collections.Generic;
 namespace MyGame;
 
 /// <summary>
-/// Background MUSIC service (autoload <c>Music</c>) — a CROSSFADING bed driven by per-stage PLAYLISTS. Each stage
-/// owns a list of tracks (<see cref="StagePlaylists"/>); <c>play_stage(id)</c> plays them in order, each crossfading
-/// into the next and wrapping back to the first, forever. Two AudioStreamPlayers ping-pong so a track can fade in
-/// while the previous fades out. C# port of <c>scripts/audio/music.gd</c>. Snake_case public surface (the bridged C#
-/// callers address <c>play_stage/stop</c> by exact name).
+/// Background MUSIC service (autoload <c>Music</c>) — a CROSSFADING bed driven by per-stage PLAYLISTS. Each stage's
+/// tracks are whatever audio files sit in <c>music/&lt;stage&gt;/</c> (auto-discovered — see <see cref="StageTracks"/>),
+/// so you just drop files in the folder, no code edit + names don't matter. <c>play_stage(id)</c> plays them in order
+/// (sorted by filename), each crossfading into the next and wrapping back to the first, forever. Two AudioStreamPlayers
+/// ping-pong so a track can fade in while the previous fades out. C# port of <c>scripts/audio/music.gd</c>. Snake_case
+/// public surface (the bridged C# callers address <c>play_stage/stop</c> by exact name).
 /// </summary>
 public partial class Music : Node
 {
-    /// <summary>Stage id → its background playlist (res:// paths), played in order with a short crossfade between each,
-    /// looping. EVERY stage follows this shape — add a <c>music/&lt;stage&gt;/</c> folder + an entry here.</summary>
-    private static readonly Dictionary<string, string[]> StagePlaylists = new()
-    {
-        ["stage1"] = new[]
-        {
-            "res://music/stage1/stage1_bg_music_1.ogg",
-            "res://music/stage1/stage1_bg_music_2.ogg",
-        },
-    };
+    private const string MusicDir = "res://music/"; // each stage's playlist = the audio files in MusicDir + "<stage>/"
 
     private static readonly StringName Bus = "Music";
-    private const float DefaultVolumeDb = -3.0f; // the "full" music level once faded in
+    private const float DefaultVolumeDb = -1.0f; // the "full" music level once faded in
     private const float SilenceDb = -60.0f;
     private const float StartFade = 1.5f;         // fade when a stage's music first starts / when it stops
     private const float CrossfadeBetween = 3.0f;  // the slight crossfade between one playlist track and the next
@@ -71,19 +63,47 @@ public partial class Music : Node
     }
 
     /// <summary>Start (or restart) a stage's looping background playlist — its tracks play in order, each crossfading
-    /// into the next, wrapping back to the first. Stops + warns if the stage has no playlist.</summary>
+    /// into the next, wrapping back to the first. Stops + warns if the stage folder has no tracks.</summary>
     public void play_stage(string stage)
     {
-        if (!StagePlaylists.TryGetValue(stage, out var list) || list.Length == 0)
+        var list = StageTracks(stage);
+        if (list.Length == 0)
         {
             stop();
-            GD.PushWarning($"Music: no playlist for stage '{stage}' (playing nothing)");
+            GD.PushWarning($"Music: no audio files in {MusicDir}{stage}/ (playing nothing)");
             return;
         }
         _playlist = list;
         _trackIndex = 0;
         _playlistOn = true;
         PlayTrack(_trackIndex, StartFade);
+    }
+
+    /// <summary>A stage's playlist = every audio file in <c>music/&lt;stage&gt;/</c>, sorted by filename (so the sequence
+    /// is deterministic — name tracks to control order, e.g. a <c>1_</c>/<c>2_</c> prefix). Drop files in the folder and
+    /// they play; no code change, and the names themselves don't matter beyond that sort. Scanned fresh each call (cheap,
+    /// only on run start / restart), so swapping files just needs a run restart. Mirrors <c>RunManager.StageLayoutPaths</c>.</summary>
+    private static string[] StageTracks(string stage)
+    {
+        var list = new List<string>();
+        string dir = MusicDir + stage + "/";
+        using var da = DirAccess.Open(dir);
+        if (da != null)
+        {
+            da.ListDirBegin();
+            for (string f = da.GetNext(); f != ""; f = da.GetNext())
+            {
+                if (da.CurrentIsDir())
+                    continue;
+                string name = f.TrimSuffix(".remap"); // exported builds serve <track>.ogg.remap
+                string lower = name.ToLower();
+                if (lower.EndsWith(".ogg") || lower.EndsWith(".mp3") || lower.EndsWith(".wav"))
+                    list.Add(dir + name);
+            }
+            da.ListDirEnd();
+        }
+        list.Sort(); // deterministic play order (filename)
+        return list.ToArray();
     }
 
     private void AdvanceTrack()

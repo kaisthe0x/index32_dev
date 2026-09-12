@@ -44,6 +44,8 @@ public static class EnemyKits
 	{
 		{ "scene", "res://scenes/sleeper_enemy.tscn" }, { "id", EnemyIds.Nasen }, { "display_name", "Nasen" },
 		{ "max_health", 90.0 }, { "tier", (int)EnemyTier.Strong }, { "movement", (int)EnemyMovement.Stationary }, { "optional", true }, { "close_type", StrikeType.Aoe.Key() }, { "conform_ground", true },
+		// The rage AoE hits OTHER enemies too (friendly fire) — it still only TRIGGERS on player detection (SleeperEnemy rage_zone).
+		{ "friendly_fire", true },
 	};
 
 	public static readonly GDict EIN = new()

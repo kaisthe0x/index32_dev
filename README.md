@@ -606,6 +606,11 @@ first gap each side so an effect doesn't leap a pit). Used three ways:
   perpendicular to the slope); each box **hitbox** swaps its rect for a `CollisionPolygon2D` **band**
   following the contour (as tall as the rect). No ground → the burst is discarded. (Replaced the old
   horizontal-only `clip_to_ground`, a no-op on the TileMapLayer.)
+- **Nasen's rage AoE is FRIENDLY FIRE** (`friendly_fire` kit flag on `EnemyKits.NASEN`) — the eruption also
+  damages other enemies caught in it (the Hitbox still skips its own `source`), so herding grunts onto a raging
+  sleeper hurts them. It still only *triggers* on player detection (the `SleeperEnemy` rage_zone), never on
+  enemies. The flag flows generically: `Enemy.SpawnAttack` copies it to the Strike, whose mask uses
+  `Combat.HurtMask(hostile, friendly_fire)` to also scan the attacker's own team's hurt layer.
 - **Enemy static AoEs (`conform_ground` kit flag)** — Matat sets it (`Enemy.SpawnMeleeStrike`) and Nasen
   sets it (`SleeperEnemy.SpawnRageAoe` — the sleeper spawns its rage aoe on its own path, not the melee one);
   each runs the *same* `GroundContour.Conform` on the spawned `AoeStrike`. (Enemies bypass `ParticleDirector`,
@@ -1109,16 +1114,16 @@ is pure data in per-area files — **`SfxCharacters`**, **`SfxEnemies`**, **`Sfx
 **`sfx/`**.
 
 Background **music** has its own sibling autoload, **`Music`** (`scripts/audio/Music.cs`), files organised
-**per stage** under **`music/<stage>/`**. Each stage owns an ordered **playlist** (`Music.StagePlaylists`);
-`Music.play_stage("stage1")` plays its tracks in sequence, **crossfading gently between them** (a two-player
-ping-pong: one fades out as the next fades in) and **looping back to the first** — so a stage has an endless,
-varied bed rather than one repeating loop. The crossfade lands right at each seam (position-based, tuned by
-`CrossfadeBetween`); `Music.stop()` fades to silence + ends the playlist; `Music.pause()`/`resume()` freeze at
-position. `.mp3`/`.ogg`/`.wav` are all force-looped as a safety net. In the run, `RunManager.BuildArena` calls
-`play_stage("stage1")` on every run start + death-restart. Plays on a `"Music"` bus if present (else Master),
-and a missing file warns + plays nothing (no crash). To add a stage's music: drop files in `music/<stage>/`,
-add the ordered list to `StagePlaylists`. *(Levels are retired, so there's no per-level bed or clear/rest
-crossfade anymore — one continuous stage playlist.)*
+**per stage** under **`music/<stage>/`**. A stage's **playlist is auto-discovered** — it's simply the audio
+files in that folder (`Music.StageTracks` globs them, sorted by filename), so you just drop files in and they
+play, **no code edit and names don't matter** beyond the sort order. `Music.play_stage("stage1")` plays them in
+sequence, **crossfading gently between them** (a two-player ping-pong: one fades out as the next fades in) and
+**looping back to the first** — so a stage has an endless, varied bed rather than one repeating loop. The
+crossfade lands right at each seam (position-based, tuned by `CrossfadeBetween`); `Music.stop()` fades to silence
++ ends the playlist; `Music.pause()`/`resume()` freeze at position. `.mp3`/`.ogg`/`.wav` are all force-looped as
+a safety net. In the run, `RunManager.BuildArena` calls `play_stage("stage1")` on every run start + death-restart.
+Plays on a `"Music"` bus if present (else Master); an empty stage folder warns + plays nothing (no crash).
+*(Levels are retired, so there's no per-level bed or clear/rest crossfade anymore — one continuous stage playlist.)*
 
 - **The one place to check what sounds we use:** each config's **`CUES`** dict — a `key → path`
   master list per area. **Paths live only there**; nothing else hardcodes a `res://sfx/…` path.
@@ -1706,6 +1711,9 @@ the build basics:
   from the generic `enemy.tscn` with that `enemy_id`) or a `scene` (a custom enemy — `sleeper_enemy.tscn`,
   `diver_enemy.tscn`), plus any Enemy `@export` overrides. `RunManager.SpawnEnemy` applies them; the enemy's
   `died` signal frees a cap slot and rolls the Fada-Fig + buff drops.
+- **Fall-death** — any enemy whose world Y passes `Enemy.FallDeathY` (below the platforms) `Die()`s (it walked/was
+  knocked off into the void). It still emits `died` so the spawn-cap slot frees, but `RunManager.OnEnemyDied`
+  skips its loot (`enemy.fell_off`) — those drops would be unreachable down there.
   On a Ruh-granting kill it also pops a **Ruh soul** (`vfx/shared/ruh_orb/`, `RuhOrb`): a glowing
   crimson orb that flies a **curved, parabolic path** to the player — a quadratic Bezier from the
   death spot to the player's live position, bowed by `arc_height` — always reaching him at the end

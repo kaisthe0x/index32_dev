@@ -359,17 +359,21 @@ public partial class RunManager : Node2D
     {
         // Death fires INSIDE a physics query flush (Hitbox callback), where adding a RigidBody is illegal
         // ("Can't change this state while flushing queries"). Capture the values (the enemy frees) + defer the drops.
-        Vector2 at = enemy.GlobalPosition;
-        int figs = enemy.fada_fig_drop;
-        bool buff = GD.Randf() < BuffDropChance();  // ramping chance, rolled at death (optional enemies drop too, if killed)
-        Callable.From(() =>
+        // An enemy that fell into the void drops nothing — the loot would spawn unreachable below the platforms.
+        if (!enemy.fell_off)
         {
-            SpawnFadaFigs(at, figs);
-            if (buff)
-                SpawnBuffDrop(at);
-        }).CallDeferred();
+            Vector2 at = enemy.GlobalPosition;
+            int figs = enemy.fada_fig_drop;
+            bool buff = GD.Randf() < BuffDropChance();  // ramping chance, rolled at death (optional enemies drop too, if killed)
+            Callable.From(() =>
+            {
+                SpawnFadaFigs(at, figs);
+                if (buff)
+                    SpawnBuffDrop(at);
+            }).CallDeferred();
+        }
         if (!enemy.optional)
-            _alive -= 1;   // free a slot in the concurrency cap
+            _alive -= 1;   // free a slot in the concurrency cap (falls included, so spawning never stalls)
     }
 
     /// <summary>Current buff-drop chance — ramps from <see cref="BuffDropBase"/> up to <see cref="BuffDropCap"/> as waves
