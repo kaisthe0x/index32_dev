@@ -28,6 +28,11 @@ uniform int flow_shift = 2;              // how many shades darker the flowing a
 uniform float hair_surge : hint_range(0.0, 1.0) = 0.0;  // Ruh-absorb flare: 0 = rest, 1 = full flare
 uniform vec3 hair_surge_color = vec3(2.6, 1.7, 0.5);    // the flare target (linear HDR gold)
 
+// Hit-flash: blend the whole body toward flash_color by `flash`. flash = 0 (default) is a pure no-op, so
+// normal rendering is untouched; code pulses flash -> 1 on a hit and eases it back. (linear HDR values)
+uniform vec3 flash_color = vec3(1.0);
+uniform float flash : hint_range(0.0, 1.0) = 0.0;
+
 void fragment() {
 	vec4 tex = texture(TEXTURE, UV);
 	int best = 0;
@@ -65,5 +70,6 @@ void fragment() {
 		col = mix(vec3(luma), col, 1.0 + vibrancy);
 	}
 
+	col = mix(col, flash_color, flash); // hit-flash (no-op at flash = 0)
 	COLOR = vec4(col, tex.a);
 }

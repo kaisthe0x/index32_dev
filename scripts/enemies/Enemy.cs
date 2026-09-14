@@ -219,7 +219,7 @@ public partial class Enemy : Combatant
 		}
 		Sprite.SpriteFrames = GD.Load<SpriteFrames>(path);
 		if (ResourceLoader.Exists(GlowMaterial))
-			Sprite.Material = GD.Load<Material>(GlowMaterial);
+			Sprite.Material = (Material)GD.Load<Material>(GlowMaterial).Duplicate(); // per-instance so a hit-flash tints only THIS enemy
 		AnchorToFeet(Sprite);
 		AddChild(Sprite);
 	}

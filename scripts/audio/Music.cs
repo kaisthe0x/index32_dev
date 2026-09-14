@@ -16,7 +16,7 @@ public partial class Music : Node
     private const string MusicDir = "res://music/"; // each stage's playlist = the audio files in MusicDir + "<stage>/"
 
     private static readonly StringName Bus = "Music";
-    private const float DefaultVolumeDb = -1.0f; // the "full" music level once faded in
+    private const float DefaultVolumeDb = -3.0f; // the "full" music level once faded in
     private const float SilenceDb = -60.0f;
     private const float StartFade = 1.5f;         // fade when a stage's music first starts / when it stops
     private const float CrossfadeBetween = 3.0f;  // the slight crossfade between one playlist track and the next

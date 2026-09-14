@@ -1566,13 +1566,20 @@ the enemy `friendly_fire` flag above.)
   pieces they'd otherwise each reimplement: `anchor_to_feet` (sprite offset),
   `make_box` (rect collider), `apply_knockback` (turns a `Hit`'s knockback into a
   shove + returns the stagger time), and two "took a hit" tells:
-  - `flash(sprite)` — the plain red modulate flash.
-  - **`hit_react(sprite, damage)`** — the punchy one enemies use: a white-hot HDR
-    flash (blooms) **plus a feet-anchored squash**, both scaled by damage. It fires
-    even at `knockback = 0`, so a flurry like ora_ora reads as impacts instead of a
-    flat tint. Squash uses `sprite.scale` (enemies flip via `flip_h`, so scale is
-    free); it re-punches cleanly on rapid hits. Feel constants live on `Combat`:
-    `KNOCKBACK_POP`, `MIN_STAGGER`, `STRIKE_ACTIVE`, `HIT_FLASH`, `HIT_FLASH_TIME`.
+  - `flash(sprite)` — the plain red **modulate** flash (`Combat.HitFlash`). NOTE: the body-palette + enemy-glow
+    shaders overwrite `COLOR`, so a node **modulate is ignored** on those sprites — this reads only where the
+    sprite has no such shader.
+  - **`hit_react(sprite, damage)`** — the punchy one enemies use on every hit: a **prominent colour flash** +
+    a **feet-anchored squash**, both scaled by damage. Because modulate is swallowed (above), the colour flash
+    goes through **`flash_sprite`** → the sprite material's **`flash` uniform**: both `sprite_palette` and
+    `enemy_glow` `mix` their output toward `flash_color` by `flash` (default `flash = 0` is a pure no-op, so
+    normal rendering is untouched), pulsed to 1 and eased back. Colour = `Combat.DamageFlash` (HDR red, R>1
+    blooms; swap it for white/black in one place). The squash uses `sprite.scale`; fires even at `knockback = 0`
+    so a flurry reads as impacts; re-punches cleanly on rapid hits. **Khalid gets the same flash** on
+    `take_damage` (over his hurt anim), so both sides tell damage the same way — his palette material is
+    per-instance already; enemies get a **per-instance duplicate** of the glow material so a flash tints only the
+    one that was hit. Feel constants live on `Combat`: `KNOCKBACK_POP`, `MIN_STAGGER`, `HIT_FLASH`/`HIT_FLASH_TIME`
+    (the plain modulate flash), `DAMAGE_FLASH`/`DAMAGE_FLASH_TIME` (the shader colour flash).
 - **`StatusOverlay`** (`scripts/combat/StatusOverlay.cs`) engulfs a stunned body in
   an additive tint that mirrors its pose (frame/flip/offset/**scale**) and **throbs**
   for visibility. Driven by a `Hit`'s `status_color` / `status_time`; Khalid's

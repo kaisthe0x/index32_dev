@@ -18,8 +18,11 @@ public partial class Sfx : Node
     private static readonly StringName Bus = "SFX";
     private const int Pool = 12;
     private const float LimiterCeilingDb = -2.0f; // peak ceiling for the summed SFX bus (see InstallLimiter)
-    // Pin a specific output device (this machine routes "Default" to a silent sink). "" = system default.
-    private const string PreferredOutput = "alsa_output.usb-ACTIONS_Pebble_V3-00.analog-stereo";
+    // Output device. "" (default) = follow the SYSTEM DEFAULT, so audio goes wherever the OS routes it — it
+    // switches to headphones when you plug them in / make them the default sink. Only set a specific device name
+    // here (from AudioServer.GetOutputDeviceList()) to FORCE one on a machine whose default is misrouted; leaving
+    // a device pinned overrides the OS and ignores headphones.
+    private const string PreferredOutput = "";
 
     private readonly List<AudioStreamPlayer> _flat = new();
     private readonly List<AudioStreamPlayer2D> _pos = new();

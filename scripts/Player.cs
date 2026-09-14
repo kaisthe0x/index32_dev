@@ -570,6 +570,9 @@ public partial class Player : Combatant
             Color hair = PaletteConfig.HairColor();
             FloatingText.Emit(FloatingTextType.PlayerDamage, this, HurtNumberOffset,
                 Mathf.RoundToInt(dealt).ToString(), dealt, hair);
+            // Prominent colour flash on top of the hurt anim, via the palette shader's `flash` uniform (a plain
+            // modulate is swallowed — the shader overwrites COLOR).
+            FlashSprite(_sprite, Combat.DamageFlash, Combat.DamageFlashTime);
         }
         _sfx.play_random(new GArr { "hurt.1", "hurt.2", "hurt.3" }, 0.0f, (float)GD.RandRange(0.95, 1.06));
         if (health <= 0.0f && !_dead)
