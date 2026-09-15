@@ -43,9 +43,9 @@ public partial class Player : Combatant
     }
 
     // =====================================================================================================
-    // Health
+    // Health (SLOT-based — measured in half-blocks; see BaseMaxHealth / take_damage)
     // =====================================================================================================
-    private float _maxHealth = 100.0f;
+    private float _maxHealth = 6.0f;
 
     [Export]
     public float max_health
@@ -54,7 +54,7 @@ public partial class Player : Combatant
         set { _maxHealth = Mathf.Max(value, 1.0f); health = Mathf.Min(health, _maxHealth); }
     }
 
-    private float _health = 100.0f;
+    private float _health = 6.0f;
 
     public float health
     {
@@ -106,10 +106,14 @@ public partial class Player : Combatant
 
     // --- run-reward buffs (per-run, reset by begin_run). Public snake_case: Rewards mutates these. ---
     private const float BaseRuhCap = 300.0f;
-    private const float BaseMaxHealth = 100.0f;
-    private static readonly Vector2 HurtNumberOffset = new(0, -40);
-    private const float HealthWarnHalf = 0.5f;
-    private const float HealthWarnLow = 0.2f;
+    // Slot health: HP is measured in HALF-BLOCKS. 3 blocks = 6 half-blocks, and EVERY hit costs one half-block
+    // regardless of damage (so 6 hits kill). begin_run fills to BaseMaxHealth.
+    private const int HealthBlocks = 3;
+    private const float BaseMaxHealth = HealthBlocks * 2.0f; // 3 blocks × 2 half-blocks = 6
+    private const float HitCost = 1.0f;                      // one hit = half a block
+    private const float SurgeHealHalfBlocks = 2.0f;          // the Nem surge restores one block
+    private const float HealthWarnHalf = 0.5f;               // "health_half" cue at 1.5 blocks left
+    private const float HealthWarnLow = 0.34f;               // "health_low" cue at ~1 block left
 
     public float damage_mult = 1.0f;
     public float run_mult = 1.0f;
@@ -210,7 +214,6 @@ public partial class Player : Combatant
     private float _iframesLeft = 0.0f;  // generic invulnerability window (grant_invuln) — the immunity buffs
     private bool _surgeInvuln = false;
     private float _surgeDmgMult = 1.0f;
-    private float _surgeDmgTakenMult = 1.0f;
     private float _surgeSpeedMult = 1.0f;
     private bool _surgeChannel = false;
     private bool _surgeAsleep = false;
@@ -561,20 +564,14 @@ public partial class Player : Combatant
     // =====================================================================================================
     public void take_damage(float amount)
     {
-        float dealt = amount * damage_taken_mult * _surgeDmgTakenMult;
+        // Slot health: every hit costs a flat HALF-BLOCK, regardless of `amount` (so damage-reduction is inert now).
+        // `amount` is kept for callers but no longer scales the HP loss, and there's no damage number to show.
         float before = health;
-        health -= dealt;
+        health -= HitCost;
         WarnLowHealth(before, health);
-        if (dealt > 0.0f)
-        {
-            Color hair = PaletteConfig.HairColor();
-            FloatingText.Emit(FloatingTextType.PlayerDamage, this, HurtNumberOffset,
-                Mathf.RoundToInt(dealt).ToString(), dealt, hair);
-            // Prominent colour flash on top of the hurt anim, via the palette shader's `flash` uniform (a plain
-            // modulate is swallowed — the shader overwrites COLOR).
-            FlashSprite(_sprite, Combat.DamageFlash, Combat.DamageFlashTime);
-        }
         _sfx.play_random(new GArr { "hurt.1", "hurt.2", "hurt.3" }, 0.0f, (float)GD.RandRange(0.95, 1.06));
+        // Colour flash over the hurt anim, via the palette shader's `flash` uniform (a plain modulate is swallowed).
+        FlashSprite(_sprite, Combat.DamageFlash, Combat.DamageFlashTime);
         if (health <= 0.0f && !_dead)
             Die();
     }
@@ -897,7 +894,6 @@ public partial class Player : Combatant
         EndSurge();
         _surgeInvuln = s.invuln;
         _surgeDmgMult = s.damage_mult;
-        _surgeDmgTakenMult = s.damage_taken_mult;
         _surgeSpeedMult = s.speed_mult;
         _surgeChannel = s.channel;
         _surgeArmed = s.trigger == "hit";
@@ -910,7 +906,8 @@ public partial class Player : Combatant
         {
             _surgeAsleep = false;
             _surgeLeft = 0.0f;
-            _surgeHealTarget = Mathf.Min(health + s.heal_frac * max_health, max_health);
+            // Slot health: a healing surge (heal_frac > 0, i.e. Nem) restores ONE block over its channel.
+            _surgeHealTarget = Mathf.Min(health + SurgeHealHalfBlocks, max_health);
             _surgeHealRate = (_surgeHealTarget - health) / Mathf.Max(s.duration, 0.01f);
             var anim = Anim(_currentSurge);
             int fcount = (_sprite.SpriteFrames != null && _sprite.SpriteFrames.HasAnimation(anim))
@@ -970,7 +967,6 @@ public partial class Player : Combatant
         _surgeLeft = 0.0f;
         _surgeInvuln = false;
         _surgeDmgMult = 1.0f;
-        _surgeDmgTakenMult = 1.0f;
         _surgeSpeedMult = 1.0f;
         _surgeArmed = false;
         _armedSurge = null;

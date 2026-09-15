@@ -64,7 +64,7 @@ tools/                Generator + verification scripts (not shipped)
 | Shift | `dash` | Has a cooldown. **Dash into a launch orb** and it magnets you through and flings you up + forward (see Launch orbs) |
 | Left mouse | `attack` | The current *attack* — each press advances the combo (or, for a `"flurry"` attack like Khalid's, **hold** to keep punching). **Ground only** by default — an attack whose Action is tagged `"air"` (e.g. Zahluq) is the exception and can be used mid-air (`Player._air_attack_ok`) |
 | Right mouse | `special` | On the ground: the current *special* (committed full-animation move) — **free, no Ruh cost**; most have only a tiny anti-spam lag, though a strong one can set its own cooldown (**Come Closer = 3s**). **In the air: performs the ground slam instead** (characters with a `slam` sheet) |
-| Ctrl (RT / R2) | `surge` | Fires the equipped **Surge** — a passive ability (**Aegis** = ~5s invincibility; **Jnoon** = ~5s ×2 damage dealt / ×0.5 taken; **Asra** = ~5s ×2 move speed) applied *without* interrupting your attacking/moving — **except Nem**, a committed sleep that locks you in place and heals ~50% HP over 5s (a hit wakes/cancels it), and **Wara**, which *arms* and waits: the next enemy hit is negated and AoE-stuns everyone near you (2s). **Spends one Ruh charge per use** — Ruh is the only gate, no cooldown. RT on the pad because dash owns LT |
+| Ctrl (RT / R2) | `surge` | Fires the equipped **Surge** — a passive ability (**Aegis** = ~5s invincibility; **Jnoon** = ~5s ×2 damage dealt; **Asra** = ~5s ×2 move speed) applied *without* interrupting your attacking/moving — **except Nem**, a committed sleep that locks you in place and restores one health block over 5s (a hit wakes/cancels it), and **Wara**, which *arms* and waits: the next enemy hit is negated and AoE-stuns everyone near you (2s). **Spends one Ruh charge per use** — Ruh is the only gate, no cooldown. RT on the pad because dash owns LT |
 | Z / X | `debug_damage` / `debug_heal` | Dev only |
 | 0 | `debug_respawn` | Dev only — rebuild the current level fresh |
 
@@ -533,9 +533,9 @@ clears them together. The data lives as `Action.Category.SURGE` rows carrying a 
 in the `ActionsKhalid.SURGES` catalog (`DEFAULT_SURGE = "aegis"`). Two ship:
 - **Aegis** (`aegis`) — full damage **immunity for 5s** (`invuln`; drops the hurtbox, same channel as dash
   i-frames). The old `special_default` "Flex/Impervious" promoted out of the specials pool.
-- **Jnoon** (`jnoon`) — for 5s Khalid **deals ×2 damage and takes ×0.5** (`damage_mult 2.0` /
-  `damage_taken_mult 0.5`; *not* immune — hits still land, just softened). The mults **stack on** the
-  reward `damage_mult` / `damage_taken_mult` (folded in `resolve_tuning` / `take_damage`).
+- **Jnoon** (`jnoon`) — for 5s Khalid **deals ×2 damage** (`damage_mult 2.0`). Its damage-*reduction* is
+  **parked under slot health** (a ×mult means nothing when every hit costs a flat half-block); the `damage_mult`
+  still folds into `resolve_tuning`. *(Rethink Jnoon's defensive half — e.g. a chance to negate a hit — later.)*
 - **Asra** (`asra`) — for 5s Khalid **moves ×2 as fast** (`speed_mult 2.0`, applied via `Player._run_speed()`
   at the run/dash-blend movement sites; the anim-rate calc keeps base `run_speed`, so the run animation
   speeds up on its own instead of sliding). The looping run **footsteps** pitch up by the same
@@ -544,9 +544,9 @@ in the `ActionsKhalid.SURGES` catalog (`DEFAULT_SURGE = "aegis"`). Two ship:
 
 - **Nem** (`nem`) — a committed **sleep/heal CHANNEL** (not a passive buff, `channel: true`): Khalid locks
   in place, the flex plays to its **second-to-last frame** (head down, asleep) and **pauses** there, then
-  he heals **`heal_frac` (0.5) of MAX hp over 5s**. Heal is capped at max, so being already **≥50% HP
-  restores the whole bar**. A **hit from an enemy wakes him** — the channel cancels and he keeps whatever
-  health he'd gained. Driven in `_process_surge` (`_surge_channel` / `_surge_asleep`): the wind-up watches
+  he **restores one health BLOCK over 5s** (slot health — `heal_frac > 0` just flags that the surge heals;
+  the amount is a fixed block, `SurgeHealHalfBlocks`). Capped at max. A **hit from an enemy wakes him** — the
+  channel cancels and he keeps whatever he'd gained. Driven in `_process_surge` (`_surge_channel` / `_surge_asleep`): the wind-up watches
   `_sprite.frame` for the sleep frame, pauses playback + starts the window; `_on_hurt` cancels it.
 - **Wara** (`wara`) — a **REACTIVE / counter** surge (`trigger: "hit"`, a new surge *type*). Triggering it
   **arms** it — the aura orbits with **no timer** — until an enemy attack lands. That hit deals **no
@@ -1446,15 +1446,13 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
   screen). **Every label TYPE is a preset** in [`configs/FloatingTextTypes.cs`](configs/FloatingTextTypes.cs) —
   its own size/colour (fixed or magnitude-ramped), font, `italic` slant, and independent in/out
   transition — so different events read and animate distinctly with no code change. The only live type
-  live types today are the **`damage`** number over enemies (white → hot gold; `damage_special` =
+  live type today is the **`damage`** number over enemies (white → hot gold; `damage_special` =
   magenta), emitted as `FloatingText.emit("damage"/"damage_special", enemy, …, amount)` off the
-  `enemy.damaged` signal in `RunManager._on_enemy_damaged`; and the **`player_damage`** number over
-  Khalid, popped in `Player.take_damage` for the actual HP lost (after Thick Hide / Jnoon mitigation).
-  Its colour is **overridden per-call with the run's chosen PRIMARY (hair) colour** —
-  `overrides {"color": PaletteConfig.picks["hair"]}`, the same source that recolours his hair (default
-  red `#941E1E` when unpicked) — so his own numbers match his palette. The optional `overrides` dict
-  patches any preset key for one call (it wins over the preset). Add a label type = add a row to the
-  preset table (the file keeps a commented word-callout example — a parry "Nice", a "LEVEL UP").
+  `enemy.damaged` signal in `RunManager._on_enemy_damaged`. *(There's no player damage number anymore —
+  under slot health every hit costs a flat half-block, so a number would be meaningless; the `player_damage`
+  preset in `FloatingTextTypes` is left unused. Damage is now told by the red hit-flash + block loss.)*
+  The optional `overrides` dict patches any preset key for one call (it wins over the preset). Add a label
+  type = add a row to the preset table (the file keeps a commented word-callout example — a parry "Nice").
 - **Death** — on lethal damage it enters the `DEAD` state (AI + collisions off, no more
   hits) and **leaves the `enemies` group immediately**, then, if it has a `death` sheet,
   plays that animation once and **vanishes the instant it finishes** (`_on_anim_finished` →

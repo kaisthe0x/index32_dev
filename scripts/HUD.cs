@@ -6,17 +6,14 @@ using GArr = Godot.Collections.Array;
 namespace MyGame;
 
 /// <summary>
-/// Portrait + HP bar + Ruh BLOCK meter (+ a debug stats panel + off-screen enemy arrows + low-HP screen effect)
+/// Portrait + HP BLOCK meter + Ruh BLOCK meter (+ a debug stats panel + off-screen enemy arrows + low-HP screen effect)
 /// for the active character. An autoload, so it exists in every scene; binds to whatever <see cref="Player"/>
 /// enters the tree and hides when there's none. Built entirely in code. C# port of <c>scripts/hud.gd</c>.
 /// Bridges the GDScript config statics (SaveData / PaletteConfig / Loadout) it reads.
 /// </summary>
 public partial class HUD : CanvasLayer
 {
-	[Export] public float drain_speed = 70.0f;
-
 	private Player _player;
-	private float _target = 0.0f;
 
 	private CanvasLayer _lowHpLayer;
 	private ShaderMaterial _lowHpMat;
@@ -24,7 +21,7 @@ public partial class HUD : CanvasLayer
 	private float _lowHpTarget = 0.0f;
 	private float _lowHpTime = 0.0f;
 
-	private const float LowHpRatio = 0.20f;
+	private const float LowHpRatio = 0.34f;  // screen effect kicks in at ~1 block left
 	private const float LowHpMin = 0.35f;
 	private const float LowHpFade = 3.5f;
 	private const float LowHpBeatHz = 1.15f;
@@ -35,8 +32,9 @@ public partial class HUD : CanvasLayer
 	private OffscreenMarkers _markers;
 	private TextureRect _portrait;
 	private Label _nameLabel;
-	private ProgressBar _bar;
-	private Label _valueLabel;
+	private Control _hpArea;
+	private readonly List<ColorRect> _hpCells = new();
+	private float _hpCellW = 0.0f;
 	private Control _ruhArea;
 	private readonly List<ColorRect> _ruhCells = new();
 	private float _ruhCellW = 0.0f;
@@ -53,6 +51,11 @@ public partial class HUD : CanvasLayer
 	private const float RuhCellGap = 3.0f;
 	private static readonly Color RuhFill = new(0.80f, 0.16f, 0.20f);
 	private static readonly Color RuhEmpty = new(0.16f, 0.08f, 0.10f, 0.9f);
+
+	// Health BLOCKS (slot health): one cell per block, each fills 0/half/full (green→red by ratio).
+	private static readonly Vector2 HpMeterSize = new(248, 20);
+	private const float HpCellGap = 4.0f;
+	private static readonly Color HpEmpty = new(0.09f, 0.09f, 0.11f, 0.9f);
 
 	private static readonly string[] StrikeTypeNames =
 		{ "MELEE", "PROJECTILE", "DELAYED_PROJECTILE", "AOE", "DELAYED_AOE", "BLAST", "TRAP" };
@@ -100,11 +103,8 @@ public partial class HUD : CanvasLayer
 		_nameLabel = MkLabel(new Vector2(infoX, 14), 20, new Color(0.93f, 0.87f, 0.62f));
 		_nameLabel.Text = "CHARACTER";
 
-		_bar = MkBar(new Vector2(infoX, 48), new Vector2(248, 20), new Color(0.78f, 0.13f, 0.18f));
-		_valueLabel = MkLabel(new Vector2(infoX, 48), 13, new Color(0.9f, 0.9f, 0.95f));
-		_valueLabel.Size = new Vector2(248, 20);
-		_valueLabel.HorizontalAlignment = HorizontalAlignment.Center;
-		_valueLabel.VerticalAlignment = VerticalAlignment.Center;
+		_hpArea = new Control { Position = new Vector2(infoX, 48), Size = HpMeterSize, MouseFilter = Control.MouseFilterEnum.Ignore };
+		_root.AddChild(_hpArea);
 
 		_ruhArea = new Control { Position = new Vector2(infoX, 76), Size = RuhMeterSize, MouseFilter = Control.MouseFilterEnum.Ignore };
 		_root.AddChild(_ruhArea);
@@ -205,17 +205,35 @@ public partial class HUD : CanvasLayer
 		return l;
 	}
 
-	private ProgressBar MkBar(Vector2 pos, Vector2 sz, Color fill)
+	/// <summary>(Re)build one HP cell per health BLOCK, evenly across HpMeterSize (mirrors the Ruh meter).</summary>
+	private void BuildHealthMeter(int blockCount)
 	{
-		var b = new ProgressBar { Position = pos, Size = sz, CustomMinimumSize = sz, ShowPercentage = false };
-		var bg = new StyleBoxFlat { BgColor = new Color(0.09f, 0.09f, 0.11f, 0.9f) };
-		bg.SetCornerRadiusAll(2);
-		var fs = new StyleBoxFlat { BgColor = fill };
-		fs.SetCornerRadiusAll(2);
-		b.AddThemeStyleboxOverride("background", bg);
-		b.AddThemeStyleboxOverride("fill", fs);
-		_root.AddChild(b);
-		return b;
+		foreach (var c in _hpArea.GetChildren())
+			c.QueueFree();
+		_hpCells.Clear();
+		blockCount = Mathf.Max(blockCount, 1);
+		_hpCellW = (HpMeterSize.X - HpCellGap * (blockCount - 1)) / blockCount;
+		for (int i = 0; i < blockCount; i++)
+		{
+			float x = i * (_hpCellW + HpCellGap);
+			_hpArea.AddChild(new ColorRect { Position = new Vector2(x, 0), Size = new Vector2(_hpCellW, HpMeterSize.Y), Color = HpEmpty });
+			var fill = new ColorRect { Position = new Vector2(x, 0), Size = new Vector2(0, HpMeterSize.Y) };
+			_hpArea.AddChild(fill);
+			_hpCells.Add(fill);
+		}
+	}
+
+	/// <summary>Fill each block cell from `current` half-blocks (2 per block) — a block shows full / half / empty —
+	/// and tint the fill green→orange→red by the overall ratio (same bands as the floating enemy bars).</summary>
+	private void UpdateHealthMeter(float current, float maximum)
+	{
+		Color fill = FloatingHealthBar.ColorForRatio(maximum > 0.0f ? current / maximum : 0.0f);
+		for (int i = 0; i < _hpCells.Count; i++)
+		{
+			float ratio = Mathf.Clamp(current / 2.0f - i, 0.0f, 1.0f); // 2 half-blocks per block
+			_hpCells[i].Size = new Vector2(_hpCellW * ratio, _hpCells[i].Size.Y);
+			_hpCells[i].Color = fill;
+		}
 	}
 
 	/// <summary>(Re)build the block cells so there's one per ruh block. Cells laid out evenly across RuhMeterSize.</summary>
@@ -289,8 +307,6 @@ public partial class HUD : CanvasLayer
 		OnCharacterChanged(_player.character);
 		OnHealthChanged(_player.health, _player.max_health);
 		OnRuhChanged(_player.ruh, _player.ruh_cap);
-		_bar.Value = _target;
-		RecolorHp();
 		SetShown(true);
 	}
 
@@ -331,11 +347,6 @@ public partial class HUD : CanvasLayer
 				Bind(p);
 			return;
 		}
-		if (!Mathf.IsEqualApprox((float)_bar.Value, _target))
-		{
-			_bar.Value = Mathf.MoveToward((float)_bar.Value, _target, drain_speed * delta);
-			RecolorHp();
-		}
 		UpdateLowHealth(delta);
 		_levelsLabel.Text = $"WAVES  {SaveData.GetCurrentWaves()}   ·   BEST {SaveData.WavesRecord()}";
 	}
@@ -374,10 +385,10 @@ public partial class HUD : CanvasLayer
 
 	private void OnHealthChanged(double current, double maximum)
 	{
-		_bar.MaxValue = maximum;
-		_target = (float)current;
-		_valueLabel.Text = $"{Mathf.RoundToInt(current)} / {Mathf.RoundToInt(maximum)}";
-		RecolorHp();
+		int blocks = Mathf.Max(Mathf.RoundToInt((float)maximum / 2.0f), 1); // 2 half-blocks per block
+		if (blocks != _hpCells.Count)
+			BuildHealthMeter(blocks);
+		UpdateHealthMeter((float)current, (float)maximum);
 		float ratio = maximum > 0.0 ? (float)(current / maximum) : 0.0f;
 		if (ratio >= LowHpRatio)
 			_lowHpTarget = 0.0f;
@@ -386,15 +397,6 @@ public partial class HUD : CanvasLayer
 			float t = Mathf.Clamp((LowHpRatio - ratio) / LowHpRatio, 0.0f, 1.0f);
 			_lowHpTarget = Mathf.Lerp(LowHpMin, 1.0f, t);
 		}
-	}
-
-	/// <summary>Tint the HP fill green/orange/red — the SAME bands the floating enemy bars use (now a direct C# call).</summary>
-	private void RecolorHp()
-	{
-		if (_bar == null || _bar.MaxValue <= 0.0)
-			return;
-		if (_bar.GetThemeStylebox("fill") is StyleBoxFlat fs)
-			fs.BgColor = FloatingHealthBar.ColorForRatio((float)(_bar.Value / _bar.MaxValue));
 	}
 
 	private void OnRuhChanged(double current, double maximum)

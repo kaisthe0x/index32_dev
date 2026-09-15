@@ -49,14 +49,19 @@ above). The interval/count/cap + distance bands are tunable consts in `RunManage
 `spawn_ground`/`spawn_air` layout markers are unused — delete them from layouts.)
 
 Related, but not in this folder:
-- **Player HP + Ruh** live on the `Player` (`scripts/Player.cs`) as **two independent pools**:
-  `health` (damage hits this only; heals ONLY via rewards) and `ruh` — the **surge meter**, in
+- **Player HP is SLOT-based** (`scripts/Player.cs`): you have **3 blocks**, measured internally in **half-blocks**
+  (`BaseMaxHealth` = 6). **Every hit costs a flat half-block regardless of its damage** (`take_damage` ignores the
+  amount — so 6 hits kill), and there's no player damage number. Damage-*reduction* is therefore inert (Jnoon's
+  mitigation is parked; the parked reward `Thick Hide` still sets `damage_taken_mult` but nothing reads it). Healing
+  is in half-blocks: the **Nem surge restores one block**, and the **Bloodrush/Skim** buffs give a per-tier *chance*
+  per hit to restore a half-block (`LifestealBuff`). The HUD shows 3 block cells (half-block resolution).
+- **Ruh** is the other pool — the **surge meter**, in
   charges/blocks of `RUH_PER_BLOCK` (100), capped by `ruh_cap`. You **start a run with 3 charges**
   (`BASE_RUH_CAP` = 300 — `begin_run` sets it full) and **refill by landing HITS** (`RUH_PER_HIT` = 20,
   so ~5 hits = 1 charge) — **not kills** — and it **never decays**. API: `gain_ruh_on_hit` /
   `take_damage` (HP only) / `heal` / `begin_run`. **Specials are free** now; **surges spend Ruh** (each
   use costs its `SurgeSpec.cost`, 100 = one charge). Rewards raise `ruh_cap` (toward `MAX_RUH_CAP` = 500, 5 charges).
-- **The Ruh block meter** is built in `scripts/hud.gd` next to the HP bar (crimson cells) — one cell
+- **The Ruh block meter** is built in `HUD.cs` next to the HP block meter (crimson cells) — one cell
   per charge; each surge empties one.
 - **Surges apply a timed effect + aura** (`Player._begin_surge(SurgeSpec)`, fired by `Player._try_surge`
   on the dedicated `surge` button) — **Aegis** = invuln, **Jnoon** = ×2 damage dealt / ×0.5 taken; both
@@ -77,8 +82,8 @@ Related, but not in this folder:
 4. **Killing** an enemy → `died` → `OnEnemyDied`: `_alive--` (frees a cap slot), always drops **Fada Figs**, and
    with probability `BuffDropChance()` (ramps `BuffDropBase` → `BuffDropCap` by `_waveCount`) drops a **`BuffDrop`**
    (a random generally-useful buff, tier weighted low). Both spawn deferred (death fires mid physics-flush).
-5. **Death** (HP hits 0) → the whole run restarts via `Player.begin_run` (buffs cleared, 100 HP / a full 3-charge
-   Ruh meter) + a fresh `BuildArena()`; the run-start `AttackSelect` re-opens.
+5. **Death** (HP hits 0 — the 6th hit) → the whole run restarts via `Player.begin_run` (buffs cleared, a full 3
+   blocks of HP / a full 3-charge Ruh meter) + a fresh `BuildArena()`; the run-start `AttackSelect` re-opens.
 
 ## Tuning cheatsheet
 

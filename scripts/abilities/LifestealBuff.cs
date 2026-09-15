@@ -3,24 +3,25 @@ using Godot;
 namespace MyGame;
 
 /// <summary>
-/// Heal a per-tier fraction of the damage the player deals, via <see cref="Passive.OnHitDealt"/> — the tiered,
-/// data-driven cousin of <see cref="Leech"/>. Covers the catalog's sustain buffs (Zahluq Bloodrush, Ora Ora Skim,
-/// Dash Leech, …). Per-attack ones are gated at OFFER time (only shown when that attack is equipped, and the
-/// attack is locked for the run), so no per-hit move gating is needed here. Built by <see cref="BuffCatalog"/>.
+/// SLOT-HEALTH lifesteal: each hit the player lands has a per-tier CHANCE to restore half a block, via
+/// <see cref="Passive.OnHitDealt"/> — the tiered, data-driven sustain buff (Bloodrush, Skim, …). A fraction-of-damage
+/// heal would trivially refill the 6-half-block bar, so the per-tier array is read as a PROBABILITY per hit instead.
+/// Built by <see cref="BuffCatalog"/>.
 /// </summary>
 public partial class LifestealBuff : Buff
 {
-    private readonly float[] _frac;  // per-tier fraction of damage healed, indexed Common..Epic
+    private const float HealHalfBlock = 1.0f;   // one proc = half a block
+    private readonly float[] _chance;           // per-tier chance-per-hit, indexed Common..Epic
 
-    public LifestealBuff(string id, float[] frac)
+    public LifestealBuff(string id, float[] chance)
     {
         Id = id;
-        _frac = frac;
+        _chance = chance;
     }
 
     public override void OnHitDealt(Player player, float amount, Node target)
     {
-        if (amount > 0.0f)
-            player.heal(amount * _frac[Mathf.Clamp((int)Tier, 0, _frac.Length - 1)]);
+        if (amount > 0.0f && GD.Randf() < _chance[Mathf.Clamp((int)Tier, 0, _chance.Length - 1)])
+            player.heal(HealHalfBlock);
     }
 }

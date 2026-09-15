@@ -99,8 +99,8 @@ public static class BuffCatalog
     public static readonly Dictionary<string, (string Name, string Desc)> INFO = new()
     {
         [BuffIds.LongReach] = ("Long Reach", "Your attacks reach noticeably farther."),
-        [BuffIds.Bloodrush] = ("Bloodrush", "Heal a portion of the damage you deal."),
-        [BuffIds.Skim] = ("Skim", "Siphon a sliver of HP from every hit you land."),
+        [BuffIds.Bloodrush] = ("Bloodrush", "Landing a hit has a good chance to restore half a health block."),
+        [BuffIds.Skim] = ("Skim", "Landing a hit has a small chance to restore half a health block."),
         [BuffIds.DashImmunity] = ("Phase Dash", "Briefly invulnerable right after you dash."),
         [BuffIds.JumpImmunity] = ("Leap of Faith", "Briefly invulnerable right after a ground jump."),
         [BuffIds.SlamImmunity] = ("Ground Zero", "Invulnerable for a moment after you slam-land."),

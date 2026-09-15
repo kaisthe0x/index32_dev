@@ -137,7 +137,8 @@ public static class ActionsKhalid
 		{
 			Name = "Jnoon",
 			Icon = Shield,
-			Surge = new SurgeSpec { duration = 5.0f, damage_mult = 2.0f, damage_taken_mult = 0.5f, cost = 100.0f, aura = "res://vfx/character/khalid/surge/jnoon/surge_jnoon.tscn" },
+			// Slot health parked Jnoon's damage-reduction (a ×mult is meaningless when every hit costs a flat half-block); keeps ×2 damage dealt.
+			Surge = new SurgeSpec { duration = 5.0f, damage_mult = 2.0f, cost = 100.0f, aura = "res://vfx/character/khalid/surge/jnoon/surge_jnoon.tscn" },
 		},
 		[SurgeIds.Asra] = new Action
 		{
