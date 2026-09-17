@@ -46,7 +46,7 @@ color_ramp = SubResource("Grad_reach")
 collision_layer = 32
 collision_mask = 16
 script = ExtResource("2_hitbox")
-damage = 5.0
+damage = 2.0
 knockback = 120.0
 
 [node name="Shape" type="CollisionShape2D" parent="Reach/Hitbox" unique_id=771120004]
@@ -75,7 +75,7 @@ color_ramp = SubResource("Grad_debris")
 collision_layer = 32
 collision_mask = 16
 script = ExtResource("2_hitbox")
-damage = 15.0
+damage = 8.0
 knockback = 180.0
 
 [node name="Shape" type="CollisionShape2D" parent="Impact/Hitbox" unique_id=771120007]

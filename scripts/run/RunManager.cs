@@ -245,8 +245,8 @@ public partial class RunManager : Node2D
 
     // Proximity-spawn tuning (px). Ground grunts appear within a fair band — far enough that the player can react,
     // never on top of him; stationary enemies (Nasen) much farther; flyers (Ein) overhead with dodge room.
-    private const float GroundSpawnMin = 170.0f;
-    private const float GroundSpawnMax = 440.0f;
+    private const float GroundSpawnMin = 100.0f;
+    private const float GroundSpawnMax = 240.0f;
     private const float StationarySpawnMin = 500.0f;
     private const float StationarySpawnMax = 920.0f;
     private const float FlyerHeightMin = 130.0f;
@@ -359,21 +359,17 @@ public partial class RunManager : Node2D
     {
         // Death fires INSIDE a physics query flush (Hitbox callback), where adding a RigidBody is illegal
         // ("Can't change this state while flushing queries"). Capture the values (the enemy frees) + defer the drops.
-        // An enemy that fell into the void drops nothing — the loot would spawn unreachable below the platforms.
-        if (!enemy.fell_off)
+        Vector2 at = enemy.GlobalPosition;
+        int figs = enemy.fada_fig_drop;
+        bool buff = GD.Randf() < BuffDropChance();  // ramping chance, rolled at death (optional enemies drop too, if killed)
+        Callable.From(() =>
         {
-            Vector2 at = enemy.GlobalPosition;
-            int figs = enemy.fada_fig_drop;
-            bool buff = GD.Randf() < BuffDropChance();  // ramping chance, rolled at death (optional enemies drop too, if killed)
-            Callable.From(() =>
-            {
-                SpawnFadaFigs(at, figs);
-                if (buff)
-                    SpawnBuffDrop(at);
-            }).CallDeferred();
-        }
+            SpawnFadaFigs(at, figs);
+            if (buff)
+                SpawnBuffDrop(at);
+        }).CallDeferred();
         if (!enemy.optional)
-            _alive -= 1;   // free a slot in the concurrency cap (falls included, so spawning never stalls)
+            _alive -= 1;   // free a slot in the concurrency cap
     }
 
     /// <summary>Current buff-drop chance — ramps from <see cref="BuffDropBase"/> up to <see cref="BuffDropCap"/> as waves
