@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace MyGame;
 
@@ -136,4 +137,36 @@ public static class BuffCatalog
 
     /// <summary>Whether <paramref name="id"/> has a working factory (vs. catalogued-only, pending its mechanic).</summary>
     public static bool Implemented(string id) => FACTORIES.ContainsKey(id);
+
+    // --- reward POOLS (used by the fada-fig buff menu + the mystery box) --------------------------------------
+    private static string[] _general, _mild, _powerful;
+
+    /// <summary>Implemented ids that aren't gated to a SPECIFIC move (AppliesTo only "*"/"attack"/"special", or none)
+    /// — so offering one is always meaningful. Cached.</summary>
+    private static string[] General()
+    {
+        if (_general != null)
+            return _general;
+        var ids = new List<string>();
+        foreach (string id in FACTORIES.Keys)
+        {
+            if (Make(id, Tier.Common) is not Buff b)
+                continue;
+            if (b.AppliesTo.All(a => a is "*" or "attack" or "special"))
+                ids.Add(id);
+        }
+        _general = ids.ToArray();
+        return _general;
+    }
+
+    /// <summary>True if <paramref name="id"/> is an invulnerability buff (the offer-heavy dash/jump/slam/hit-guard/
+    /// follow-through windows) — flagged POWERFUL so it's box-only, kept out of the mild menu.</summary>
+    public static bool IsInvuln(string id) => Make(id, Tier.Common) is InvulnBuff;
+
+    /// <summary>MILD pool — general buffs minus the invuln windows. The fada-fig milestone menu draws from these.</summary>
+    public static string[] MildIds() => _mild ??= General().Where(id => !IsInvuln(id)).ToArray();
+
+    /// <summary>POWERFUL pool — the general buffs INCLUDING the invuln windows. The mystery box draws from these
+    /// (at above-rare tiers).</summary>
+    public static string[] PowerfulIds() => _powerful ??= General().ToArray();
 }

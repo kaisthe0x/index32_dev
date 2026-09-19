@@ -454,14 +454,35 @@ public partial class Player : Combatant
     /// <summary>Push the current buff loadout to the HUD's active-buff list (autoload).</summary>
     private void RefreshBuffHud() => GetNodeOrNull<HUD>("/root/HUD")?.RefreshBuffs(_passives);
 
-    /// <summary>FadaFigs banked this run — the Chest currency. Reset by <see cref="begin_run"/>.</summary>
+    /// <summary>Emitted whenever fada_figs are collected — carries the current spendable balance + the run's LIFETIME
+    /// total collected. RunManager listens to fire the milestone buff-menu off the lifetime total.</summary>
+    [Signal] public delegate void fada_collectedEventHandler(int balance, int lifetime);
+
+    /// <summary>FadaFigs banked this run — the SPENDABLE balance (mystery box spends it). Reset by <see cref="begin_run"/>.</summary>
     public int fada_figs { get; private set; } = 0;
+
+    /// <summary>Total fada_figs collected this run (monotonic — the box's spending never lowers it). Drives the free
+    /// milestone buff-menu, so spending at the box doesn't cost menu progress. Reset by <see cref="begin_run"/>.</summary>
+    public int fada_lifetime { get; private set; } = 0;
 
     /// <summary>Collect <paramref name="n"/> fada_fig(s) (a FadaFig touched the player) — bank them + update the HUD.</summary>
     public void collect_fada_fig(int n = 1)
     {
         fada_figs += n;
+        fada_lifetime += n;
         GetNodeOrNull<HUD>("/root/HUD")?.SetFadaFigs(fada_figs);
+        EmitSignal(SignalName.fada_collected, fada_figs, fada_lifetime);
+    }
+
+    /// <summary>Try to spend <paramref name="cost"/> fada_figs (the mystery box). True + deducts if affordable; else false.
+    /// Only the spendable balance moves — <see cref="fada_lifetime"/> (menu progress) is untouched.</summary>
+    public bool spend_fada_figs(int cost)
+    {
+        if (cost <= 0 || fada_figs < cost)
+            return false;
+        fada_figs -= cost;
+        GetNodeOrNull<HUD>("/root/HUD")?.SetFadaFigs(fada_figs);
+        return true;
     }
 
     public void notify_hit_dealt(float amount, Node target)
@@ -1133,6 +1154,7 @@ public partial class Player : Combatant
         _dead = false;
         _deathFinished = false;
         fada_figs = 0;
+        fada_lifetime = 0;
         GetNodeOrNull<HUD>("/root/HUD")?.SetFadaFigs(0);
         EndSurge();
         _shakeLeft = 0.0f;

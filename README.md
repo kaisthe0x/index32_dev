@@ -45,7 +45,7 @@ resources/characters/ GENERATED SpriteFrames -- do not hand-edit
 resources/enemies/    GENERATED enemy SpriteFrames -- do not hand-edit
 scenes/               player, level, hud
 scripts/              player, hud
-scripts/run/          the roguelite run: continuous arena, steady spawner, Ruh, buff drops, attack picker (see scripts/run/README.md)
+scripts/run/          the roguelite run: continuous arena, steady spawner, Ruh, buff menu + mystery box, attack picker (see scripts/run/README.md)
 scripts/abilities/    Passive/Buff base (C#) + reward passives (Leech/ParryMend/ReaperEdge.cs) + reward-tier/trigger types (RewardTypes.cs)
 scripts/combat/       Hurtbox, hitbox, Combatant base, health bar, floating text, status overlay — all C# now (constants -> configs/Combat.cs)
 scripts/enemies/      Enemy base + projectile
@@ -65,6 +65,7 @@ tools/                Generator + verification scripts (not shipped)
 | Left mouse | `attack` | The current *attack* — each press advances the combo (or, for a `"flurry"` attack like Khalid's, **hold** to keep punching). **Ground only** by default — an attack whose Action is tagged `"air"` (e.g. Zahluq) is the exception and can be used mid-air (`Player._air_attack_ok`) |
 | Right mouse | `special` | On the ground: the current *special* (committed full-animation move) — **free, no Ruh cost**; most have only a tiny anti-spam lag, though a strong one can set its own cooldown (**Come Closer = 3s**). **In the air: performs the ground slam instead** (characters with a `slam` sheet) |
 | Ctrl (RT / R2) | `surge` | Fires the equipped **Surge** — a passive ability (**Aegis** = ~5s invincibility; **Jnoon** = ~5s ×2 damage dealt; **Asra** = ~5s ×2 move speed) applied *without* interrupting your attacking/moving — **except Nem**, a committed sleep that locks you in place and restores one health block over 5s (a hit wakes/cancels it), and **Wara**, which *arms* and waits: the next enemy hit is negated and AoE-stuns everyone near you (2s). **Spends one Ruh charge per use** — Ruh is the only gate, no cooldown. RT on the pad because dash owns LT |
+| E | `interact` | Open the **mystery box** when standing next to it (spend fada figs; registered in code by `MysteryBox`) |
 | Z / X | `debug_damage` / `debug_heal` | Dev only |
 | 0 | `debug_respawn` | Dev only — rebuild the current level fresh |
 
@@ -123,15 +124,18 @@ run with 3 Ruh charges** — the surge meter, shown in charges (100 each), no de
 **Specials are now free and unlimited** (only a tiny anti-spam lag). Ruh instead fuels the **Aegis
 surge** (a passive on its own button): it grants ~5s of invincibility on demand without interrupting
 you, and **each use spends one Ruh charge** — Ruh is the only gate, no cooldown (see below). **HP is separate**: damage hits it only, heals
-*only* from buffs. **Killing an enemy** always drops **Fada Figs** (the run currency) and, at a chance that
-**ramps from 40% up to a 70% cap** as the run wears on, a **`BuffDrop`** — a glowing orb you touch to gain a
-random generally-useful buff (tier weighted low; move-gated buffs stay out of the drop pool so a pickup is
-never wasted). Moves are independent — they **upgrade by layering buffs**, not by turning into a different move
-(Dual Executioner & Redere Frisbee are now standalone swaps, not successors). Take 0 HP and the run restarts
-(a fresh arena; buffs cleared, HP + Ruh refilled). All of this — the spawner, the enemy roster, the buff pool,
-the attack picker — lives in [`scripts/run/`](scripts/run/README.md) (`RunManager` is `arena.tscn`'s root;
-`EnemyKits` is the roster, `BuffDrop` + `BuffCatalog` the drops; the old `Levels` / `Rewards` / `RewardsCatalog`
-/ `Build` reward-door code is **parked, not wired**, kept for the pivot's reward phase). The `.tscn` stays minimal because the editor
+*only* from buffs. **Killing an enemy** drops **Fada Figs** (the run currency). **Buffs come from two places:**
+(1) as you collect figs, hitting escalating **lifetime milestones** (25 / 55 / 105 / …) pauses the game and pops a
+**free pick-1-of-3 MILD buff menu** (non-invuln, Common/Rare) — the figs aren't spent; (2) a **mystery box** in the
+arena you stand next to and press **E** to **spend** figs on a **stingy gamble** — most pulls dud, but a win opens the
+**same pick-1-of-3 menu** from the POWERFUL pool (above-rare, including the invuln windows), each win making the next
+rarer. Moves are independent — they **upgrade by layering
+buffs**, not by turning into a different move (Dual Executioner & Redere Frisbee are now standalone swaps, not
+successors). Take 0 HP and the run restarts (a fresh arena; buffs cleared, HP + Ruh refilled). All of this — the
+spawner, the enemy roster, the buff pools, the box, the attack picker — lives in
+[`scripts/run/`](scripts/run/README.md) (`RunManager` is `arena.tscn`'s root; `EnemyKits` is the roster, `MysteryBox`
++ `BuffCatalog` the powerful gamble, `RewardUI` the buff menu; the old `Levels` / `Rewards` / `RewardsCatalog` /
+`Build` reward-door code is **parked, not wired**, kept for the pivot's reward phase). The `.tscn` stays minimal because the editor
 clobbers it, so the level content is built in code from that data. The **look** of the terrain itself is the
 hand-painted `TileMapLayer` in each stage layout (see the run README); the old procedural tileset/plant/tree
 "skin" is **retired**, and `configs/Terrain.cs` now only holds the backdrop config.
@@ -1715,7 +1719,12 @@ the build basics:
   `RunManager.SpawnPool` (up to a `MaxAlive` cap). A **kit** (`EnemyKits.KEBUS`, …) is either an `id` (built
   from the generic `enemy.tscn` with that `enemy_id`) or a `scene` (a custom enemy — `sleeper_enemy.tscn`,
   `diver_enemy.tscn`), plus any Enemy `@export` overrides. `RunManager.SpawnEnemy` applies them; the enemy's
-  `died` signal frees a cap slot and rolls the Fada-Fig + buff drops.
+  `died` signal frees a cap slot and drops Fada Figs (buffs come from the milestone menu + mystery box, not kills).
+- **Anti-camp cull** — since spawning stops at the `MaxAlive` cap, `RunManager.CullOffscreen` silently frees any enemy
+  that stays OFF-SCREEN for `OffscreenDespawnTime` (8s) — no death VFX/sfx/figs — and releases its cap slot, so a
+  camper the AI can't reach still gets fresh enemies spawned near them.
+- **Per-type caps** — a kit's `spawn_cap` (e.g. Nasen = 1) limits how many of that type are alive at once; `PickSpawnKit`
+  only rolls kits under their cap, and the cap grows +1 every `SpawnCapGrowthWaves` waves. No `spawn_cap` = unlimited.
 - **Fall-death** — any enemy whose world Y passes `Enemy.FallDeathY` (below the platforms) `Die()`s (it walked/was
   knocked off into the void). It still emits `died` so the spawn-cap slot frees, but `RunManager.OnEnemyDied`
   skips its loot (`enemy.fell_off`) — those drops would be unreachable down there.

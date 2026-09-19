@@ -1,7 +1,7 @@
 # run — the roguelite loop
 
 Everything that makes the game a *run* lives here: the continuous arena, the spawner, the Ruh economy
-plumbing, and the buff drops. One folder, driven by data you can tune in one place each. The premise it
+plumbing, the buff menu, and the mystery box. One folder, driven by data you can tune in one place each. The premise it
 implements is in [`docs/game-design.md`](../../docs/game-design.md) (moving toward the Fissure/Seal/Warden
 pivot in [`docs/game-loop.md`](../../docs/game-loop.md)).
 
@@ -17,10 +17,10 @@ pivot in [`docs/game-loop.md`](../../docs/game-loop.md)).
 
 | File | What it is |
 |---|---|
-| `RunManager.cs` (`RunManager`) | The brain + the arena root. Builds ONE continuous arena, **trickles enemies in at a steady rate** from a mixed roster (proximity-placed around the player, capped by a concurrent-alive limit), **awards Ruh per damaging hit landed** (via `gain_ruh_on_hit`, skipping a special's own hits — not per kill), **drops Fada Figs + a random buff (ramping chance) on each kill**, and restarts the run on death. Owns the camera/death/spawn flair. |
+| `RunManager.cs` (`RunManager`) | The brain + the arena root. Builds ONE continuous arena, **trickles enemies in at a steady rate** from a mixed roster (proximity-placed around the player, capped by a concurrent-alive limit), **awards Ruh per damaging hit landed** (via `gain_ruh_on_hit`, skipping a special's own hits — not per kill), **drops Fada Figs on each kill**, **pops a free pick-1-of-3 MILD buff menu at escalating fada-fig milestones**, **spawns a mystery box** (spend figs for a stingy powerful-buff gamble), and restarts the run on death. Owns the camera/death/spawn flair. |
 | `enemies.gd` (`EnemyKits`) | **The enemy roster** — one named kit per type (combat tuning + which scene), plus a `Tier`. `RunManager.SpawnPool` draws from these. Edit here to change *who* the enemies are. |
-| `BuffDrop.cs` (`BuffDrop`, in `scripts/collectibles/`) | A collectible **buff drop** — code-built (no scene), pops/settles like a Fada Fig, glows in its rarity colour, and grants a RANDOM generally-useful buff on touch (id+tier rolled at spawn, tier weighted low). Pool = `BuffCatalog` factories not gated to a specific move. |
-| `RewardUI.cs` (`RewardUI`) | The pick-a-reward popup (pauses the game, emits `chosen(id)`). Still live: reused by the run-start `AttackSelect`. |
+| `MysteryBox.cs` (`MysteryBox`, in `scripts/things/`) | A code-built placeholder "?" crate. Stand next to it (a "E" prompt shows) and press **E** (the `interact` action, registered in code) to spend `Cost` fada_figs on a gamble: `DudChanceBase` of pulls give nothing, otherwise it fires `won` and RunManager opens the **same 3-choice menu** from the POWERFUL pool (`BuffCatalog.PowerfulIds`, above-rare tiers). Each win raises the dud chance further (per-run). Press E again to pull again. |
+| `RewardUI.cs` (`RewardUI`) | The pick-a-card popup (pauses the game, emits `chosen(id)`) — `Open(cards, title)`. Now drives the milestone **buff menu**. |
 | *(parked — not wired)* | `levels.gd` (`Levels`, still read once for the arena `bg` tint), `Rewards.cs`/`Build.cs`/`configs/RewardsCatalog.cs` (build-aware reward offers), `ExitGate.cs`. Kept for the pivot's reward phase; `RunManager` no longer drives them. |
 
 **Hand-painted stage layouts** are the active approach: `RunManager` loads a random
@@ -39,7 +39,10 @@ generator only bakes full boxes). See [`docs/painting-levels.md`](../../docs/pai
 **Enemy spawning is CONTINUOUS + PROXIMITY-based.** A `_PhysicsProcess` accumulator fires `SpawnWave()` every
 `SpawnInterval` (steady, no ramp for now — retuned when seals arrive), dropping `EnemiesPerWave` enemies picked
 uniformly from `RunManager.SpawnPool` (a mixed roster: the grunts + Ein + Nasen; Wardens are elite/pivot-only).
-Spawning pauses while `_alive` (living non-optional enemies) is at the `MaxAlive` cap. Each enemy is placed by
+Spawning pauses while `_alive` (living non-optional enemies) is at the `MaxAlive` cap. **Per-type caps:** a kit with a
+`spawn_cap` (Nasen = 1) can't have more than that many alive at once — `PickSpawnKit` only rolls kits under their cap
+(`LivingOfType` vs `EffectiveCap`), and the cap grows by +1 every `SpawnCapGrowthWaves` waves as the run progresses.
+Each enemy is placed by
 `SpawnPosition(kit)` relative to the player: **flyers** (`air`) overhead within `FlyerHeight*`/`FlyerXSpread`
 (headroom-checked so they don't spawn inside a ceiling); **stationary** (`movement == Stationary`, e.g. Nasen)
 far off on a ground tile (`StationarySpawn*`); **grunts** near on a ground tile but within a fair band
@@ -47,6 +50,11 @@ far off on a ground tile (`StationarySpawn*`); **grunts** near on a ground tile 
 from `LevelLayout.GroundSurfaces()` (exposed tops of the Terrain tilemap — a solid cell with an empty cell
 above). The interval/count/cap + distance bands are tunable consts in `RunManager`. (The old
 `spawn_ground`/`spawn_air` layout markers are unused — delete them from layouts.)
+
+**Anti-camp cull:** because spawning stops at the `MaxAlive` cap, a player could camp somewhere the AI can't reach
+and starve the arena. So `CullOffscreen` tracks each living enemy's time OFF-SCREEN (`_offscreen`, using the camera's
+visible rect grown by `OffscreenMargin`); once one stays off-camera for `OffscreenDespawnTime` (8s) it's **silently
+freed** (no death VFX/sfx/figs) and its cap slot is released — so a fresh enemy can spawn next to the camper.
 
 Related, but not in this folder:
 - **Player HP is SLOT-based** (`scripts/Player.cs`): you have **3 blocks**, measured internally in **half-blocks**
@@ -79,18 +87,33 @@ Related, but not in this folder:
    unless already at the `MaxAlive` cap. Each tick bumps `_waveCount`.
 3. **Hitting** an enemy → `damaged` → `gain_ruh_on_hit()` charges the surge meter (a special's own hits are
    skipped). Specials are **free**; a **surge** fires only when you have the Ruh → `_try_surge()` spends its `cost`.
-4. **Killing** an enemy → `died` → `OnEnemyDied`: `_alive--` (frees a cap slot), always drops **Fada Figs**, and
-   with probability `BuffDropChance()` (ramps `BuffDropBase` → `BuffDropCap` by `_waveCount`) drops a **`BuffDrop`**
-   (a random generally-useful buff, tier weighted low). Both spawn deferred (death fires mid physics-flush).
-5. **Death** (HP hits 0 — the 6th hit) → the whole run restarts via `Player.begin_run` (buffs cleared, a full 3
+4. **Killing** an enemy → `died` → `OnEnemyDied`: `_alive--` (frees a cap slot) + always drops **Fada Figs**
+   (deferred — death fires mid physics-flush). Buffs no longer drop on kill.
+5. **Buffs come from two places:**
+   - **Milestone menu (mild, free):** collecting fada_figs fires `Player.fada_collected`; when the run's LIFETIME
+     total crosses `_nextMilestone` (25 → 55 → 105 → …, the gap grows by `MilestoneGapGrowth`), the game pauses and a
+     `RewardUI` offers **3 mild buffs** (`BuffCatalog.MildIds` — general, NON-invuln; Common/Rare, easing toward Rare
+     with `_milestoneIndex`). Picking grants it. **No figs are spent** — the balance is left for the box.
+   - **Mystery box (powerful, paid gamble):** one `MysteryBox` per arena; stand next to it + press **E** to spend `Cost`
+     figs (`Player.spend_fada_figs`). Most pulls dud (`DudChanceBase`); a WIN fires the box's `won` signal →
+     `RunManager.OpenPowerfulBuffMenu` opens the **same 3-choice `RewardUI`** from `BuffCatalog.PowerfulIds` (above-rare,
+     incl. invuln). Each win raises the dud chance. (Both menus share `ShowBuffMenu` / `OnBuffChosen`.)
+6. **Death** (HP hits 0 — the 6th hit) → the whole run restarts via `Player.begin_run` (buffs cleared, a full 3
    blocks of HP / a full 3-charge Ruh meter) + a fresh `BuildArena()`; the run-start `AttackSelect` re-opens.
 
 ## Tuning cheatsheet
 
 - **Change the spawn pressure** → `RunManager` consts: `SpawnInterval` (seconds between waves), `EnemiesPerWave`,
-  `MaxAlive` (concurrent cap). `SpawnPool` is the roster drawn from.
-- **Change the buff-drop rate** → `BuffDropBase` / `BuffDropStep` (+per wave) / `BuffDropCap`. Which buffs can drop
-  = `BuffDrop.Pool()` (implemented `BuffCatalog` factories not gated to a specific move); rarity mix = `RareChance`.
+  `MaxAlive` (concurrent cap). `SpawnPool` is the roster drawn from. Anti-camp: `OffscreenDespawnTime` (how long
+  off-screen before an enemy is silently culled) / `OffscreenMargin`.
+- **Cap a specific enemy type** → add `{ "spawn_cap", N }` to its kit in `enemies.gd` (e.g. Nasen = 1). The cap grows
+  +1 every `SpawnCapGrowthWaves` waves (`RunManager`). Kits with no `spawn_cap` are unlimited.
+- **Change the buff-menu cadence** → `RunManager` `FirstMilestone` / `MilestoneGapBase` / `MilestoneGapGrowth`
+  (the 25/55/105… curve) + `BuffMenuChoices`. Mild pool = `BuffCatalog.MildIds()`; tier skew = `RollMildTier`.
+- **Change the mystery box** → `MysteryBox` consts: `Cost` (figs per pull), `DudChanceBase` (~0.97), `DudChanceGrowth`
+  (+per win), `DudChanceCap`. Powerful pool = `BuffCatalog.PowerfulIds()`; tier weights = `RollPowerfulTier`.
+- **Move a buff between pools** → the invuln family is box-only via `BuffCatalog.IsInvuln`; move-gated buffs are
+  excluded from both by the `General()` filter.
 - **Change an enemy's stats** → its kit in `enemies.gd` (combat).
 - **Change the Ruh / surge economy** → `Player.RUH_PER_HIT` (fill rate per hit), `RUH_PER_BLOCK`
   (charge size), `BASE_RUH_CAP` (starting charges), and the Aegis surge's `cost` / `duration` in
@@ -99,7 +122,8 @@ Related, but not in this folder:
 ## Known template gaps (deliberate, for later)
 
 - The arena reuses one platform style; "different look" is just the `bg` tint so far.
-- Buff drops grant a RANDOM buff (no player choice) and reuse the Fada-Fig pickup sfx — placeholder look/feel.
+- The mystery box is placeholder art (a "?" crate) and reuses the Fada-Fig pickup sfx; the buff menu reuses the
+  reward-card popup. No dedicated art/sfx yet.
 - The steady spawn rate + ramping drops are the interim loop; **seals** (per `docs/game-loop.md`) will drive
   the rate and the reward economy, at which point the parked `Rewards`/`ExitGate` code gets reworked or removed.
 - No win screen / meta-progression yet.

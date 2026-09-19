@@ -1,15 +1,17 @@
 using Godot;
 using GDict = Godot.Collections.Dictionary;
+using GArr = Godot.Collections.Array;
 
 namespace MyGame;
 
 /// <summary>
 /// The run driver + the <c>arena.tscn</c> root. Builds ONE continuous arena (levels/exits are retired — the pivot's
 /// single Fissure arena), then trickles enemies in at a STEADY rate from a mixed roster, proximity-placed around the
-/// player. Banks Ruh on hits, drops Fada Figs + (at a ramping chance) a random BUFF on each kill, and restarts the run
-/// on death. Owns the player spawn, camera follow, and death/spawn flair. C# port of <c>scripts/run/run_manager.gd</c>.
+/// player. Banks Ruh on hits, drops Fada Figs on each kill, pops a free pick-1-of-3 MILD buff menu at escalating
+/// fada-fig milestones (25/55/105…), spawns a mystery box (spend figs for a stingy powerful-buff gamble), and restarts
+/// the run on death. Owns the player spawn, camera follow, and death/spawn flair. C# port of <c>run_manager.gd</c>.
 ///
-/// <para>Talks to the C# body tree (Player/Enemy) + collectibles (FadaFig/BuffDrop) directly; BRIDGES the still-GDScript
+/// <para>Talks to the C# body tree (Player/Enemy) + collectibles (FadaFig) + MysteryBox directly; BRIDGES the still-GDScript
 /// config/autoload layer (Terrain/Levels via the constant map, Music/Sfx via <c>/root/*</c>, AttackSelect/LaunchOrb via
 /// <c>.New()</c> + signals). Levels data survives only as the arena's palette source; the reward-door system is parked.</para>
 /// </summary>
@@ -25,10 +27,19 @@ public partial class RunManager : Node2D
     private const float SpawnInterval = 2.0f;   // seconds between spawn ticks ("waves")
     private const int EnemiesPerWave = 1;        // enemies dropped in per tick
     private const int MaxAlive = 8;             // pause spawning past this many living non-optional enemies
-    // Buff drops: a dying enemy drops a random buff at a chance that RAMPS per wave — 40% → 70% cap.
-    private const float BuffDropBase = 0.40f;
-    private const float BuffDropStep = 0.03f;    // +per wave (hits the cap after ~10 waves)
-    private const float BuffDropCap = 0.70f;
+    // Per-TYPE concurrent cap: a kit's `spawn_cap` (if any) limits how many of that enemy can be alive at once;
+    // the cap grows by +1 every SpawnCapGrowthWaves waves as the run progresses. Kits without a cap are unlimited.
+    private const int SpawnCapGrowthWaves = 20;
+    // Anti-camp: an enemy that stays OFF-SCREEN this long (e.g. can't path to a camping player) is silently freed,
+    // freeing its cap slot so a fresh one can spawn near the player. Margin grows the on-screen rect a little.
+    private const float OffscreenDespawnTime = 8.0f;
+    private const float OffscreenMargin = 96.0f;
+    // Buff menu: every time LIFETIME fada_figs collected crosses the next milestone, a free pick-1-of-3 MILD buff
+    // menu pops (game pauses). The gap to the next grows, so milestones land at 25, 55, 105, 175, … (tune here).
+    private const int FirstMilestone = 5;
+    private const int MilestoneGapBase = 30;
+    private const int MilestoneGapGrowth = 20;
+    private const int BuffMenuChoices = 3;
 
     /// <summary>The roster the continuous spawner draws from (uniform random) — a mixed assortment of grunts plus the
     /// flyer (Ein) and the stationary sleeper (Nasen). Wardens (Kroj) are elite/pivot-only, not part of the trickle.</summary>
@@ -59,8 +70,14 @@ public partial class RunManager : Node2D
     private Camera2D _camera;
 
     private int _alive = 0;            // living NON-optional enemies (the spawn-cap looks at this)
-    private int _waveCount = 0;        // spawn ticks so far this run — ramps the buff-drop chance
+    private int _waveCount = 0;        // spawn ticks so far this run
     private float _spawnAccum = 0.0f;  // seconds accrued toward the next spawn tick
+    private int _nextMilestone = FirstMilestone; // lifetime fada_figs that pops the next buff menu
+    private int _milestoneGap = MilestoneGapBase; // grows each milestone (25 → +30 → +50 → …)
+    private int _milestoneIndex = 0;              // how many buff menus taken this run (scales offered tiers)
+    private bool _menuOpen = false;               // a buff menu is up (game paused) — don't stack another
+    private readonly System.Collections.Generic.Dictionary<string, Buff> _menuBuffs = new(); // id → the exact offered buff (tiered)
+    private readonly System.Collections.Generic.Dictionary<Enemy, float> _offscreen = new(); // living enemy → seconds off-screen (anti-camp cull)
     private Node2D _content;
     private ColorRect _bg;
     private Sprite2D _bgSky;
@@ -105,6 +122,8 @@ public partial class RunManager : Node2D
         if (_camera != null)
             PlaceAt(_camera, _playerSpawn + new Vector2(0, -30));
         ChooseAttack();
+        if (_player != null)
+            _player.fada_collected += OnFadaCollected; // milestone buff menu (fires off the lifetime total)
     }
 
     public override void _PhysicsProcess(double deltaD)
@@ -142,6 +161,7 @@ public partial class RunManager : Node2D
             SpawnWave();
         }
         FollowCamera(delta);
+        CullOffscreen(delta); // free enemies stuck off-screen (anti-camp), using the just-moved camera
     }
 
     // --- arena building -------------------------------------------------------
@@ -174,6 +194,11 @@ public partial class RunManager : Node2D
         _alive = 0;
         _waveCount = 0;
         _spawnAccum = 0.0f;
+        _nextMilestone = FirstMilestone;
+        _milestoneGap = MilestoneGapBase;
+        _milestoneIndex = 0;
+        _menuOpen = false;
+        _offscreen.Clear(); // old enemies free with _content
         SaveData.SetCurrentWaves(0);
         if (_content != null && IsInstanceValid(_content))
             _content.QueueFree();
@@ -208,6 +233,12 @@ public partial class RunManager : Node2D
         foreach (var op in _layout?.Orbs() ?? new System.Collections.Generic.List<Vector2>())
             _content.AddChild(new LaunchOrb { Position = op });
 
+        // One mystery box per arena, on a ground tile a short walk from spawn (the fig sink for powerful buffs).
+        Vector2 boxPos = PickGroundSurface(_playerSpawn.X, 120.0f, 320.0f) ?? _playerSpawn + new Vector2(120, 0);
+        var box = new MysteryBox { Position = boxPos };
+        box.won += OpenPowerfulBuffMenu; // a winning pull opens the 3-choice powerful menu
+        _content.AddChild(box);
+
         SpawnWave(); // seed the arena so the player isn't waiting on the first tick
         if (_player != null)
             PlaceAt(_player, _playerSpawn);
@@ -224,7 +255,37 @@ public partial class RunManager : Node2D
         _waveCount += 1;
         SaveData.SetCurrentWaves(_waveCount);   // live HUD counter (survival metric)
         for (int i = 0; i < EnemiesPerWave && _alive < MaxAlive; i++)
-            SpawnOne(SpawnPool[GD.Randi() % (uint)SpawnPool.Length]);
+        {
+            var kit = PickSpawnKit();
+            if (kit != null)
+                SpawnOne(kit);
+        }
+    }
+
+    /// <summary>A random kit from the pool that is UNDER its per-type concurrent cap (uncapped kits always qualify);
+    /// null if every kit is currently at cap.</summary>
+    private GDict PickSpawnKit()
+    {
+        var eligible = new System.Collections.Generic.List<GDict>();
+        foreach (GDict kit in SpawnPool)
+            if (LivingOfType(kit["id"].AsString()) < EffectiveCap(kit))
+                eligible.Add(kit);
+        return eligible.Count == 0 ? null : eligible[(int)(GD.Randi() % (uint)eligible.Count)];
+    }
+
+    /// <summary>A kit's current concurrent cap: its <c>spawn_cap</c> base + 1 per <see cref="SpawnCapGrowthWaves"/>
+    /// waves survived. Kits with no <c>spawn_cap</c> are uncapped.</summary>
+    private int EffectiveCap(GDict kit) =>
+        kit.ContainsKey("spawn_cap") ? kit["spawn_cap"].AsInt32() + _waveCount / SpawnCapGrowthWaves : int.MaxValue;
+
+    /// <summary>How many living enemies of type <paramref name="id"/> are currently tracked.</summary>
+    private int LivingOfType(string id)
+    {
+        int n = 0;
+        foreach (Enemy e in _offscreen.Keys)
+            if (IsInstanceValid(e) && e.enemy_id == id)
+                n += 1;
+        return n;
     }
 
     /// <summary>Spawn ONE enemy from a kit: proximity-place it (near/overhead/far by type, never on the player), puff +
@@ -239,6 +300,7 @@ public partial class RunManager : Node2D
         var e = enemy; // stable capture for the bound handlers
         enemy.Connect(Enemy.SignalName.died, Callable.From(() => OnEnemyDied(e)));
         enemy.Connect(Enemy.SignalName.damaged, Callable.From((float amount, Node source) => OnEnemyDamaged(amount, source, e)));
+        _offscreen[enemy] = 0.0f; // start its anti-camp off-screen timer
         if (!enemy.optional)
             _alive += 1;
     }
@@ -318,7 +380,7 @@ public partial class RunManager : Node2D
         foreach (var key in kit.Keys)
         {
             string k = key.AsString();
-            if (k is "scene" or "tier" or "pos" or "air" or "movement")  // advisory kit metadata, not Enemy properties
+            if (k is "scene" or "tier" or "pos" or "air" or "movement" or "spawn_cap")  // advisory kit metadata, not Enemy properties
                 continue;
             if (k == "id")
                 enemy.Set("enemy_id", kit[key]);
@@ -358,29 +420,53 @@ public partial class RunManager : Node2D
     private void OnEnemyDied(Enemy enemy)
     {
         // Death fires INSIDE a physics query flush (Hitbox callback), where adding a RigidBody is illegal
-        // ("Can't change this state while flushing queries"). Capture the values (the enemy frees) + defer the drops.
+        // ("Can't change this state while flushing queries"). Capture the values (the enemy frees) + defer the drop.
+        // Buffs no longer drop on kill — they come from the fada-fig milestone menu + the mystery box (below).
         Vector2 at = enemy.GlobalPosition;
         int figs = enemy.fada_fig_drop;
-        bool buff = GD.Randf() < BuffDropChance();  // ramping chance, rolled at death (optional enemies drop too, if killed)
-        Callable.From(() =>
-        {
-            SpawnFadaFigs(at, figs);
-            if (buff)
-                SpawnBuffDrop(at);
-        }).CallDeferred();
+        if (!enemy.fell_off)
+            Callable.From(() => SpawnFadaFigs(at, figs)).CallDeferred();
+        _offscreen.Remove(enemy);
         if (!enemy.optional)
             _alive -= 1;   // free a slot in the concurrency cap
     }
 
-    /// <summary>Current buff-drop chance — ramps from <see cref="BuffDropBase"/> up to <see cref="BuffDropCap"/> as waves
-    /// accrue (steady early → richer as the run wears on). A steady rate for now; retuned when seals arrive.</summary>
-    private float BuffDropChance() => Mathf.Min(BuffDropCap, BuffDropBase + BuffDropStep * _waveCount);
-
-    private void SpawnBuffDrop(Vector2 at)
+    /// <summary>Anti-camp: free any tracked enemy that's stayed OFF-SCREEN for <see cref="OffscreenDespawnTime"/> (it
+    /// likely can't path to a camping player). Silent — no death VFX/sfx/figs — but it frees its cap slot so a fresh
+    /// enemy can spawn near the player. Runs only during normal play (paused/dead/spawning all early-return above).</summary>
+    private void CullOffscreen(float delta)
     {
-        var drop = new BuffDrop();
-        _content.AddChild(drop);
-        PlaceAt(drop, at + new Vector2(0, -12));
+        if (_camera == null || _offscreen.Count == 0)
+            return;
+        Vector2 half = GetViewport().GetVisibleRect().Size / _camera.Zoom * 0.5f;
+        Rect2 view = new Rect2(_camera.GlobalPosition - half, half * 2.0f).Grow(OffscreenMargin);
+        System.Collections.Generic.List<Enemy> cull = null;
+        foreach (Enemy e in new System.Collections.Generic.List<Enemy>(_offscreen.Keys))
+        {
+            if (!IsInstanceValid(e))
+            {
+                _offscreen.Remove(e);
+                continue;
+            }
+            if (view.HasPoint(e.GlobalPosition))
+                _offscreen[e] = 0.0f;
+            else if ((_offscreen[e] += delta) >= OffscreenDespawnTime)
+                (cull ??= new()).Add(e);
+        }
+        if (cull != null)
+            foreach (Enemy e in cull)
+                DespawnEnemy(e);
+    }
+
+    /// <summary>Silently remove <paramref name="e"/> (no death signal/VFX/figs) and free its concurrency-cap slot.</summary>
+    private void DespawnEnemy(Enemy e)
+    {
+        _offscreen.Remove(e);
+        if (!IsInstanceValid(e))
+            return;
+        if (!e.optional)
+            _alive = Mathf.Max(0, _alive - 1);
+        e.QueueFree();
     }
 
     /// <summary>Scatter <paramref name="count"/> collectible fada_figs out of a corpse (they bounce, roll, and settle).</summary>
@@ -446,6 +532,92 @@ public partial class RunManager : Node2D
     }
 
     private void OnAttackChosen(string id) => _player.equip(LoadoutCategory.Attack, id);
+
+    // --- fada-fig milestone buff menu -----------------------------------------
+
+    /// <summary>Every time the run's LIFETIME fada_figs crosses the next milestone, pop a free pick-1-of-3 MILD buff
+    /// menu (game pauses). The spendable balance is untouched — that's the mystery box's currency.</summary>
+    private void OnFadaCollected(int balance, int lifetime)
+    {
+        if (!_menuOpen && lifetime >= _nextMilestone)
+            OpenBuffMenu();
+    }
+
+    private void OpenBuffMenu()
+    {
+        _milestoneIndex += 1;
+        _nextMilestone += _milestoneGap;              // 25 → 55 → 105 → 175 → …
+        _milestoneGap += MilestoneGapGrowth;
+        ShowBuffMenu(BuffCatalog.MildIds(), false, "CHOOSE A BUFF");
+    }
+
+    /// <summary>The mystery box's payoff — same pick-1-of-3 menu as the milestone, but from the POWERFUL pool
+    /// (above-rare tiers). Called when a (non-dud) box pull wins.</summary>
+    private void OpenPowerfulBuffMenu()
+    {
+        if (!_menuOpen)
+            ShowBuffMenu(BuffCatalog.PowerfulIds(), true, "MYSTERY BOX");
+    }
+
+    /// <summary>Roll BuffMenuChoices distinct buffs from <paramref name="pool"/> (powerful vs mild tiers) → a 3-card
+    /// `RewardUI`; picking grants the exact tiered buff shown. Pauses the game.</summary>
+    private void ShowBuffMenu(string[] pool, bool powerful, string title)
+    {
+        if (_player == null)
+            return;
+        _menuOpen = true;
+        _menuBuffs.Clear();
+        var cards = new GArr();
+        foreach (string id in PickDistinct(pool, BuffMenuChoices))
+        {
+            Tier tier = powerful ? RollPowerfulTier() : RollMildTier();
+            Buff buff = BuffCatalog.Make(id, tier);
+            if (buff == null)
+                continue;
+            _menuBuffs[id] = buff;
+            cards.Add(new GDict { { "id", id }, { "name", buff.Name }, { "desc", buff.Description }, { "tier", (int)tier } });
+        }
+        var ui = new RewardUI();
+        AddChild(ui);
+        ui.chosen += OnBuffChosen;
+        ui.Open(cards, title);
+    }
+
+    private void OnBuffChosen(string id)
+    {
+        _menuOpen = false;
+        if (_menuBuffs.TryGetValue(id, out var buff) && _player != null)
+            _player.add_passive(buff);
+        _menuBuffs.Clear();
+    }
+
+    /// <summary>Mild tiers skew Common, easing toward Rare as more milestones are taken this run.</summary>
+    private Tier RollMildTier()
+    {
+        float rare = Mathf.Min(0.6f, 0.2f + 0.08f * _milestoneIndex);
+        return GD.Randf() < rare ? Tier.Rare : Tier.Common;
+    }
+
+    /// <summary>Powerful (mystery-box) tiers — above rare: mostly Hot, some Sensational, rarely Epic.</summary>
+    private static Tier RollPowerfulTier()
+    {
+        float r = GD.Randf();
+        return r < 0.6f ? Tier.Hot : r < 0.9f ? Tier.Sensational : Tier.Epic;
+    }
+
+    /// <summary>Up to <paramref name="n"/> distinct ids from <paramref name="pool"/> (Fisher–Yates on a copy).</summary>
+    private static System.Collections.Generic.List<string> PickDistinct(string[] pool, int n)
+    {
+        var copy = new System.Collections.Generic.List<string>(pool);
+        var outL = new System.Collections.Generic.List<string>();
+        for (int i = 0; i < n && copy.Count > 0; i++)
+        {
+            int j = (int)(GD.Randi() % (uint)copy.Count);
+            outL.Add(copy[j]);
+            copy.RemoveAt(j);
+        }
+        return outL;
+    }
 
     // --- death / spawn / camera flair -----------------------------------------
 
