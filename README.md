@@ -72,6 +72,11 @@ tools/                Generator + verification scripts (not shipped)
 Bound to **physical** keycodes, so they stay in the same place on AZERTY/Dvorak.
 Rebind under `Project > Project Settings > Input Map`.
 
+**Mouse cursor auto-hides during play** (`Input.MouseMode`): `RunManager` hides it on entering the arena; the
+pick-a-card menus (`RewardUI` / `AttackSelect`) re-show it while open and re-hide on pick; the pre-game
+`PalettePreview` keeps it visible. LMB/RMB still fire attack/special while hidden — only the pointer is invisible,
+and it reappears the moment you move off the game window.
+
 **Facing follows movement.** The character faces the direction it last moved
 (A/D or the stick), and **attacks/specials strike that way** — where the character
 is actually facing, controller-friendly. Standing still keeps the last facing; the

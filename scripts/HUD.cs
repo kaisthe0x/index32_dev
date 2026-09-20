@@ -132,7 +132,7 @@ public partial class HUD : CanvasLayer
 		_fadaFigLabel.Text = "0";
 
 		_controls = MkLabel(new Vector2(16, 140), 12, new Color(0.62f, 0.62f, 0.68f));
-		_controls.Text = "A/D move   Space jump   Shift dash   LMB attack   RMB special/slam   E mystery box   Z hurt   X +ruh   0 rebuild";
+		//_controls.Text = "A/D move   Space jump   Shift dash   LMB attack   RMB special/slam   E mystery box   Z hurt   X +ruh   0 rebuild";
 
 		// Active-buff list. _root uses the TopLeft preset (zero-sized), so anchors don't resolve here — position it
 		// ABSOLUTELY (top-right) in RefreshBuffs from the live viewport width, like every other HUD element.

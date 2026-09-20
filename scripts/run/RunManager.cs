@@ -111,6 +111,7 @@ public partial class RunManager : Node2D
         _fadaFigScene = GD.Load<PackedScene>("res://scenes/fada_fig.tscn");
 
         Engine.TimeScale = 1.0;
+        Input.MouseMode = Input.MouseModeEnum.Hidden; // hide the cursor during play; menus re-show it while open
         AddGlow();
         BuildBg();
         BuildFloor();
