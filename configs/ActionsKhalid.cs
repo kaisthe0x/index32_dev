@@ -21,6 +21,7 @@ public static class ActionsKhalid
 		[AttackIds.OraOra] = new Action
 		{
 			Name = "Ora Ora",
+			Description = "A relentless flurry of rapid punches — hold to keep the hits coming.",
 			Icon = Ember,
 			Style = ActionStyle.Flurry,
 			Hit = new HitData(StrikeType.Melee, new SegmentData { Damage = 15, Knockback = 0, Stun = 0.1f, Extents = new Vector2(32, 22) }),
@@ -28,7 +29,8 @@ public static class ActionsKhalid
 		[AttackIds.Spear] = new Action
 		{
 			Name = "Spear",
-			Icon = Blast1,
+			Description = "A three-thrust combo that finishes with a shoving lunge.",
+			Icon = "res://assets/icons/attacks/spear.png",
 			Hit = new HitData(StrikeType.Melee,
 				new SegmentData { Damage = 8, Knockback = 0, Stun = 0.1f },
 				new SegmentData { Damage = 10, Knockback = 0 },
@@ -37,6 +39,7 @@ public static class ActionsKhalid
 		[AttackIds.Bakshen] = new Action
 		{
 			Name = "Bakshen",
+			Description = "One massive charged slash — slow to wind up, devastating on hit.",
 			Icon = Bolt,
 			Style = ActionStyle.Cooldown,
 			Cooldown = 3.0f,
@@ -45,6 +48,7 @@ public static class ActionsKhalid
 		[AttackIds.Zahluq] = new Action
 		{
 			Name = "Zahluq",
+			Description = "A dash-through strike with super armor: blink forward and cut clean.",
 			Icon = Bolt,
 			Style = ActionStyle.Cooldown,
 			Cooldown = 3.0f,
@@ -63,6 +67,7 @@ public static class ActionsKhalid
 		[AttackIds.CherryShots] = new Action
 		{
 			Name = "Cherry Shots",
+			Description = "Fires homing bolts that curve toward the nearest enemy.",
 			Icon = SoftDot,
 			Hit = new HitData(StrikeType.Projectile,
 				new SegmentData { Damage = 8, Knockback = 0 },
@@ -71,6 +76,7 @@ public static class ActionsKhalid
 		[AttackIds.TwinReaper] = new Action
 		{
 			Name = "Twin Reaper",
+			Description = "Twin blades in a whirling flurry that reap chip damage over time.",
 			Icon = Blast1,
 			Style = ActionStyle.Flurry,
 			Tags = ["reaper"],
@@ -79,6 +85,7 @@ public static class ActionsKhalid
 		[AttackIds.RopeDart] = new Action
 		{
 			Name = "Rope Dart",
+			Description = "A weighted blade on a whipping rope — long, sweeping strikes.",
 			Icon = Blast1,
 			Style = ActionStyle.Flurry,
 			Tags = ["reaper"],

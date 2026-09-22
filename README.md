@@ -121,7 +121,9 @@ platform. Fully automatic — no aiming, no pumping. (This replaced an earlier c
 debug damage/heal, `0` rebuild-level) live in that same file.
 
 **The game is a roguelite run** (premise: [`docs/game-design.md`](docs/game-design.md)). At run start
-you **pick an attack** (locked for the run; scrollable picker built to scale to 12+). You drop into
+you **pick an attack** (locked for the run) from an **inventory-style grid of weapon icons** (`AttackSelect`) —
+click an icon to see its name + stats (type/damage/knockback/stun/reach/cooldown/style, from the `Action`'s `Hit`
+data) + description in the details pane, then Confirm. You drop into
 a low, mostly-horizontal **endless arena** that **trickles enemies in at a steady rate** (a mixed roster,
 proximity-spawned near you — capped so it never floods). You **start each
 run with 3 Ruh charges** — the surge meter, shown in charges (100 each), no decay — and refill it by

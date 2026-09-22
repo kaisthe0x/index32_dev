@@ -17,6 +17,8 @@ public sealed record Action
     /// <summary>Display name; falls back to a title-cased <see cref="Id"/> when unset.</summary>
     public string Name { get => _name ?? Capitalize(Id); init => _name = value; }
     public string Icon { get; init; } = "";
+    /// <summary>Player-facing blurb for selection screens (the attack picker's details panel). Optional.</summary>
+    public string Description { get; init; } = "";
     public ActionCategory Category { get; init; } = ActionCategory.Attack;
     public ActionStyle Style { get; init; } = ActionStyle.Standard;
     public string[] Tags { get; init; } = [];
