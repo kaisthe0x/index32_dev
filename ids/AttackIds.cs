@@ -13,5 +13,5 @@ public static class AttackIds
     public const string Zahluq = "zahluq";
     public const string CherryShots = "cherry_shots";
     public const string TwinReaper = "twin_reaper";
-    public const string DualExecutioner = "dual_executioner";
+    public const string RopeDart = "rope_dart";
 }

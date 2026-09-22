@@ -60,12 +60,12 @@ public static class RewardsCatalog
                 { "passive", PassiveIds.ReaperEdge },
             }),
             // INDEPENDENT MOVE: a standalone attack you can swap to (upgrades via its own buffs).
-            R(RewardIds.DualExecutioner, "Dual Executioner", "A bigger, deadlier twin-blade spin", new GDict
+            R(RewardIds.RopeDart, "Rope Dart", "A weighted blade on a whipping rope", new GDict
             {
                 { "icon", "res://vfx/shared/textures/blast1.png" },
                 { "tier", (int)Tier.Epic },
                 { "unique", true },
-                { "equip", new GDict { { "category", "attack" }, { "id", AttackIds.DualExecutioner } } },
+                { "equip", new GDict { { "category", "attack" }, { "id", AttackIds.RopeDart } } },
             }),
         },
         [DoorType.Special] = new GArr

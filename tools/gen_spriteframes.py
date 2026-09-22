@@ -126,9 +126,9 @@ OVERRIDES: dict[tuple[str, str], dict[str, float | int | bool]] = {
     # 5 Slash nodes on the emitter frames. loop is REQUIRED (a non-looping flurry hangs on the last
     # frame); no HIT_FRAMES so the spin plays smooth (segmented snapping is for click-combos).
     ("khalid", "attack_twin_reaper"): {"loop": True, "fps": 20.0},
-    # Dual Executioner: upgraded Twin Reaper -- same flurry rules (loop, no HIT_FRAMES). Its
+    # Rope Dart: upgraded Twin Reaper -- same flurry rules (loop, no HIT_FRAMES). Its
     # sheet stands in on Twin Reaper's spin until reskinned; own name -> its own VFX/SFX.
-    ("khalid", "attack_dual_executioner"): {"loop": True, "fps": 20.0},
+    ("khalid", "attack_rope_dart"): {"loop": True, "fps": 20.0},
     ("khalid", "special_ground_breaker"): {"fps": 15.0, "hold_last": 1.6},
     ("khalid", "slam"): {"fps": 15.0, "hold_last": 1.6},
     # Bakshen: a charged slash. fps 10 so the per-frame math is clean (see FRAME_DURATIONS: the
@@ -239,7 +239,7 @@ HIT_FRAMES: dict[tuple[str, str], list[int]] = {
 FRAME_DURATIONS: dict[tuple[str, str], dict[int, float]] = {
     # e.g. ("some_char", "some_attack"): {2: 1.5}  # linger on those hit frames
     ("khalid", "attack_bakshen"): {1: 2.0},  # wind-up frame holds 1 full second (10 x 1/10fps)
-    ("khalid", "attack_dual_executioner"): {1: 0.5, 2: 0.5},
+    ("khalid", "attack_rope_dart"): {1: 0.5, 2: 0.5},
 }
 
 # Snappy swings: in a CHARACTER attack/special that has explicit HIT_FRAMES, the frames BETWEEN

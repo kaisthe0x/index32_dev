@@ -12,7 +12,7 @@
 [ext_resource type="Texture2D" uid="uid://ck8v6s0w3cqap" path="res://sprites/characters/khalid/khalid_hurt_frames.png" id="10_hurt"]
 [ext_resource type="Texture2D" uid="uid://cey1410tu7yeb" path="res://sprites/characters/khalid/khalid_attack_bakshen_frames.png" id="11_attack_bakshen"]
 [ext_resource type="Texture2D" uid="uid://cw6u3rgedaxn" path="res://sprites/characters/khalid/khalid_attack_cherry_shots_frames.png" id="12_attack_cherry_shots"]
-[ext_resource type="Texture2D" uid="uid://b3ln7ge7jsfop" path="res://sprites/characters/khalid/khalid_attack_dual_executioner_frames.png" id="13_attack_dual_executioner"]
+[ext_resource type="Texture2D" uid="uid://b3ln7ge7jsfop" path="res://sprites/characters/khalid/khalid_attack_rope_dart_frames.png" id="13_attack_rope_dart"]
 [ext_resource type="Texture2D" uid="uid://cvo6weherngml" path="res://sprites/characters/khalid/khalid_attack_ora_ora_frames.png" id="14_attack_ora_ora"]
 [ext_resource type="Texture2D" uid="uid://dkyvjdmxgwfcr" path="res://sprites/characters/khalid/khalid_attack_spear_frames.png" id="15_attack_spear"]
 [ext_resource type="Texture2D" uid="uid://xpwfw3cthnwy" path="res://sprites/characters/khalid/khalid_attack_twin_reaper_frames.png" id="16_attack_twin_reaper"]
@@ -69,72 +69,72 @@ region = Rect2(768, 0, 128, 80)
 atlas = ExtResource("12_attack_cherry_shots")
 region = Rect2(896, 0, 128, 80)
 
-[sub_resource type="AtlasTexture" id="attack_dual_executioner_1"]
-atlas = ExtResource("13_attack_dual_executioner")
+[sub_resource type="AtlasTexture" id="attack_rope_dart_1"]
+atlas = ExtResource("13_attack_rope_dart")
 region = Rect2(128, 0, 128, 80)
 
-[sub_resource type="AtlasTexture" id="attack_dual_executioner_2"]
-atlas = ExtResource("13_attack_dual_executioner")
+[sub_resource type="AtlasTexture" id="attack_rope_dart_2"]
+atlas = ExtResource("13_attack_rope_dart")
 region = Rect2(256, 0, 128, 80)
 
-[sub_resource type="AtlasTexture" id="attack_dual_executioner_3"]
-atlas = ExtResource("13_attack_dual_executioner")
+[sub_resource type="AtlasTexture" id="attack_rope_dart_3"]
+atlas = ExtResource("13_attack_rope_dart")
 region = Rect2(384, 0, 128, 80)
 
-[sub_resource type="AtlasTexture" id="attack_dual_executioner_4"]
-atlas = ExtResource("13_attack_dual_executioner")
+[sub_resource type="AtlasTexture" id="attack_rope_dart_4"]
+atlas = ExtResource("13_attack_rope_dart")
 region = Rect2(512, 0, 128, 80)
 
-[sub_resource type="AtlasTexture" id="attack_dual_executioner_5"]
-atlas = ExtResource("13_attack_dual_executioner")
+[sub_resource type="AtlasTexture" id="attack_rope_dart_5"]
+atlas = ExtResource("13_attack_rope_dart")
 region = Rect2(640, 0, 128, 80)
 
-[sub_resource type="AtlasTexture" id="attack_dual_executioner_6"]
-atlas = ExtResource("13_attack_dual_executioner")
+[sub_resource type="AtlasTexture" id="attack_rope_dart_6"]
+atlas = ExtResource("13_attack_rope_dart")
 region = Rect2(768, 0, 128, 80)
 
-[sub_resource type="AtlasTexture" id="attack_dual_executioner_7"]
-atlas = ExtResource("13_attack_dual_executioner")
+[sub_resource type="AtlasTexture" id="attack_rope_dart_7"]
+atlas = ExtResource("13_attack_rope_dart")
 region = Rect2(896, 0, 128, 80)
 
-[sub_resource type="AtlasTexture" id="attack_dual_executioner_8"]
-atlas = ExtResource("13_attack_dual_executioner")
+[sub_resource type="AtlasTexture" id="attack_rope_dart_8"]
+atlas = ExtResource("13_attack_rope_dart")
 region = Rect2(1024, 0, 128, 80)
 
-[sub_resource type="AtlasTexture" id="attack_dual_executioner_9"]
-atlas = ExtResource("13_attack_dual_executioner")
+[sub_resource type="AtlasTexture" id="attack_rope_dart_9"]
+atlas = ExtResource("13_attack_rope_dart")
 region = Rect2(1152, 0, 128, 80)
 
-[sub_resource type="AtlasTexture" id="attack_dual_executioner_10"]
-atlas = ExtResource("13_attack_dual_executioner")
+[sub_resource type="AtlasTexture" id="attack_rope_dart_10"]
+atlas = ExtResource("13_attack_rope_dart")
 region = Rect2(1280, 0, 128, 80)
 
-[sub_resource type="AtlasTexture" id="attack_dual_executioner_11"]
-atlas = ExtResource("13_attack_dual_executioner")
+[sub_resource type="AtlasTexture" id="attack_rope_dart_11"]
+atlas = ExtResource("13_attack_rope_dart")
 region = Rect2(1408, 0, 128, 80)
 
-[sub_resource type="AtlasTexture" id="attack_dual_executioner_12"]
-atlas = ExtResource("13_attack_dual_executioner")
+[sub_resource type="AtlasTexture" id="attack_rope_dart_12"]
+atlas = ExtResource("13_attack_rope_dart")
 region = Rect2(1536, 0, 128, 80)
 
-[sub_resource type="AtlasTexture" id="attack_dual_executioner_13"]
-atlas = ExtResource("13_attack_dual_executioner")
+[sub_resource type="AtlasTexture" id="attack_rope_dart_13"]
+atlas = ExtResource("13_attack_rope_dart")
 region = Rect2(1664, 0, 128, 80)
 
-[sub_resource type="AtlasTexture" id="attack_dual_executioner_14"]
-atlas = ExtResource("13_attack_dual_executioner")
+[sub_resource type="AtlasTexture" id="attack_rope_dart_14"]
+atlas = ExtResource("13_attack_rope_dart")
 region = Rect2(1792, 0, 128, 80)
 
-[sub_resource type="AtlasTexture" id="attack_dual_executioner_15"]
-atlas = ExtResource("13_attack_dual_executioner")
+[sub_resource type="AtlasTexture" id="attack_rope_dart_15"]
+atlas = ExtResource("13_attack_rope_dart")
 region = Rect2(1920, 0, 128, 80)
 
-[sub_resource type="AtlasTexture" id="attack_dual_executioner_16"]
-atlas = ExtResource("13_attack_dual_executioner")
+[sub_resource type="AtlasTexture" id="attack_rope_dart_16"]
+atlas = ExtResource("13_attack_rope_dart")
 region = Rect2(2048, 0, 128, 80)
 
-[sub_resource type="AtlasTexture" id="attack_dual_executioner_17"]
-atlas = ExtResource("13_attack_dual_executioner")
+[sub_resource type="AtlasTexture" id="attack_rope_dart_17"]
+atlas = ExtResource("13_attack_rope_dart")
 region = Rect2(2176, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_ora_ora_1"]
@@ -745,58 +745,58 @@ animations = [{
 }, {
 "frames": [{
 "duration": 0.5,
-"texture": SubResource("attack_dual_executioner_1")
+"texture": SubResource("attack_rope_dart_1")
 }, {
 "duration": 0.5,
-"texture": SubResource("attack_dual_executioner_2")
+"texture": SubResource("attack_rope_dart_2")
 }, {
 "duration": 1.0,
-"texture": SubResource("attack_dual_executioner_3")
+"texture": SubResource("attack_rope_dart_3")
 }, {
 "duration": 1.0,
-"texture": SubResource("attack_dual_executioner_4")
+"texture": SubResource("attack_rope_dart_4")
 }, {
 "duration": 1.0,
-"texture": SubResource("attack_dual_executioner_5")
+"texture": SubResource("attack_rope_dart_5")
 }, {
 "duration": 1.0,
-"texture": SubResource("attack_dual_executioner_6")
+"texture": SubResource("attack_rope_dart_6")
 }, {
 "duration": 1.0,
-"texture": SubResource("attack_dual_executioner_7")
+"texture": SubResource("attack_rope_dart_7")
 }, {
 "duration": 1.0,
-"texture": SubResource("attack_dual_executioner_8")
+"texture": SubResource("attack_rope_dart_8")
 }, {
 "duration": 1.0,
-"texture": SubResource("attack_dual_executioner_9")
+"texture": SubResource("attack_rope_dart_9")
 }, {
 "duration": 1.0,
-"texture": SubResource("attack_dual_executioner_10")
+"texture": SubResource("attack_rope_dart_10")
 }, {
 "duration": 1.0,
-"texture": SubResource("attack_dual_executioner_11")
+"texture": SubResource("attack_rope_dart_11")
 }, {
 "duration": 1.0,
-"texture": SubResource("attack_dual_executioner_12")
+"texture": SubResource("attack_rope_dart_12")
 }, {
 "duration": 1.0,
-"texture": SubResource("attack_dual_executioner_13")
+"texture": SubResource("attack_rope_dart_13")
 }, {
 "duration": 1.0,
-"texture": SubResource("attack_dual_executioner_14")
+"texture": SubResource("attack_rope_dart_14")
 }, {
 "duration": 1.0,
-"texture": SubResource("attack_dual_executioner_15")
+"texture": SubResource("attack_rope_dart_15")
 }, {
 "duration": 1.0,
-"texture": SubResource("attack_dual_executioner_16")
+"texture": SubResource("attack_rope_dart_16")
 }, {
 "duration": 1.0,
-"texture": SubResource("attack_dual_executioner_17")
+"texture": SubResource("attack_rope_dart_17")
 }],
 "loop": 1,
-"name": &"attack_dual_executioner",
+"name": &"attack_rope_dart",
 "speed": 20.0
 }, {
 "frames": [{
@@ -1367,7 +1367,7 @@ metadata/hit_frames = {
 metadata/sheet_start = {
 "attack_bakshen": 1,
 "attack_cherry_shots": 1,
-"attack_dual_executioner": 1,
+"attack_rope_dart": 1,
 "attack_ora_ora": 1,
 "attack_spear": 1,
 "attack_twin_reaper": 1,

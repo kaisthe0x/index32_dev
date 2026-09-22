@@ -3,12 +3,12 @@
 importer="wav"
 type="AudioStreamWAV"
 uid="uid://7m2ufsve83s3"
-path="res://.godot/imported/dual_executioner_16.wav-9a6aee2c3f73679a3096dd9b5460b75e.sample"
+path="res://.godot/imported/rope_dart_16.wav-14081457d11880cbc92a5cf298c5ae10.sample"
 
 [deps]
 
-source_file="res://sfx/character/attack/dual_executioner/dual_executioner_16.wav"
-dest_files=["res://.godot/imported/dual_executioner_16.wav-9a6aee2c3f73679a3096dd9b5460b75e.sample"]
+source_file="res://sfx/character/attack/rope_dart/rope_dart_16.wav"
+dest_files=["res://.godot/imported/rope_dart_16.wav-14081457d11880cbc92a5cf298c5ae10.sample"]
 
 [params]
 

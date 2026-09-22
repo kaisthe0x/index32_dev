@@ -76,9 +76,9 @@ public static class ActionsKhalid
 			Tags = ["reaper"],
 			Hit = new HitData(StrikeType.Melee, new SegmentData { Damage = 12, Knockback = 0, Reap = 0.12f, ReapTime = 5.0f }),
 		},
-		[AttackIds.DualExecutioner] = new Action
+		[AttackIds.RopeDart] = new Action
 		{
-			Name = "Dual Executioner",
+			Name = "Rope Dart",
 			Icon = Blast1,
 			Style = ActionStyle.Flurry,
 			Tags = ["reaper"],

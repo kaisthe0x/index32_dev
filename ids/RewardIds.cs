@@ -22,7 +22,7 @@ public static class RewardIds
     public const string Lifesteal = "lifesteal";
     public const string Multishot = "multishot";
     public const string ReaperEdge = "reaper_edge";
-    public const string DualExecutioner = "dual_executioner";
+    public const string RopeDart = "rope_dart";
     // special
     public const string RuhCap = "ruh_cap";
     public const string LongerImp = "longer_imp";
