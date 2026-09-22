@@ -37,9 +37,10 @@ public partial class RunManager : Node2D
     // Buff menu: every time LIFETIME fada_figs collected crosses the next milestone, a free pick-1-of-3 MILD buff
     // menu pops (game pauses). The gap to the next grows, so milestones land at 25, 55, 105, 175, … (tune here).
     private const int FirstMilestone = 5;
-    private const int MilestoneGapBase = 30;
-    private const int MilestoneGapGrowth = 20;
+    private const int MilestoneGapBase = 10;
+    private const int MilestoneGapGrowth = 10;
     private const int BuffMenuChoices = 3;
+    private const float LevelUpDelay = 1.1f;   // "LEVEL UP" banner hold before the buff menu opens
 
     /// <summary>The roster the continuous spawner draws from (uniform random) — a mixed assortment of grunts plus the
     /// flyer (Ein) and the stationary sleeper (Nasen). Wardens (Kroj) are elite/pivot-only, not part of the trickle.</summary>
@@ -73,11 +74,13 @@ public partial class RunManager : Node2D
     private int _waveCount = 0;        // spawn ticks so far this run
     private float _spawnAccum = 0.0f;  // seconds accrued toward the next spawn tick
     private int _nextMilestone = FirstMilestone; // lifetime fada_figs that pops the next buff menu
+    private int _prevMilestone = 0;              // the last milestone reached (the progress bar spans prev→next)
     private int _milestoneGap = MilestoneGapBase; // grows each milestone (25 → +30 → +50 → …)
     private int _milestoneIndex = 0;              // how many buff menus taken this run (scales offered tiers)
     private bool _menuOpen = false;               // a buff menu is up (game paused) — don't stack another
     private readonly System.Collections.Generic.Dictionary<string, Buff> _menuBuffs = new(); // id → the exact offered buff (tiered)
     private readonly System.Collections.Generic.Dictionary<Enemy, float> _offscreen = new(); // living enemy → seconds off-screen (anti-camp cull)
+    private CanvasLayer _levelUpBanner;           // transient "LEVEL UP" flash shown before the buff menu
     private Node2D _content;
     private ColorRect _bg;
     private Sprite2D _bgSky;
@@ -196,11 +199,14 @@ public partial class RunManager : Node2D
         _waveCount = 0;
         _spawnAccum = 0.0f;
         _nextMilestone = FirstMilestone;
+        _prevMilestone = 0;
         _milestoneGap = MilestoneGapBase;
         _milestoneIndex = 0;
         _menuOpen = false;
         _offscreen.Clear(); // old enemies free with _content
         SaveData.SetCurrentWaves(0);
+        PushBuffProgress();
+        HideLevelUpBanner();
         if (_content != null && IsInstanceValid(_content))
             _content.QueueFree();
         _content = new Node2D();
@@ -541,15 +547,66 @@ public partial class RunManager : Node2D
     private void OnFadaCollected(int balance, int lifetime)
     {
         if (!_menuOpen && lifetime >= _nextMilestone)
-            OpenBuffMenu();
+            BeginBuffMilestone();
+        else
+            PushBuffProgress();
     }
 
-    private void OpenBuffMenu()
+    /// <summary>Hit a fada-fig milestone: advance the counter, freeze the game, flash a "LEVEL UP" banner + cue, then
+    /// (after a beat) open the mild buff menu. The menu is FREE — figs aren't spent (balance is the box's currency).</summary>
+    private void BeginBuffMilestone()
     {
+        _menuOpen = true; // lock out re-triggers + stacking through the whole banner→menu flow
+        _prevMilestone = _nextMilestone;
         _milestoneIndex += 1;
-        _nextMilestone += _milestoneGap;              // 25 → 55 → 105 → 175 → …
+        _nextMilestone += _milestoneGap;              // 5 → 15 → 35 → … (gap grows by MilestoneGapGrowth)
         _milestoneGap += MilestoneGapGrowth;
-        ShowBuffMenu(BuffCatalog.MildIds(), false, "CHOOSE A BUFF");
+        PushBuffProgress();                           // bar resets toward the new milestone (visible behind the banner)
+        GetTree().Paused = true;
+        ShowLevelUpBanner();
+        _sfx.play("buff_levelup");                    // PLACEHOLDER cue
+        GetTree().CreateTimer(LevelUpDelay, true).Timeout += () =>
+        {
+            HideLevelUpBanner();
+            ShowBuffMenu(BuffCatalog.MildIds(), false, "CHOOSE A BUFF");
+        };
+    }
+
+    /// <summary>Push progress toward the next buff milestone (figs since the last one) to the HUD bar.</summary>
+    private void PushBuffProgress()
+    {
+        if (_player == null)
+            return;
+        GetNodeOrNull<HUD>("/root/HUD")?.SetBuffProgress(_player.fada_lifetime - _prevMilestone, _nextMilestone - _prevMilestone);
+    }
+
+    /// <summary>A brief centred "LEVEL UP" flash (its own CanvasLayer, ProcessMode.Always so it animates while the
+    /// game is paused). Freed by <see cref="HideLevelUpBanner"/> once the menu opens.</summary>
+    private void ShowLevelUpBanner()
+    {
+        HideLevelUpBanner();
+        _levelUpBanner = new CanvasLayer { Layer = 60, ProcessMode = ProcessModeEnum.Always };
+        var center = new CenterContainer();
+        center.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        _levelUpBanner.AddChild(center);
+        var label = new Label { Text = "LEVEL UP!", HorizontalAlignment = HorizontalAlignment.Center };
+        label.AddThemeFontSizeOverride("font_size", 44);
+        label.AddThemeColorOverride("font_color", new Color(1.8f, 1.5f, 0.4f)); // HDR gold, blooms
+        label.AddThemeColorOverride("font_outline_color", Colors.Black);
+        label.AddThemeConstantOverride("outline_size", 8);
+        center.AddChild(label);
+        label.Scale = new Vector2(0.6f, 0.6f);
+        label.PivotOffset = new Vector2(120, 30);
+        _levelUpBanner.CreateTween().TweenProperty(label, "scale", Vector2.One, 0.28f)
+            .SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out); // pops even while paused (banner is Always)
+        AddChild(_levelUpBanner);
+    }
+
+    private void HideLevelUpBanner()
+    {
+        if (_levelUpBanner != null && IsInstanceValid(_levelUpBanner))
+            _levelUpBanner.QueueFree();
+        _levelUpBanner = null;
     }
 
     /// <summary>The mystery box's payoff — same pick-1-of-3 menu as the milestone, but from the POWERFUL pool
@@ -590,6 +647,7 @@ public partial class RunManager : Node2D
         if (_menuBuffs.TryGetValue(id, out var buff) && _player != null)
             _player.add_passive(buff);
         _menuBuffs.Clear();
+        _sfx.play("buff_select"); // PLACEHOLDER cue
     }
 
     /// <summary>Mild tiers skew Common, easing toward Rare as more milestones are taken this run.</summary>

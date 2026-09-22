@@ -1120,7 +1120,9 @@ purple, `> HUE_TOL`) are left untouched.
 Sound effects split **config from code**, mirroring `Emitters`. The **catalog** of what sounds exist
 is pure data in per-area files — **`SfxCharacters`**, **`SfxEnemies`**, **`SfxWorld`** (`configs/Sfx*.cs`)
 — and the autoload **`Sfx`** (`scripts/audio/Sfx.cs`) is just the runtime that plays them. Files live in
-**`sfx/`**.
+**`sfx/`**. **Per-cue volume**: to tame a too-loud sound in ONE place, add its key to that file's **`VOLUMES`**
+dict (dB, negative = quieter) — e.g. `["buff_levelup"] = -10f`. It's applied on top of any call-site `volume_db`;
+unlisted cues play at 0 dB. (There's also a brick-wall limiter on the whole SFX bus for summed peaks.)
 
 Background **music** has its own sibling autoload, **`Music`** (`scripts/audio/Music.cs`), files organised
 **per stage** under **`music/<stage>/`**. A stage's **playlist is auto-discovered** — it's simply the audio

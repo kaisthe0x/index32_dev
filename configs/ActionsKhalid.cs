@@ -30,9 +30,9 @@ public static class ActionsKhalid
 			Name = "Spear",
 			Icon = Blast1,
 			Hit = new HitData(StrikeType.Melee,
-				new SegmentData { Damage = 8, Knockback = 40 },
-				new SegmentData { Damage = 10, Knockback = 60 },
-				new SegmentData { Damage = 12, Knockback = 140 }),
+				new SegmentData { Damage = 8, Knockback = 0, Stun = 0.1f },
+				new SegmentData { Damage = 10, Knockback = 0 },
+				new SegmentData { Damage = 12, Knockback = 50, Stun = 0.1f }),
 		},
 		[AttackIds.Bakshen] = new Action
 		{
@@ -179,7 +179,7 @@ public static class ActionsKhalid
 
 	public const string DEFAULT_ATTACK = AttackIds.Bakshen;
 	public const string DEFAULT_SPECIAL = SpecialIds.ComeCloser;
-	public const string DEFAULT_SURGE = SurgeIds.Nem;
+	public const string DEFAULT_SURGE = SurgeIds.Wara;
 	public static readonly Dictionary<string, string> DEFAULT_MOVEMENTS = new()
 	{
 		[MovementIds.Run] = MovementIds.StandardStride,

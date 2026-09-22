@@ -90,10 +90,12 @@ Related, but not in this folder:
 4. **Killing** an enemy → `died` → `OnEnemyDied`: `_alive--` (frees a cap slot) + always drops **Fada Figs**
    (deferred — death fires mid physics-flush). Buffs no longer drop on kill.
 5. **Buffs come from two places:**
-   - **Milestone menu (mild, free):** collecting fada_figs fires `Player.fada_collected`; when the run's LIFETIME
-     total crosses `_nextMilestone` (25 → 55 → 105 → …, the gap grows by `MilestoneGapGrowth`), the game pauses and a
-     `RewardUI` offers **3 mild buffs** (`BuffCatalog.MildIds` — general, NON-invuln; Common/Rare, easing toward Rare
-     with `_milestoneIndex`). Picking grants it. **No figs are spent** — the balance is left for the box.
+   - **Milestone menu (mild, free):** collecting fada_figs fires `Player.fada_collected`, which drives the HUD's
+     **"next buff" progress bar** (`HUD.SetBuffProgress`, spanning `_prevMilestone`→`_nextMilestone`). When the run's
+     LIFETIME total crosses `_nextMilestone` (5 → 15 → 35 → …, the gap grows by `MilestoneGapGrowth`), `BeginBuffMilestone`
+     **freezes the game, flashes a "LEVEL UP" banner + `buff_levelup` cue**, then after `LevelUpDelay` opens a `RewardUI`
+     of **3 mild buffs** (`BuffCatalog.MildIds` — general, NON-invuln; Common/Rare, easing toward Rare with
+     `_milestoneIndex`). Picking grants it + plays `buff_select`. **No figs are spent** — the balance is left for the box.
    - **Mystery box (powerful, paid gamble):** one `MysteryBox` per arena; stand next to it + press **E** to spend `Cost`
      figs (`Player.spend_fada_figs`). Most pulls dud (`DudChanceBase`); a WIN fires the box's `won` signal →
      `RunManager.OpenPowerfulBuffMenu` opens the **same 3-choice `RewardUI`** from `BuffCatalog.PowerfulIds` (above-rare,
@@ -109,7 +111,9 @@ Related, but not in this folder:
 - **Cap a specific enemy type** → add `{ "spawn_cap", N }` to its kit in `enemies.gd` (e.g. Nasen = 1). The cap grows
   +1 every `SpawnCapGrowthWaves` waves (`RunManager`). Kits with no `spawn_cap` are unlimited.
 - **Change the buff-menu cadence** → `RunManager` `FirstMilestone` / `MilestoneGapBase` / `MilestoneGapGrowth`
-  (the 25/55/105… curve) + `BuffMenuChoices`. Mild pool = `BuffCatalog.MildIds()`; tier skew = `RollMildTier`.
+  (the milestone curve) + `BuffMenuChoices`. `LevelUpDelay` = the "LEVEL UP" banner hold before the menu opens. Mild
+  pool = `BuffCatalog.MildIds()`; tier skew = `RollMildTier`. Buff sfx: `buff_levelup` / `buff_select` in `SfxWorld`
+  (PLACEHOLDER cues — repoint to real files when ready). The HUD "next buff" bar is `HUD.SetBuffProgress`.
 - **Change the mystery box** → `MysteryBox` consts: `Cost` (figs per pull), `DudChanceBase` (~0.97), `DudChanceGrowth`
   (+per win), `DudChanceCap`. Powerful pool = `BuffCatalog.PowerfulIds()`; tier weights = `RollPowerfulTier`.
 - **Move a buff between pools** → the invuln family is box-only via `BuffCatalog.IsInvuln`; move-gated buffs are

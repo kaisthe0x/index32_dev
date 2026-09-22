@@ -6,7 +6,7 @@ using GArr = Godot.Collections.Array;
 namespace MyGame;
 
 /// <summary>
-/// Portrait + HP BLOCK meter + Ruh BLOCK meter (+ a debug stats panel + off-screen enemy arrows + low-HP screen effect)
+/// Portrait + HP BLOCK meter + Ruh BLOCK meter + next-buff progress bar (+ a debug stats panel + off-screen enemy arrows + low-HP screen effect)
 /// for the active character. An autoload, so it exists in every scene; binds to whatever <see cref="Player"/>
 /// enters the tree and hides when there's none. Built entirely in code. C# port of <c>scripts/hud.gd</c>.
 /// Bridges the GDScript config statics (SaveData / PaletteConfig / Loadout) it reads.
@@ -42,6 +42,8 @@ public partial class HUD : CanvasLayer
 	private Label _levelsLabel;
 	private TextureRect _fadaFigIcon;
 	private Label _fadaFigLabel;
+	private ProgressBar _buffBar;    // progress toward the next buff milestone
+	private Label _buffLabel;
 	private Label _controls;
 	private VBoxContainer _buffPanel;
 	private PanelContainer _stats;
@@ -131,6 +133,16 @@ public partial class HUD : CanvasLayer
 		_fadaFigLabel = MkLabel(new Vector2(fadaFigX + 26, 100), 16, new Color(0.72f, 0.86f, 1.0f));
 		_fadaFigLabel.Text = "0";
 
+		// Progress toward the next buff milestone (figs collected).
+		_buffBar = new ProgressBar { Position = new Vector2(infoX, 124), Size = new Vector2(200, 12), CustomMinimumSize = new Vector2(200, 12), ShowPercentage = false, MinValue = 0, MaxValue = 1 };
+		var buffBg = new StyleBoxFlat { BgColor = new Color(0.10f, 0.10f, 0.13f, 0.9f) }; buffBg.SetCornerRadiusAll(2);
+		var buffFill = new StyleBoxFlat { BgColor = new Color(0.72f, 0.86f, 1.0f) }; buffFill.SetCornerRadiusAll(2);
+		_buffBar.AddThemeStyleboxOverride("background", buffBg);
+		_buffBar.AddThemeStyleboxOverride("fill", buffFill);
+		_root.AddChild(_buffBar);
+		_buffLabel = MkLabel(new Vector2(infoX + 206, 122), 11, new Color(0.72f, 0.86f, 1.0f));
+		_buffLabel.Text = "";
+
 		_controls = MkLabel(new Vector2(16, 140), 12, new Color(0.62f, 0.62f, 0.68f));
 		//_controls.Text = "A/D move   Space jump   Shift dash   LMB attack   RMB special/slam   E mystery box   Z hurt   X +ruh   0 rebuild";
 
@@ -192,6 +204,19 @@ public partial class HUD : CanvasLayer
 	{
 		if (_fadaFigLabel != null)
 			_fadaFigLabel.Text = count.ToString();
+	}
+
+	/// <summary>Update the "next buff" progress bar: <paramref name="have"/> of <paramref name="need"/> figs collected
+	/// toward the next milestone (pushed by RunManager). Shows the remaining count.</summary>
+	public void SetBuffProgress(int have, int need)
+	{
+		if (_buffBar == null)
+			return;
+		need = Mathf.Max(need, 1);
+		have = Mathf.Clamp(have, 0, need);
+		_buffBar.MaxValue = need;
+		_buffBar.Value = have;
+		_buffLabel.Text = have >= need ? "buff!" : $"{need - have} to buff";
 	}
 
 	private Label MkLabel(Vector2 pos, int fontSize, Color col)

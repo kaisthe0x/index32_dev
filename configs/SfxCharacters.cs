@@ -70,6 +70,10 @@ public static class SfxCharacters
         ["redere_frisbee.impact"] = "res://sfx/character/special/redere_frisbee/redere_frisbee_impact.wav",
     };
 
+    /// <summary>Per-cue base VOLUME in decibels (negative = quieter), applied on top of any call-site volume_db.
+    /// Only list cues that need trimming; unlisted cues play at 0 dB.</summary>
+    public static readonly GDict VOLUMES = new();
+
     public static readonly GDict FRAMES = new()
     {
         ["khalid"] = new GDict

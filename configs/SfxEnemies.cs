@@ -43,6 +43,10 @@ public static class SfxEnemies
         ["breski.melee.9"] = "res://sfx/enemy/breski/attack/melee_9.wav",  // PLACEHOLDER — combo hit 2
     };
 
+    /// <summary>Per-cue base VOLUME in decibels (negative = quieter), applied on top of any call-site volume_db.
+    /// Only list cues that need trimming; unlisted cues play at 0 dB.</summary>
+    public static readonly GDict VOLUMES = new();
+
     public static readonly GDict FRAMES = new()
     {
         ["baghel"] = new GDict { ["attack_projectile"] = new GDict { [4] = "baghel.projectile.4" } },
