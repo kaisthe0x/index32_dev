@@ -46,13 +46,13 @@ public static class EmittersCharacters
 				new GDict { ["scene"] = S("res://vfx/character/khalid/attack/twin_reaper/attack_twin_reaper_7.tscn"), ["mode"] = "burst", ["frames"] = new GArr { 7 }, ["pos"] = new Vector2(14, -18) },
 				new GDict { ["scene"] = S("res://vfx/character/khalid/attack/twin_reaper/attack_twin_reaper_9.tscn"), ["mode"] = "burst", ["frames"] = new GArr { 9 }, ["pos"] = new Vector2(14, -18) },
 			},
-			// Dual Executioner: upgraded Twin Reaper, 17-frame spin. Hit frames 6/9/14/16, each its own scene.
-			["attack_dual_executioner"] = new GArr
+			// Rope Dart: upgraded Twin Reaper, 17-frame spin. Hit frames 6/9/14/16, each its own scene.
+			["attack_rope_dart"] = new GArr
 			{
-				new GDict { ["scene"] = S("res://vfx/character/khalid/attack/dual_executioner/attack_dual_executioner_6.tscn"), ["mode"] = "burst", ["frames"] = new GArr { 6 }, ["pos"] = new Vector2(14, -18) },
-				new GDict { ["scene"] = S("res://vfx/character/khalid/attack/dual_executioner/attack_dual_executioner_9.tscn"), ["mode"] = "burst", ["frames"] = new GArr { 9 }, ["pos"] = new Vector2(10, -18) },
-				new GDict { ["scene"] = S("res://vfx/character/khalid/attack/dual_executioner/attack_dual_executioner_14.tscn"), ["mode"] = "burst", ["frames"] = new GArr { 14 }, ["pos"] = new Vector2(4, -27) },
-				new GDict { ["scene"] = S("res://vfx/character/khalid/attack/dual_executioner/attack_dual_executioner_16.tscn"), ["mode"] = "burst", ["frames"] = new GArr { 16 }, ["pos"] = new Vector2(14, -18) },
+				new GDict { ["scene"] = S("res://vfx/character/khalid/attack/rope_dart/attack_rope_dart_6.tscn"), ["mode"] = "burst", ["frames"] = new GArr { 6 }, ["pos"] = new Vector2(14, -18) },
+				new GDict { ["scene"] = S("res://vfx/character/khalid/attack/rope_dart/attack_rope_dart_9.tscn"), ["mode"] = "burst", ["frames"] = new GArr { 9 }, ["pos"] = new Vector2(10, -18) },
+				new GDict { ["scene"] = S("res://vfx/character/khalid/attack/rope_dart/attack_rope_dart_14.tscn"), ["mode"] = "burst", ["frames"] = new GArr { 14 }, ["pos"] = new Vector2(4, -27) },
+				new GDict { ["scene"] = S("res://vfx/character/khalid/attack/rope_dart/attack_rope_dart_16.tscn"), ["mode"] = "burst", ["frames"] = new GArr { 16 }, ["pos"] = new Vector2(14, -18) },
 			},
 			// Cherry Shots: two laser Projectiles, each its own file (_3 small bolt on f3, _7 big on f7).
 			["attack_cherry_shots"] = new GArr

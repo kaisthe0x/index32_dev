@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b3ln7ge7jsfop"
-path="res://.godot/imported/khalid_attack_dual_executioner_frames.png-b50bceecfca268f38cde11062590a312.ctex"
+uid="uid://dhsogm6x06r2y"
+path="res://.godot/imported/rope_dart_texture_9.png-0c53b707c416480f0cdf86586cfbcbea.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://sprites/characters/khalid/khalid_attack_dual_executioner_frames.png"
-dest_files=["res://.godot/imported/khalid_attack_dual_executioner_frames.png-b50bceecfca268f38cde11062590a312.ctex"]
+source_file="res://vfx/character/khalid/attack/rope_dart/rope_dart_texture_9.png"
+dest_files=["res://.godot/imported/rope_dart_texture_9.png-0c53b707c416480f0cdf86586cfbcbea.ctex"]
 
 [params]
 

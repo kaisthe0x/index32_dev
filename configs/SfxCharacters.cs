@@ -45,11 +45,11 @@ public static class SfxCharacters
         ["spear.13"] = "res://sfx/character/attack/spear/spear_13.wav",
         ["bakshen"] = "res://sfx/character/attack/bakshen/bakshen.wav", // one big charged slash (no per-frame hits)
         ["zahluq"] = "res://sfx/character/attack/zahluq/zahluq.wav", // the dash-attack whoosh (on the burst frame)
-        // Dual Executioner (upgraded Twin Reaper) — hit frames 6/9/14/16. A missing/omitted cue is just silent.
-        ["dual_executioner.6"] = "res://sfx/character/attack/dual_executioner/dual_executioner_6.wav",
-        ["dual_executioner.9"] = "res://sfx/character/attack/dual_executioner/dual_executioner_9.wav",
-        ["dual_executioner.14"] = "res://sfx/character/attack/dual_executioner/dual_executioner_14.wav",
-        ["dual_executioner.16"] = "res://sfx/character/attack/dual_executioner/dual_executioner_16.wav",
+        // Rope Dart (upgraded Twin Reaper) — hit frames 6/9/14/16. A missing/omitted cue is just silent.
+        ["rope_dart.6"] = "res://sfx/character/attack/rope_dart/rope_dart_6.wav",
+        ["rope_dart.9"] = "res://sfx/character/attack/rope_dart/rope_dart_9.wav",
+        ["rope_dart.14"] = "res://sfx/character/attack/rope_dart/rope_dart_14.wav",
+        ["rope_dart.16"] = "res://sfx/character/attack/rope_dart/rope_dart_16.wav",
         ["frenemy"] = "res://sfx/character/special/frenemy/frenemy.wav",
         ["ground_breaker.3"] = "res://sfx/character/special/ground_breaker/ground_breaker_3.wav",
         ["ground_breaker"] = "res://sfx/character/special/ground_breaker/ground_breaker.wav",
@@ -79,7 +79,7 @@ public static class SfxCharacters
         ["khalid"] = new GDict
         {
             ["attack_twin_reaper"] = new GDict { [3] = "twin_reaper.3", [4] = "twin_reaper.4", [6] = "twin_reaper.6", [7] = "twin_reaper.7", [9] = "twin_reaper.9" },
-            ["attack_dual_executioner"] = new GDict { [6] = "dual_executioner.6", [9] = "dual_executioner.9", [14] = "dual_executioner.14", [16] = "dual_executioner.16" },
+            ["attack_rope_dart"] = new GDict { [6] = "rope_dart.6", [9] = "rope_dart.9", [14] = "rope_dart.14", [16] = "rope_dart.16" },
             ["attack_ora_ora"] = new GDict { [2] = "ora_ora.2", [4] = "ora_ora.4" },
             ["attack_cherry_shots"] = new GDict { [3] = "cherry_shots.3", [7] = "cherry_shots.7" },
             ["attack_spear"] = new GDict { [6] = "spear.6", [9] = "spear.9", [13] = "spear.13" },

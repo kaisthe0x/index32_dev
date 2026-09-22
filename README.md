@@ -135,7 +135,7 @@ you, and **each use spends one Ruh charge** — Ruh is the only gate, no cooldow
 arena you stand next to and press **E** to **spend** figs on a **stingy gamble** — most pulls dud, but a win opens the
 **same pick-1-of-3 menu** from the POWERFUL pool (above-rare, including the invuln windows), each win making the next
 rarer. Moves are independent — they **upgrade by layering
-buffs**, not by turning into a different move (Dual Executioner & Redere Frisbee are now standalone swaps, not
+buffs**, not by turning into a different move (Rope Dart & Redere Frisbee are now standalone swaps, not
 successors). Take 0 HP and the run restarts (a fresh arena; buffs cleared, HP + Ruh refilled). All of this — the
 spawner, the enemy roster, the buff pools, the box, the attack picker — lives in
 [`scripts/run/`](scripts/run/README.md) (`RunManager` is `arena.tscn`'s root; `EnemyKits` is the roster, `MysteryBox`

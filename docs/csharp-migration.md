@@ -392,7 +392,7 @@ enum id, so an enum would force `enum↔snake` conversion maps at every boundary
   `Info` (dropped the `Known()` validator — the enum is always valid), `Rewards.offer_for(DoorType)`,
   `RewardsCatalog.POOLS` → `Dictionary<DoorType,GArr>`, `Reward.Make(DoorType)`/`.Door`, `RewardUI.Open(DoorType)`.
   Added typed `Icons.Door(DoorType)` + `Icons.Status(StatusType)` (StatusIcons uses the latter). Also swapped the
-  reward catalog's cross-domain move refs to consts (`AttackIds.TwinReaper`/`.DualExecutioner`, `SpecialIds.RedereShield`).
+  reward catalog's cross-domain move refs to consts (`AttackIds.TwinReaper`/`.RopeDart`, `SpecialIds.RedereShield`).
   **Already-typed (no work):** `Combat.Layer` enum + helpers; `RewardTypes` `Tier`/`Trigger` enums. Verified: build
   0 errors + reward-flow QA (clear → gate `touched` → `offer_for(DoorType)` → `POOLS[DoorType]` → RewardUI shown, clean).
 - [x] **Stage 5 — reward + passive ID consts.** `ids/PassiveIds.cs` (ties a passive's ctor `Id`, the
@@ -401,7 +401,7 @@ enum id, so an enum would force `enum↔snake` conversion maps at every boundary
   swaps — build 0 errors + clean boot, no behaviour change.
 - [x] **Stage 6 — reward-tier unification + LoadoutCategory.** (a) **Retired the string reward-tier**
   (typical/elite/broken) — unified onto the `RewardTypes.Tier` enum (Common…Epic): `Reward.RewardTier` is now `Tier?`,
-  the catalog's one tiered reward (`dual_executioner`) is `(int)Tier.Epic`, `RewardUI` badges via `Tiers.ColorOf`/
+  the catalog's one tiered reward (`rope_dart`) is `(int)Tier.Epic`, `RewardUI` badges via `Tiers.ColorOf`/
   `Label`, and `Loadout.TierColor`/`TierLabel` + their dicts are deleted (dead). (b) **`enums/actions/LoadoutCategory.cs`**
   (Attack/Special/Surge/Run/Jump/Dash/Slam) + `LoadoutCategories.All`/`.Movement`/`.Key()`/`.Kind()`/`.Parse()`.
   Threaded through Player (`_loadout` → `Dictionary<LoadoutCategory,string>`, `equip`/`loadout_id`/`LoadoutGet`/

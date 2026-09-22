@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/combat/MeleeStrike.cs" id="1_gyk1e"]
 [ext_resource type="Script" uid="uid://brpdnn6w3ctbk" path="res://scripts/combat/Hitbox.cs" id="2_whsy2"]
-[ext_resource type="Texture2D" uid="uid://c7j5ubxiby3wu" path="res://vfx/character/khalid/attack/dual_executioner/dual_executioner_texture_slash.png" id="3_gyk1e"]
+[ext_resource type="Texture2D" uid="uid://c7j5ubxiby3wu" path="res://vfx/character/khalid/attack/rope_dart/rope_dart_texture_slash.png" id="3_gyk1e"]
 
 [sub_resource type="RectangleShape2D" id="box_de"]
 size = Vector2(60, 64)
@@ -11,7 +11,7 @@ size = Vector2(60, 64)
 _data = [Vector2(0, 0.6), 0.0, 0.0, 0, 0, Vector2(0.55, 0.55), 0.0, 0.0, 0, 0, Vector2(1, 0), 0.0, 0.0, 0, 0]
 point_count = 3
 
-[node name="DualExecutioner" type="Node2D" unique_id=354740859]
+[node name="RopeDart" type="Node2D" unique_id=354740859]
 script = ExtResource("1_gyk1e")
 lifetime = 0.32
 
