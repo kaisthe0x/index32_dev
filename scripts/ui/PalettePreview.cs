@@ -65,6 +65,7 @@ public partial class PalettePreview : Control
     public override void _Ready()
     {
         SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        Input.MouseMode = Input.MouseModeEnum.Visible; // pre-game colour pickers are mouse-driven (and reset it if we came from a run)
 
         // Open on the active scheme (applies on startup) -- may be the DEFAULT look (-1).
         _activeSlot = SaveData.ActiveScheme();

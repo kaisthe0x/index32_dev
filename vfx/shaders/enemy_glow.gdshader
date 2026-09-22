@@ -19,6 +19,11 @@ uniform float sat_min : hint_range(0.0, 1.0) = 0.40;
 uniform float val_min : hint_range(0.0, 1.0) = 0.30;
 uniform float soft : hint_range(0.01, 0.5) = 0.10;
 
+// Hit-flash: blend the enemy toward flash_color by `flash`. flash = 0 (default) is a pure no-op; code pulses
+// it -> 1 on a hit and eases it back. (linear HDR values)
+uniform vec3 flash_color = vec3(1.0);
+uniform float flash : hint_range(0.0, 1.0) = 0.0;
+
 void fragment() {
 	vec4 tex = texture(TEXTURE, UV);
 	float mx = max(tex.r, max(tex.g, tex.b));
@@ -27,5 +32,6 @@ void fragment() {
 	// Accent gate: saturated AND bright. Body pixels (dark, low-sat) fail one gate and stay untouched.
 	float accent = smoothstep(sat_min, sat_min + soft, sat) * smoothstep(val_min, val_min + soft, mx);
 	tex.rgb *= 1.0 + glow * accent; // lift the accent past 1.0 -> bloom
+	tex.rgb = mix(tex.rgb, flash_color, flash); // hit-flash (no-op at flash = 0)
 	COLOR = vec4(tex.rgb, tex.a);
 }

@@ -45,7 +45,7 @@ resources/characters/ GENERATED SpriteFrames -- do not hand-edit
 resources/enemies/    GENERATED enemy SpriteFrames -- do not hand-edit
 scenes/               player, level, hud
 scripts/              player, hud
-scripts/run/          the roguelite run: continuous arena, steady spawner, Ruh, buff drops, attack picker (see scripts/run/README.md)
+scripts/run/          the roguelite run: continuous arena, steady spawner, Ruh, buff menu + mystery box, attack picker (see scripts/run/README.md)
 scripts/abilities/    Passive/Buff base (C#) + reward passives (Leech/ParryMend/ReaperEdge.cs) + reward-tier/trigger types (RewardTypes.cs)
 scripts/combat/       Hurtbox, hitbox, Combatant base, health bar, floating text, status overlay — all C# now (constants -> configs/Combat.cs)
 scripts/enemies/      Enemy base + projectile
@@ -64,12 +64,18 @@ tools/                Generator + verification scripts (not shipped)
 | Shift | `dash` | Has a cooldown. **Dash into a launch orb** and it magnets you through and flings you up + forward (see Launch orbs) |
 | Left mouse | `attack` | The current *attack* — each press advances the combo (or, for a `"flurry"` attack like Khalid's, **hold** to keep punching). **Ground only** by default — an attack whose Action is tagged `"air"` (e.g. Zahluq) is the exception and can be used mid-air (`Player._air_attack_ok`) |
 | Right mouse | `special` | On the ground: the current *special* (committed full-animation move) — **free, no Ruh cost**; most have only a tiny anti-spam lag, though a strong one can set its own cooldown (**Come Closer = 3s**). **In the air: performs the ground slam instead** (characters with a `slam` sheet) |
-| Ctrl (RT / R2) | `surge` | Fires the equipped **Surge** — a passive ability (**Aegis** = ~5s invincibility; **Jnoon** = ~5s ×2 damage dealt / ×0.5 taken; **Asra** = ~5s ×2 move speed) applied *without* interrupting your attacking/moving — **except Nem**, a committed sleep that locks you in place and heals ~50% HP over 5s (a hit wakes/cancels it), and **Wara**, which *arms* and waits: the next enemy hit is negated and AoE-stuns everyone near you (2s). **Spends one Ruh charge per use** — Ruh is the only gate, no cooldown. RT on the pad because dash owns LT |
+| Ctrl (RT / R2) | `surge` | Fires the equipped **Surge** — a passive ability (**Aegis** = ~5s invincibility; **Jnoon** = ~5s ×2 damage dealt; **Asra** = ~5s ×2 move speed) applied *without* interrupting your attacking/moving — **except Nem**, a committed sleep that locks you in place and restores one health block over 5s (a hit wakes/cancels it), and **Wara**, which *arms* and waits: the next enemy hit is negated and AoE-stuns everyone near you (2s). **Spends one Ruh charge per use** — Ruh is the only gate, no cooldown. RT on the pad because dash owns LT |
+| E | `interact` | Open the **mystery box** when standing next to it (spend fada figs; registered in code by `MysteryBox`) |
 | Z / X | `debug_damage` / `debug_heal` | Dev only |
 | 0 | `debug_respawn` | Dev only — rebuild the current level fresh |
 
 Bound to **physical** keycodes, so they stay in the same place on AZERTY/Dvorak.
 Rebind under `Project > Project Settings > Input Map`.
+
+**Mouse cursor auto-hides during play** (`Input.MouseMode`): `RunManager` hides it on entering the arena; the
+pick-a-card menus (`RewardUI` / `AttackSelect`) re-show it while open and re-hide on pick; the pre-game
+`PalettePreview` keeps it visible. LMB/RMB still fire attack/special while hidden — only the pointer is invisible,
+and it reappears the moment you move off the game window.
 
 **Facing follows movement.** The character faces the direction it last moved
 (A/D or the stick), and **attacks/specials strike that way** — where the character
@@ -123,15 +129,18 @@ run with 3 Ruh charges** — the surge meter, shown in charges (100 each), no de
 **Specials are now free and unlimited** (only a tiny anti-spam lag). Ruh instead fuels the **Aegis
 surge** (a passive on its own button): it grants ~5s of invincibility on demand without interrupting
 you, and **each use spends one Ruh charge** — Ruh is the only gate, no cooldown (see below). **HP is separate**: damage hits it only, heals
-*only* from buffs. **Killing an enemy** always drops **Fada Figs** (the run currency) and, at a chance that
-**ramps from 40% up to a 70% cap** as the run wears on, a **`BuffDrop`** — a glowing orb you touch to gain a
-random generally-useful buff (tier weighted low; move-gated buffs stay out of the drop pool so a pickup is
-never wasted). Moves are independent — they **upgrade by layering buffs**, not by turning into a different move
-(Dual Executioner & Redere Frisbee are now standalone swaps, not successors). Take 0 HP and the run restarts
-(a fresh arena; buffs cleared, HP + Ruh refilled). All of this — the spawner, the enemy roster, the buff pool,
-the attack picker — lives in [`scripts/run/`](scripts/run/README.md) (`RunManager` is `arena.tscn`'s root;
-`EnemyKits` is the roster, `BuffDrop` + `BuffCatalog` the drops; the old `Levels` / `Rewards` / `RewardsCatalog`
-/ `Build` reward-door code is **parked, not wired**, kept for the pivot's reward phase). The `.tscn` stays minimal because the editor
+*only* from buffs. **Killing an enemy** drops **Fada Figs** (the run currency). **Buffs come from two places:**
+(1) as you collect figs, hitting escalating **lifetime milestones** (25 / 55 / 105 / …) pauses the game and pops a
+**free pick-1-of-3 MILD buff menu** (non-invuln, Common/Rare) — the figs aren't spent; (2) a **mystery box** in the
+arena you stand next to and press **E** to **spend** figs on a **stingy gamble** — most pulls dud, but a win opens the
+**same pick-1-of-3 menu** from the POWERFUL pool (above-rare, including the invuln windows), each win making the next
+rarer. Moves are independent — they **upgrade by layering
+buffs**, not by turning into a different move (Dual Executioner & Redere Frisbee are now standalone swaps, not
+successors). Take 0 HP and the run restarts (a fresh arena; buffs cleared, HP + Ruh refilled). All of this — the
+spawner, the enemy roster, the buff pools, the box, the attack picker — lives in
+[`scripts/run/`](scripts/run/README.md) (`RunManager` is `arena.tscn`'s root; `EnemyKits` is the roster, `MysteryBox`
++ `BuffCatalog` the powerful gamble, `RewardUI` the buff menu; the old `Levels` / `Rewards` / `RewardsCatalog` /
+`Build` reward-door code is **parked, not wired**, kept for the pivot's reward phase). The `.tscn` stays minimal because the editor
 clobbers it, so the level content is built in code from that data. The **look** of the terrain itself is the
 hand-painted `TileMapLayer` in each stage layout (see the run README); the old procedural tileset/plant/tree
 "skin" is **retired**, and `configs/Terrain.cs` now only holds the backdrop config.
@@ -533,9 +542,9 @@ clears them together. The data lives as `Action.Category.SURGE` rows carrying a 
 in the `ActionsKhalid.SURGES` catalog (`DEFAULT_SURGE = "aegis"`). Two ship:
 - **Aegis** (`aegis`) — full damage **immunity for 5s** (`invuln`; drops the hurtbox, same channel as dash
   i-frames). The old `special_default` "Flex/Impervious" promoted out of the specials pool.
-- **Jnoon** (`jnoon`) — for 5s Khalid **deals ×2 damage and takes ×0.5** (`damage_mult 2.0` /
-  `damage_taken_mult 0.5`; *not* immune — hits still land, just softened). The mults **stack on** the
-  reward `damage_mult` / `damage_taken_mult` (folded in `resolve_tuning` / `take_damage`).
+- **Jnoon** (`jnoon`) — for 5s Khalid **deals ×2 damage** (`damage_mult 2.0`). Its damage-*reduction* is
+  **parked under slot health** (a ×mult means nothing when every hit costs a flat half-block); the `damage_mult`
+  still folds into `resolve_tuning`. *(Rethink Jnoon's defensive half — e.g. a chance to negate a hit — later.)*
 - **Asra** (`asra`) — for 5s Khalid **moves ×2 as fast** (`speed_mult 2.0`, applied via `Player._run_speed()`
   at the run/dash-blend movement sites; the anim-rate calc keeps base `run_speed`, so the run animation
   speeds up on its own instead of sliding). The looping run **footsteps** pitch up by the same
@@ -544,9 +553,9 @@ in the `ActionsKhalid.SURGES` catalog (`DEFAULT_SURGE = "aegis"`). Two ship:
 
 - **Nem** (`nem`) — a committed **sleep/heal CHANNEL** (not a passive buff, `channel: true`): Khalid locks
   in place, the flex plays to its **second-to-last frame** (head down, asleep) and **pauses** there, then
-  he heals **`heal_frac` (0.5) of MAX hp over 5s**. Heal is capped at max, so being already **≥50% HP
-  restores the whole bar**. A **hit from an enemy wakes him** — the channel cancels and he keeps whatever
-  health he'd gained. Driven in `_process_surge` (`_surge_channel` / `_surge_asleep`): the wind-up watches
+  he **restores one health BLOCK over 5s** (slot health — `heal_frac > 0` just flags that the surge heals;
+  the amount is a fixed block, `SurgeHealHalfBlocks`). Capped at max. A **hit from an enemy wakes him** — the
+  channel cancels and he keeps whatever he'd gained. Driven in `_process_surge` (`_surge_channel` / `_surge_asleep`): the wind-up watches
   `_sprite.frame` for the sleep frame, pauses playback + starts the window; `_on_hurt` cancels it.
 - **Wara** (`wara`) — a **REACTIVE / counter** surge (`trigger: "hit"`, a new surge *type*). Triggering it
   **arms** it — the aura orbits with **no timer** — until an enemy attack lands. That hit deals **no
@@ -606,6 +615,11 @@ first gap each side so an effect doesn't leap a pit). Used three ways:
   perpendicular to the slope); each box **hitbox** swaps its rect for a `CollisionPolygon2D` **band**
   following the contour (as tall as the rect). No ground → the burst is discarded. (Replaced the old
   horizontal-only `clip_to_ground`, a no-op on the TileMapLayer.)
+- **Nasen's rage AoE is FRIENDLY FIRE** (`friendly_fire` kit flag on `EnemyKits.NASEN`) — the eruption also
+  damages other enemies caught in it (the Hitbox still skips its own `source`), so herding grunts onto a raging
+  sleeper hurts them. It still only *triggers* on player detection (the `SleeperEnemy` rage_zone), never on
+  enemies. The flag flows generically: `Enemy.SpawnAttack` copies it to the Strike, whose mask uses
+  `Combat.HurtMask(hostile, friendly_fire)` to also scan the attacker's own team's hurt layer.
 - **Enemy static AoEs (`conform_ground` kit flag)** — Matat sets it (`Enemy.SpawnMeleeStrike`) and Nasen
   sets it (`SleeperEnemy.SpawnRageAoe` — the sleeper spawns its rage aoe on its own path, not the melee one);
   each runs the *same* `GroundContour.Conform` on the spawned `AoeStrike`. (Enemies bypass `ParticleDirector`,
@@ -1106,18 +1120,21 @@ purple, `> HUE_TOL`) are left untouched.
 Sound effects split **config from code**, mirroring `Emitters`. The **catalog** of what sounds exist
 is pure data in per-area files — **`SfxCharacters`**, **`SfxEnemies`**, **`SfxWorld`** (`configs/Sfx*.cs`)
 — and the autoload **`Sfx`** (`scripts/audio/Sfx.cs`) is just the runtime that plays them. Files live in
-**`sfx/`**.
+**`sfx/`**. **Per-cue volume**: to tame a too-loud sound in ONE place, add its key to that file's **`VOLUMES`**
+dict (dB, negative = quieter) — e.g. `["buff_levelup"] = -10f`. It's applied on top of any call-site `volume_db`;
+unlisted cues play at 0 dB. (There's also a brick-wall limiter on the whole SFX bus for summed peaks.)
 
-Background **music** has its own sibling autoload, **`Music`** (`scripts/audio/Music.cs`), files in
-**`music/`**. It's a **two-player crossfader**: `Music.play("key")` fades the current track out on one
-player while the new one fades in on the other, **always started from the top** — so switching beds is
-smooth and re-entering a level restarts its music fresh. `Music.stop()` fades to silence;
-`Music.pause()`/`resume()` freeze/continue at position. `.mp3`/`.ogg`/`.wav` are all force-looped.
-Register tracks in `Music.TRACKS`. In the run: the `"level"` bed starts (from the top) when the arena
-builds via `RunManager.BuildArena` (and again on a death-restart). *(The old `"base_rest"` clear/exit
-crossfade is gone with levels; that track is registered but no longer triggered by the run.)* Plays on a
-`"Music"` bus if present (else Master), and is a silent no-op until the file exists. Same "drop a file,
-add one line" workflow as `Sfx`.
+Background **music** has its own sibling autoload, **`Music`** (`scripts/audio/Music.cs`), files organised
+**per stage** under **`music/<stage>/`**. A stage's **playlist is auto-discovered** — it's simply the audio
+files in that folder (`Music.StageTracks` globs them, sorted by filename), so you just drop files in and they
+play, **no code edit and names don't matter** beyond the sort order. `Music.play_stage("stage1")` plays them in
+sequence, **crossfading gently between them** (a two-player ping-pong: one fades out as the next fades in) and
+**looping back to the first** — so a stage has an endless, varied bed rather than one repeating loop. The
+crossfade lands right at each seam (position-based, tuned by `CrossfadeBetween`); `Music.stop()` fades to silence
++ ends the playlist; `Music.pause()`/`resume()` freeze at position. `.mp3`/`.ogg`/`.wav` are all force-looped as
+a safety net. In the run, `RunManager.BuildArena` calls `play_stage("stage1")` on every run start + death-restart.
+Plays on a `"Music"` bus if present (else Master); an empty stage folder warns + plays nothing (no crash).
+*(Levels are retired, so there's no per-level bed or clear/rest crossfade anymore — one continuous stage playlist.)*
 
 - **The one place to check what sounds we use:** each config's **`CUES`** dict — a `key → path`
   master list per area. **Paths live only there**; nothing else hardcodes a `res://sfx/…` path.
@@ -1440,15 +1457,13 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
   screen). **Every label TYPE is a preset** in [`configs/FloatingTextTypes.cs`](configs/FloatingTextTypes.cs) —
   its own size/colour (fixed or magnitude-ramped), font, `italic` slant, and independent in/out
   transition — so different events read and animate distinctly with no code change. The only live type
-  live types today are the **`damage`** number over enemies (white → hot gold; `damage_special` =
+  live type today is the **`damage`** number over enemies (white → hot gold; `damage_special` =
   magenta), emitted as `FloatingText.emit("damage"/"damage_special", enemy, …, amount)` off the
-  `enemy.damaged` signal in `RunManager._on_enemy_damaged`; and the **`player_damage`** number over
-  Khalid, popped in `Player.take_damage` for the actual HP lost (after Thick Hide / Jnoon mitigation).
-  Its colour is **overridden per-call with the run's chosen PRIMARY (hair) colour** —
-  `overrides {"color": PaletteConfig.picks["hair"]}`, the same source that recolours his hair (default
-  red `#941E1E` when unpicked) — so his own numbers match his palette. The optional `overrides` dict
-  patches any preset key for one call (it wins over the preset). Add a label type = add a row to the
-  preset table (the file keeps a commented word-callout example — a parry "Nice", a "LEVEL UP").
+  `enemy.damaged` signal in `RunManager._on_enemy_damaged`. *(There's no player damage number anymore —
+  under slot health every hit costs a flat half-block, so a number would be meaningless; the `player_damage`
+  preset in `FloatingTextTypes` is left unused. Damage is now told by the red hit-flash + block loss.)*
+  The optional `overrides` dict patches any preset key for one call (it wins over the preset). Add a label
+  type = add a row to the preset table (the file keeps a commented word-callout example — a parry "Nice").
 - **Death** — on lethal damage it enters the `DEAD` state (AI + collisions off, no more
   hits) and **leaves the `enemies` group immediately**, then, if it has a `death` sheet,
   plays that animation once and **vanishes the instant it finishes** (`_on_anim_finished` →
@@ -1560,13 +1575,20 @@ the enemy `friendly_fire` flag above.)
   pieces they'd otherwise each reimplement: `anchor_to_feet` (sprite offset),
   `make_box` (rect collider), `apply_knockback` (turns a `Hit`'s knockback into a
   shove + returns the stagger time), and two "took a hit" tells:
-  - `flash(sprite)` — the plain red modulate flash.
-  - **`hit_react(sprite, damage)`** — the punchy one enemies use: a white-hot HDR
-    flash (blooms) **plus a feet-anchored squash**, both scaled by damage. It fires
-    even at `knockback = 0`, so a flurry like ora_ora reads as impacts instead of a
-    flat tint. Squash uses `sprite.scale` (enemies flip via `flip_h`, so scale is
-    free); it re-punches cleanly on rapid hits. Feel constants live on `Combat`:
-    `KNOCKBACK_POP`, `MIN_STAGGER`, `STRIKE_ACTIVE`, `HIT_FLASH`, `HIT_FLASH_TIME`.
+  - `flash(sprite)` — the plain red **modulate** flash (`Combat.HitFlash`). NOTE: the body-palette + enemy-glow
+    shaders overwrite `COLOR`, so a node **modulate is ignored** on those sprites — this reads only where the
+    sprite has no such shader.
+  - **`hit_react(sprite, damage)`** — the punchy one enemies use on every hit: a **prominent colour flash** +
+    a **feet-anchored squash**, both scaled by damage. Because modulate is swallowed (above), the colour flash
+    goes through **`flash_sprite`** → the sprite material's **`flash` uniform**: both `sprite_palette` and
+    `enemy_glow` `mix` their output toward `flash_color` by `flash` (default `flash = 0` is a pure no-op, so
+    normal rendering is untouched), pulsed to 1 and eased back. Colour = `Combat.DamageFlash` (HDR red, R>1
+    blooms; swap it for white/black in one place). The squash uses `sprite.scale`; fires even at `knockback = 0`
+    so a flurry reads as impacts; re-punches cleanly on rapid hits. **Khalid gets the same flash** on
+    `take_damage` (over his hurt anim), so both sides tell damage the same way — his palette material is
+    per-instance already; enemies get a **per-instance duplicate** of the glow material so a flash tints only the
+    one that was hit. Feel constants live on `Combat`: `KNOCKBACK_POP`, `MIN_STAGGER`, `HIT_FLASH`/`HIT_FLASH_TIME`
+    (the plain modulate flash), `DAMAGE_FLASH`/`DAMAGE_FLASH_TIME` (the shader colour flash).
 - **`StatusOverlay`** (`scripts/combat/StatusOverlay.cs`) engulfs a stunned body in
   an additive tint that mirrors its pose (frame/flip/offset/**scale**) and **throbs**
   for visibility. Driven by a `Hit`'s `status_color` / `status_time`; Khalid's
@@ -1704,7 +1726,15 @@ the build basics:
   `RunManager.SpawnPool` (up to a `MaxAlive` cap). A **kit** (`EnemyKits.KEBUS`, …) is either an `id` (built
   from the generic `enemy.tscn` with that `enemy_id`) or a `scene` (a custom enemy — `sleeper_enemy.tscn`,
   `diver_enemy.tscn`), plus any Enemy `@export` overrides. `RunManager.SpawnEnemy` applies them; the enemy's
-  `died` signal frees a cap slot and rolls the Fada-Fig + buff drops.
+  `died` signal frees a cap slot and drops Fada Figs (buffs come from the milestone menu + mystery box, not kills).
+- **Anti-camp cull** — since spawning stops at the `MaxAlive` cap, `RunManager.CullOffscreen` silently frees any enemy
+  that stays OFF-SCREEN for `OffscreenDespawnTime` (8s) — no death VFX/sfx/figs — and releases its cap slot, so a
+  camper the AI can't reach still gets fresh enemies spawned near them.
+- **Per-type caps** — a kit's `spawn_cap` (e.g. Nasen = 1) limits how many of that type are alive at once; `PickSpawnKit`
+  only rolls kits under their cap, and the cap grows +1 every `SpawnCapGrowthWaves` waves. No `spawn_cap` = unlimited.
+- **Fall-death** — any enemy whose world Y passes `Enemy.FallDeathY` (below the platforms) `Die()`s (it walked/was
+  knocked off into the void). It still emits `died` so the spawn-cap slot frees, but `RunManager.OnEnemyDied`
+  skips its loot (`enemy.fell_off`) — those drops would be unreachable down there.
   On a Ruh-granting kill it also pops a **Ruh soul** (`vfx/shared/ruh_orb/`, `RuhOrb`): a glowing
   crimson orb that flies a **curved, parabolic path** to the player — a quadratic Bezier from the
   death spot to the player's live position, bowed by `arc_height` — always reaching him at the end

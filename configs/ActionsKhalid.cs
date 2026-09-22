@@ -30,9 +30,9 @@ public static class ActionsKhalid
 			Name = "Spear",
 			Icon = Blast1,
 			Hit = new HitData(StrikeType.Melee,
-				new SegmentData { Damage = 10, Knockback = 40 },
-				new SegmentData { Damage = 20, Knockback = 60 },
-				new SegmentData { Damage = 35, Knockback = 140 }),
+				new SegmentData { Damage = 8, Knockback = 0, Stun = 0.1f },
+				new SegmentData { Damage = 10, Knockback = 0 },
+				new SegmentData { Damage = 12, Knockback = 50, Stun = 0.1f }),
 		},
 		[AttackIds.Bakshen] = new Action
 		{
@@ -40,7 +40,7 @@ public static class ActionsKhalid
 			Icon = Bolt,
 			Style = ActionStyle.Cooldown,
 			Cooldown = 3.0f,
-			Hit = new HitData(StrikeType.Melee, new SegmentData { Damage = 65, Knockback = 0, Stun = 0.0f }),
+			Hit = new HitData(StrikeType.Melee, new SegmentData { Damage = 80, Knockback = 0, Stun = 0.0f }),
 		},
 		[AttackIds.Zahluq] = new Action
 		{
@@ -65,8 +65,8 @@ public static class ActionsKhalid
 			Name = "Cherry Shots",
 			Icon = SoftDot,
 			Hit = new HitData(StrikeType.Projectile,
-				new SegmentData { Damage = 4, Knockback = 0 },
-				new SegmentData { Damage = 7, Knockback = 0 }),
+				new SegmentData { Damage = 8, Knockback = 0 },
+				new SegmentData { Damage = 8, Knockback = 0 }),
 		},
 		[AttackIds.TwinReaper] = new Action
 		{
@@ -82,7 +82,7 @@ public static class ActionsKhalid
 			Icon = Blast1,
 			Style = ActionStyle.Flurry,
 			Tags = ["reaper"],
-			Hit = new HitData(StrikeType.Melee, new SegmentData { Damage = 22, Knockback = 0, Stun = 0.3f }),
+			Hit = new HitData(StrikeType.Melee, new SegmentData { Damage = 25, Knockback = 5, Stun = 0.3f }),
 		},
 	};
 
@@ -99,6 +99,7 @@ public static class ActionsKhalid
 				Stun = 1.0f,
 				VictimEffect = "res://vfx/character/khalid/status/ground_breaker_stun.tscn",
 			}),
+			Cooldown = 1.0f,
 		},
 		[SpecialIds.Frenemy] = new Action
 		{
@@ -107,21 +108,21 @@ public static class ActionsKhalid
 			Tags = ["charm"],
 			Hit = new HitData(StrikeType.Blast, new SegmentData
 			{
-				Damage = 4,
-				Knockback = 0,
+				Damage = 1,
+				Knockback = 2,
 				Frenemy = 8.0f,
 				VictimEffect = "res://vfx/character/khalid/status/frenemy_stun.tscn",
 				VictimTime = 8.0f,
 			}),
 		},
-		[SpecialIds.ComeCloser] = new Action { Name = "Come Closer", Icon = Ember, Tags = ["control"], Cooldown = 1.0f },
+		[SpecialIds.ComeCloser] = new Action { Name = "Come Closer", Icon = Ember, Tags = ["control"], Cooldown = 3.0f },
 		[SpecialIds.RedereShield] = new Action { Name = "Redere Shield", Icon = Shield, Tags = ["shield", "held"] },
 		[SpecialIds.RedereFrisbee] = new Action
 		{
 			Name = "Redere Frisbee",
 			Icon = Blast1,
 			Tags = ["shield"],
-			Hit = new HitData(StrikeType.Projectile, new SegmentData { Damage = 15, Knockback = 120 }),
+			Hit = new HitData(StrikeType.Projectile, new SegmentData { Damage = 7, Knockback = 120 }),
 		},
 	};
 
@@ -137,7 +138,8 @@ public static class ActionsKhalid
 		{
 			Name = "Jnoon",
 			Icon = Shield,
-			Surge = new SurgeSpec { duration = 5.0f, damage_mult = 2.0f, damage_taken_mult = 0.5f, cost = 100.0f, aura = "res://vfx/character/khalid/surge/jnoon/surge_jnoon.tscn" },
+			// Slot health parked Jnoon's damage-reduction (a ×mult is meaningless when every hit costs a flat half-block); keeps ×2 damage dealt.
+			Surge = new SurgeSpec { duration = 5.0f, damage_mult = 2.0f, cost = 100.0f, aura = "res://vfx/character/khalid/surge/jnoon/surge_jnoon.tscn" },
 		},
 		[SurgeIds.Asra] = new Action
 		{
@@ -176,8 +178,8 @@ public static class ActionsKhalid
 	};
 
 	public const string DEFAULT_ATTACK = AttackIds.Bakshen;
-	public const string DEFAULT_SPECIAL = SpecialIds.GroundBreaker;
-	public const string DEFAULT_SURGE = SurgeIds.Nem;
+	public const string DEFAULT_SPECIAL = SpecialIds.ComeCloser;
+	public const string DEFAULT_SURGE = SurgeIds.Wara;
 	public static readonly Dictionary<string, string> DEFAULT_MOVEMENTS = new()
 	{
 		[MovementIds.Run] = MovementIds.StandardStride,

@@ -18,14 +18,18 @@ public partial class Sfx : Node
     private static readonly StringName Bus = "SFX";
     private const int Pool = 12;
     private const float LimiterCeilingDb = -2.0f; // peak ceiling for the summed SFX bus (see InstallLimiter)
-    // Pin a specific output device (this machine routes "Default" to a silent sink). "" = system default.
-    private const string PreferredOutput = "alsa_output.usb-ACTIONS_Pebble_V3-00.analog-stereo";
+    // Output device. "" (default) = follow the SYSTEM DEFAULT, so audio goes wherever the OS routes it — it
+    // switches to headphones when you plug them in / make them the default sink. Only set a specific device name
+    // here (from AudioServer.GetOutputDeviceList()) to FORCE one on a machine whose default is misrouted; leaving
+    // a device pinned overrides the OS and ignores headphones.
+    private const string PreferredOutput = "";
 
     private readonly List<AudioStreamPlayer> _flat = new();
     private readonly List<AudioStreamPlayer2D> _pos = new();
     private int _fi, _pi;
     private readonly Dictionary<string, AudioStream> _cache = new();
     private readonly GDict _cues = new(); // key -> path, merged from the per-area configs
+    private readonly GDict _vol = new();  // key -> per-cue base volume (dB), merged; unlisted = 0
     private StringName _bus = "Master";
 
     public override void _Ready()
@@ -33,15 +37,19 @@ public partial class Sfx : Node
         _cues.Merge(SfxCharacters.CUES);
         _cues.Merge(SfxEnemies.CUES);
         _cues.Merge(SfxWorld.CUES);
+        _vol.Merge(SfxCharacters.VOLUMES);
+        _vol.Merge(SfxEnemies.VOLUMES);
+        _vol.Merge(SfxWorld.VOLUMES);
         if (PreferredOutput != "" && System.Array.IndexOf(AudioServer.GetOutputDeviceList(), PreferredOutput) != -1)
             AudioServer.OutputDevice = PreferredOutput;
         _bus = AudioServer.GetBusIndex(Bus) != -1 ? Bus : "Master";
         for (int i = 0; i < Pool; i++)
         {
-            var f = new AudioStreamPlayer { Bus = _bus };
+            // ProcessMode.Always so one-shots (UI/level-up cues) still play while the game is paused (menus).
+            var f = new AudioStreamPlayer { Bus = _bus, ProcessMode = Node.ProcessModeEnum.Always };
             AddChild(f);
             _flat.Add(f);
-            var p = new AudioStreamPlayer2D { Bus = _bus };
+            var p = new AudioStreamPlayer2D { Bus = _bus, ProcessMode = Node.ProcessModeEnum.Always };
             AddChild(p);
             _pos.Add(p);
         }
@@ -99,10 +107,13 @@ public partial class Sfx : Node
         var pl = _flat[_fi];
         _fi = (_fi + 1) % _flat.Count;
         pl.Stream = s;
-        pl.VolumeDb = volume_db;
+        pl.VolumeDb = volume_db + VolumeFor(key);
         pl.PitchScale = pitch;
         pl.Play();
     }
+
+    /// <summary>The per-cue base volume (dB) for <paramref name="key"/> from the merged VOLUMES tables (0 if unlisted).</summary>
+    private float VolumeFor(string key) => _vol.ContainsKey(key) ? _vol[key].As<float>() : 0.0f;
 
     /// <summary>Fire ONE random variant from `keys` (skips unregistered / missing). No-op if none resolve.</summary>
     public void play_random(GArr keys, float volume_db = 0.0f, float pitch = 1.0f)
@@ -184,7 +195,7 @@ public partial class Sfx : Node
         _pi = (_pi + 1) % _pos.Count;
         pl.Stream = s;
         pl.GlobalPosition = world_pos;
-        pl.VolumeDb = volume_db;
+        pl.VolumeDb = volume_db + VolumeFor(key);
         pl.PitchScale = pitch;
         pl.Play();
     }

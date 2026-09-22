@@ -5,9 +5,9 @@ using GArr = Godot.Collections.Array;
 namespace MyGame;
 
 /// <summary>
-/// The pick-a-reward popup shown after passing an exit gate. RunManager creates one, calls <see cref="Open"/>,
-/// and awaits <c>chosen(id)</c>; the player clicks a card, we un-pause and report it. Built in code, pauses the
-/// game while up. C# port of <c>scripts/run/reward_ui.gd</c>.
+/// A pick-a-card popup: RunManager creates one, calls <see cref="Open"/> with a set of cards ({id, name, desc,
+/// optional tier/icon}) + a title, and awaits <c>chosen(id)</c>; the player clicks a card, we un-pause and report
+/// it. Built in code, pauses the game while up. Used by the fada-fig milestone BUFF menu.
 /// </summary>
 [GlobalClass]
 public partial class RewardUI : CanvasLayer
@@ -20,10 +20,12 @@ public partial class RewardUI : CanvasLayer
         ProcessMode = ProcessModeEnum.Always; // keep working while the tree is paused
     }
 
-    /// <summary>Show a card per reward ({id, name, desc}) and pause until one is picked. `doorType` titles the popup.</summary>
-    public void Open(GArr rewards, DoorType doorType)
+    /// <summary>Show a card per entry ({id, name, desc}, optional tier/icon) under <paramref name="title"/> and pause
+    /// until one is picked.</summary>
+    public void Open(GArr rewards, string title)
     {
         GetTree().Paused = true;
+        Input.MouseMode = Input.MouseModeEnum.Visible; // need the cursor to click a card
 
         var dim = new ColorRect { Color = new Color(0, 0, 0, 0.62f), MouseFilter = Control.MouseFilterEnum.Stop };
         dim.SetAnchorsPreset(Control.LayoutPreset.FullRect);
@@ -37,13 +39,13 @@ public partial class RewardUI : CanvasLayer
         col.AddThemeConstantOverride("separation", 16);
         center.AddChild(col);
 
-        var title = new Label
+        var titleLabel = new Label
         {
-            Text = $"{doorType.Key().ToUpper()} REWARD",
+            Text = title,
             HorizontalAlignment = HorizontalAlignment.Center,
         };
-        title.AddThemeFontSizeOverride("font_size", 22);
-        col.AddChild(title);
+        titleLabel.AddThemeFontSizeOverride("font_size", 22);
+        col.AddChild(titleLabel);
 
         var row = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
         row.AddThemeConstantOverride("separation", 18);
@@ -86,6 +88,7 @@ public partial class RewardUI : CanvasLayer
     private void Pick(string id)
     {
         GetTree().Paused = false;
+        Input.MouseMode = Input.MouseModeEnum.Hidden; // back to play — hide the cursor
         EmitSignal(SignalName.chosen, id);
         QueueFree();
     }

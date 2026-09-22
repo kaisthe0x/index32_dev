@@ -50,6 +50,19 @@ public partial class Combatant : CharacterBody2D
         CreateTween().TweenProperty(sprite, "modulate", Colors.White, Combat.HitFlashTime);
     }
 
+    /// <summary>Colour hit-flash via the sprite MATERIAL's <c>flash</c> uniform: both the body-palette and enemy-glow
+    /// shaders `mix` their output toward <c>flash_color</c> by <c>flash</c>. This works where a plain <c>modulate</c>
+    /// wouldn't — those shaders overwrite <c>COLOR</c>, so a node modulate is ignored. Pulses flash to 1 then eases it
+    /// back to 0 over <paramref name="time"/> (0 = untouched rendering). No-op if the sprite has no such ShaderMaterial.</summary>
+    protected void FlashSprite(AnimatedSprite2D sprite, Color color, float time)
+    {
+        if (sprite.Material is not ShaderMaterial mat)
+            return;
+        mat.SetShaderParameter("flash_color", new Vector3(color.R, color.G, color.B));
+        mat.SetShaderParameter("flash", 1.0f);
+        CreateTween().TweenProperty(mat, "shader_parameter/flash", 0.0f, time);
+    }
+
     private Tween? _reactTw;
 
     /// <summary>
@@ -64,11 +77,10 @@ public partial class Combatant : CharacterBody2D
         float punch = Mathf.Clamp(damage / 40.0f, 0.14f, 0.5f); // ora_ora ~0.19 .. ground_breaker 0.5
         float dur = 0.18f + punch * 0.12f;
         sprite.Scale = new Vector2(1.0f + punch, 1.0f - punch); // squash: wider + shorter, pivots at the feet
-        sprite.Modulate = new Color(2.2f, 0.9f, 0.9f); // hot red-white pop, >1 so the bloom catches it
-        _reactTw = CreateTween().SetParallel(true);
+        _reactTw = CreateTween();
         _reactTw.TweenProperty(sprite, "scale", Vector2.One, dur)
             .SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out); // springy recover
-        _reactTw.TweenProperty(sprite, "modulate", Colors.White, dur).SetEase(Tween.EaseType.Out);
+        FlashSprite(sprite, Combat.DamageFlash, dur); // prominent colour flash via the material's `flash` uniform
     }
 
     /// <summary>The body height a victim-VFX scene is authored against; `fitH` scales the spawned effect from this.</summary>

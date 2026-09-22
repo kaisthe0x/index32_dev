@@ -7,8 +7,9 @@ namespace MyGame;
 /// The enemy roster — one named kit per enemy TYPE, referenced by the level/wave tables in <see cref="Levels"/>.
 /// A kit is a spawn spec: an `id` (built from scenes/enemy.tscn) or a custom `scene`, plus Enemy @export overrides
 /// (combat tuning), applied by RunManager via <c>enemy.Set(key, value)</c> — so a kit stays a by-name override BAG
-/// (its keys mirror Enemy's [Export] names), not a fixed record. `tier` (<see cref="EnemyTier"/>) is advisory
-/// wave-building shorthand (RunManager skips it). IDs use <see cref="EnemyIds"/>; close_type/far_type (the
+/// (its keys mirror Enemy's [Export] names), not a fixed record. A few keys are ADVISORY metadata RunManager reads
+/// but never Sets on the Enemy: `tier` (<see cref="EnemyTier"/>, wave-building shorthand) and `spawn_cap` (max of
+/// this type alive at once, grown over the run — e.g. Nasen = 1). IDs use <see cref="EnemyIds"/>; close_type/far_type (the
 /// enemy's close-range / far-range attack) use the <see cref="StrikeType"/> taxonomy. C# port of
 /// <c>scripts/run/enemies.gd</c> (pure data).
 /// </summary>
@@ -44,6 +45,10 @@ public static class EnemyKits
 	{
 		{ "scene", "res://scenes/sleeper_enemy.tscn" }, { "id", EnemyIds.Nasen }, { "display_name", "Nasen" },
 		{ "max_health", 90.0 }, { "tier", (int)EnemyTier.Strong }, { "movement", (int)EnemyMovement.Stationary }, { "optional", true }, { "close_type", StrikeType.Aoe.Key() }, { "conform_ground", true },
+		// The rage AoE hits OTHER enemies too (friendly fire) — it still only TRIGGERS on player detection (SleeperEnemy rage_zone).
+		{ "friendly_fire", true },
+		// Concurrent cap: at most this many alive at once (RunManager grows it as the run progresses). Advisory metadata.
+		{ "spawn_cap", 1 },
 	};
 
 	public static readonly GDict EIN = new()

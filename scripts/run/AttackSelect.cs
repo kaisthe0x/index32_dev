@@ -29,6 +29,7 @@ public partial class AttackSelect : CanvasLayer
     public void Open(string character)
     {
         GetTree().Paused = true;
+        Input.MouseMode = Input.MouseModeEnum.Visible; // need the cursor to click a card
 
         var dim = new ColorRect { Color = new Color(0, 0, 0, 0.72f), MouseFilter = Control.MouseFilterEnum.Stop };
         dim.SetAnchorsPreset(Control.LayoutPreset.FullRect);
@@ -142,6 +143,7 @@ public partial class AttackSelect : CanvasLayer
     private void Pick(string id)
     {
         GetTree().Paused = false;
+        Input.MouseMode = Input.MouseModeEnum.Hidden; // back to play — hide the cursor
         EmitSignal(SignalName.chosen, id);
         QueueFree();
     }

@@ -59,4 +59,9 @@ public static class Combat
     /// <summary>Red tint a hit flashes, fading back over <see cref="HitFlashTime"/>.</summary>
     public static readonly Color HitFlash = new(1.0f, 0.4f, 0.4f);
     public const float HitFlashTime = 0.16f;
+    /// <summary>The "took damage" flash — a PROMINENT HDR red (R&gt;1 so the bloom catches it, G/B crushed so it reads
+    /// clearly red, not white-hot). Multiplies the sprite's colour, then tweens back to white over <see cref="DamageFlashTime"/>.
+    /// Shared by enemies (Combatant.HitReact) and Khalid (Player.take_damage).</summary>
+    public static readonly Color DamageFlash = new(2.6f, 0.22f, 0.22f);
+    public const float DamageFlashTime = 0.18f;
 }
