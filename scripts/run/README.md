@@ -17,7 +17,7 @@ pivot in [`docs/game-loop.md`](../../docs/game-loop.md)).
 
 | File | What it is |
 |---|---|
-| `RunManager.cs` (`RunManager`) | The brain + the arena root. Builds ONE continuous arena, **trickles enemies in at a steady rate** from a mixed roster (proximity-placed around the player, capped by a concurrent-alive limit), **awards Ruh per damaging hit landed** (via `gain_ruh_on_hit`, skipping a special's own hits — not per kill), **drops Fada Figs on each kill**, **pops a free pick-1-of-3 MILD buff menu at escalating fada-fig milestones**, **spawns a mystery box** (spend figs for a stingy powerful-buff gamble), and restarts the run on death. Owns the camera/death/spawn flair. |
+| `RunManager.cs` (`RunManager`) | The brain + the arena root. Builds ONE continuous arena, **trickles enemies in at a steady rate** from a mixed roster (proximity-placed around the player, capped by a concurrent-alive limit), **awards Ruh per damaging hit landed** (via `gain_ruh_on_hit`, skipping a special's own hits — not per kill), **drops Fada Figs on each kill**, **pops a free pick-1-of-3 MILD buff menu at escalating fada-fig milestones**, **spawns a mystery box** (spend figs for a stingy powerful-buff gamble — a win rarely offers a **special-swap** instead), and restarts the run on death. Owns the camera/death/spawn flair. |
 | `enemies.gd` (`EnemyKits`) | **The enemy roster** — one named kit per type (combat tuning + which scene), plus a `Tier`. `RunManager.SpawnPool` draws from these. Edit here to change *who* the enemies are. |
 | `MysteryBox.cs` (`MysteryBox`, in `scripts/things/`) | A code-built placeholder "?" crate. Stand next to it (a "E" prompt shows) and press **E** (the `interact` action, registered in code) to spend `Cost` fada_figs on a gamble: `DudChanceBase` of pulls give nothing, otherwise it fires `won` and RunManager opens the **same 3-choice menu** from the POWERFUL pool (`BuffCatalog.PowerfulIds`, above-rare tiers). Each win raises the dud chance further (per-run). Press E again to pull again. |
 | `RewardUI.cs` (`RewardUI`) | The pick-a-card popup (pauses the game, emits `chosen(id)`) — `Open(cards, title)`. Now drives the milestone **buff menu**. |
@@ -99,7 +99,10 @@ Related, but not in this folder:
    - **Mystery box (powerful, paid gamble):** one `MysteryBox` per arena; stand next to it + press **E** to spend `Cost`
      figs (`Player.spend_fada_figs`). Most pulls dud (`DudChanceBase`); a WIN fires the box's `won` signal →
      `RunManager.OpenPowerfulBuffMenu` opens the **same 3-choice `RewardUI`** from `BuffCatalog.PowerfulIds` (above-rare,
-     incl. invuln). Each win raises the dud chance. (Both menus share `ShowBuffMenu` / `OnBuffChosen`.)
+     incl. invuln). Each win raises the dud chance. On a win, one of the three cards is **rarely** a **special-swap**
+     instead of a buff (`RollBoxSpecial`, `SpecialOfferChance`, drawn from `BoxSpecialIds` — currently just **Zahluq**);
+     picking it **replaces your equipped special** (`OnBuffChosen` → `Player.equip`, keyed by `_menuSpecialId`) rather
+     than adding a passive. (Both menus share `ShowBuffMenu` / `OnBuffChosen`.)
 6. **Death** (HP hits 0 — the 6th hit) → the whole run restarts via `Player.begin_run` (buffs cleared, a full 3
    blocks of HP / a full 3-charge Ruh meter) + a fresh `BuildArena()`; the run-start `AttackSelect` re-opens.
 
@@ -116,6 +119,9 @@ Related, but not in this folder:
   (PLACEHOLDER cues — repoint to real files when ready). The HUD "next buff" bar is `HUD.SetBuffProgress`.
 - **Change the mystery box** → `MysteryBox` consts: `Cost` (figs per pull), `DudChanceBase` (~0.97), `DudChanceGrowth`
   (+per win), `DudChanceCap`. Powerful pool = `BuffCatalog.PowerfulIds()`; tier weights = `RollPowerfulTier`.
+- **Change the box special-swap** → `RunManager` `SpecialOfferChance` (chance a win offers a special instead of a 3rd
+  buff) + `BoxSpecialIds` (which specials are box-only; currently `SpecialIds.Zahluq`). `RollBoxSpecial` skips a special
+  you already have equipped.
 - **Move a buff between pools** → the invuln family is box-only via `BuffCatalog.IsInvuln`; move-gated buffs are
   excluded from both by the `General()` filter.
 - **Change an enemy's stats** → its kit in `enemies.gd` (combat).

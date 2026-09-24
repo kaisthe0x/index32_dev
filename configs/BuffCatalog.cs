@@ -72,7 +72,7 @@ public static class BuffCatalog
 
         // --- per-attack (offer-gated): Zahluq Instant Reset (OnMiss → full attack-cooldown reset) ---
         [BuffIds.InstantReset] = t => new InstantResetBuff(BuffIds.InstantReset)
-            { Tier = t, Family = "instant_reset", AppliesTo = { AttackIds.Zahluq } },
+            { Tier = t, Family = "instant_reset", AppliesTo = { SpecialIds.Zahluq } },
 
         // --- per-special (offer-gated): Come Closer Wider Pull (Setup → +N magnet targets) ---
         [BuffIds.WiderPull] = t => new WiderPullBuff(BuffIds.WiderPull,

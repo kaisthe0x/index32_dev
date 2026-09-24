@@ -62,7 +62,7 @@ tools/                Generator + verification scripts (not shipped)
 | S / ↓ | `drop` | Tap to fall through the one-way platform you're on (ground only; a no-op on solid floor). Controller: D-pad down / left-stick down; remappable in the Input Map |
 | Space | `jump` | Press again in the air to **double jump** (`max_air_jumps`) — the air jump re-boosts and spawns the character's jump particles; the ground jump is silent |
 | Shift | `dash` | Has a cooldown. **Dash into a launch orb** and it magnets you through and flings you up + forward (see Launch orbs) |
-| Left mouse | `attack` | The current *attack* — each press advances the combo (or, for a `"flurry"` attack like Khalid's, **hold** to keep punching). **Ground only** by default — an attack whose Action is tagged `"air"` (e.g. Zahluq) is the exception and can be used mid-air (`Player._air_attack_ok`) |
+| Left mouse | `attack` | The current *attack* — each press advances the combo (or, for a `"flurry"` attack like Khalid's, **hold** to keep punching). **Ground only** by default — an attack whose Action is tagged `"air"` is the exception and can be used mid-air (`Player._air_attack_ok`). *(No shipped attack is currently tagged `"air"`; the tag now lives on the Zahluq **special**.)* |
 | Right mouse | `special` | On the ground: the current *special* (committed full-animation move) — **free, no Ruh cost**; most have only a tiny anti-spam lag, though a strong one can set its own cooldown (**Come Closer = 3s**). **In the air: performs the ground slam instead** (characters with a `slam` sheet) |
 | Ctrl (RT / R2) | `surge` | Fires the equipped **Surge** — a passive ability (**Aegis** = ~5s invincibility; **Jnoon** = ~5s ×2 damage dealt; **Asra** = ~5s ×2 move speed) applied *without* interrupting your attacking/moving — **except Nem**, a committed sleep that locks you in place and restores one health block over 5s (a hit wakes/cancels it), and **Wara**, which *arms* and waits: the next enemy hit is negated and AoE-stuns everyone near you (2s). **Spends one Ruh charge per use** — Ruh is the only gate, no cooldown. RT on the pad because dash owns LT |
 | E | `interact` | Open the **mystery box** when standing next to it (spend fada figs; registered in code by `MysteryBox`) |
@@ -366,7 +366,7 @@ with wind-up / in-between frames between the hits:
 |---|---|---|
 | khalid | `attack_spear` | `[6, 9, 13]` — thrust, thrust, big spinning finisher (his Elite swap) |
 | khalid | `attack_bakshen` | `[3]` — one charged slash on the last frame (~1s wind-up) |
-| khalid | `attack_zahluq` | `[2]` — the burst frame; the Strike + `lunge` slide fire here (dash-attack) |
+| khalid | `attack_zahluq` | `[2]` — the burst frame; the Strike + `lunge` slide fire here (dash move — now the Zahluq **special**, still keyed to this `attack_zahluq` anim via `AnimationOverride`) |
 | khalid | `attack_cherry_shots` | `[3, 7]` — two laser Projectiles: small bolt, then a bigger one |
 | khalid | `special_ground_breaker` | `[6]` — the overhead ground crack |
 | khalid | `special_stay` | `[3]` — a short stun blast (little dmg, 5s stun) |
@@ -706,15 +706,19 @@ pull+stun is strong), and the same overhead bar shows it (a cooldown special tak
 recharges). A cooldown attack is effectively a single heavy hit — the gate blocks re-entry, so it
 doesn't chain combo segments.
 
-**Dash-attacks (the `lunge` seam).** Khalid's **`zahluq`** is a `COOLDOWN` attack that *bursts him
-forward* — a heavy hit that's less than `bakshen` but slides him a long way. Its tuning keys, read by
-`_process_attack` and the `Strike` at spawn:
-- **`lunge`** — the burst speed. `Strike.apply_tuning` → `Player.apply_lunge` sets `velocity.x`.
-- **`hold`** — seconds to **freeze on the strike frame** while sliding. During this window a lunge
-  attack keeps its velocity **constant** (no friction), so the dash covers a predictable **`lunge × hold`**
-  (~1100 × 0.4 ≈ 440px) with the sprite paused on the burst pose, then **stops crisply** (velocity zeroed)
-  — no run-off. Non-lunge attacks are unaffected (still friction-rooted, `attack_recovery` freeze).
+**Dash moves (the `lunge` seam).** **`zahluq`** *bursts the wielder forward* — a heavy hit that slides him
+a long way. It is now a **rare special** (see below), but the dash mechanic is a shared move trait, honoured
+by **both** the attack state (`ProcessAttack`) and the special state (`ProcessSpecial`). Its tuning keys,
+read by the state processor and by the `Strike` at spawn:
+- **`lunge`** — the burst speed. `Strike.apply_tuning` → `Player.apply_lunge` sets `velocity.x`. Whenever the
+  active hit carries a `lunge`, the state processor holds `velocity.y = 0` and **skips friction** so the
+  impulse rides instead of being damped away.
+- **`hold`** — for an *attack*, seconds to **freeze on the strike frame** while sliding (extends
+  `attack_recovery`), so the dash covers a predictable **`lunge × hold`** (~1100 × 0.4 ≈ 440px) and then
+  **stops crisply** (velocity zeroed). For a *special* the animation itself paces the slide (the dash rides
+  until the anim finishes). Non-lunge moves are unaffected (still friction-rooted).
 - **`super_armor`** — commits the dash so a hit mid-slide won't stagger him out of it (set ≈ `hold`).
+  Applied globally via `Player.set_armor` (ticked in the main physics loop), so it works in either state.
 - **`extents`** — the hitbox, made wide + tall so it **surrounds him** as he slides through enemies.
 
 The hitbox *sweeps* with him via the emitter row's **`follow: true`** — the director parents the effect
@@ -722,13 +726,19 @@ The hitbox *sweeps* with him via the emitter row's **`follow: true`** — the di
 of anchoring it in the world (`ParticleDirector._fire_burst`). So it fires on a **single** frame (one
 following box; multiple frames would double-hit) and the Strike's `lifetime` spans the whole animation,
 keeping the box live the entire dash — you connect no matter how far from an enemy you start. Recipe for
-any dash-attack: `lunge` + `hold` + `super_armor` in the tuning, `follow: true` on the emitter.
+any dash move: `lunge` + `hold` + `super_armor` in the tuning, `follow: true` on the emitter.
 
-**Air attacks (opt-in).** Attacks are grounded-only *except* those whose Action carries an `"air"` tag —
-the air-attack allow-list (`Player._air_attack_ok`, checked at every attack gate). Zahluq is tagged `"air"`,
-so it doubles as an aerial dash. A dash-attack flies **level** in the air: while it holds the strike frame
-`_process_attack` pins `velocity.y = 0` (gravity off), so it goes straight instead of arcing down; gravity
-resumes the instant the dash ends. Untagged attacks stay ground-only.
+**Zahluq is a box-only special (not an attack).** It was retired from the attack roster — too strong to pick
+freely — and lives in `ActionsKhalid.SPECIALS` under `SpecialIds.Zahluq`. It is offered **only** by the
+mystery box, at a low `SpecialOfferChance` (`RunManager.RollBoxSpecial`), and choosing it **replaces your
+current special** (`OnBuffChosen` equips it via `Player.equip(LoadoutCategory.Special, …)`) rather than
+adding a passive buff. It keeps its old presentation through `AnimationOverride = "attack_zahluq"` (sprite,
+emitter row, and `zahluq` sfx cue all still key off `attack_zahluq`).
+
+**Air moves (opt-in).** Moves are grounded-only *except* those whose Action carries an `"air"` tag — the
+air allow-list (`Player._air_attack_ok`). Zahluq is tagged `"air"`, so as a special it can be cast mid-air:
+it flies **level** in the air because, while a lunge is active, the state processor pins `velocity.y = 0`
+(gravity off) so it goes straight instead of arcing down; gravity resumes the instant the dash ends.
 
 **RUN needs input.** `_process_normal` enters `State.RUN` only when a move key is *actually held* (not
 merely `velocity.x > 5`), so residual momentum from a dash-attack slide or a knockback decelerates in
@@ -916,7 +926,9 @@ factory's arrays; `Family` gives replace-in-place so a higher tier supersedes a 
 - **`ChainDashBuff`** — `OnDash` zeroes the dash cooldown (`Player.reset_dash_cooldown`); minimal (tier riders TODO).
 - **`OverchargeBuff`** — Bakshen `OnHitDealt` cuts the attack cooldown (`Player.reduce_attack_cooldown`; Epic = full).
 - **`InstantResetBuff`** — Zahluq `OnMiss` fully resets the attack cooldown (`reduce_attack_cooldown`, huge value);
-  Zahluq fires one hitbox per swing so a whiff = one reset.
+  Zahluq fires one hitbox per swing so a whiff = one reset. **Parked** with the other move-gated buffs (never
+  offered yet — the pools exclude move-gated ids). Note: Zahluq is now a *special*, so a future wiring pass must
+  make special whiffs emit `OnMiss` and reset the *special* cooldown (see the class doc-comment).
 - **`WiderPullBuff`** — Setup bumps `Player.magnet_target_bonus` (read by `MagnetField` on spawn) for Come Closer.
 - **`MomentumBuff`** — a consecutive-hit damage ramp: `OnHitDealt` stacks a per-tier multiplier (capped at
   `MaxStacks`, applied via `ModifyTuning`), and `OnAnimEnd` resets it when a full swing/combo recovered having

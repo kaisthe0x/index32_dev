@@ -1753,9 +1753,19 @@ public partial class Player : Combatant
 
     private void ProcessSpecial(float delta)
     {
-        SetVelX(Mathf.MoveToward(Velocity.X, 0.0f, _friction * delta));
-        if (!IsOnFloor())
-            AddVelY(_gravity * delta);
+        // A special that carries Lunge (e.g. Zahluq) dashes through: hold vertical and let the lunge impulse
+        // ride instead of friction-damping it (mirrors the dash branch in ProcessAttack). set_armor is already
+        // honoured globally, so super-armor works for specials without extra handling here.
+        if (_activeHit.Lunge.HasValue)
+        {
+            SetVelY(0.0f);
+        }
+        else
+        {
+            SetVelX(Mathf.MoveToward(Velocity.X, 0.0f, _friction * delta));
+            if (!IsOnFloor())
+                AddVelY(_gravity * delta);
+        }
         if (_currentSpecial != null && HasTag(_currentSpecial, "held"))
         {
             int last = _sprite.SpriteFrames.GetFrameCount(Anim(_currentSpecial)) - 1;

@@ -10,7 +10,6 @@ public static class AttackIds
     public const string OraOra = "ora_ora";
     public const string Spear = "spear";
     public const string Bakshen = "bakshen";
-    public const string Zahluq = "zahluq";
     public const string CherryShots = "cherry_shots";
     public const string TwinReaper = "twin_reaper";
     public const string RopeDart = "rope_dart";
