@@ -18,8 +18,6 @@ public partial class AttackSelect : CanvasLayer
     private const int GridGap = 10;                       // separation between cells (and the details pane width math)
     private const int DetailsHeight = 120;               // FIXED details-pane height (worst case) so the panel never resizes
     private static readonly Vector2 Cell = new(84, 84);   // icon button size
-    private static readonly Color Gold = new(0.85f, 0.72f, 0.18f);
-    private static readonly Color PanelBg = new(0.06f, 0.06f, 0.08f, 0.98f);
 
     private string _character = "khalid";
     private string _selectedId = "";
@@ -49,7 +47,7 @@ public partial class AttackSelect : CanvasLayer
         AddChild(center);
 
         var panel = new PanelContainer();
-        panel.AddThemeStyleboxOverride("panel", Framed(PanelBg, Gold, 3, 6));
+        panel.AddThemeStyleboxOverride("panel", UiStyle.Framed(UiStyle.PanelBg, UiStyle.Gold, 3, 6));
         center.AddChild(panel);
 
         var pad = new MarginContainer();
@@ -63,7 +61,7 @@ public partial class AttackSelect : CanvasLayer
 
         var title = new Label { Text = "CHOOSE YOUR ATTACK", HorizontalAlignment = HorizontalAlignment.Center };
         title.AddThemeFontSizeOverride("font_size", 22);
-        title.AddThemeColorOverride("font_color", new Color(0.93f, 0.87f, 0.62f));
+        title.AddThemeColorOverride("font_color", UiStyle.TitleText);
         col.AddChild(title);
 
         var grid = new GridContainer { Columns = Columns };
@@ -100,7 +98,7 @@ public partial class AttackSelect : CanvasLayer
 
         _detailName = new Label();
         _detailName.AddThemeFontSizeOverride("font_size", 20);
-        _detailName.AddThemeColorOverride("font_color", new Color(0.93f, 0.87f, 0.62f));
+        _detailName.AddThemeColorOverride("font_color", UiStyle.TitleText);
         details.AddChild(_detailName);
 
         _detailType = new Label();
@@ -111,7 +109,7 @@ public partial class AttackSelect : CanvasLayer
         _detailDesc = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
         _detailDesc.CustomMinimumSize = new Vector2(paneW, 0);
         _detailDesc.AddThemeFontSizeOverride("font_size", 13);
-        _detailDesc.AddThemeColorOverride("font_color", new Color(0.72f, 0.72f, 0.80f));
+        _detailDesc.AddThemeColorOverride("font_color", UiStyle.BodyText);
         details.AddChild(_detailDesc);
 
         var confirm = new Button { Text = "CONFIRM", CustomMinimumSize = new Vector2(0, 34) };
@@ -173,7 +171,7 @@ public partial class AttackSelect : CanvasLayer
         var sb = new StyleBoxFlat
         {
             BgColor = selected ? new Color(0.18f, 0.16f, 0.10f, 1f) : new Color(0.12f, 0.12f, 0.15f, 1f),
-            BorderColor = selected ? Gold : new Color(0.30f, 0.30f, 0.36f),
+            BorderColor = selected ? UiStyle.Gold : new Color(0.30f, 0.30f, 0.36f),
         };
         sb.SetBorderWidthAll(selected ? 3 : 2);
         sb.SetCornerRadiusAll(4);
@@ -181,15 +179,6 @@ public partial class AttackSelect : CanvasLayer
         cell.AddThemeStyleboxOverride("hover", sb);
         cell.AddThemeStyleboxOverride("pressed", sb);
         cell.AddThemeStyleboxOverride("focus", sb);
-    }
-
-    private static StyleBoxFlat Framed(Color bg, Color border, int borderW, int radius)
-    {
-        var s = new StyleBoxFlat { BgColor = bg, BorderColor = border };
-        s.SetBorderWidthAll(borderW);
-        s.SetCornerRadiusAll(radius);
-        s.SetContentMarginAll(0);
-        return s;
     }
 
     /// <summary>A centered fixed-size icon over a wrapped label, filling a card and transparent to the mouse

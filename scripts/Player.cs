@@ -18,14 +18,12 @@ namespace MyGame;
 [GlobalClass]
 public partial class Player : Combatant
 {
-    // --- signals (GDScript HUD connects by these exact names) ---
+    // --- signals (the HUD connects by these exact names) ---
     [Signal] public delegate void health_changedEventHandler(double current, double maximum);
     [Signal] public delegate void ruh_changedEventHandler(double current, double maximum);
-    [Signal] public delegate void character_changedEventHandler(string id);
 
     // --- path templates (mirror CharacterConfig; hardcoded so C# needn't read GDScript consts) ---
     private const string FramesPathTmpl = "res://resources/characters/{0}.tres";
-    private const string PortraitPathTmpl = "res://assets/portraits/{0}.png";
 
     // --- bridged GDScript statics/singletons (cached in _Ready) ---
     private Sfx _sfx = null!;
@@ -279,7 +277,6 @@ public partial class Player : Combatant
         // Seed listeners that connected before _ready (the setters stay silent on no-change).
         EmitSignal(SignalName.health_changed, health, max_health);
         EmitSignal(SignalName.ruh_changed, ruh, ruh_cap);
-        EmitSignal(SignalName.character_changed, character);
     }
 
     private void ApplyCharacter()
@@ -340,7 +337,6 @@ public partial class Player : Combatant
         sprite.Play(AnimationFor(_state));
         SeedPassives();
         _particles?.set_character(character);
-        EmitSignal(SignalName.character_changed, character);
     }
 
     // =====================================================================================================
@@ -407,8 +403,6 @@ public partial class Player : Combatant
     {
         _loadout[category] = optionId;
         ApplyLoadout();
-        if (category is LoadoutCategory.Attack or LoadoutCategory.Special)
-            EmitSignal(SignalName.character_changed, character);
     }
 
     public string loadout_id(LoadoutCategory category)
@@ -576,9 +570,6 @@ public partial class Player : Combatant
         Modulate = new Color(2.2f, 2.2f, 2.2f);
         CreateTween().TweenProperty(this, "modulate", new Color(1, 1, 1), 0.18);
     }
-
-    public string portrait_path() =>
-        string.Format(PortraitPathTmpl, char.ToUpper(character[0]) + character.Substring(1));
 
     // =====================================================================================================
     // Damage / health

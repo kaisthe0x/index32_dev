@@ -37,7 +37,7 @@ machinery is parked, not wired — see `scripts/run/README.md`.)*
 ## Layout
 
 ```
-assets/portraits/     Painted 1080x1080 character portraits (HUD art)
+assets/portraits/     Painted 1080x1080 character portraits (palette-preview art)
 configs/              Tuning DATA -- attack table, layers, feel, rosters (see configs/README.md)
 helpers/              Shared static utilities -- boxes, node lookup, anim meta (see helpers/README.md)
 vfx/                  All visual effects -- particles + drawn slashes (see vfx/README.md)
@@ -162,7 +162,7 @@ touching** it — the Fada Fig's child `Pickup` Area detects the `PlayerBody`, c
 `fada_fig_collect` (placeholder sfx), and frees. `FadaFig.magnetize(target)` is a ready hook for a FUTURE reward that
 makes loose Fada Figs fly to the player like a Ruh soul (not wired yet). Drop counts default by advisory
 `EnemyTier` (`RunManager.FadaFigsForTier`: Chip 1 / Mid 2 / Strong 3), overridable per kit — **Wardens drop 12**
-(`KROJ` kit). The banked total shows on the HUD next to the Ruh meter (`HUD.SetFadaFigs`); `Player.begin_run` zeroes it.
+(`KROJ` kit). The spendable balance shows on the HUD beside the fig ring (`HUD.SetFadaFigs`); `Player.begin_run` zeroes it.
 The sprite wears a shared **`vfx/shaders/world/pulse_glow.gdshader`** material (assigned in `FadaFig._Ready`, one
 instance for all Fada Figs) that breathes its brightness above 1.0 so it **blooms** — reads as an energy mote and pops.
 
@@ -1072,7 +1072,7 @@ the part to black (the nearest-shade anchor keeps the shift small).
 
 #### Portrait recolour (`vfx/shaders/portrait_recolor.gdshader`)
 
-The HUD portrait (`assets/portraits/Khalid.png`) is painted in the same stylised palette as the
+The portrait (`assets/portraits/Khalid.png`, shown in the palette preview) is painted in the same stylised palette as the
 sprite (red hair, teal skin, yellow collar+eyes, brown coat), so it follows the **body** picks. The
 shader classifies each pixel into a family — hair (red) / coat (brown) / trim (yellow) / skin (teal)
 — and adopts that family's picked **hue + saturation**, keeping the pixel's own **value** (its painted
@@ -1080,8 +1080,7 @@ shading) — the same rule the body LUT's `derive()` uses. (Hue-*only* was too w
 occluded coat: swapping the hue of a near-black pixel is invisible; taking the pick's saturation too
 makes even a dark coat read clearly as the new colour.) Only families with a pick recolour (target
 alpha `< 0` = leave untouched). The **yellow eyes ride the trim/collar band on purpose** — they track
-the trim pick. `PaletteConfig.make_portrait_material()` maps picks → colour uniforms; the HUD sets it
-in `_on_character_changed`, the preview shows it live next to the sprite.
+the trim pick. `PaletteConfig.make_portrait_material()` maps picks → colour uniforms; the preview shows it live next to the sprite.
 
 - **Tuning** — the hue bands + `sat_floor` (0.10) are uniforms in `portrait_recolor.gdshader`; if a
   region is mis-classified (e.g. the dark background teal grabbing the skin band), narrow the band or
@@ -1857,25 +1856,81 @@ instead of a fixed fps that desyncs the moment speed changes. `run_anim_speed`
 
 ## HUD
 
-`scenes/hud.tscn` + `scripts/HUD.cs` — portrait, name, health bar, Ruh charge
-meter, and a **`LEVELS n · BEST n`** line (levels cleared this run + the best-ever
-record). The HP bar's fill is **colour-coded green→orange→red by how full it is**,
-retinted each frame as it drains (`_recolor_hp`) from the shared
-`FloatingHealthBar.color_for_ratio` bands — so the player and the floating enemy
-bars use identical thresholds.
+`scenes/hud.tscn` + `scripts/HUD.cs` — health + Ruh in a **gauge** (bottom-centre, or following
+Khalid — a player setting), the **Esc pause menu**, the **fig ring** (top-left), a top-centre **`WAVES n · BEST m`** line, the top-right
+active-buff list, off-screen enemy arrows and the low-HP screen effect. No portrait or name — those
+belong on the pause/character screens.
+
+### The gauge (health + Ruh)
+
+Two rows kept near the action, so you read your state without looking away from the fight:
+
+- **Health stars** — one `HealthPip` (an eight-point star) per health block. Every hit costs exactly
+  half a block, so a star is only ever full / left-half / empty. All stars are tinted
+  **green→orange→red by overall HP** from the shared `FloatingHealthBar.ColorForRatio` bands, so the
+  player and the floating enemy bars use identical thresholds.
+- **Ruh orbs** — one `RuhPip` per Ruh charge (`Player.RUH_PER_BLOCK`), filling **from the bottom
+  like liquid** as hits bank Ruh. Coloured like the in-world Ruh orbs (red family, recoloured to
+  the Power-1 pick via `VfxPalette.Recolor` at bind), so health and Ruh differ by shape *and* colour.
+
+**Placement is a player setting** — `GaugePlacement` (`enums/ui/`), chosen in the pause menu, saved by
+`SaveData`, applied live by `HUD.ApplyGaugePlacement` (one `VBoxContainer`, reparented between two homes):
+
+- **`Screen`** (default) — in the screen HUD (layer 100, above the low-HP grade), anchored at horizontal
+  centre with its top at `GaugeScreenY` of screen height, and scaled about its top-centre by
+  `GaugePixelScale` (1.5 = `RunManager.CamZoomNormal`) so one pip pixel matches one sprite pixel on
+  screen. Screen UI — it ignores the spawn/death camera zooms.
+- **`FollowKhalid`** — centred `GaugeFeetGap` px under Khalid's feet, in world units (so it matches the
+  sprites' pixel size at any zoom). It hangs off a `Node2D` anchor on its own **camera-following
+  `CanvasLayer`** (`FollowViewportEnabled`, layer **60**: above the low-HP grade, below the screen HUD).
+  A **`RemoteTransform2D` added to the Player** (only in this mode) carries the anchor, so it moves
+  during physics and **physics interpolation** smooths it in step with Khalid. Deliberately *not* a
+  Player child, so the player's hit-flash/blink modulate never bleeds into it.
+
+**Visibility:** it idles at 60% alpha (`GaugeIdleAlpha`) so it doesn't clutter the fight, wakes to
+full for `GaugeWakeTime` (1.6 s) on any health/Ruh change, and stays full while HP is low (whenever
+the low-HP effect is on). Star and orb counts follow `max_health` / `ruh_cap`, so max-HP or Ruh-cap
+buffs add pips.
+
+### The fig ring (screen, top-left)
+
+`FigRing`: the fada_fig icon inside a ring that fills clockwise toward the next buff milestone
+(`HUD.SetBuffProgress`, pushed by RunManager off the LIFETIME total), with the **spendable balance**
+as a number beside it (`HUD.SetFadaFigs`). Economy, not moment-to-moment survival — so it stays in
+the corner rather than in the gauge.
+
+### Pause menu (`scripts/ui/PauseMenu.cs`)
+
+**Esc** (`ui_cancel`) pauses during a run: **Resume** + **Settings** (for now just the gauge placement:
+FIXED / FOLLOW KHALID). The HUD owns it and enables it only while a Player is bound; Esc opens it only
+when nothing else has the tree paused (the attack pick and buff menus own their own pause), and Esc or
+Resume closes it. It's a `CanvasLayer` at layer 110 with `ProcessMode = Always`, styled from the shared
+`UiStyle` (the gold-framed panel the attack picker uses too). New settings: add the value to `SaveData`
+(stored by enum NAME, so reordering an enum never remaps a saved choice) and a row to `PauseMenu.Build`.
+
+### Feedback + the pip art
+
+**Feedback** (`scripts/ui/HudFx.cs`, scale/rotation tweens only, so they're container-safe): a lost
+half-star flashes + wiggles, a healed star pops, an orb pops the moment it fills, the fig ring pops
+on every fig banked. The first sync on bind is silent (no pop-in).
+
+The pips are drawn in code (`scripts/ui/PixelPip.cs`): a character mask (`#` body, `s` shine,
+`.` empty) with an auto-traced 1-pixel outline. `HealthPip` / `RuhPip` only supply their mask and
+which body pixels a fill level covers — swap a mask to reshape an icon. These are placeholders
+until hand-drawn sprites come from index32_art.
 
 Registered as an **autoload** (`project.godot > [autoload]`), not placed in a
 scene. It finds whatever `Player` enters the tree via `get_tree().node_added`,
 and hides itself when there is none, so menus and character-select screens stay
 clean. This also means no scene file holds a reference to it.
 
-It follows character swaps and health changes over signals — nothing polls.
+It follows health and Ruh changes over signals — nothing polls.
 
 ### Off-screen enemy arrows (`scripts/ui/OffscreenMarkers.cs`)
 
 With the tight 6× camera and the big orb launches, enemies leave the frame constantly — so you can't
 see where to slam/approach. `OffscreenMarkers` is a full-viewport overlay the HUD builds (a sibling of
-the top-left cluster, shown/hidden with it). Each frame it projects every enemy in the `"enemies"`
+the HUD's screen-space root, shown/hidden with it). Each frame it projects every enemy in the `"enemies"`
 group through the camera — `get_viewport().get_canvas_transform() * enemy.global_position` — and for
 any that land **outside the view** it draws a **chevron clamped to an inset screen edge**, rotated to
 point at the enemy. On-screen enemies get nothing (you can already see them). Each arrow is:

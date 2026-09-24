@@ -1,15 +1,14 @@
 using Godot;
-using System.Collections.Generic;
-using GDict = Godot.Collections.Dictionary;
-using GArr = Godot.Collections.Array;
 
 namespace MyGame;
 
 /// <summary>
-/// Portrait + HP BLOCK meter + Ruh BLOCK meter + next-buff progress bar (+ a debug stats panel + off-screen enemy arrows + low-HP screen effect)
-/// for the active character. An autoload, so it exists in every scene; binds to whatever <see cref="Player"/>
-/// enters the tree and hides when there's none. Built entirely in code. C# port of <c>scripts/hud.gd</c>.
-/// Bridges the GDScript config statics (SaveData / PaletteConfig / Loadout) it reads.
+/// The player HUD. Health stars + Ruh orbs sit in the <see cref="_gauge"/> — fixed at bottom-centre, or following under
+/// Khalid's feet, per the player's <see cref="GaugePlacement"/> setting (dim at rest, bright on any change or at low
+/// HP). Also: the fada_fig ring (next-buff progress + spendable count, top-left), a WAVES/BEST line, the active-buff
+/// list, off-screen enemy arrows, the low-HP effect, and the Esc <see cref="PauseMenu"/> (where that setting lives).
+/// An autoload, so it exists in every scene; binds to whatever <see cref="Player"/> enters the tree and hides when
+/// there's none. Built entirely in code.
 /// </summary>
 public partial class HUD : CanvasLayer
 {
@@ -30,37 +29,48 @@ public partial class HUD : CanvasLayer
 
 	private Control _root;
 	private OffscreenMarkers _markers;
-	private TextureRect _portrait;
-	private Label _nameLabel;
-	private Control _hpArea;
-	private readonly List<ColorRect> _hpCells = new();
-	private float _hpCellW = 0.0f;
-	private Control _ruhArea;
-	private readonly List<ColorRect> _ruhCells = new();
-	private float _ruhCellW = 0.0f;
-	private Label _ruhLabel;
-	private Label _levelsLabel;
-	private TextureRect _fadaFigIcon;
-	private Label _fadaFigLabel;
-	private ProgressBar _buffBar;    // progress toward the next buff milestone
-	private Label _buffLabel;
-	private Label _controls;
+	private VBoxContainer _gauge;     // health stars over Ruh orbs; reparented between the two placements
+	private float _gaugeWake = 0.0f;  // seconds left at full brightness after the last change
+	private GaugePlacement _placement;
+	// FollowKhalid placement: the gauge hangs off _gaugeAnchor on its own camera-following CanvasLayer, ABOVE the low-HP
+	// grade (so it stays legible exactly when HP is low) and below the screen HUD. A RemoteTransform2D on the Player drags
+	// the anchor along — set during physics, so physics interpolation smooths it in step with Khalid — and it's NOT a
+	// Player child, so the player's hit-flash / blink modulate never bleeds into it.
+	private CanvasLayer _gaugeLayer;
+	private Node2D _gaugeAnchor;
+	private RemoteTransform2D _gaugeFollow; // only while a Player is bound AND the placement is FollowKhalid
+	private PauseMenu _pauseMenu;
+	private HBoxContainer _hpRow;
+	private readonly List<HealthPip> _stars = new();
+	private readonly List<float> _starLevels = new();
+	private HBoxContainer _ruhRow;
+	private readonly List<RuhPip> _orbs = new();
+	private readonly List<float> _orbLevels = new();
+	private Color _ruhFill;
+	private FigRing _figRing;
+	private Label _figLabel;
+	private int _figCount = 0;
+	private Label _wavesLabel;
 	private VBoxContainer _buffPanel;
-	private PanelContainer _stats;
-	private Label _statsLabel;
 
-	private static readonly Vector2 RuhMeterSize = new(248, 16);
-	private const float RuhCellGap = 3.0f;
-	private static readonly Color RuhFill = new(0.80f, 0.16f, 0.20f);
-	private static readonly Color RuhEmpty = new(0.16f, 0.08f, 0.10f, 0.9f);
+	private static readonly Vector2 FigRowPos = new(16, 14);
+	private const int PipGap = 1;              // pip pixels between pips
+	private const int RowGap = 1;              // pip pixels between the star and orb rows
+	private const float GaugeScreenY = 0.9f;   // Screen placement: gauge top, as a fraction of screen height
+	// Screen placement: pips are pixel art, so scale them by the normal camera zoom (RunManager.CamZoomNormal) — one pip
+	// pixel is then the same size on screen as one sprite pixel. (FollowKhalid is in world units, so it matches natively.)
+	private const float GaugePixelScale = 1.5f;
+	private const float GaugeFeetGap = 3.0f;   // FollowKhalid: world px below Khalid's origin (his feet)
+	private const int GaugeLayer = 60;         // FollowKhalid: above the low-HP grade (50), below the screen HUD (100)
+	private const float GaugeIdleAlpha = 0.6f;
+	private const float GaugeWakeTime = 1.6f;
+	private const float GaugeFade = 4.0f;    // alpha per second
 
-	// Health BLOCKS (slot health): one cell per block, each fills 0/half/full (green→red by ratio).
-	private static readonly Vector2 HpMeterSize = new(248, 20);
-	private const float HpCellGap = 4.0f;
-	private static readonly Color HpEmpty = new(0.09f, 0.09f, 0.11f, 0.9f);
-
-	private static readonly string[] StrikeTypeNames =
-		{ "MELEE", "PROJECTILE", "DELAYED_PROJECTILE", "AOE", "DELAYED_AOE", "BLAST", "TRAP" };
+	private static readonly Color HpEmpty = new(0.26f, 0.26f, 0.31f);
+	// Ruh in the red family, like the in-world Ruh orbs — recoloured to the Power-1 pick at bind (VfxPalette.Recolor).
+	private static readonly Color RuhFillBase = new(0.80f, 0.16f, 0.20f);
+	private static readonly Color RuhEmpty = new(0.30f, 0.14f, 0.17f);
+	private static readonly Color FigText = new(0.72f, 0.86f, 1.0f);
 
 
 	public override void _Ready()
@@ -68,7 +78,9 @@ public partial class HUD : CanvasLayer
 		Layer = 100;
 		BuildHud();
 		BuildLowHealth();
-		BuildStats();
+		_pauseMenu = new PauseMenu();
+		AddChild(_pauseMenu);
+		_pauseMenu.GaugePlacementChanged += ApplyGaugePlacement;
 		SetShown(false);
 		GetTree().NodeAdded += OnNodeAdded;
 		SetProcess(true);
@@ -82,82 +94,131 @@ public partial class HUD : CanvasLayer
 	private void BuildHud()
 	{
 		_root = new Control { MouseFilter = Control.MouseFilterEnum.Ignore };
-		_root.SetAnchorsPreset(Control.LayoutPreset.TopLeft);
+		_root.SetAnchorsPreset(Control.LayoutPreset.FullRect);
 		AddChild(_root);
 
 		_markers = new OffscreenMarkers();
 		AddChild(_markers);
 
-		var frame = new Panel { Position = new Vector2(16, 16), Size = new Vector2(112, 112) };
-		frame.AddThemeStyleboxOverride("panel", Framed(new Color(0.07f, 0.07f, 0.09f, 0.85f), new Color(0.85f, 0.72f, 0.18f)));
-		_root.AddChild(frame);
+		_gauge = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore, Modulate = new Color(1, 1, 1, GaugeIdleAlpha) };
+		_gauge.AddThemeConstantOverride("separation", RowGap);
+		_gauge.Resized += LayoutGauge;
+		_root.AddChild(_gauge);
+		_hpRow = MkPipRow(_gauge);
+		_ruhRow = MkPipRow(_gauge);
+		_gaugeLayer = new CanvasLayer { Layer = GaugeLayer, FollowViewportEnabled = true };
+		AddChild(_gaugeLayer);
+		_gaugeAnchor = new Node2D();
+		_gaugeLayer.AddChild(_gaugeAnchor);
+		ApplyGaugePlacement(SaveData.GetGaugePlacement());
 
-		_portrait = new TextureRect
-		{
-			Position = new Vector2(4, 4),
-			Size = new Vector2(104, 104),
-			ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-			StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
-		};
-		frame.AddChild(_portrait);
+		var figRow = new HBoxContainer { Position = FigRowPos, MouseFilter = Control.MouseFilterEnum.Ignore };
+		figRow.AddThemeConstantOverride("separation", 6);
+		_root.AddChild(figRow);
+		_figRing = new FigRing();
+		figRow.AddChild(_figRing);
+		_figLabel = MkLabel(16, FigText);
+		_figLabel.Text = "0";
+		figRow.AddChild(_figLabel);
 
-		const float infoX = 140.0f;
-		_nameLabel = MkLabel(new Vector2(infoX, 14), 20, new Color(0.93f, 0.87f, 0.62f));
-		_nameLabel.Text = "CHARACTER";
+		_wavesLabel = MkLabel(13, new Color(0.85f, 0.72f, 0.18f));
+		_wavesLabel.SetAnchorsPreset(Control.LayoutPreset.CenterTop);
+		_wavesLabel.GrowHorizontal = Control.GrowDirection.Both;
+		_wavesLabel.OffsetTop = 10.0f;
+		_wavesLabel.HorizontalAlignment = HorizontalAlignment.Center;
+		_root.AddChild(_wavesLabel);
 
-		_hpArea = new Control { Position = new Vector2(infoX, 48), Size = HpMeterSize, MouseFilter = Control.MouseFilterEnum.Ignore };
-		_root.AddChild(_hpArea);
-
-		_ruhArea = new Control { Position = new Vector2(infoX, 76), Size = RuhMeterSize, MouseFilter = Control.MouseFilterEnum.Ignore };
-		_root.AddChild(_ruhArea);
-
-		_ruhLabel = MkLabel(new Vector2(infoX + RuhMeterSize.X + 8, 74), 12, new Color(0.95f, 0.75f, 0.8f));
-		_ruhLabel.Size = new Vector2(120, 18);
-		_ruhLabel.VerticalAlignment = VerticalAlignment.Center;
-
-		_levelsLabel = MkLabel(new Vector2(infoX, 100), 15, new Color(0.85f, 0.72f, 0.18f));
-
-		// FadaFig counter — icon + count, to the right of the Ruh meter row.
-		float fadaFigX = infoX + RuhMeterSize.X + 8.0f;
-		_fadaFigIcon = new TextureRect
-		{
-			Position = new Vector2(fadaFigX, 98),
-			Size = new Vector2(22, 22),
-			Texture = GD.Load<Texture2D>("res://assets/things/fada_fig.png"),
-			ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-			StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
-			TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-		};
-		_root.AddChild(_fadaFigIcon);
-		_fadaFigLabel = MkLabel(new Vector2(fadaFigX + 26, 100), 16, new Color(0.72f, 0.86f, 1.0f));
-		_fadaFigLabel.Text = "0";
-
-		// Progress toward the next buff milestone (figs collected).
-		_buffBar = new ProgressBar { Position = new Vector2(infoX, 124), Size = new Vector2(200, 12), CustomMinimumSize = new Vector2(200, 12), ShowPercentage = false, MinValue = 0, MaxValue = 1 };
-		var buffBg = new StyleBoxFlat { BgColor = new Color(0.10f, 0.10f, 0.13f, 0.9f) }; buffBg.SetCornerRadiusAll(2);
-		var buffFill = new StyleBoxFlat { BgColor = new Color(0.72f, 0.86f, 1.0f) }; buffFill.SetCornerRadiusAll(2);
-		_buffBar.AddThemeStyleboxOverride("background", buffBg);
-		_buffBar.AddThemeStyleboxOverride("fill", buffFill);
-		_root.AddChild(_buffBar);
-		_buffLabel = MkLabel(new Vector2(infoX + 206, 122), 11, new Color(0.72f, 0.86f, 1.0f));
-		_buffLabel.Text = "";
-
-		_controls = MkLabel(new Vector2(16, 140), 12, new Color(0.62f, 0.62f, 0.68f));
-		//_controls.Text = "A/D move   Space jump   Shift dash   LMB attack   RMB special/slam   E mystery box   Z hurt   X +ruh   0 rebuild";
-
-		// Active-buff list. _root uses the TopLeft preset (zero-sized), so anchors don't resolve here — position it
-		// ABSOLUTELY (top-right) in RefreshBuffs from the live viewport width, like every other HUD element.
+		// Active-buff list, pinned top-right and growing leftward to fit its widest line.
 		_buffPanel = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore, Visible = false };
+		_buffPanel.SetAnchorsPreset(Control.LayoutPreset.TopRight);
+		_buffPanel.GrowHorizontal = Control.GrowDirection.Begin;
+		_buffPanel.OffsetRight = -14.0f;
+		_buffPanel.OffsetTop = 14.0f;
 		_root.AddChild(_buffPanel);
 	}
 
+	/// <summary>Move the gauge to <paramref name="g"/>: Screen = anchored bottom-centre in the screen HUD, scaled to sprite
+	/// pixel size; FollowKhalid = under the world-space anchor at world scale. Live — the pause menu calls it.</summary>
+	private void ApplyGaugePlacement(GaugePlacement g)
+	{
+		_placement = g;
+		if (g == GaugePlacement.Screen)
+		{
+			_gauge.Reparent(_root, false);
+			_gauge.AnchorLeft = 0.5f;
+			_gauge.AnchorRight = 0.5f;
+			_gauge.AnchorTop = GaugeScreenY;
+			_gauge.AnchorBottom = GaugeScreenY;
+			_gauge.GrowHorizontal = Control.GrowDirection.Both; // grows both ways from the centre anchor
+			_gauge.Scale = new Vector2(GaugePixelScale, GaugePixelScale);
+		}
+		else
+		{
+			_gauge.Reparent(_gaugeAnchor, false);
+			_gauge.SetAnchorsPreset(Control.LayoutPreset.TopLeft);
+			_gauge.Scale = Vector2.One;
+		}
+		_gauge.OffsetLeft = _gauge.OffsetRight = _gauge.OffsetTop = _gauge.OffsetBottom = 0.0f; // shrink to content
+		LayoutGauge();
+		SyncGaugeFollow();
+	}
+
+	/// <summary>Re-centre the gauge for its size: Screen scales about its top-centre (so scaling keeps it centred);
+	/// FollowKhalid sits centred just under the anchor (his feet).</summary>
+	private void LayoutGauge()
+	{
+		if (_placement == GaugePlacement.Screen)
+			_gauge.PivotOffset = new Vector2(_gauge.Size.X / 2.0f, 0.0f);
+		else
+		{
+			_gauge.PivotOffset = Vector2.Zero;
+			_gauge.Position = new Vector2(Mathf.Round(-_gauge.Size.X / 2.0f), GaugeFeetGap);
+		}
+	}
+
+	/// <summary>Give the bound Player a RemoteTransform2D driving the gauge anchor exactly when the placement is
+	/// FollowKhalid; remove it otherwise (or once unbound).</summary>
+	private void SyncGaugeFollow()
+	{
+		bool want = _player != null && _placement == GaugePlacement.FollowKhalid;
+		if (want && _gaugeFollow == null)
+		{
+			_gaugeFollow = new RemoteTransform2D { UpdateRotation = false, UpdateScale = false, RemotePath = _gaugeAnchor.GetPath() };
+			_gaugeFollow.Ready += () => _gaugeAnchor.ResetPhysicsInterpolation(); // snap to Khalid, don't sweep in
+			// Deferred: Bind runs from node_added, while the Player is still mid-enter-tree.
+			_player.CallDeferred(Node.MethodName.AddChild, _gaugeFollow);
+		}
+		else if (!want && _gaugeFollow != null)
+		{
+			if (IsInstanceValid(_gaugeFollow))
+				_gaugeFollow.QueueFree();
+			_gaugeFollow = null;
+		}
+	}
+
+	private static HBoxContainer MkPipRow(Control parent)
+	{
+		var row = new HBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore, Alignment = BoxContainer.AlignmentMode.Center };
+		row.AddThemeConstantOverride("separation", PipGap);
+		parent.AddChild(row);
+		return row;
+	}
+
+	private static Label MkLabel(int fontSize, Color col)
+	{
+		var l = new Label { MouseFilter = Control.MouseFilterEnum.Ignore, VerticalAlignment = VerticalAlignment.Center };
+		l.AddThemeFontSizeOverride("font_size", fontSize);
+		l.AddThemeColorOverride("font_color", col);
+		l.AddThemeColorOverride("font_outline_color", Colors.Black);
+		l.AddThemeConstantOverride("outline_size", 4);
+		return l;
+	}
+
 	/// <summary>Rebuild the top-right active-buff list from the player's passives (call on grant / clear).</summary>
-	public void RefreshBuffs(System.Collections.Generic.List<Passive> passives)
+	public void RefreshBuffs(List<Passive> passives)
 	{
 		if (_buffPanel == null)
 			return;
-		_buffPanel.Position = new Vector2(GetViewport().GetVisibleRect().Size.X - 272.0f, 14.0f);  // top-right, live width
 		foreach (Node child in _buffPanel.GetChildren())
 			child.QueueFree();
 		bool any = false;
@@ -199,103 +260,80 @@ public partial class HUD : CanvasLayer
 		_lowHpLayer.AddChild(rect);
 	}
 
-	/// <summary>Set the collected-fada_figs count shown next to the Ruh meter (pushed by <c>Player.collect_fada_fig</c>).</summary>
+	// --- fada_figs ------------------------------------------------------------
+
+	/// <summary>Set the spendable fada_fig balance shown beside the ring (pushed by <c>Player</c>); the ring pops on a gain.</summary>
 	public void SetFadaFigs(int count)
 	{
-		if (_fadaFigLabel != null)
-			_fadaFigLabel.Text = count.ToString();
+		if (_figLabel == null)
+			return;
+		if (count > _figCount)
+			HudFx.Pop(_figRing);
+		_figCount = count;
+		_figLabel.Text = count.ToString();
 	}
 
-	/// <summary>Update the "next buff" progress bar: <paramref name="have"/> of <paramref name="need"/> figs collected
-	/// toward the next milestone (pushed by RunManager). Shows the remaining count.</summary>
+	/// <summary>Fill the fig ring to <paramref name="have"/> of <paramref name="need"/> figs toward the next buff
+	/// milestone (pushed by RunManager).</summary>
 	public void SetBuffProgress(int have, int need)
 	{
-		if (_buffBar == null)
-			return;
-		need = Mathf.Max(need, 1);
-		have = Mathf.Clamp(have, 0, need);
-		_buffBar.MaxValue = need;
-		_buffBar.Value = have;
-		_buffLabel.Text = have >= need ? "buff!" : $"{need - have} to buff";
+		_figRing?.SetProgress((float)have / Mathf.Max(need, 1));
 	}
 
-	private Label MkLabel(Vector2 pos, int fontSize, Color col)
-	{
-		var l = new Label { Position = pos };
-		l.AddThemeFontSizeOverride("font_size", fontSize);
-		l.AddThemeColorOverride("font_color", col);
-		l.AddThemeColorOverride("font_outline_color", Colors.Black);
-		l.AddThemeConstantOverride("outline_size", 4);
-		_root.AddChild(l);
-		return l;
-	}
+	// --- health stars + Ruh orbs (the gauge) ----------------------------------
 
-	/// <summary>(Re)build one HP cell per health BLOCK, evenly across HpMeterSize (mirrors the Ruh meter).</summary>
-	private void BuildHealthMeter(int blockCount)
+	/// <summary>Make <paramref name="row"/> hold exactly <paramref name="count"/> pips (adds/frees at the end, so the
+	/// surviving pips keep their levels + any running tween).</summary>
+	private static void ResizePips<T>(HBoxContainer row, List<T> pips, List<float> levels, int count) where T : PixelPip, new()
 	{
-		foreach (var c in _hpArea.GetChildren())
-			c.QueueFree();
-		_hpCells.Clear();
-		blockCount = Mathf.Max(blockCount, 1);
-		_hpCellW = (HpMeterSize.X - HpCellGap * (blockCount - 1)) / blockCount;
-		for (int i = 0; i < blockCount; i++)
+		count = Mathf.Max(count, 1);
+		while (pips.Count < count)
 		{
-			float x = i * (_hpCellW + HpCellGap);
-			_hpArea.AddChild(new ColorRect { Position = new Vector2(x, 0), Size = new Vector2(_hpCellW, HpMeterSize.Y), Color = HpEmpty });
-			var fill = new ColorRect { Position = new Vector2(x, 0), Size = new Vector2(0, HpMeterSize.Y) };
-			_hpArea.AddChild(fill);
-			_hpCells.Add(fill);
+			var pip = new T();
+			row.AddChild(pip);
+			pips.Add(pip);
+			levels.Add(0.0f);
+		}
+		while (pips.Count > count)
+		{
+			int last = pips.Count - 1;
+			pips[last].QueueFree();
+			pips.RemoveAt(last);
+			levels.RemoveAt(last);
 		}
 	}
 
-	/// <summary>Fill each block cell from `current` half-blocks (2 per block) — a block shows full / half / empty —
-	/// and tint the fill green→orange→red by the overall ratio (same bands as the floating enemy bars).</summary>
-	private void UpdateHealthMeter(float current, float maximum)
+	/// <summary>Each star shows its share of `current` half-blocks (2 per block): full / half / empty, all tinted
+	/// green→orange→red by the overall ratio (same bands as the floating enemy bars). When <paramref name="animate"/>,
+	/// a lost half wiggles and a gain pops.</summary>
+	private void UpdateStars(float current, float maximum, bool animate)
 	{
 		Color fill = FloatingHealthBar.ColorForRatio(maximum > 0.0f ? current / maximum : 0.0f);
-		for (int i = 0; i < _hpCells.Count; i++)
+		for (int i = 0; i < _stars.Count; i++)
 		{
-			float ratio = Mathf.Clamp(current / 2.0f - i, 0.0f, 1.0f); // 2 half-blocks per block
-			_hpCells[i].Size = new Vector2(_hpCellW * ratio, _hpCells[i].Size.Y);
-			_hpCells[i].Color = fill;
+			float level = Mathf.Clamp(current / 2.0f - i, 0.0f, 1.0f);
+			if (animate && level < _starLevels[i])
+				HudFx.Wiggle(_stars[i]);
+			else if (animate && level > _starLevels[i])
+				HudFx.Pop(_stars[i]);
+			_starLevels[i] = level;
+			_stars[i].SetLevel(level, fill, HpEmpty);
 		}
 	}
 
-	/// <summary>(Re)build the block cells so there's one per ruh block. Cells laid out evenly across RuhMeterSize.</summary>
-	private void BuildRuhMeter(int blockCount)
+	/// <summary>Each orb fills with its block's share of `current` Ruh; when <paramref name="animate"/>, an orb pops the
+	/// moment it becomes full.</summary>
+	private void UpdateOrbs(float current, bool animate)
 	{
-		foreach (var c in _ruhArea.GetChildren())
-			c.QueueFree();
-		_ruhCells.Clear();
-		blockCount = Mathf.Max(blockCount, 1);
-		_ruhCellW = (RuhMeterSize.X - RuhCellGap * (blockCount - 1)) / blockCount;
-		for (int i = 0; i < blockCount; i++)
+		float per = _player.RUH_PER_BLOCK;
+		for (int i = 0; i < _orbs.Count; i++)
 		{
-			float x = i * (_ruhCellW + RuhCellGap);
-			var bg = new ColorRect { Position = new Vector2(x, 0), Size = new Vector2(_ruhCellW, RuhMeterSize.Y), Color = RuhEmpty };
-			_ruhArea.AddChild(bg);
-			var fill = new ColorRect { Position = new Vector2(x, 0), Size = new Vector2(0, RuhMeterSize.Y), Color = RuhFill };
-			_ruhArea.AddChild(fill);
-			_ruhCells.Add(fill);
+			float level = Mathf.Clamp(current / per - i, 0.0f, 1.0f);
+			if (animate && level >= 1.0f && _orbLevels[i] < 1.0f)
+				HudFx.Pop(_orbs[i]);
+			_orbLevels[i] = level;
+			_orbs[i].SetLevel(level, _ruhFill, RuhEmpty);
 		}
-	}
-
-	private void UpdateRuhMeter(float current)
-	{
-		float per = _player != null ? _player.RUH_PER_BLOCK : 50.0f;
-		for (int i = 0; i < _ruhCells.Count; i++)
-		{
-			float ratio = Mathf.Clamp(current / per - i, 0.0f, 1.0f);
-			_ruhCells[i].Size = new Vector2(_ruhCellW * ratio, _ruhCells[i].Size.Y);
-		}
-	}
-
-	private static StyleBoxFlat Framed(Color bg, Color border)
-	{
-		var s = new StyleBoxFlat { BgColor = bg, BorderColor = border };
-		s.SetBorderWidthAll(2);
-		s.SetCornerRadiusAll(3);
-		return s;
 	}
 
 	// --- binding --------------------------------------------------------------
@@ -325,13 +363,13 @@ public partial class HUD : CanvasLayer
 			return;
 		Unbind();
 		_player = player;
-		_player.character_changed += OnCharacterChanged;
+		_ruhFill = VfxPalette.Recolor(RuhFillBase);
 		_player.health_changed += OnHealthChanged;
 		_player.ruh_changed += OnRuhChanged;
 		_player.TreeExiting += Unbind;
-		OnCharacterChanged(_player.character);
-		OnHealthChanged(_player.health, _player.max_health);
-		OnRuhChanged(_player.ruh, _player.ruh_cap);
+		SyncHealth((float)_player.health, (float)_player.max_health, false); // seed silently — no pop-in on bind
+		SyncRuh((float)_player.ruh, (float)_player.ruh_cap, false);
+		SyncGaugeFollow();
 		SetShown(true);
 	}
 
@@ -339,20 +377,21 @@ public partial class HUD : CanvasLayer
 	{
 		if (_player != null && IsInstanceValid(_player))
 		{
-			_player.character_changed -= OnCharacterChanged;
 			_player.health_changed -= OnHealthChanged;
 			_player.ruh_changed -= OnRuhChanged;
 			_player.TreeExiting -= Unbind;
 		}
 		_player = null;
+		SyncGaugeFollow();
 		SetShown(false);
 	}
 
 	private void SetShown(bool shown)
 	{
 		_root.Visible = shown;
-		_stats.Visible = shown;
 		_markers.Visible = shown;
+		_gaugeLayer.Visible = shown;
+		_pauseMenu.Enabled = shown; // Esc pauses only during a run
 		if (!shown)
 		{
 			_lowHpTarget = 0.0f;
@@ -373,7 +412,8 @@ public partial class HUD : CanvasLayer
 			return;
 		}
 		UpdateLowHealth(delta);
-		_levelsLabel.Text = $"WAVES  {SaveData.GetCurrentWaves()}   ·   BEST {SaveData.WavesRecord()}";
+		UpdateGaugeAlpha(delta);
+		_wavesLabel.Text = $"WAVES  {SaveData.GetCurrentWaves()}   ·   BEST {SaveData.WavesRecord()}";
 	}
 
 	private void UpdateLowHealth(float delta)
@@ -391,6 +431,17 @@ public partial class HUD : CanvasLayer
 		}
 	}
 
+	/// <summary>The gauge idles dim so it doesn't clutter the fight; any change wakes it to full for a moment, and it stays
+	/// full while HP is low (whenever the low-HP screen effect is on).</summary>
+	private void UpdateGaugeAlpha(float delta)
+	{
+		_gaugeWake = Mathf.Max(_gaugeWake - delta, 0.0f);
+		float target = _gaugeWake > 0.0f || _lowHpTarget > 0.0f ? 1.0f : GaugeIdleAlpha;
+		Color m = _gauge.Modulate;
+		m.A = Mathf.MoveToward(m.A, target, GaugeFade * delta);
+		_gauge.Modulate = m;
+	}
+
 	/// <summary>Heartbeat envelope 0..1: a sharp "lub" thump plus a softer "dub", so the pulse punches.</summary>
 	private static float Heartbeat(float t)
 	{
@@ -400,21 +451,18 @@ public partial class HUD : CanvasLayer
 		return Mathf.Min(lub + dub, 1.0f);
 	}
 
-	private void OnCharacterChanged(string id)
-	{
-		_nameLabel.Text = id.ToUpper();
-		string path = _player.portrait_path();
-		_portrait.Texture = ResourceLoader.Exists(path) ? GD.Load<Texture2D>(path) : null;
-		_portrait.Material = PaletteConfig.MakePortraitMaterial();
-	}
+	private void OnHealthChanged(double current, double maximum) => SyncHealth((float)current, (float)maximum, true);
 
-	private void OnHealthChanged(double current, double maximum)
+	private void OnRuhChanged(double current, double maximum) => SyncRuh((float)current, (float)maximum, true);
+
+	private void SyncHealth(float current, float maximum, bool animate)
 	{
-		int blocks = Mathf.Max(Mathf.RoundToInt((float)maximum / 2.0f), 1); // 2 half-blocks per block
-		if (blocks != _hpCells.Count)
-			BuildHealthMeter(blocks);
-		UpdateHealthMeter((float)current, (float)maximum);
-		float ratio = maximum > 0.0 ? (float)(current / maximum) : 0.0f;
+		int blocks = Mathf.RoundToInt(maximum / 2.0f); // 2 half-blocks per block
+		ResizePips(_hpRow, _stars, _starLevels, blocks);
+		UpdateStars(current, maximum, animate);
+		if (animate)
+			_gaugeWake = GaugeWakeTime;
+		float ratio = maximum > 0.0f ? current / maximum : 0.0f;
 		if (ratio >= LowHpRatio)
 			_lowHpTarget = 0.0f;
 		else
@@ -424,61 +472,12 @@ public partial class HUD : CanvasLayer
 		}
 	}
 
-	private void OnRuhChanged(double current, double maximum)
+	private void SyncRuh(float current, float maximum, bool animate)
 	{
-		float per = _player != null ? _player.RUH_PER_BLOCK : 50.0f;
-		int blocks = Mathf.Max(Mathf.RoundToInt((float)maximum / per), 1);
-		if (blocks != _ruhCells.Count)
-			BuildRuhMeter(blocks);
-		UpdateRuhMeter((float)current);
-		_ruhLabel.Text = $"RUH  {Mathf.FloorToInt((float)current / per)} ▮";
+		int blocks = Mathf.RoundToInt(maximum / _player.RUH_PER_BLOCK);
+		ResizePips(_ruhRow, _orbs, _orbLevels, blocks);
+		UpdateOrbs(current, animate);
+		if (animate)
+			_gaugeWake = GaugeWakeTime;
 	}
-
-	// --- debug stats panel (top-right) ----------------------------------------
-
-	private void BuildStats()
-	{
-		_stats = new PanelContainer
-		{
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-			AnchorLeft = 1.0f,
-			AnchorRight = 1.0f,
-			GrowHorizontal = Control.GrowDirection.Begin,
-			GrowVertical = Control.GrowDirection.End,
-			OffsetLeft = -10.0f,
-			OffsetRight = -10.0f,
-			OffsetTop = 10.0f,
-		};
-		var sb = new StyleBoxFlat { BgColor = new Color(0, 0, 0, 0.55f) };
-		sb.SetContentMarginAll(8.0f);
-		sb.SetCornerRadiusAll(4);
-		_stats.AddThemeStyleboxOverride("panel", sb);
-		_statsLabel = new Label();
-		_statsLabel.AddThemeFontSizeOverride("font_size", 12);
-		_stats.AddChild(_statsLabel);
-		AddChild(_stats);
-	}
-
-
-	private string MoveLine(string label, Action a)
-	{
-		if (a == null)
-			return $"{label}: none";
-		string kindName = a.Hit != null ? StrikeTypeName(a.Hit.Type) : "—";
-		return $"{label}: {a.Id} [{kindName}]  dmg {Dmg(a)}";
-	}
-
-	private static string StrikeTypeName(StrikeType t) => StrikeTypeNames[(int)t];
-
-	private static string Dmg(Action a)
-	{
-		if (a.Hit == null || a.Hit.Segments.Length == 0)
-			return "scene";
-		var parts = new List<string>();
-		foreach (var s in a.Hit.Segments)
-			parts.Add(s.Damage.HasValue ? s.Damage.Value.ToString() : "0");
-		return parts.Count == 1 ? parts[0] : string.Join("/", parts);
-	}
-
-	private static string Yn(bool b) => b ? "y" : "n";
 }

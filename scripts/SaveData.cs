@@ -6,9 +6,9 @@ namespace MyGame;
 
 /// <summary>
 /// Persistent run record + the current run's progress, shared between RunManager (writes) and the HUD (reads), plus
-/// saved character COLOUR SCHEMES from the picker. C# port of <c>scripts/save_data.gd</c>. The RECORD (most WAVES
-/// survived in one run, ever — levels are retired) persists to user://; the current run's wave count is session-only,
-/// in memory. All static: one record, no instance needed.
+/// saved character COLOUR SCHEMES from the picker and player SETTINGS from the pause menu. C# port of
+/// <c>scripts/save_data.gd</c>. The RECORD (most WAVES survived in one run, ever — levels are retired) persists to
+/// user://; the current run's wave count is session-only, in memory. All static: one record, no instance needed.
 /// </summary>
 public static class SaveData
 {
@@ -120,6 +120,32 @@ public static class SaveData
         cfg.Load(PATH); // keep the run record + anything else already saved
         cfg.SetValue("colors", "schemes", _schemes);
         cfg.SetValue("colors", "active", _active);
+        cfg.Save(PATH);
+    }
+
+    // --- player settings (pause menu) ---------------------------------------
+    // Enums are stored by NAME, so reordering an enum never remaps a saved choice; an unknown name falls back to the default.
+
+    private static GaugePlacement? _gaugePlacement; // lazy-loaded from disk
+
+    /// <summary>Where the HUD's health + Ruh gauge sits. Read from disk once, then cached; defaults to Screen.</summary>
+    public static GaugePlacement GetGaugePlacement()
+    {
+        if (_gaugePlacement == null)
+        {
+            var cfg = new ConfigFile();
+            string name = cfg.Load(PATH) == Error.Ok ? cfg.GetValue("settings", "gauge_placement", "").AsString() : "";
+            _gaugePlacement = System.Enum.TryParse(name, out GaugePlacement g) ? g : GaugePlacement.Screen;
+        }
+        return _gaugePlacement.Value;
+    }
+
+    public static void SetGaugePlacement(GaugePlacement g)
+    {
+        _gaugePlacement = g;
+        var cfg = new ConfigFile();
+        cfg.Load(PATH); // keep the run record + colours + anything else already saved
+        cfg.SetValue("settings", "gauge_placement", g.ToString());
         cfg.Save(PATH);
     }
 }
