@@ -21,14 +21,16 @@ public static class ActionsKhalid
 		[AttackIds.OraOra] = new Action
 		{
 			Name = "Ora Ora",
-			Icon = Ember,
+			Description = "A relentless flurry of rapid punches — hold to keep the hits coming.",
+			Icon = "res://assets/icons/attacks/ora_ora.png",
 			Style = ActionStyle.Flurry,
 			Hit = new HitData(StrikeType.Melee, new SegmentData { Damage = 15, Knockback = 0, Stun = 0.1f, Extents = new Vector2(32, 22) }),
 		},
 		[AttackIds.Spear] = new Action
 		{
 			Name = "Spear",
-			Icon = Blast1,
+			Description = "A three-thrust combo that finishes with a shoving lunge.",
+			Icon = "res://assets/icons/attacks/spear.png",
 			Hit = new HitData(StrikeType.Melee,
 				new SegmentData { Damage = 8, Knockback = 0, Stun = 0.1f },
 				new SegmentData { Damage = 10, Knockback = 0 },
@@ -37,33 +39,17 @@ public static class ActionsKhalid
 		[AttackIds.Bakshen] = new Action
 		{
 			Name = "Bakshen",
-			Icon = Bolt,
+			Description = "One massive charged slash — slow to wind up, devastating on hit.",
+			Icon = "res://assets/icons/attacks/bakshen.png",
 			Style = ActionStyle.Cooldown,
 			Cooldown = 3.0f,
 			Hit = new HitData(StrikeType.Melee, new SegmentData { Damage = 80, Knockback = 0, Stun = 0.0f }),
 		},
-		[AttackIds.Zahluq] = new Action
-		{
-			Name = "Zahluq",
-			Icon = Bolt,
-			Style = ActionStyle.Cooldown,
-			Cooldown = 3.0f,
-			Tags = ["air"],
-			Hit = new HitData(StrikeType.Melee, new SegmentData
-			{
-				Damage = 45,
-				Knockback = 90,
-				Stun = 0.2f,
-				Lunge = 1100.0f,
-				Hold = 0.4f,
-				SuperArmor = 0.4f,
-				Extents = new Vector2(40, 28),
-			}),
-		},
 		[AttackIds.CherryShots] = new Action
 		{
 			Name = "Cherry Shots",
-			Icon = SoftDot,
+			Description = "Fires homing bolts that curve toward the nearest enemy.",
+			Icon = "res://assets/icons/attacks/cherry_shots.png",
 			Hit = new HitData(StrikeType.Projectile,
 				new SegmentData { Damage = 8, Knockback = 0 },
 				new SegmentData { Damage = 8, Knockback = 0 }),
@@ -71,7 +57,8 @@ public static class ActionsKhalid
 		[AttackIds.TwinReaper] = new Action
 		{
 			Name = "Twin Reaper",
-			Icon = Blast1,
+			Description = "Twin blades in a whirling flurry that reap chip damage over time.",
+			Icon = "res://assets/icons/attacks/twin_reaper.png",
 			Style = ActionStyle.Flurry,
 			Tags = ["reaper"],
 			Hit = new HitData(StrikeType.Melee, new SegmentData { Damage = 12, Knockback = 0, Reap = 0.12f, ReapTime = 5.0f }),
@@ -79,7 +66,8 @@ public static class ActionsKhalid
 		[AttackIds.RopeDart] = new Action
 		{
 			Name = "Rope Dart",
-			Icon = Blast1,
+			Description = "A weighted blade on a whipping rope — long, sweeping strikes.",
+			Icon = "res://assets/icons/attacks/rope_dart.png",
 			Style = ActionStyle.Flurry,
 			Tags = ["reaper"],
 			Hit = new HitData(StrikeType.Melee, new SegmentData { Damage = 25, Knockback = 5, Stun = 0.3f }),
@@ -123,6 +111,27 @@ public static class ActionsKhalid
 			Icon = Blast1,
 			Tags = ["shield"],
 			Hit = new HitData(StrikeType.Projectile, new SegmentData { Damage = 7, Knockback = 120 }),
+		},
+		// Zahluq — ex-attack, now a RARE special only obtainable from the mystery box (replaces your special).
+		// AnimationOverride reuses its existing "attack_zahluq" sprite/vfx/sfx (assets keep the attack_ prefix).
+		[SpecialIds.Zahluq] = new Action
+		{
+			Name = "Zahluq",
+			Description = "A dash-through strike with super armor: blink forward and cut clean.",
+			Icon = Bolt, // PLACEHOLDER — no dedicated special icon yet
+			AnimationOverride = "attack_zahluq",
+			Cooldown = 3.0f,
+			Tags = ["air"],
+			Hit = new HitData(StrikeType.Melee, new SegmentData
+			{
+				Damage = 45,
+				Knockback = 90,
+				Stun = 0.2f,
+				Lunge = 1100.0f,
+				Hold = 0.4f,
+				SuperArmor = 0.4f,
+				Extents = new Vector2(40, 28),
+			}),
 		},
 	};
 
