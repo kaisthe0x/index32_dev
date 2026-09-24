@@ -1,4 +1,4 @@
-# mygamedev
+# index32_dev
 
 > **✅ C# migration complete.** The game is fully C# (only build/QA `.gd` tools remain), with a typed-data pass
 > (enums/records/ids). Run/verify with **`godot-mono`**, not `godot`. History + interop rules:
@@ -215,7 +215,7 @@ That cleanup is **not done here** — it belongs to the art pipeline, because th
 `.aseprite` masters are the source and this repo only consumes the exported
 sheets. It lives in the art repo:
 
-    mygame/tools/repalette/          <- scripts + full README
+    index32_art/tools/repalette/          <- scripts + full README
 
 It collapses each sheet onto a hand-authored palette (6 materials x 5 shades +
 a rim, 36 colours) and writes the result back into the `.aseprite` masters, so
@@ -1951,7 +1951,7 @@ fine. **Trust the actual run over the squiggles.**
 | Command | Purpose |
 |---|---|
 | `python3 tools/gen_spriteframes.py` | Regenerate SpriteFrames from the sheets |
-| Palette cleanup | Lives in the art repo, `mygame/tools/repalette/` — see [Palette cleanup](#palette-cleanup) |
+| Palette cleanup | Lives in the art repo, `index32_art/tools/repalette/` — see [Palette cleanup](#palette-cleanup) |
 | `godot --headless --script tools/verify_frames.gd` | Assert all animations load on a uniform canvas |
 | `godot --script tools/capture_shots.gd` | Render every character/animation to PNGs for eyeballing alignment |
 | VFX build tools (particle textures/scenes) | Under `vfx/script/` — see [vfx/README.md](vfx/README.md#build-tools) |

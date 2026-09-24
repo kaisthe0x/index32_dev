@@ -1,6 +1,6 @@
 # GDScript → C# migration
 
-Tracking doc for porting mygamedev from GDScript to C#. **The game systems (everything shipped) become C#;
+Tracking doc for porting index32_dev from GDScript to C#. **The game systems (everything shipped) become C#;
 throwaway test/QA harnesses stay GDScript.** Motivation: a typed attack hierarchy (`Strike` as a base, with
 `Melee`/`Blast`/`Aoe`/`TimedAoe` as real types), a typed reward/item system, and compile-time bug-catching
 as the project scales.
