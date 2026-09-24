@@ -47,7 +47,8 @@ public static class SaveData
 
     // --- colour schemes (from the picker) -----------------------------------
     // Up to MAX_SCHEMES named slots + an "active" index. Each scheme: {"body": {material→Color}, "power":
-    // {family→Color}}; empty dicts mean "defaults". ConfigFile serialises Color/Dictionary/Array natively.
+    // {family→Color}, "ui": {UiStyle.PickFrame/PickAccent→Color}}; empty (or missing, in older saves) dicts mean
+    // "defaults". ConfigFile serialises Color/Dictionary/Array natively.
     public const int MAX_SCHEMES = 5;
     private static GArr _schemes = new();
     private static int _active = 0;
@@ -66,13 +67,13 @@ public static class SaveData
         // Normalise to exactly MAX_SCHEMES slots so the UI can index them freely.
         _schemes = _schemes.Slice(0, Mathf.Min(_schemes.Count, MAX_SCHEMES));
         while (_schemes.Count < MAX_SCHEMES)
-            _schemes.Add(new GDict { { "body", new GDict() }, { "power", new GDict() } });
+            _schemes.Add(new GDict { { "body", new GDict() }, { "power", new GDict() }, { "ui", new GDict() } });
         // -1 == the built-in DEFAULT look (always available, never overwritten); 0..MAX-1 == a saved slot.
         _active = Mathf.Clamp(_active, -1, MAX_SCHEMES - 1);
         _colorsLoaded = true;
     }
 
-    /// <summary>All MAX_SCHEMES slots (index 0..4); each {"body":{}, "power":{}}. Empty dicts = an unused slot.</summary>
+    /// <summary>All MAX_SCHEMES slots (index 0..4); each {"body":{}, "power":{}, "ui":{}}. Empty dicts = an unused slot.</summary>
     public static GArr ColorSchemes()
     {
         LoadColors();
@@ -93,14 +94,15 @@ public static class SaveData
         var s = _schemes[i].As<GDict>();
         bool bodyEmpty = !s.ContainsKey("body") || s["body"].As<GDict>().Count == 0;
         bool powerEmpty = !s.ContainsKey("power") || s["power"].As<GDict>().Count == 0;
-        return !(bodyEmpty && powerEmpty);
+        bool uiEmpty = !s.ContainsKey("ui") || s["ui"].As<GDict>().Count == 0;
+        return !(bodyEmpty && powerEmpty && uiEmpty);
     }
 
     /// <summary>Write slot `i` from the chosen picks and (by default) make it the active/startup scheme.</summary>
-    public static void SaveScheme(int i, GDict body, GDict power, bool makeActive = true)
+    public static void SaveScheme(int i, GDict body, GDict power, GDict ui, bool makeActive = true)
     {
         LoadColors();
-        _schemes[i] = new GDict { { "body", body.Duplicate() }, { "power", power.Duplicate() } };
+        _schemes[i] = new GDict { { "body", body.Duplicate() }, { "power", power.Duplicate() }, { "ui", ui.Duplicate() } };
         if (makeActive)
             _active = i;
         PersistColors();

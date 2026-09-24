@@ -117,11 +117,11 @@ public partial class HUD : CanvasLayer
 		_root.AddChild(figRow);
 		_figRing = new FigRing();
 		figRow.AddChild(_figRing);
-		_figLabel = MkLabel(UiStyle.SizeTitle, UiStyle.Accent);
+		_figLabel = MkLabel(UiStyle.HudValue);
 		_figLabel.Text = "0";
 		figRow.AddChild(_figLabel);
 
-		_wavesLabel = MkLabel(UiStyle.SizeBody, UiStyle.Frame);
+		_wavesLabel = MkLabel(UiStyle.HudHeading);
 		_wavesLabel.SetAnchorsPreset(Control.LayoutPreset.CenterTop);
 		_wavesLabel.GrowHorizontal = Control.GrowDirection.Both;
 		_wavesLabel.OffsetTop = 10.0f;
@@ -204,15 +204,9 @@ public partial class HUD : CanvasLayer
 		return row;
 	}
 
-	private static Label MkLabel(int fontSize, Color col)
-	{
-		var l = new Label { MouseFilter = Control.MouseFilterEnum.Ignore, VerticalAlignment = VerticalAlignment.Center };
-		l.AddThemeFontSizeOverride("font_size", fontSize);
-		l.AddThemeColorOverride("font_color", col);
-		l.AddThemeColorOverride("font_outline_color", Colors.Black);
-		l.AddThemeConstantOverride("outline_size", 3); // HUD text sits over the world — keep it readable on any backdrop
-		return l;
-	}
+	/// <summary>A HUD label in one of UiStyle's outlined HUD styles (text floats over the world).</summary>
+	private static Label MkLabel(string style) =>
+		new() { ThemeTypeVariation = style, MouseFilter = Control.MouseFilterEnum.Ignore, VerticalAlignment = VerticalAlignment.Center };
 
 	/// <summary>Rebuild the top-right active-buff list from the player's passives (call on grant / clear).</summary>
 	public void RefreshBuffs(List<Passive> passives)
@@ -227,11 +221,12 @@ public partial class HUD : CanvasLayer
 			if (p is not Buff b)
 				continue;
 			any = true;
-			var name = MkLabel(UiStyle.SizeBody, Tiers.ColorOf(b.Tier));
+			var name = MkLabel(UiStyle.HudHeading);
+			name.AddThemeColorOverride("font_color", Tiers.ColorOf(b.Tier)); // tier colour is semantic, not UI chrome
 			name.Text = b.Name != "" ? $"{b.Name} [{Tiers.Label(b.Tier)}]" : b.Id;
 			_buffPanel.AddChild(name);
 
-			var desc = MkLabel(UiStyle.SizeBody, UiStyle.TextDim);
+			var desc = MkLabel(UiStyle.HudMuted);
 			desc.Text = b.Description;
 			desc.AutowrapMode = TextServer.AutowrapMode.WordSmart;
 			desc.CustomMinimumSize = new Vector2(258, 0);

@@ -11,7 +11,6 @@ public partial class FigRing : Control
     private const float RingWidth = 3.0f;
     private const int RingPoints = 48;
     private static readonly Color Track = new(0.26f, 0.26f, 0.31f);
-    private static readonly Color Fill = new(0.72f, 0.86f, 1.0f);
 
     private Texture2D _icon;
     private float _progress;
@@ -43,7 +42,7 @@ public partial class FigRing : Control
         if (_progress > 0.0f)
         {
             float start = -Mathf.Pi / 2.0f;
-            DrawArc(c, RingRadius, start, start + Mathf.Tau * _progress, RingPoints, Fill, RingWidth, true);
+            DrawArc(c, RingRadius, start, start + Mathf.Tau * _progress, RingPoints, UiStyle.Accent, RingWidth, true);
         }
         DrawTextureRect(_icon, new Rect2(c - new Vector2(IconSize, IconSize) / 2.0f, new Vector2(IconSize, IconSize)), false);
     }

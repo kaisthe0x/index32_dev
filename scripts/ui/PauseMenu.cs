@@ -15,6 +15,7 @@ public partial class PauseMenu : CanvasLayer
 
     private readonly Dictionary<GaugePlacement, Button> _placementButtons = new();
     private Button _resume;
+    private ColorRect _dim;
     private bool _enabled;
 
     /// <summary>Whether Esc may open the menu. Disabling while open closes it.</summary>
@@ -55,6 +56,7 @@ public partial class PauseMenu : CanvasLayer
         GaugePlacement current = SaveData.GetGaugePlacement();
         foreach (var (g, b) in _placementButtons)
             b.SetPressedNoSignal(g == current);
+        _dim.Color = UiStyle.Backdrop; // the UI palette may have been recoloured since Build
         GetTree().Paused = true;
         Input.MouseMode = Input.MouseModeEnum.Visible;
         Visible = true;
@@ -85,9 +87,9 @@ public partial class PauseMenu : CanvasLayer
 
     private void Build()
     {
-        var dim = new ColorRect { Color = UiStyle.Backdrop, MouseFilter = Control.MouseFilterEnum.Stop };
-        dim.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-        AddChild(dim);
+        _dim = new ColorRect { MouseFilter = Control.MouseFilterEnum.Stop };
+        _dim.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        AddChild(_dim);
 
         var center = new CenterContainer { Theme = UiStyle.Theme };
         center.SetAnchorsPreset(Control.LayoutPreset.FullRect);

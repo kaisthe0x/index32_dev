@@ -8,7 +8,8 @@ namespace MyGame;
 /// <summary>
 /// Character colour-customisation preview + SCHEME manager (the pre-game main scene). C# port of
 /// <c>scripts/ui/palette_preview.gd</c>. Runs Khalid's `idle` cycle on an adjustable backdrop with a live-recoloured
-/// portrait, a colour picker per body part + per power family, and up to SaveData.MAX_SCHEMES saved schemes you switch,
+/// portrait, a colour picker per body part + per power family + the UI's two colours (frame / highlight, which recolour
+/// every menu and HUD label live), and up to SaveData.MAX_SCHEMES saved schemes you switch,
 /// Save, and Start a run with. BODY recolour uses the material-aware palette LUT (<see cref="PaletteConfig"/>); POWERS
 /// recolour via <see cref="VfxPalette"/>; the portrait follows body picks by hue. Selecting a slot loads + makes it
 /// active; "Save" writes the current picks into the active slot; "Start run" only applies them (Save is the commit).
@@ -38,6 +39,13 @@ public partial class PalettePreview : Control
         { ["red"] = "Power 1", ["gold"] = "Power 2", ["teal"] = "Power 3" };
     private static readonly string[] POWER_ORDER = { "red", "gold", "teal" };
 
+    // UI colours: the two picks UiStyle derives the whole menu palette from.
+    private static readonly string[] UI_ORDER = { UiStyle.PickFrame, UiStyle.PickAccent };
+    private static readonly Dictionary<string, string> UI_LABELS = new()
+        { [UiStyle.PickFrame] = "Frame", [UiStyle.PickAccent] = "Highlight" };
+    private static readonly Dictionary<string, Color> UI_DEFAULTS = new()
+        { [UiStyle.PickFrame] = UiStyle.DefaultFrame, [UiStyle.PickAccent] = UiStyle.DefaultAccent };
+
     private ShaderMaterial _mat, _portraitMat;
     private ColorRect _backdrop;
     private AnimatedSprite2D _sprite;
@@ -50,6 +58,8 @@ public partial class PalettePreview : Control
     private readonly GDict _powerPicks = new();  // family -> picked Color (missing = family default)
     private readonly Dictionary<string, ColorPickerButton> _bodyPickers = new();
     private readonly Dictionary<string, ColorPickerButton> _powerPickers = new();
+    private readonly GDict _uiPicks = new();     // UiStyle.PickFrame/PickAccent -> picked Color (always both set)
+    private readonly Dictionary<string, ColorPickerButton> _uiPickers = new();
     private readonly List<Button> _slotButtons = new();
     private Button _saveButton;
     private int _activeSlot = -1;  // -1 == the built-in DEFAULT look; 0..MAX-1 == a saved slot
@@ -85,12 +95,12 @@ public partial class PalettePreview : Control
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             CustomMinimumSize = new Vector2(240, 240),
         };
-        _portraitFrame = FramedBox();
+        var portraitPad = FramedBox(out _portraitFrame);
         var pv = new VBoxContainer();
         pv.AddThemeConstantOverride("separation", 6);
         pv.AddChild(_portrait);
         pv.AddChild(new Label { Text = "PORTRAIT", ThemeTypeVariation = UiStyle.Muted, HorizontalAlignment = HorizontalAlignment.Center });
-        _portraitFrame.AddChild(pv);
+        portraitPad.AddChild(pv);
         AddChild(_portraitFrame);
 
         BuildControls();
@@ -135,6 +145,10 @@ public partial class PalettePreview : Control
         var savedPower = scheme.ContainsKey("power") ? scheme["power"].As<GDict>() : new GDict();
         foreach (var fam in POWER_ORDER)
             _powerPicks[fam] = savedPower.ContainsKey(fam) ? savedPower[fam] : POWER_FAMILIES[fam];
+        _uiPicks.Clear();
+        var savedUi = scheme.ContainsKey("ui") ? scheme["ui"].As<GDict>() : new GDict(); // older saves have no "ui"
+        foreach (var k in UI_ORDER)
+            _uiPicks[k] = savedUi.ContainsKey(k) ? savedUi[k] : UI_DEFAULTS[k];
     }
 
     /// <summary>Push the current working picks to every live view.</summary>
@@ -146,6 +160,8 @@ public partial class PalettePreview : Control
             picker.Color = _bodyPicks.ContainsKey(m) ? _bodyPicks[m].As<Color>() : new Color(PaletteConfig.DEFAULT[m][1]);
         foreach (var (fam, picker) in _powerPickers)
             picker.Color = _powerPicks[fam].As<Color>();
+        foreach (var (k, picker) in _uiPickers)
+            picker.Color = _uiPicks[k].As<Color>();
         PushStatics();
         RebuildSample();
     }
@@ -154,7 +170,12 @@ public partial class PalettePreview : Control
     {
         PaletteConfig.SetPicks(_bodyPicks);
         VfxPalette.SetPicks(_powerPicks);
+        ApplyUiPicks();
     }
+
+    /// <summary>Recolour the whole UI (this screen live, plus every menu/HUD the run builds) from the UI picks.</summary>
+    private void ApplyUiPicks() =>
+        UiStyle.SetColors(_uiPicks[UiStyle.PickFrame].As<Color>(), _uiPicks[UiStyle.PickAccent].As<Color>());
 
     private void ApplyBodyDst() =>
         _mat.SetShaderParameter("dst", PaletteConfig.ToLinearVec3(PaletteConfig.BuildTargets(_bodyPicks)));
@@ -219,6 +240,13 @@ public partial class PalettePreview : Control
             col.AddChild(SwatchRow(POWER_LABELS[fam], _powerPicks[fam].As<Color>(), c => OnPowerColour(c, f), _powerPickers, fam));
         }
 
+        col.AddChild(Header("UI"));
+        foreach (var k in UI_ORDER)
+        {
+            string key = k;
+            col.AddChild(SwatchRow(UI_LABELS[k], _uiPicks[k].As<Color>(), c => OnUiColour(c, key), _uiPickers, k));
+        }
+
         col.AddChild(Header("BACKDROP"));
         var bgPick = new ColorPickerButton { Color = _backdrop.Color };
         bgPick.ColorChanged += c => _backdrop.Color = c;
@@ -251,7 +279,7 @@ public partial class PalettePreview : Control
         Dictionary<string, ColorPickerButton> store, string key, Control swatch = null)
     {
         var strip = new PanelContainer();
-        strip.AddThemeStyleboxOverride("panel", UiStyle.Box(UiStyle.RowBg));
+        strip.ThemeTypeVariation = UiStyle.RowPanel;
         var pad = new MarginContainer();
         pad.AddThemeConstantOverride("margin_left", 8);
         pad.AddThemeConstantOverride("margin_right", 6);
@@ -276,13 +304,15 @@ public partial class PalettePreview : Control
 
     // --- styling helpers ----------------------------------------------------
 
-    private PanelContainer FramedBox()
+    /// <summary>A themed panel (so it follows UI recolours live) with a 10px inner pad; returns the pad to fill.</summary>
+    private static MarginContainer FramedBox(out PanelContainer panel)
     {
-        var p = new PanelContainer();
-        var sb = UiStyle.Box(UiStyle.PanelBg, UiStyle.Frame, 2);
-        sb.SetContentMarginAll(10);
-        p.AddThemeStyleboxOverride("panel", sb);
-        return p;
+        panel = new PanelContainer();
+        var pad = new MarginContainer();
+        foreach (var m in new[] { "margin_left", "margin_right", "margin_top", "margin_bottom" })
+            pad.AddThemeConstantOverride(m, 10);
+        panel.AddChild(pad);
+        return pad;
     }
 
     private VBoxContainer Header(string text)
@@ -292,9 +322,7 @@ public partial class PalettePreview : Control
         var top = new Control { CustomMinimumSize = new Vector2(0, 6) };
         box.AddChild(top);
         box.AddChild(new Label { Text = text, ThemeTypeVariation = UiStyle.Heading });
-        var rule = new PanelContainer { CustomMinimumSize = new Vector2(0, 2) };
-        rule.AddThemeStyleboxOverride("panel", UiStyle.Box(UiStyle.FrameDim));
-        box.AddChild(rule);
+        box.AddChild(new HSeparator());
         return box;
     }
 
@@ -314,6 +342,12 @@ public partial class PalettePreview : Control
         ApplyBodyDst();
         PaletteConfig.ApplyPortraitHues(_portraitMat, _bodyPicks);
         PaletteConfig.SetPicks(_bodyPicks);
+    }
+
+    private void OnUiColour(Color colour, string key)
+    {
+        _uiPicks[key] = colour;
+        ApplyUiPicks();
     }
 
     private void OnPowerColour(Color colour, string fam)
@@ -339,7 +373,7 @@ public partial class PalettePreview : Control
     {
         if (_activeSlot < 0)
             return;
-        SaveData.SaveScheme(_activeSlot, _bodyPicks, _powerPicks);
+        SaveData.SaveScheme(_activeSlot, _bodyPicks, _powerPicks, _uiPicks);
         RefreshSlotLabels();
     }
 

@@ -1069,6 +1069,12 @@ the part to black (the nearest-shade anchor keeps the shift small).
 > commit). On boot the preview opens on the active scheme, so it "applies on startup" (a fresh save
 > starts on Default). Power families are labelled **Power 1/2/3** (internal keys stay red/gold/teal for
 > `VfxPalette`). Filled slots show a `•` on their button.
+>
+> **UI colours are part of the scheme.** A **UI** section has two pickers — **Frame** (borders, headings,
+> buttons) and **Highlight** (titles, hover, selection) — saved in each scheme's `"ui"` dict (keys
+> `UiStyle.PickFrame` / `PickAccent`; older saves without it load as the default violet/electric-blue).
+> Picks go to `UiStyle.SetColors`, which re-derives the palette and repaints the shared theme **in
+> place**, so the preview screen itself recolours live and every menu/HUD the run builds uses it.
 
 #### Portrait recolour (`vfx/shaders/portrait_recolor.gdshader`)
 
@@ -1901,10 +1907,17 @@ the corner rather than in the gauge.
 
 ### UI style (`scripts/ui/UiStyle.cs`)
 
-Every menu and HUD label shares ONE look, defined in `UiStyle`: the **Arcane Void** dark-neon palette
-(near-black violet panels, neon-violet `Frame` borders/headings, electric-blue `Accent` for titles,
-hover and selection, pale-lavender `Text`), the **Sixtyfour** retro font (`assets/fonts/`), and square
-pixel-style boxes (no rounded corners). No art assets — it's all Godot styleboxes + the font, so it
+Every menu and HUD label shares ONE look, defined in `UiStyle`: a dark-neon palette (near-black
+panels, neon `Frame` borders/headings, a bright `Accent` for titles, hover and selection, pale `Text`),
+the **Sixtyfour** retro font (`assets/fonts/`), and square pixel-style boxes (no rounded corners).
+
+**The palette is player-recolourable** (colour scheme screen → UI → Frame / Highlight; default =
+"Arcane Void" violet + electric blue). Only `Frame` and `Accent` are picked; `UiStyle.Derive` builds
+every other role from the frame's **hue** while keeping each role's default **brightness** (panels stay
+near-black, text stays pale) and scaling saturation by the pick's (a grey pick → a neutral UI). So:
+**never hard-code a UI colour** — read the `UiStyle` properties, and prefer theme styles over
+overrides, because `SetColors` repaints the shared `Theme` in place (live) while a copied colour only
+refreshes when its node is rebuilt. No art assets — it's all Godot styleboxes + the font, so it
 scales cleanly at any resolution.
 
 - **`UiStyle.Theme`** — a `Theme` built in code: default font/size, `Label` colours, `PanelContainer`
@@ -1913,8 +1926,9 @@ scales cleanly at any resolution.
   `Theme = UiStyle.Theme` (HUD `_root`, `PauseMenu`, `AttackSelect`, `RewardUI`, the LEVEL UP banner,
   `PalettePreview`).
 - **Named styles** are theme type variations — set `ThemeTypeVariation`, don't add per-node overrides:
-  `UiStyle.Title` (16px, scanline font, electric blue), `UiStyle.Heading` (neon violet),
-  `UiStyle.Muted` (captions), `UiStyle.PrimaryButton` (the one call-to-action per screen).
+  `UiStyle.Title` (16px, scanline font, accent), `UiStyle.Heading` (frame colour), `UiStyle.Muted`
+  (captions), `UiStyle.PrimaryButton` (the one call-to-action per screen), `UiStyle.RowPanel` (list-row
+  strip), and the outlined HUD styles `HudHeading` / `HudValue` / `HudMuted` (text over the world).
 - **Font:** Sixtyfour is a variable font with two axes — `SCAN` (-53..100, negative = CRT scanline gaps)
   and `BLED` (0..100, phosphor bleed/weight). `BodyFont` is clean with a touch of bleed (legible at 8px);
   `TitleFont` uses visible scanlines + heavy bleed for the CRT look. It's drawn on an **8px grid**, so
