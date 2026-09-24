@@ -805,7 +805,7 @@ untouched centre), with only a **subtle edge darken** for depth, deepening as HP
 **pulsing with a punchy lub-dub heartbeat** (`_heartbeat`: a sharp thump + softer second beat that swells
 the red, not a gentle sine). It's a screen-space post shader (`vfx/shaders/low_health.gdshader`, one
 `intensity` uniform: whole-screen red grade + a soft multiplicative vignette) on a `ColorRect` the **HUD** builds on its own
-`CanvasLayer` at **layer 50** — above the world so it tints it, below the HUD (layer 100) so the UI stays
+`CanvasLayer` at **`UiLayers.LowHealth`** (50) — above the world so it tints it, below the HUD (`UiLayers.Hud`, 100) so the UI stays
 crisp. The HUD drives `intensity` off `_on_health_changed` (`_update_low_health`, eased in `_process`):
 target ramps `LOW_HP_MIN`→1.0 from the 20% threshold down to 0 HP, re-arming on heal; the whole layer is
 hidden (no screen-read cost) whenever it's fully faded out. Tunables are consts on the HUD
@@ -1153,6 +1153,9 @@ crossfade lands right at each seam (position-based, tuned by `CrossfadeBetween`)
 + ends the playlist; `Music.pause()`/`resume()` freeze at position. `.mp3`/`.ogg`/`.wav` are all force-looped as
 a safety net. In the run, `RunManager.BuildArena` calls `play_stage("stage1")` on every run start + death-restart.
 Plays on a `"Music"` bus if present (else Master); an empty stage folder warns + plays nothing (no crash).
+**Pause muffle:** `Music.set_muffled(on)` sweeps a low-pass filter on the Music bus down to `MuffleCutoffHz` (650 Hz —
+"underwater") over `MuffleFade`, or back up; the pause menu calls it on open/close. The filter is added to the bus in
+code at startup and stays **disabled** except while muffled/sweeping back, so it costs nothing in normal play.
 *(Levels are retired, so there's no per-level bed or clear/rest crossfade anymore — one continuous stage playlist.)*
 
 - **The one place to check what sounds we use:** each config's **`CUES`** dict — a `key → path`
@@ -1887,13 +1890,13 @@ Two rows kept near the action, so you read your state without looking away from 
 **Placement is a player setting** — `GaugePlacement` (`enums/ui/`), chosen in the pause menu, saved by
 `SaveData`, applied live by `HUD.ApplyGaugePlacement` (one `VBoxContainer`, reparented between two homes):
 
-- **`Screen`** (default) — in the screen HUD (layer 100, above the low-HP grade), anchored at horizontal
+- **`Screen`** (default) — in the screen HUD (`UiLayers.Hud`, above the low-HP grade), anchored at horizontal
   centre with its top at `GaugeScreenY` of screen height, and scaled about its top-centre by
   `GaugePixelScale` (1.5 = `RunManager.CamZoomNormal`) so one pip pixel matches one sprite pixel on
   screen. Screen UI — it ignores the spawn/death camera zooms.
 - **`FollowKhalid`** — centred `GaugeFeetGap` px under Khalid's feet, in world units (so it matches the
   sprites' pixel size at any zoom). It hangs off a `Node2D` anchor on its own **camera-following
-  `CanvasLayer`** (`FollowViewportEnabled`, layer **60**: above the low-HP grade, below the screen HUD).
+  `CanvasLayer`** (`FollowViewportEnabled`, **`UiLayers.Gauge`**: above the low-HP grade, below the screen HUD).
   A **`RemoteTransform2D` added to the Player** (only in this mode) carries the anchor, so it moves
   during physics and **physics interpolation** smooths it in step with Khalid. Deliberately *not* a
   Player child, so the player's hit-flash/blink modulate never bleeds into it.
@@ -1949,8 +1952,13 @@ scales cleanly at any resolution.
 **Esc** (`ui_cancel`) pauses during a run: **Resume** + **Settings** (for now just the gauge placement:
 FIXED / FOLLOW KHALID). The HUD owns it and enables it only while a Player is bound; Esc opens it only
 when nothing else has the tree paused (the attack pick and buff menus own their own pause), and Esc or
-Resume closes it. It's a `CanvasLayer` at layer 110 with `ProcessMode = Always`, styled by the shared
-`UiStyle` theme. New settings: add the value to `SaveData`
+Resume closes it. It's a `CanvasLayer` at `UiLayers.Pause` (the top) with `ProcessMode = Always`, styled by the
+shared `UiStyle` theme.
+
+**Draw order — `scripts/ui/UiLayers.cs`.** Every `CanvasLayer` takes its layer from this one table (never a literal),
+so screens can't silently cover each other: `Background` (-100) → `LowHealth` (50) → `Gauge` (60) → `Hud` (100) →
+`Banner` (105, "LEVEL UP!") → `Menu` (110, the attack picker + buff cards) → `Pause` (120). Menus sit above the HUD
+so it never hides their content. New settings: add the value to `SaveData`
 (stored by enum NAME, so reordering an enum never remaps a saved choice) and a row to `PauseMenu.Build`.
 
 ### Feedback + the pip art

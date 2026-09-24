@@ -666,7 +666,7 @@ public partial class RunManager : Node2D
     private void ShowBanner(string text)
     {
         HideBanner();
-        _banner = new CanvasLayer { Layer = 60, ProcessMode = ProcessModeEnum.Always };
+        _banner = new CanvasLayer { Layer = UiLayers.Banner, ProcessMode = ProcessModeEnum.Always };
         var center = new CenterContainer { Theme = UiStyle.Theme };
         center.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         _banner.AddChild(center);
@@ -917,7 +917,7 @@ public partial class RunManager : Node2D
 
     private void BuildBg()
     {
-        var layer = new CanvasLayer { Layer = -100 };
+        var layer = new CanvasLayer { Layer = UiLayers.Background };
         AddChild(layer);
         var bgTex = Terrain.BackgroundTexture();
         if (bgTex != null)

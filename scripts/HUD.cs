@@ -77,7 +77,6 @@ public partial class HUD : CanvasLayer
 	// pixel is then the same size on screen as one sprite pixel. (FollowKhalid is in world units, so it matches natively.)
 	private const float GaugePixelScale = 1.5f;
 	private const float GaugeFeetGap = 3.0f;   // FollowKhalid: world px below Khalid's origin (his feet)
-	private const int GaugeLayer = 60;         // FollowKhalid: above the low-HP grade (50), below the screen HUD (100)
 	private const float GaugeIdleAlpha = 0.6f;
 	private const float GaugeWakeTime = 1.6f;
 	private const float GaugeFade = 4.0f;    // alpha per second
@@ -90,7 +89,7 @@ public partial class HUD : CanvasLayer
 
 	public override void _Ready()
 	{
-		Layer = 100;
+		Layer = UiLayers.Hud;
 		UiStyle.Install(); // first UI to exist (autoload) — make Sixtyfour the global fallback font before anything builds
 		BuildHud();
 		BuildLowHealth();
@@ -122,7 +121,7 @@ public partial class HUD : CanvasLayer
 		_root.AddChild(_gauge);
 		_hpRow = MkPipRow(_gauge);
 		_ruhRow = MkPipRow(_gauge);
-		_gaugeLayer = new CanvasLayer { Layer = GaugeLayer, FollowViewportEnabled = true };
+		_gaugeLayer = new CanvasLayer { Layer = UiLayers.Gauge, FollowViewportEnabled = true };
 		AddChild(_gaugeLayer);
 		_gaugeAnchor = new Node2D();
 		_gaugeLayer.AddChild(_gaugeAnchor);
@@ -275,7 +274,7 @@ public partial class HUD : CanvasLayer
 
 	private void BuildLowHealth()
 	{
-		_lowHpLayer = new CanvasLayer { Layer = 50, Visible = false };
+		_lowHpLayer = new CanvasLayer { Layer = UiLayers.LowHealth, Visible = false };
 		AddChild(_lowHpLayer);
 
 		var rect = new ColorRect { MouseFilter = Control.MouseFilterEnum.Ignore };
