@@ -5,9 +5,10 @@ using GArr = Godot.Collections.Array;
 namespace MyGame;
 
 /// <summary>
-/// The run driver + the <c>arena.tscn</c> root. Builds ONE continuous arena (levels/exits are retired — the pivot's
-/// single Fissure arena), then trickles enemies in at a STEADY rate from a mixed roster, proximity-placed around the
-/// player. Banks Ruh on hits, drops Fada Figs on each kill, pops a free pick-1-of-3 MILD buff menu at escalating
+/// The run driver + the <c>arena.tscn</c> root. Builds ONE arena (levels/exits are retired) and runs the endless ROUND
+/// loop (<c>docs/game-loop.md</c>, tuning in <see cref="Rounds"/>): each round trickles a hidden QUOTA of enemies in from
+/// a mixed roster, proximity-placed around the player, up to a concurrent cap; spawning stops once the quota has
+/// spawned; the round clears when they're all dead; a breather + ROUND banner, then the next. Banks Ruh on hits, drops Fada Figs on each kill, pops a free pick-1-of-3 MILD buff menu at escalating
 /// fada-fig milestones (25/55/105…), spawns a mystery box (spend figs for a stingy powerful-buff gamble), and restarts
 /// the run on death. Owns the player spawn, camera follow, and death/spawn flair. C# port of <c>run_manager.gd</c>.
 ///
@@ -23,13 +24,6 @@ public partial class RunManager : Node2D
     private const float DeathY = 320.0f;
     private const string StartCharacter = "khalid";
 
-    // --- continuous spawn (no levels/exits): enemies trickle in at a STEADY rate. Tunable when seals arrive. ---
-    private const float SpawnInterval = 2.0f;   // seconds between spawn ticks ("waves")
-    private const int EnemiesPerWave = 1;        // enemies dropped in per tick
-    private const int MaxAlive = 8;             // pause spawning past this many living non-optional enemies
-    // Per-TYPE concurrent cap: a kit's `spawn_cap` (if any) limits how many of that enemy can be alive at once;
-    // the cap grows by +1 every SpawnCapGrowthWaves waves as the run progresses. Kits without a cap are unlimited.
-    private const int SpawnCapGrowthWaves = 20;
     // Anti-camp: an enemy that stays OFF-SCREEN this long (e.g. can't path to a camping player) is silently freed,
     // freeing its cap slot so a fresh one can spawn near the player. Margin grows the on-screen rect a little.
     private const float OffscreenDespawnTime = 8.0f;
@@ -73,9 +67,16 @@ public partial class RunManager : Node2D
     private Player _player;
     private Camera2D _camera;
 
-    private int _alive = 0;            // living NON-optional enemies (the spawn-cap looks at this)
-    private int _waveCount = 0;        // spawn ticks so far this run
-    private float _spawnAccum = 0.0f;  // seconds accrued toward the next spawn tick
+    // --- round state (see Rounds) — only NON-optional enemies are "quota" enemies ---
+    private RoundPhase _phase = RoundPhase.Breather;
+    private int _round = 0;            // the current round (0 = before round 1)
+    private int _quota = 0;            // this round's hidden enemy count
+    private int _spawned = 0;          // quota enemies spawned so far this round (an anti-camp despawn gives one back)
+    private int _killed = 0;           // quota enemies killed this round
+    private int _alive = 0;            // living quota enemies (the concurrent cap looks at this)
+    private float _spawnAccum = 0.0f;  // seconds accrued toward the next spawn
+    private float _breatherLeft = 0.0f; // seconds until the next round starts (Breather phase)
+    private int _countdownShown = 0;    // the whole-second breather countdown last pushed to the HUD
     private int _nextMilestone = FirstMilestone; // lifetime fada_figs that pops the next buff menu
     private int _prevMilestone = 0;              // the last milestone reached (the progress bar spans prev→next)
     private int _milestoneGap = MilestoneGapBase; // grows each milestone (25 → +30 → +50 → …)
@@ -84,7 +85,7 @@ public partial class RunManager : Node2D
     private readonly System.Collections.Generic.Dictionary<string, Buff> _menuBuffs = new(); // id → the exact offered buff (tiered)
     private string _menuSpecialId = "";           // the special-swap offered in the current menu, if any (else "")
     private readonly System.Collections.Generic.Dictionary<Enemy, float> _offscreen = new(); // living enemy → seconds off-screen (anti-camp cull)
-    private CanvasLayer _levelUpBanner;           // transient "LEVEL UP" flash shown before the buff menu
+    private CanvasLayer _banner;                  // the transient centred banner ("ROUND n" / "LEVEL UP!")
     private Node2D _content;
     private ColorRect _bg;
     private Sprite2D _bgSky;
@@ -162,12 +163,7 @@ public partial class RunManager : Node2D
             _spawning = false;
             ZoomTo(CamZoomNormal, 0.4f);
         }
-        _spawnAccum += delta;
-        if (_spawnAccum >= SpawnInterval)
-        {
-            _spawnAccum = 0.0f;
-            SpawnWave();
-        }
+        TickRound(delta);
         FollowCamera(delta);
         CullOffscreen(delta); // free enemies stuck off-screen (anti-camp), using the just-moved camera
     }
@@ -199,8 +195,13 @@ public partial class RunManager : Node2D
     private void BuildArena()
     {
         _music.play_stage("stage1");
+        _phase = RoundPhase.Breather;
+        _breatherLeft = Rounds.FirstRoundDelay;
+        _round = 0;
+        _quota = 0;
+        _spawned = 0;
+        _killed = 0;
         _alive = 0;
-        _waveCount = 0;
         _spawnAccum = 0.0f;
         _nextMilestone = FirstMilestone;
         _prevMilestone = 0;
@@ -208,9 +209,9 @@ public partial class RunManager : Node2D
         _milestoneIndex = 0;
         _menuOpen = false;
         _offscreen.Clear(); // old enemies free with _content
-        SaveData.SetCurrentWaves(0);
+        PushRoundHud();
         PushBuffProgress();
-        HideLevelUpBanner();
+        HideBanner();
         if (_content != null && IsInstanceValid(_content))
             _content.QueueFree();
         _content = new Node2D();
@@ -250,27 +251,74 @@ public partial class RunManager : Node2D
         box.won += OpenPowerfulBuffMenu; // a winning pull opens the 3-choice powerful menu
         _content.AddChild(box);
 
-        SpawnWave(); // seed the arena so the player isn't waiting on the first tick
         if (_player != null)
             PlaceAt(_player, _playerSpawn);
     }
 
-    // --- continuous spawning --------------------------------------------------
+    // --- rounds ---------------------------------------------------------------
 
-    /// <summary>One spawn tick ("wave"): drop in <see cref="EnemiesPerWave"/> random enemies from the pool, unless
-    /// we're already at the living-enemy cap. Always bumps the wave counter (which ramps the buff-drop chance).</summary>
-    private void SpawnWave()
+    /// <summary>Advance the round loop: count down a breather into the next round, or trickle quota enemies in (one
+    /// per interval, under the concurrent cap) until the quota has spawned. The CLEAR is detected on the last kill
+    /// (<see cref="OnEnemyDied"/>).</summary>
+    private void TickRound(float delta)
     {
-        if (_player == null || _player.is_dead() || _player.is_spawning())
-            return;
-        _waveCount += 1;
-        SaveData.SetCurrentWaves(_waveCount);   // live HUD counter (survival metric)
-        for (int i = 0; i < EnemiesPerWave && _alive < MaxAlive; i++)
+        if (_phase == RoundPhase.Breather)
         {
-            var kit = PickSpawnKit();
-            if (kit != null)
-                SpawnOne(kit);
+            if ((_breatherLeft -= delta) <= 0.0f)
+                StartRound(_round + 1);
+            else if (Mathf.CeilToInt(_breatherLeft) != _countdownShown)
+                PushRoundHud(); // tick the HUD countdown once per whole second
+            return;
         }
+        if (_spawned >= _quota)
+            return; // quota fully spawned — wait for the clear
+        _spawnAccum += delta;
+        if (_spawnAccum < SpawnInterval(_round) || _alive >= ConcurrentCap(_round))
+            return;
+        var kit = PickSpawnKit();
+        if (kit == null)
+            return; // every kit is at its per-type cap — try again next tick
+        _spawnAccum = 0.0f;
+        SpawnOne(kit);
+    }
+
+    private void StartRound(int round)
+    {
+        _round = round;
+        _quota = Quota(round);
+        _spawned = 0;
+        _killed = 0;
+        _phase = RoundPhase.Fighting;
+        _spawnAccum = SpawnInterval(round); // first enemy arrives immediately
+        ShowBanner($"ROUND {round}", RoundBannerHold);
+        PushRoundHud();
+    }
+
+    /// <summary>The last quota enemy of the round died: start the breather toward the next round.</summary>
+    private void ClearRound()
+    {
+        _phase = RoundPhase.Breather;
+        _breatherLeft = Rounds.BreatherTime;
+        PushRoundHud();
+    }
+
+    private static int Quota(int r) =>
+        Mathf.RoundToInt(Rounds.QuotaBase + Rounds.QuotaLinear * r + Rounds.QuotaQuad * r * r);
+
+    private static int ConcurrentCap(int r) =>
+        Mathf.Min(Rounds.CapBase + (r - 1) / Rounds.CapGrowthRounds, Rounds.CapMax);
+
+    private static float SpawnInterval(int r) =>
+        Mathf.Max(Rounds.IntervalMin, Rounds.IntervalBase * Mathf.Pow(Rounds.IntervalDecay, r - 1));
+
+    /// <summary>Push the round state to the HUD: the round number, how many quota enemies remain (revealed only once
+    /// few remain, mid-round), and — during a breather — the whole seconds until the next round.</summary>
+    private void PushRoundHud()
+    {
+        bool fighting = _phase == RoundPhase.Fighting;
+        int left = fighting ? _quota - _killed : 0;
+        _countdownShown = fighting ? 0 : Mathf.CeilToInt(_breatherLeft);
+        GetNodeOrNull<HUD>("/root/HUD")?.SetRound(_round, left <= Rounds.ShowLeftAt ? left : 0, _countdownShown, SaveData.RoundsRecord());
     }
 
     /// <summary>A random kit from the pool that is UNDER its per-type concurrent cap (uncapped kits always qualify);
@@ -284,10 +332,10 @@ public partial class RunManager : Node2D
         return eligible.Count == 0 ? null : eligible[(int)(GD.Randi() % (uint)eligible.Count)];
     }
 
-    /// <summary>A kit's current concurrent cap: its <c>spawn_cap</c> base + 1 per <see cref="SpawnCapGrowthWaves"/>
-    /// waves survived. Kits with no <c>spawn_cap</c> are uncapped.</summary>
+    /// <summary>A kit's current per-type concurrent cap: its <c>spawn_cap</c> base + 1 per
+    /// <see cref="Rounds.KitCapGrowthRounds"/> rounds. Kits with no <c>spawn_cap</c> are uncapped.</summary>
     private int EffectiveCap(GDict kit) =>
-        kit.ContainsKey("spawn_cap") ? kit["spawn_cap"].AsInt32() + _waveCount / SpawnCapGrowthWaves : int.MaxValue;
+        kit.ContainsKey("spawn_cap") ? kit["spawn_cap"].AsInt32() + _round / Rounds.KitCapGrowthRounds : int.MaxValue;
 
     /// <summary>How many living enemies of type <paramref name="id"/> are currently tracked.</summary>
     private int LivingOfType(string id)
@@ -300,7 +348,7 @@ public partial class RunManager : Node2D
     }
 
     /// <summary>Spawn ONE enemy from a kit: proximity-place it (near/overhead/far by type, never on the player), puff +
-    /// wire its died/damaged signals, and count it toward the cap.</summary>
+    /// wire its died/damaged signals, and (unless optional) count it toward the round quota + the concurrent cap.</summary>
     private void SpawnOne(GDict kit)
     {
         Vector2 pos = SpawnPosition(kit, _playerSpawn);
@@ -313,7 +361,10 @@ public partial class RunManager : Node2D
         enemy.Connect(Enemy.SignalName.damaged, Callable.From((float amount, Node source) => OnEnemyDamaged(amount, source, e)));
         _offscreen[enemy] = 0.0f; // start its anti-camp off-screen timer
         if (!enemy.optional)
+        {
+            _spawned += 1;
             _alive += 1;
+        }
     }
 
     // Proximity-spawn tuning (px). Ground grunts appear within a fair band — far enough that the player can react,
@@ -438,13 +489,19 @@ public partial class RunManager : Node2D
         if (!enemy.fell_off)
             Callable.From(() => SpawnFadaFigs(at, figs)).CallDeferred();
         _offscreen.Remove(enemy);
-        if (!enemy.optional)
-            _alive -= 1;   // free a slot in the concurrency cap
+        if (enemy.optional)
+            return; // optional enemies (the sleeper) aren't part of the round
+        _alive -= 1;   // free a slot in the concurrency cap
+        _killed += 1;
+        if (_phase == RoundPhase.Fighting && _killed >= _quota)
+            ClearRound();
+        else
+            PushRoundHud();
     }
 
     /// <summary>Anti-camp: free any tracked enemy that's stayed OFF-SCREEN for <see cref="OffscreenDespawnTime"/> (it
-    /// likely can't path to a camping player). Silent — no death VFX/sfx/figs — but it frees its cap slot so a fresh
-    /// enemy can spawn near the player. Runs only during normal play (paused/dead/spawning all early-return above).</summary>
+    /// likely can't path to a camping player). Silent — no death VFX/sfx/figs, and NOT a kill — it frees its cap slot
+    /// and goes back into the round's unspawned quota, so a fresh enemy spawns near the player. Runs only during normal play (paused/dead/spawning all early-return above).</summary>
     private void CullOffscreen(float delta)
     {
         if (_camera == null || _offscreen.Count == 0)
@@ -469,14 +526,18 @@ public partial class RunManager : Node2D
                 DespawnEnemy(e);
     }
 
-    /// <summary>Silently remove <paramref name="e"/> (no death signal/VFX/figs) and free its concurrency-cap slot.</summary>
+    /// <summary>Silently remove <paramref name="e"/> (no death signal/VFX/figs): free its concurrency-cap slot and return
+    /// it to the round's unspawned quota (a despawn is not a kill).</summary>
     private void DespawnEnemy(Enemy e)
     {
         _offscreen.Remove(e);
         if (!IsInstanceValid(e))
             return;
         if (!e.optional)
-            _alive = Mathf.Max(0, _alive - 1);
+        {
+            _alive -= 1;
+            _spawned -= 1;
+        }
         e.QueueFree();
     }
 
@@ -521,7 +582,7 @@ public partial class RunManager : Node2D
     private void RestartRun()
     {
         Engine.TimeScale = 1.0;
-        SaveData.ReportRun(_waveCount);   // persist a new best (most waves survived) before the arena resets
+        SaveData.ReportRun(_round);   // persist a new best (highest round reached) before the arena resets
         _deadPrev = false;
         BuildArena();
         if (_player != null)
@@ -567,11 +628,11 @@ public partial class RunManager : Node2D
         _milestoneGap += MilestoneGapGrowth;
         PushBuffProgress();                           // bar resets toward the new milestone (visible behind the banner)
         GetTree().Paused = true;
-        ShowLevelUpBanner();
+        ShowBanner("LEVEL UP!", 0.0f);
         _sfx.play("buff_levelup");                    // PLACEHOLDER cue
         GetTree().CreateTimer(LevelUpDelay, true).Timeout += () =>
         {
-            HideLevelUpBanner();
+            HideBanner();
             ShowBuffMenu(BuffCatalog.MildIds(), false, "CHOOSE A BUFF");
         };
     }
@@ -584,33 +645,48 @@ public partial class RunManager : Node2D
         GetNodeOrNull<HUD>("/root/HUD")?.SetBuffProgress(_player.fada_lifetime - _prevMilestone, _nextMilestone - _prevMilestone);
     }
 
-    /// <summary>A brief centred "LEVEL UP" flash (its own CanvasLayer, ProcessMode.Always so it animates while the
-    /// game is paused). Freed by <see cref="HideLevelUpBanner"/> once the menu opens.</summary>
-    private void ShowLevelUpBanner()
+    private const float RoundBannerHold = 1.6f; // seconds the "ROUND n" banner stays before fading
+    private const float BannerFade = 0.4f;
+
+    /// <summary>A centred banner (own CanvasLayer, ProcessMode.Always so it animates while the game is paused) in the
+    /// scanline title font, glowing in the UI accent: pops in; if <paramref name="hold"/> &gt; 0 it fades out and frees
+    /// itself after that many seconds, else it stays until <see cref="HideBanner"/>. Replaces any banner already up.</summary>
+    private void ShowBanner(string text, float hold)
     {
-        HideLevelUpBanner();
-        _levelUpBanner = new CanvasLayer { Layer = 60, ProcessMode = ProcessModeEnum.Always };
+        HideBanner();
+        var banner = new CanvasLayer { Layer = 60, ProcessMode = ProcessModeEnum.Always };
+        _banner = banner;
         var center = new CenterContainer { Theme = UiStyle.Theme };
         center.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-        _levelUpBanner.AddChild(center);
-        var label = new Label { Text = "LEVEL UP!", ThemeTypeVariation = UiStyle.Title, HorizontalAlignment = HorizontalAlignment.Center };
+        banner.AddChild(center);
+        var label = new Label { Text = text, ThemeTypeVariation = UiStyle.Title, HorizontalAlignment = HorizontalAlignment.Center };
         label.AddThemeFontSizeOverride("font_size", UiStyle.SizeBanner);
-        label.AddThemeColorOverride("font_color", new Color(UiStyle.Accent.R * 1.8f, UiStyle.Accent.G * 1.8f, UiStyle.Accent.B * 1.8f)); // HDR electric blue, blooms
+        label.AddThemeColorOverride("font_color", new Color(UiStyle.Accent.R * 1.8f, UiStyle.Accent.G * 1.8f, UiStyle.Accent.B * 1.8f)); // HDR accent, blooms
         label.AddThemeColorOverride("font_outline_color", Colors.Black);
         label.AddThemeConstantOverride("outline_size", 8);
         center.AddChild(label);
         label.Scale = new Vector2(0.6f, 0.6f);
         label.Resized += () => label.PivotOffset = label.Size / 2.0f; // pop from its centre
-        _levelUpBanner.CreateTween().TweenProperty(label, "scale", Vector2.One, 0.28f)
-            .SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out); // pops even while paused (banner is Always)
-        AddChild(_levelUpBanner);
+        var t = banner.CreateTween(); // animates even while paused (banner is Always)
+        t.TweenProperty(label, "scale", Vector2.One, 0.28f).SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
+        if (hold > 0.0f)
+        {
+            t.TweenInterval(hold);
+            t.TweenProperty(label, "modulate:a", 0.0f, BannerFade);
+            t.TweenCallback(Callable.From(() =>
+            {
+                if (_banner == banner)
+                    HideBanner(); // only if a newer banner hasn't replaced it
+            }));
+        }
+        AddChild(banner);
     }
 
-    private void HideLevelUpBanner()
+    private void HideBanner()
     {
-        if (_levelUpBanner != null && IsInstanceValid(_levelUpBanner))
-            _levelUpBanner.QueueFree();
-        _levelUpBanner = null;
+        if (_banner != null && IsInstanceValid(_banner))
+            _banner.QueueFree();
+        _banner = null;
     }
 
     /// <summary>The mystery box's payoff — same pick-1-of-3 menu as the milestone, but from the POWERFUL pool

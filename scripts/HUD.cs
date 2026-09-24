@@ -5,7 +5,8 @@ namespace MyGame;
 /// <summary>
 /// The player HUD. Health stars + Ruh orbs sit in the <see cref="_gauge"/> — fixed at bottom-centre, or following under
 /// Khalid's feet, per the player's <see cref="GaugePlacement"/> setting (dim at rest, bright on any change or at low
-/// HP). Also: the fada_fig ring (next-buff progress + spendable count, top-left), a WAVES/BEST line, the active-buff
+/// HP). Also: the fada_fig ring (next-buff progress + spendable count, top-left), the ROUND / n LEFT / BEST block (top
+/// centre, pushed by RunManager), the active-buff
 /// list, off-screen enemy arrows, the low-HP effect, and the Esc <see cref="PauseMenu"/> (where that setting lives).
 /// An autoload, so it exists in every scene; binds to whatever <see cref="Player"/> enters the tree and hides when
 /// there's none. Built entirely in code.
@@ -50,10 +51,18 @@ public partial class HUD : CanvasLayer
 	private FigRing _figRing;
 	private Label _figLabel;
 	private int _figCount = 0;
-	private Label _wavesLabel;
+	private Label _roundLabel;
+	private Label _leftLabel;   // "n LEFT" — shown only once few quota enemies remain
+	private Label _nextLabel;   // "NEXT ROUND IN n" — shown only during a breather
+	private Label _bestLabel;
 	private VBoxContainer _buffPanel;
 
 	private static readonly Vector2 FigRowPos = new(16, 14);
+	// Round block placement: RoundBlockAnchor is the screen point (as fractions of width/height) the block's TOP-CENTRE
+	// sits on — (0.5, 0) = top-centre, (0.5, 0.5) = dead centre, (0.5, 0.85) = low centre — and RoundBlockOffset nudges
+	// it from there in pixels (+x right, +y down).
+	private static readonly Vector2 RoundBlockAnchor = new(0.5f, 0.0f);
+	private static readonly Vector2 RoundBlockOffset = new(0.0f, 30.0f);
 	private const int PipGap = 1;              // pip pixels between pips
 	private const int RowGap = 1;              // pip pixels between the star and orb rows
 	private const float GaugeScreenY = 0.9f;   // Screen placement: gauge top, as a fraction of screen height
@@ -121,12 +130,32 @@ public partial class HUD : CanvasLayer
 		_figLabel.Text = "0";
 		figRow.AddChild(_figLabel);
 
-		_wavesLabel = MkLabel(UiStyle.HudHeading);
-		_wavesLabel.SetAnchorsPreset(Control.LayoutPreset.CenterTop);
-		_wavesLabel.GrowHorizontal = Control.GrowDirection.Both;
-		_wavesLabel.OffsetTop = 10.0f;
-		_wavesLabel.HorizontalAlignment = HorizontalAlignment.Center;
-		_root.AddChild(_wavesLabel);
+		// Round block (placed by RoundBlockAnchor/Offset): ROUND n / n LEFT (late in a round) or NEXT ROUND IN n (breather)
+		// / BEST n. Grows both ways from its anchor, so it stays centred on it.
+		var roundBox = new VBoxContainer
+		{
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+			AnchorLeft = RoundBlockAnchor.X,
+			AnchorRight = RoundBlockAnchor.X,
+			AnchorTop = RoundBlockAnchor.Y,
+			AnchorBottom = RoundBlockAnchor.Y,
+			OffsetLeft = RoundBlockOffset.X,
+			OffsetRight = RoundBlockOffset.X,
+			OffsetTop = RoundBlockOffset.Y,
+			OffsetBottom = RoundBlockOffset.Y,
+			GrowHorizontal = Control.GrowDirection.Both,
+		};
+		roundBox.AddThemeConstantOverride("separation", 2);
+		_root.AddChild(roundBox);
+		_roundLabel = MkLabel(UiStyle.HudTitle);
+		_leftLabel = MkLabel(UiStyle.HudHeading);
+		_nextLabel = MkLabel(UiStyle.HudHeading);
+		_bestLabel = MkLabel(UiStyle.HudMuted);
+		foreach (var l in new[] { _roundLabel, _leftLabel, _nextLabel, _bestLabel })
+		{
+			l.HorizontalAlignment = HorizontalAlignment.Center;
+			roundBox.AddChild(l);
+		}
 
 		// Active-buff list, pinned top-right and growing leftward to fit its widest line.
 		_buffPanel = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore, Visible = false };
@@ -251,6 +280,21 @@ public partial class HUD : CanvasLayer
 	}
 
 	// --- fada_figs ------------------------------------------------------------
+
+	/// <summary>Show round <paramref name="round"/> (0 = before round 1: blank), <paramref name="left"/> quota enemies
+	/// remaining (0 = hidden — RunManager only passes it once few remain), the breather <paramref name="countdown"/> in
+	/// whole seconds until the next round (0 = hidden — mid-round), and the <paramref name="best"/> round record.</summary>
+	public void SetRound(int round, int left, int countdown, int best)
+	{
+		if (_roundLabel == null)
+			return;
+		_roundLabel.Text = round > 0 ? $"ROUND {round}" : "";
+		_leftLabel.Text = $"{left} LEFT";
+		_leftLabel.Visible = left > 0;
+		_nextLabel.Text = $"NEXT ROUND IN {countdown}";
+		_nextLabel.Visible = countdown > 0;
+		_bestLabel.Text = best > 0 ? $"BEST {best}" : "";
+	}
 
 	/// <summary>Set the spendable fada_fig balance shown beside the ring (pushed by <c>Player</c>); the ring pops on a gain.</summary>
 	public void SetFadaFigs(int count)
@@ -403,7 +447,6 @@ public partial class HUD : CanvasLayer
 		}
 		UpdateLowHealth(delta);
 		UpdateGaugeAlpha(delta);
-		_wavesLabel.Text = $"WAVES  {SaveData.GetCurrentWaves()}   ·   BEST {SaveData.WavesRecord()}";
 	}
 
 	private void UpdateLowHealth(float delta)

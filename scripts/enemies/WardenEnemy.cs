@@ -3,7 +3,7 @@ using Godot;
 namespace MyGame;
 
 /// <summary>
-/// Warden archetype: the elite that bursts from a sealed Fissure (see <c>docs/game-loop.md</c>). Bigger and
+/// Warden archetype: the elite of the Warden rounds (every 10th round; see <c>docs/game-loop.md</c>). Bigger and
 /// tankier than a grunt, and a RELENTLESS TELEPORTING pursuer — if the player stays beyond
 /// <see cref="teleport_range"/> for <see cref="teleport_delay"/>, he telegraphs then warps in near them (landing
 /// just outside his lunge range, so a dash can dodge). His attack is a LUNGE (the base <c>close_lunge</c> impulse

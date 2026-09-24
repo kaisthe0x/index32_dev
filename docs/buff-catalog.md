@@ -4,6 +4,10 @@
 catalog + a new **Seal** category, ready to become code against the buff-system spec in `game-loop.md`
 (§ Buff system). **Tiers and numbers are my proposal — adjust freely.**
 
+> **Note (2026-09-24):** the **Fissure/Seal loop is retired** (see `game-loop.md` — the game is now endless rounds),
+> so the **Seal category below is retired** too: kept only as a record, not to be built. Warden-related notes
+> still apply to the future Warden rounds.
+>
 > **Note:** an earlier draft carried a `greedWeight` per buff (to scale a hidden boss). **Greed and the boss are
 > retired** — Wardens grow on a pure time + Seal-brake curve, nothing buff-side feeds them — so there is **no
 > greed column** here. If you see one anywhere, it's stale.

@@ -4,11 +4,11 @@
 > (enums/records/ids). Run/verify with **`godot-mono`**, not `godot`. History + interop rules:
 > [`docs/csharp-migration.md`](docs/csharp-migration.md).
 >
-> **🔭 Run-loop pivot (design-frozen, NOT yet built).** The game is moving to a new **Fissure / Seal / Warden**
-> arena loop (three Wardens that charge until you seal their Fissures, then hunt you — **no main boss, no
-> greed**) that supersedes the reward-door / 5-level loop this README describes. Source of truth:
-> [`docs/game-loop.md`](docs/game-loop.md) + [`docs/buff-catalog.md`](docs/buff-catalog.md). Until it's
-> implemented, the sections below describe the **current (old-loop) code**.
+> **🔭 Run loop: endless ROUNDS, CoD Zombies style (agreed 2026-09-24, being built in steps).** Each round sends a
+> hidden quota of enemies; ranks recolour enemies by tier as rounds climb; power-up round drops; a Warden every 10th
+> round. (The earlier Fissure/Seal and boss/Greed designs are retired.) Source of truth + build order:
+> [`docs/game-loop.md`](docs/game-loop.md) + [`docs/buff-catalog.md`](docs/buff-catalog.md). Sections below describe
+> the **current code** — the round loop itself is built; ranks, drops and Warden rounds are next.
 
 A 2D pixel-art action platformer in **Godot 4.7**. A character-agnostic player controller
 drives the playable character. This repo ships **Khalid only** — four other characters were
@@ -18,10 +18,10 @@ stays fully character-agnostic, so bringing one back is just its assets + data r
 
 Main scene: `scenes/palette_preview.tscn` (the pre-game colour pickers) — press F5; picking a look loads the run scene `scenes/arena.tscn` (root `RunManager`). To jump straight into a run, open `scenes/arena.tscn` and press F6.
 
-**Game premise & the run loop:** *(mid-migration toward the pivot — see the banner above +
+**Game premise & the run loop:** *(see the banner above +
 [`docs/game-loop.md`](docs/game-loop.md))* see [`docs/game-design.md`](docs/game-design.md) — a roguelite
-arena crawler. **Levels/exits are retired:** it's now ONE endless arena where enemies **trickle in at a
-steady rate** from a mixed roster and you survive. Cast **specials** (now **free and unlimited**), and
+arena crawler. **Levels/exits are retired:** it's now ONE arena and **endless numbered rounds**, CoD Zombies
+style — each round sends a hidden quota of enemies, and you survive as far as you can. Cast **specials** (now **free and unlimited**), and
 spend **Ruh** on your **Aegis** surge for an on-demand burst of invincibility (each use costs one
 **Ruh** charge — you start a run with 3, and refill Ruh by **landing hits**; Ruh is the only gate, no
 cooldown). Killing enemies drops **Fada Figs** + (at a ramping chance) a random **buff** you grab off the
@@ -45,7 +45,7 @@ resources/characters/ GENERATED SpriteFrames -- do not hand-edit
 resources/enemies/    GENERATED enemy SpriteFrames -- do not hand-edit
 scenes/               player, level, hud
 scripts/              player, hud
-scripts/run/          the roguelite run: continuous arena, steady spawner, Ruh, buff menu + mystery box, attack picker (see scripts/run/README.md)
+scripts/run/          the roguelite run: arena, round loop + spawner, Ruh, buff menu + mystery box, attack picker (see scripts/run/README.md)
 scripts/abilities/    Passive/Buff base (C#) + reward passives (Leech/ParryMend/ReaperEdge.cs) + reward-tier/trigger types (RewardTypes.cs)
 scripts/combat/       Hurtbox, hitbox, Combatant base, health bar, floating text, status overlay — all C# now (constants -> configs/Combat.cs)
 scripts/enemies/      Enemy base + projectile
@@ -124,8 +124,8 @@ debug damage/heal, `0` rebuild-level) live in that same file.
 you **pick an attack** (locked for the run) from an **inventory-style grid of weapon icons** (`AttackSelect`) —
 click an icon to see its name + stats (type/damage/knockback/stun/reach/cooldown/style, from the `Action`'s `Hit`
 data) + description in the details pane, then Confirm. You drop into
-a low, mostly-horizontal **endless arena** that **trickles enemies in at a steady rate** (a mixed roster,
-proximity-spawned near you — capped so it never floods). You **start each
+a low, mostly-horizontal arena and fight **endless rounds**: each sends a hidden quota of enemies (a mixed roster,
+proximity-spawned near you, capped so it never floods), clears when they're all dead, and the next is bigger. You **start each
 run with 3 Ruh charges** — the surge meter, shown in charges (100 each), no decay — and refill it by
 **landing hits** (~5 hits = 1 charge; kills don't count, and a special's own hits don't self-pay).
 **Specials are now free and unlimited** (only a tiny anti-spam lag). Ruh instead fuels the **Aegis
@@ -938,7 +938,7 @@ factory's arrays; `Family` gives replace-in-place so a higher tier supersedes a 
 Strike spawns AFTER `OnSlamLand`, so no kill-count is available at the hook), *Backstab* (damage is baked into the
 `Hitbox` at activate time and applied before the victim is known — no on-contact tuning seam), and *Perfect-Dodge
 Haste/Fury/Aegis* (dash i-frames disable the hurtbox, so a dash-avoided hit fires no event to hang
-`OnPerfectDodge` on). Trap/dash-hitbox/Seal-category buffs await their new mechanics.
+`OnPerfectDodge` on). Trap/dash-hitbox buffs await their new mechanics (the Seal category is retired with the Fissure loop).
 
 ---
 
@@ -1735,22 +1735,23 @@ through projectiles and attacks unharmed.
 
 ### Spawning & the run
 
-`scripts/run/RunManager.cs` (`RunManager`, the `arena.tscn` root) builds ONE continuous arena in code, then
-trickles enemies in at a steady rate. See [`scripts/run/README.md`](scripts/run/README.md) for the full loop;
+`scripts/run/RunManager.cs` (`RunManager`, the `arena.tscn` root) builds ONE arena in code, then runs the endless
+**round loop** (tuning: `configs/Rounds.cs`). See [`scripts/run/README.md`](scripts/run/README.md) for the full loop;
 the build basics:
 
 - **Terrain** — a hand-painted `TileMapLayer` with per-tile collision, loaded from a random `stage1_v*.tscn`
   layout (see the run README + `docs/painting-levels.md`). Its exposed ground tops feed proximity spawning.
-- **Enemies** — `SpawnWave()` fires every `SpawnInterval`, picking `EnemiesPerWave` **kits** at random from
-  `RunManager.SpawnPool` (up to a `MaxAlive` cap). A **kit** (`EnemyKits.KEBUS`, …) is either an `id` (built
+- **Enemies** — each round (`TickRound`) trickles its hidden quota in, one **kit** at a time picked at random from
+  `RunManager.SpawnPool`, under the round's concurrent cap; spawning stops once the quota has spawned and the round
+  clears on the last kill (only non-optional enemies count). A **kit** (`EnemyKits.KEBUS`, …) is either an `id` (built
   from the generic `enemy.tscn` with that `enemy_id`) or a `scene` (a custom enemy — `sleeper_enemy.tscn`,
   `diver_enemy.tscn`), plus any Enemy `@export` overrides. `RunManager.SpawnEnemy` applies them; the enemy's
   `died` signal frees a cap slot and drops Fada Figs (buffs come from the milestone menu + mystery box, not kills).
-- **Anti-camp cull** — since spawning stops at the `MaxAlive` cap, `RunManager.CullOffscreen` silently frees any enemy
-  that stays OFF-SCREEN for `OffscreenDespawnTime` (8s) — no death VFX/sfx/figs — and releases its cap slot, so a
-  camper the AI can't reach still gets fresh enemies spawned near them.
+- **Anti-camp cull** — `RunManager.CullOffscreen` silently frees any enemy that stays OFF-SCREEN for
+  `OffscreenDespawnTime` (8s) — no death VFX/sfx/figs, and not a kill: it releases its cap slot and returns to the
+  round's unspawned quota, so a camper the AI can't reach still gets fresh enemies spawned near them.
 - **Per-type caps** — a kit's `spawn_cap` (e.g. Nasen = 1) limits how many of that type are alive at once; `PickSpawnKit`
-  only rolls kits under their cap, and the cap grows +1 every `SpawnCapGrowthWaves` waves. No `spawn_cap` = unlimited.
+  only rolls kits under their cap, and the cap grows +1 every `Rounds.KitCapGrowthRounds` rounds. No `spawn_cap` = unlimited.
 - **Fall-death** — any enemy whose world Y passes `Enemy.FallDeathY` (below the platforms) `Die()`s (it walked/was
   knocked off into the void). It still emits `died` so the spawn-cap slot frees, but `RunManager.OnEnemyDied`
   skips its loot (`enemy.fell_off`) — those drops would be unreachable down there.
@@ -1863,7 +1864,9 @@ instead of a fixed fps that desyncs the moment speed changes. `run_anim_speed`
 ## HUD
 
 `scenes/hud.tscn` + `scripts/HUD.cs` — health + Ruh in a **gauge** (bottom-centre, or following
-Khalid — a player setting), the **Esc pause menu**, the **fig ring** (top-left), a top-centre **`WAVES n · BEST m`** line, the top-right
+Khalid — a player setting), the **Esc pause menu**, the **fig ring** (top-left), a top-centre **round block**
+(`ROUND n` in the scanline font, `n LEFT` once few remain, `NEXT ROUND IN n` counting down each breather, `BEST m`;
+pushed by RunManager via `HUD.SetRound`, placed by the `RoundBlockAnchor` / `RoundBlockOffset` consts in `HUD.cs`), the top-right
 active-buff list, off-screen enemy arrows and the low-HP screen effect. No portrait or name — those
 belong on the pause/character screens.
 
@@ -1986,12 +1989,11 @@ immune to the zoom. Tunables (`MARGIN`, `SIZE_*`, `FADE_*`, `ALPHA_*`) live at t
 
 ### Persistent record — `SaveData` (`scripts/SaveData.cs`)
 
-The best-ever *waves survived in one run* survives between sessions (levels are retired). `SaveData` is
-an all-static helper backed by a `ConfigFile` at `user://save.cfg`:
-- `RunManager.SpawnWave` writes `SaveData.SetCurrentWaves(_waveCount)` each tick; on death
-  (`RestartRun`) it calls `SaveData.ReportRun(_waveCount)`, which persists a new best (key `waves_record`).
-- The HUD reads `SaveData.GetCurrentWaves()` / `SaveData.WavesRecord()` each frame
-  (in-memory after the first load — no per-frame disk I/O), shown as `WAVES n · BEST m`.
+The best-ever *highest round reached in one run* survives between sessions. `SaveData` is an all-static helper
+backed by a `ConfigFile` at `user://save.cfg`:
+- On death (`RestartRun`) RunManager calls `SaveData.ReportRun(_round)`, which persists a new best (key
+  `rounds_record`; the old spawn-tick `waves_record` is no longer read).
+- `SaveData.RoundsRecord()` (cached after the first load) feeds the HUD's `BEST n`, pushed with the round.
 
 It's the first thing saved to disk; add future persisted stats as more keys in the
 same file.
