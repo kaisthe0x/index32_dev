@@ -70,12 +70,12 @@ public partial class HUD : CanvasLayer
 	// Ruh in the red family, like the in-world Ruh orbs — recoloured to the Power-1 pick at bind (VfxPalette.Recolor).
 	private static readonly Color RuhFillBase = new(0.80f, 0.16f, 0.20f);
 	private static readonly Color RuhEmpty = new(0.30f, 0.14f, 0.17f);
-	private static readonly Color FigText = new(0.72f, 0.86f, 1.0f);
 
 
 	public override void _Ready()
 	{
 		Layer = 100;
+		UiStyle.Install(); // first UI to exist (autoload) — make Sixtyfour the global fallback font before anything builds
 		BuildHud();
 		BuildLowHealth();
 		_pauseMenu = new PauseMenu();
@@ -93,7 +93,7 @@ public partial class HUD : CanvasLayer
 
 	private void BuildHud()
 	{
-		_root = new Control { MouseFilter = Control.MouseFilterEnum.Ignore };
+		_root = new Control { MouseFilter = Control.MouseFilterEnum.Ignore, Theme = UiStyle.Theme };
 		_root.SetAnchorsPreset(Control.LayoutPreset.FullRect);
 		AddChild(_root);
 
@@ -117,11 +117,11 @@ public partial class HUD : CanvasLayer
 		_root.AddChild(figRow);
 		_figRing = new FigRing();
 		figRow.AddChild(_figRing);
-		_figLabel = MkLabel(16, FigText);
+		_figLabel = MkLabel(UiStyle.SizeTitle, UiStyle.Accent);
 		_figLabel.Text = "0";
 		figRow.AddChild(_figLabel);
 
-		_wavesLabel = MkLabel(13, new Color(0.85f, 0.72f, 0.18f));
+		_wavesLabel = MkLabel(UiStyle.SizeBody, UiStyle.Frame);
 		_wavesLabel.SetAnchorsPreset(Control.LayoutPreset.CenterTop);
 		_wavesLabel.GrowHorizontal = Control.GrowDirection.Both;
 		_wavesLabel.OffsetTop = 10.0f;
@@ -210,7 +210,7 @@ public partial class HUD : CanvasLayer
 		l.AddThemeFontSizeOverride("font_size", fontSize);
 		l.AddThemeColorOverride("font_color", col);
 		l.AddThemeColorOverride("font_outline_color", Colors.Black);
-		l.AddThemeConstantOverride("outline_size", 4);
+		l.AddThemeConstantOverride("outline_size", 3); // HUD text sits over the world — keep it readable on any backdrop
 		return l;
 	}
 
@@ -227,19 +227,14 @@ public partial class HUD : CanvasLayer
 			if (p is not Buff b)
 				continue;
 			any = true;
-			var name = new Label { Text = b.Name != "" ? $"{b.Name}   [{Tiers.Label(b.Tier)}]" : b.Id };
-			name.AddThemeFontSizeOverride("font_size", 13);
-			name.AddThemeColorOverride("font_color", Tiers.ColorOf(b.Tier));
-			name.AddThemeColorOverride("font_outline_color", Colors.Black);
-			name.AddThemeConstantOverride("outline_size", 4);
+			var name = MkLabel(UiStyle.SizeBody, Tiers.ColorOf(b.Tier));
+			name.Text = b.Name != "" ? $"{b.Name} [{Tiers.Label(b.Tier)}]" : b.Id;
 			_buffPanel.AddChild(name);
 
-			var desc = new Label { Text = b.Description, AutowrapMode = TextServer.AutowrapMode.WordSmart };
+			var desc = MkLabel(UiStyle.SizeBody, UiStyle.TextDim);
+			desc.Text = b.Description;
+			desc.AutowrapMode = TextServer.AutowrapMode.WordSmart;
 			desc.CustomMinimumSize = new Vector2(258, 0);
-			desc.AddThemeFontSizeOverride("font_size", 10);
-			desc.AddThemeColorOverride("font_color", new Color(0.76f, 0.76f, 0.82f));
-			desc.AddThemeColorOverride("font_outline_color", Colors.Black);
-			desc.AddThemeConstantOverride("outline_size", 3);
 			_buffPanel.AddChild(desc);
 
 			_buffPanel.AddChild(new Control { CustomMinimumSize = new Vector2(0, 5) }); // row spacer

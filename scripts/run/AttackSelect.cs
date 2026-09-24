@@ -38,16 +38,15 @@ public partial class AttackSelect : CanvasLayer
         GetTree().Paused = true;
         Input.MouseMode = Input.MouseModeEnum.Visible; // grid is mouse-driven
 
-        var dim = new ColorRect { Color = new Color(0, 0, 0, 0.7f), MouseFilter = Control.MouseFilterEnum.Stop };
+        var dim = new ColorRect { Color = UiStyle.Backdrop, MouseFilter = Control.MouseFilterEnum.Stop };
         dim.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         AddChild(dim);
 
-        var center = new CenterContainer();
+        var center = new CenterContainer { Theme = UiStyle.Theme };
         center.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         AddChild(center);
 
         var panel = new PanelContainer();
-        panel.AddThemeStyleboxOverride("panel", UiStyle.Framed(UiStyle.PanelBg, UiStyle.Gold, 3, 6));
         center.AddChild(panel);
 
         var pad = new MarginContainer();
@@ -59,10 +58,7 @@ public partial class AttackSelect : CanvasLayer
         col.AddThemeConstantOverride("separation", 14);
         pad.AddChild(col);
 
-        var title = new Label { Text = "CHOOSE YOUR ATTACK", HorizontalAlignment = HorizontalAlignment.Center };
-        title.AddThemeFontSizeOverride("font_size", 22);
-        title.AddThemeColorOverride("font_color", UiStyle.TitleText);
-        col.AddChild(title);
+        col.AddChild(new Label { Text = "CHOOSE YOUR ATTACK", ThemeTypeVariation = UiStyle.Title, HorizontalAlignment = HorizontalAlignment.Center });
 
         var grid = new GridContainer { Columns = Columns };
         grid.AddThemeConstantOverride("h_separation", GridGap);
@@ -96,24 +92,17 @@ public partial class AttackSelect : CanvasLayer
         details.AddThemeConstantOverride("separation", 8);
         detailsHolder.AddChild(details);
 
-        _detailName = new Label();
-        _detailName.AddThemeFontSizeOverride("font_size", 20);
-        _detailName.AddThemeColorOverride("font_color", UiStyle.TitleText);
+        _detailName = new Label { ThemeTypeVariation = UiStyle.Title };
         details.AddChild(_detailName);
 
-        _detailType = new Label();
-        _detailType.AddThemeFontSizeOverride("font_size", 13);
-        _detailType.AddThemeColorOverride("font_color", new Color(0.60f, 0.78f, 1.0f)); // a small "kind" tag under the name
+        _detailType = new Label { ThemeTypeVariation = UiStyle.Heading }; // a small "kind" tag under the name
         details.AddChild(_detailType);
 
         _detailDesc = new Label { AutowrapMode = TextServer.AutowrapMode.WordSmart };
         _detailDesc.CustomMinimumSize = new Vector2(paneW, 0);
-        _detailDesc.AddThemeFontSizeOverride("font_size", 13);
-        _detailDesc.AddThemeColorOverride("font_color", UiStyle.BodyText);
         details.AddChild(_detailDesc);
 
-        var confirm = new Button { Text = "CONFIRM", CustomMinimumSize = new Vector2(0, 34) };
-        confirm.AddThemeFontSizeOverride("font_size", 16);
+        var confirm = new Button { Text = "CONFIRM", ThemeTypeVariation = UiStyle.PrimaryButton };
         confirm.Pressed += () => Pick(_selectedId);
         col.AddChild(confirm);
 
@@ -165,16 +154,12 @@ public partial class AttackSelect : CanvasLayer
         _ => "Combo",
     };
 
-    /// <summary>Selected cell gets a bright gold frame + lifted bg; others a dim one.</summary>
+    /// <summary>Selected cell gets a bright electric-blue frame + lifted bg; others a dim violet one.</summary>
     private static void StyleCell(Button cell, bool selected)
     {
-        var sb = new StyleBoxFlat
-        {
-            BgColor = selected ? new Color(0.18f, 0.16f, 0.10f, 1f) : new Color(0.12f, 0.12f, 0.15f, 1f),
-            BorderColor = selected ? UiStyle.Gold : new Color(0.30f, 0.30f, 0.36f),
-        };
-        sb.SetBorderWidthAll(selected ? 3 : 2);
-        sb.SetCornerRadiusAll(4);
+        var sb = selected
+            ? UiStyle.Box(UiStyle.RaisedBg.Lerp(UiStyle.Frame, 0.25f), UiStyle.Accent, 2)
+            : UiStyle.Box(UiStyle.RaisedBg, UiStyle.FrameDim, 1);
         cell.AddThemeStyleboxOverride("normal", sb);
         cell.AddThemeStyleboxOverride("hover", sb);
         cell.AddThemeStyleboxOverride("pressed", sb);

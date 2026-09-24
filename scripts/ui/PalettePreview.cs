@@ -38,14 +38,6 @@ public partial class PalettePreview : Control
         { ["red"] = "Power 1", ["gold"] = "Power 2", ["teal"] = "Power 3" };
     private static readonly string[] POWER_ORDER = { "red", "gold", "teal" };
 
-    // --- theme (matches the HUD's dark panel + gold trim) ---
-    private static readonly Color GOLD = new(0.85f, 0.72f, 0.18f);
-    private static readonly Color GOLD_DIM = new(0.55f, 0.47f, 0.16f);
-    private static readonly Color PANEL_BG = new(0.09f, 0.08f, 0.11f, 0.96f);
-    private static readonly Color ROW_BG = new(1, 1, 1, 0.035f);
-    private static readonly Color INK = new(0.90f, 0.88f, 0.82f);
-    private static readonly Color INK_DIM = new(0.62f, 0.60f, 0.56f);
-
     private ShaderMaterial _mat, _portraitMat;
     private ColorRect _backdrop;
     private AnimatedSprite2D _sprite;
@@ -65,6 +57,7 @@ public partial class PalettePreview : Control
     public override void _Ready()
     {
         SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        Theme = UiStyle.Theme;
         Input.MouseMode = Input.MouseModeEnum.Visible; // pre-game colour pickers are mouse-driven (and reset it if we came from a run)
 
         // Open on the active scheme (applies on startup) -- may be the DEFAULT look (-1).
@@ -96,10 +89,7 @@ public partial class PalettePreview : Control
         var pv = new VBoxContainer();
         pv.AddThemeConstantOverride("separation", 6);
         pv.AddChild(_portrait);
-        var cap = new Label { Text = "PORTRAIT", HorizontalAlignment = HorizontalAlignment.Center };
-        cap.AddThemeFontSizeOverride("font_size", 12);
-        cap.AddThemeColorOverride("font_color", INK_DIM);
-        pv.AddChild(cap);
+        pv.AddChild(new Label { Text = "PORTRAIT", ThemeTypeVariation = UiStyle.Muted, HorizontalAlignment = HorizontalAlignment.Center });
         _portraitFrame.AddChild(pv);
         AddChild(_portraitFrame);
 
@@ -174,7 +164,6 @@ public partial class PalettePreview : Control
     private void BuildControls()
     {
         var panel = new PanelContainer { Position = new Vector2(32, 32) };
-        panel.AddThemeStyleboxOverride("panel", PanelBox(PANEL_BG, GOLD, 2, 12));
         AddChild(panel);
 
         var pad = new MarginContainer();
@@ -190,14 +179,10 @@ public partial class PalettePreview : Control
         _scroll.AddChild(col);
         _col = col;
 
-        var title = new Label { Text = "KHALID" };
-        title.AddThemeFontSizeOverride("font_size", 30);
-        title.AddThemeColorOverride("font_color", GOLD);
+        var title = new Label { Text = "KHALID", ThemeTypeVariation = UiStyle.Title };
+        title.AddThemeFontSizeOverride("font_size", UiStyle.SizeTitle * 2); // the screen's name — larger than a menu title
         col.AddChild(title);
-        var sub = new Label { Text = "COLOUR SCHEMES" };
-        sub.AddThemeFontSizeOverride("font_size", 12);
-        sub.AddThemeColorOverride("font_color", INK_DIM);
-        col.AddChild(sub);
+        col.AddChild(new Label { Text = "COLOUR SCHEMES", ThemeTypeVariation = UiStyle.Muted });
 
         // Scheme selector: radio toggles. "Default" (always available) + the 5 saved slots.
         col.AddChild(Header("SCHEME"));
@@ -206,14 +191,12 @@ public partial class PalettePreview : Control
         var group = new ButtonGroup();
         var def = new Button { ToggleMode = true, ButtonGroup = group, Text = "Default", CustomMinimumSize = new Vector2(66, 34) };
         def.ButtonPressed = _activeSlot == -1;
-        StyleSlot(def);
         def.Pressed += () => OnSlot(-1);
         slotRow.AddChild(def);
         for (int i = 0; i < SaveData.MAX_SCHEMES; i++)
         {
             var b = new Button { ToggleMode = true, ButtonGroup = group, CustomMinimumSize = new Vector2(38, 34) };
             b.ButtonPressed = i == _activeSlot;
-            StyleSlot(b);
             int idx = i;
             b.Pressed += () => OnSlot(idx);
             _slotButtons.Add(b);
@@ -245,13 +228,15 @@ public partial class PalettePreview : Control
         var buttons = new HBoxContainer();
         buttons.AddThemeConstantOverride("separation", 10);
         var save = new Button { Text = "Save scheme", CustomMinimumSize = new Vector2(150, 42), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        StyleButton(save, false);
         save.Pressed += OnSave;
         save.Disabled = _activeSlot < 0;  // can't overwrite the built-in Default -- pick a slot to save
         _saveButton = save;
         buttons.AddChild(save);
-        var start = new Button { Text = "Start run  ▶", CustomMinimumSize = new Vector2(150, 42), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        StyleButton(start, true);
+        var start = new Button
+        {
+            Text = "Start run →", ThemeTypeVariation = UiStyle.PrimaryButton,
+            CustomMinimumSize = new Vector2(150, 42), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
         start.Pressed += OnStart;
         buttons.AddChild(start);
         col.AddChild(buttons);
@@ -260,13 +245,13 @@ public partial class PalettePreview : Control
     private Color BodyPickFor(string matName) =>
         _bodyPicks.ContainsKey(matName) ? _bodyPicks[matName].As<Color>() : new Color(PaletteConfig.DEFAULT[matName][1]);
 
-    /// <summary>One labelled row in a subtle rounded strip. If `swatch` is given it's used; else a ColorPickerButton
+    /// <summary>One labelled row in a subtle strip. If `swatch` is given it's used; else a ColorPickerButton
     /// is made, seeded to `col`, wired to `cb`, and stored in `store[key]`.</summary>
     private PanelContainer SwatchRow(string labelText, Color col, Action<Color> cb,
         Dictionary<string, ColorPickerButton> store, string key, Control swatch = null)
     {
         var strip = new PanelContainer();
-        strip.AddThemeStyleboxOverride("panel", PanelBox(ROW_BG, new Color(0, 0, 0, 0), 0, 6));
+        strip.AddThemeStyleboxOverride("panel", UiStyle.Box(UiStyle.RowBg));
         var pad = new MarginContainer();
         pad.AddThemeConstantOverride("margin_left", 8);
         pad.AddThemeConstantOverride("margin_right", 6);
@@ -275,9 +260,7 @@ public partial class PalettePreview : Control
         strip.AddChild(pad);
         var row = new HBoxContainer();
         pad.AddChild(row);
-        var lbl = new Label { Text = labelText, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        lbl.AddThemeColorOverride("font_color", INK);
-        row.AddChild(lbl);
+        row.AddChild(new Label { Text = labelText, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, VerticalAlignment = VerticalAlignment.Center });
         Control pick = swatch;
         if (pick == null)
         {
@@ -293,22 +276,10 @@ public partial class PalettePreview : Control
 
     // --- styling helpers ----------------------------------------------------
 
-    private static StyleBoxFlat PanelBox(Color bg, Color border, int width, int radius)
-    {
-        var sb = new StyleBoxFlat { BgColor = bg };
-        sb.SetCornerRadiusAll(radius);
-        if (width > 0)
-        {
-            sb.SetBorderWidthAll(width);
-            sb.BorderColor = border;
-        }
-        return sb;
-    }
-
     private PanelContainer FramedBox()
     {
         var p = new PanelContainer();
-        var sb = PanelBox(PANEL_BG, GOLD, 2, 12);
+        var sb = UiStyle.Box(UiStyle.PanelBg, UiStyle.Frame, 2);
         sb.SetContentMarginAll(10);
         p.AddThemeStyleboxOverride("panel", sb);
         return p;
@@ -320,49 +291,14 @@ public partial class PalettePreview : Control
         box.AddThemeConstantOverride("separation", 2);
         var top = new Control { CustomMinimumSize = new Vector2(0, 6) };
         box.AddChild(top);
-        var lbl = new Label { Text = text };
-        lbl.AddThemeFontSizeOverride("font_size", 13);
-        lbl.AddThemeColorOverride("font_color", GOLD);
-        box.AddChild(lbl);
+        box.AddChild(new Label { Text = text, ThemeTypeVariation = UiStyle.Heading });
         var rule = new PanelContainer { CustomMinimumSize = new Vector2(0, 2) };
-        rule.AddThemeStyleboxOverride("panel", PanelBox(GOLD_DIM, new Color(0, 0, 0, 0), 0, 1));
+        rule.AddThemeStyleboxOverride("panel", UiStyle.Box(UiStyle.FrameDim));
         box.AddChild(rule);
         return box;
     }
 
     private static Control Spacer(int h) => new() { CustomMinimumSize = new Vector2(0, h) };
-
-    private void StyleSlot(Button b)
-    {
-        b.AddThemeFontSizeOverride("font_size", 15);
-        b.AddThemeColorOverride("font_color", INK_DIM);
-        b.AddThemeColorOverride("font_pressed_color", Colors.Black);
-        b.AddThemeColorOverride("font_hover_color", INK);
-        b.AddThemeStyleboxOverride("normal", PanelBox(new Color(1, 1, 1, 0.05f), GOLD_DIM, 1, 7));
-        b.AddThemeStyleboxOverride("hover", PanelBox(new Color(1, 1, 1, 0.10f), GOLD, 1, 7));
-        b.AddThemeStyleboxOverride("pressed", PanelBox(GOLD, GOLD, 1, 7));
-        b.AddThemeStyleboxOverride("focus", PanelBox(GOLD, GOLD, 1, 7));
-    }
-
-    private void StyleButton(Button b, bool primary)
-    {
-        b.AddThemeFontSizeOverride("font_size", 16);
-        Color baseCol = primary ? GOLD : new Color(0.16f, 0.15f, 0.18f);
-        Color hov = primary ? new Color(1.0f, 0.86f, 0.28f) : new Color(0.22f, 0.21f, 0.25f);
-        b.AddThemeColorOverride("font_color", primary ? Colors.Black : INK);
-        b.AddThemeColorOverride("font_hover_color", primary ? Colors.Black : GOLD);
-        b.AddThemeStyleboxOverride("normal", BtnBox(baseCol, primary));
-        b.AddThemeStyleboxOverride("hover", BtnBox(hov, primary));
-        b.AddThemeStyleboxOverride("pressed", BtnBox(baseCol.Darkened(0.15f), primary));
-        b.AddThemeStyleboxOverride("focus", BtnBox(baseCol, primary));
-    }
-
-    private StyleBoxFlat BtnBox(Color bg, bool primary)
-    {
-        var sb = PanelBox(bg, primary ? GOLD : GOLD_DIM, primary ? 0 : 1, 8);
-        sb.SetContentMarginAll(8);
-        return sb;
-    }
 
     private void RefreshSlotLabels()
     {

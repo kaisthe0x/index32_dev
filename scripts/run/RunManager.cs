@@ -590,17 +590,17 @@ public partial class RunManager : Node2D
     {
         HideLevelUpBanner();
         _levelUpBanner = new CanvasLayer { Layer = 60, ProcessMode = ProcessModeEnum.Always };
-        var center = new CenterContainer();
+        var center = new CenterContainer { Theme = UiStyle.Theme };
         center.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         _levelUpBanner.AddChild(center);
-        var label = new Label { Text = "LEVEL UP!", HorizontalAlignment = HorizontalAlignment.Center };
-        label.AddThemeFontSizeOverride("font_size", 44);
-        label.AddThemeColorOverride("font_color", new Color(1.8f, 1.5f, 0.4f)); // HDR gold, blooms
+        var label = new Label { Text = "LEVEL UP!", ThemeTypeVariation = UiStyle.Title, HorizontalAlignment = HorizontalAlignment.Center };
+        label.AddThemeFontSizeOverride("font_size", UiStyle.SizeBanner);
+        label.AddThemeColorOverride("font_color", new Color(UiStyle.Accent.R * 1.8f, UiStyle.Accent.G * 1.8f, UiStyle.Accent.B * 1.8f)); // HDR electric blue, blooms
         label.AddThemeColorOverride("font_outline_color", Colors.Black);
         label.AddThemeConstantOverride("outline_size", 8);
         center.AddChild(label);
         label.Scale = new Vector2(0.6f, 0.6f);
-        label.PivotOffset = new Vector2(120, 30);
+        label.Resized += () => label.PivotOffset = label.Size / 2.0f; // pop from its centre
         _levelUpBanner.CreateTween().TweenProperty(label, "scale", Vector2.One, 0.28f)
             .SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out); // pops even while paused (banner is Always)
         AddChild(_levelUpBanner);

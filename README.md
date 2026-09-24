@@ -1899,13 +1899,39 @@ buffs add pips.
 as a number beside it (`HUD.SetFadaFigs`). Economy, not moment-to-moment survival — so it stays in
 the corner rather than in the gauge.
 
+### UI style (`scripts/ui/UiStyle.cs`)
+
+Every menu and HUD label shares ONE look, defined in `UiStyle`: the **Arcane Void** dark-neon palette
+(near-black violet panels, neon-violet `Frame` borders/headings, electric-blue `Accent` for titles,
+hover and selection, pale-lavender `Text`), the **Sixtyfour** retro font (`assets/fonts/`), and square
+pixel-style boxes (no rounded corners). No art assets — it's all Godot styleboxes + the font, so it
+scales cleanly at any resolution.
+
+- **`UiStyle.Theme`** — a `Theme` built in code: default font/size, `Label` colours, `PanelContainer`
+  frame, `HSeparator` rule, and `Button` states (hover/pressed/focus light the border electric blue).
+  Controls under a `CanvasLayer` don't inherit the window's theme, so each menu **root** sets
+  `Theme = UiStyle.Theme` (HUD `_root`, `PauseMenu`, `AttackSelect`, `RewardUI`, the LEVEL UP banner,
+  `PalettePreview`).
+- **Named styles** are theme type variations — set `ThemeTypeVariation`, don't add per-node overrides:
+  `UiStyle.Title` (16px, scanline font, electric blue), `UiStyle.Heading` (neon violet),
+  `UiStyle.Muted` (captions), `UiStyle.PrimaryButton` (the one call-to-action per screen).
+- **Font:** Sixtyfour is a variable font with two axes — `SCAN` (-53..100, negative = CRT scanline gaps)
+  and `BLED` (0..100, phosphor bleed/weight). `BodyFont` is clean with a touch of bleed (legible at 8px);
+  `TitleFont` uses visible scanlines + heavy bleed for the CRT look. It's drawn on an **8px grid**, so
+  sizes are multiples of 8 (`SizeBody` 8, `SizeTitle` 16, `SizeBanner` 32). It lacks some symbols
+  (e.g. `▶ ► ■ ★`) — check coverage before adding a new glyph to UI text.
+- **`UiStyle.Install()`** (called first thing in the HUD autoload) makes Sixtyfour the global
+  **fallback font**, so un-themed text (enemy name tags, world prompts) matches too.
+- **Semantic colours stay semantic:** buff tier colours (`Tiers.ColorOf`), damage numbers, and the
+  mystery box's gold glint are left as-is; only UI chrome uses the palette.
+
 ### Pause menu (`scripts/ui/PauseMenu.cs`)
 
 **Esc** (`ui_cancel`) pauses during a run: **Resume** + **Settings** (for now just the gauge placement:
 FIXED / FOLLOW KHALID). The HUD owns it and enables it only while a Player is bound; Esc opens it only
 when nothing else has the tree paused (the attack pick and buff menus own their own pause), and Esc or
-Resume closes it. It's a `CanvasLayer` at layer 110 with `ProcessMode = Always`, styled from the shared
-`UiStyle` (the gold-framed panel the attack picker uses too). New settings: add the value to `SaveData`
+Resume closes it. It's a `CanvasLayer` at layer 110 with `ProcessMode = Always`, styled by the shared
+`UiStyle` theme. New settings: add the value to `SaveData`
 (stored by enum NAME, so reordering an enum never remaps a saved choice) and a row to `PauseMenu.Build`.
 
 ### Feedback + the pip art

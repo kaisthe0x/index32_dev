@@ -85,16 +85,15 @@ public partial class PauseMenu : CanvasLayer
 
     private void Build()
     {
-        var dim = new ColorRect { Color = new Color(0, 0, 0, 0.6f), MouseFilter = Control.MouseFilterEnum.Stop };
+        var dim = new ColorRect { Color = UiStyle.Backdrop, MouseFilter = Control.MouseFilterEnum.Stop };
         dim.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         AddChild(dim);
 
-        var center = new CenterContainer();
+        var center = new CenterContainer { Theme = UiStyle.Theme };
         center.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         AddChild(center);
 
         var panel = new PanelContainer();
-        panel.AddThemeStyleboxOverride("panel", UiStyle.Framed(UiStyle.PanelBg, UiStyle.Gold, 3, 6));
         center.AddChild(panel);
 
         var pad = new MarginContainer();
@@ -106,30 +105,24 @@ public partial class PauseMenu : CanvasLayer
         col.AddThemeConstantOverride("separation", 14);
         pad.AddChild(col);
 
-        var title = MkLabel("PAUSED", 22, UiStyle.TitleText);
-        title.HorizontalAlignment = HorizontalAlignment.Center;
-        col.AddChild(title);
+        col.AddChild(new Label { Text = "PAUSED", ThemeTypeVariation = UiStyle.Title, HorizontalAlignment = HorizontalAlignment.Center });
 
-        _resume = new Button { Text = "RESUME", CustomMinimumSize = new Vector2(0, 34) };
-        _resume.AddThemeFontSizeOverride("font_size", 16);
+        _resume = new Button { Text = "RESUME", ThemeTypeVariation = UiStyle.PrimaryButton };
         _resume.Pressed += Close;
         col.AddChild(_resume);
 
         col.AddChild(new HSeparator());
-        col.AddChild(MkLabel("SETTINGS", 14, UiStyle.Gold));
+        col.AddChild(new Label { Text = "SETTINGS", ThemeTypeVariation = UiStyle.Heading });
 
         var row = new HBoxContainer();
         row.AddThemeConstantOverride("separation", 12);
         col.AddChild(row);
-        var rowLabel = MkLabel("Health & Ruh gauge", 13, UiStyle.BodyText);
-        rowLabel.VerticalAlignment = VerticalAlignment.Center;
-        row.AddChild(rowLabel);
+        row.AddChild(new Label { Text = "Health & Ruh gauge", ThemeTypeVariation = UiStyle.Muted, VerticalAlignment = VerticalAlignment.Center });
 
         var group = new ButtonGroup();
         foreach (GaugePlacement g in System.Enum.GetValues<GaugePlacement>())
         {
-            var b = new Button { Text = PlacementLabel(g), ToggleMode = true, ButtonGroup = group, CustomMinimumSize = new Vector2(0, 30) };
-            b.AddThemeFontSizeOverride("font_size", 13);
+            var b = new Button { Text = PlacementLabel(g), ToggleMode = true, ButtonGroup = group };
             b.Toggled += on =>
             {
                 if (on)
@@ -138,13 +131,5 @@ public partial class PauseMenu : CanvasLayer
             row.AddChild(b);
             _placementButtons[g] = b;
         }
-    }
-
-    private static Label MkLabel(string text, int fontSize, Color col)
-    {
-        var l = new Label { Text = text };
-        l.AddThemeFontSizeOverride("font_size", fontSize);
-        l.AddThemeColorOverride("font_color", col);
-        return l;
     }
 }
