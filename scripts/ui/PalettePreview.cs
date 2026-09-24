@@ -8,7 +8,8 @@ namespace MyGame;
 /// <summary>
 /// Character colour-customisation preview + SCHEME manager (the pre-game main scene). C# port of
 /// <c>scripts/ui/palette_preview.gd</c>. Runs Khalid's `idle` cycle on an adjustable backdrop with a live-recoloured
-/// portrait, a colour picker per body part + per power family, and up to SaveData.MAX_SCHEMES saved schemes you switch,
+/// portrait, a colour picker per body part + per power family + the UI's two colours (frame / highlight, which recolour
+/// every menu and HUD label live), and up to SaveData.MAX_SCHEMES saved schemes you switch,
 /// Save, and Start a run with. BODY recolour uses the material-aware palette LUT (<see cref="PaletteConfig"/>); POWERS
 /// recolour via <see cref="VfxPalette"/>; the portrait follows body picks by hue. Selecting a slot loads + makes it
 /// active; "Save" writes the current picks into the active slot; "Start run" only applies them (Save is the commit).
@@ -38,13 +39,12 @@ public partial class PalettePreview : Control
         { ["red"] = "Power 1", ["gold"] = "Power 2", ["teal"] = "Power 3" };
     private static readonly string[] POWER_ORDER = { "red", "gold", "teal" };
 
-    // --- theme (matches the HUD's dark panel + gold trim) ---
-    private static readonly Color GOLD = new(0.85f, 0.72f, 0.18f);
-    private static readonly Color GOLD_DIM = new(0.55f, 0.47f, 0.16f);
-    private static readonly Color PANEL_BG = new(0.09f, 0.08f, 0.11f, 0.96f);
-    private static readonly Color ROW_BG = new(1, 1, 1, 0.035f);
-    private static readonly Color INK = new(0.90f, 0.88f, 0.82f);
-    private static readonly Color INK_DIM = new(0.62f, 0.60f, 0.56f);
+    // UI colours: the two picks UiStyle derives the whole menu palette from.
+    private static readonly string[] UI_ORDER = { UiStyle.PickFrame, UiStyle.PickAccent };
+    private static readonly Dictionary<string, string> UI_LABELS = new()
+        { [UiStyle.PickFrame] = "Frame", [UiStyle.PickAccent] = "Highlight" };
+    private static readonly Dictionary<string, Color> UI_DEFAULTS = new()
+        { [UiStyle.PickFrame] = UiStyle.DefaultFrame, [UiStyle.PickAccent] = UiStyle.DefaultAccent };
 
     private ShaderMaterial _mat, _portraitMat;
     private ColorRect _backdrop;
@@ -58,6 +58,8 @@ public partial class PalettePreview : Control
     private readonly GDict _powerPicks = new();  // family -> picked Color (missing = family default)
     private readonly Dictionary<string, ColorPickerButton> _bodyPickers = new();
     private readonly Dictionary<string, ColorPickerButton> _powerPickers = new();
+    private readonly GDict _uiPicks = new();     // UiStyle.PickFrame/PickAccent -> picked Color (always both set)
+    private readonly Dictionary<string, ColorPickerButton> _uiPickers = new();
     private readonly List<Button> _slotButtons = new();
     private Button _saveButton;
     private int _activeSlot = -1;  // -1 == the built-in DEFAULT look; 0..MAX-1 == a saved slot
@@ -65,6 +67,7 @@ public partial class PalettePreview : Control
     public override void _Ready()
     {
         SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        Theme = UiStyle.Theme;
         Input.MouseMode = Input.MouseModeEnum.Visible; // pre-game colour pickers are mouse-driven (and reset it if we came from a run)
 
         // Open on the active scheme (applies on startup) -- may be the DEFAULT look (-1).
@@ -92,15 +95,12 @@ public partial class PalettePreview : Control
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             CustomMinimumSize = new Vector2(240, 240),
         };
-        _portraitFrame = FramedBox();
+        var portraitPad = FramedBox(out _portraitFrame);
         var pv = new VBoxContainer();
         pv.AddThemeConstantOverride("separation", 6);
         pv.AddChild(_portrait);
-        var cap = new Label { Text = "PORTRAIT", HorizontalAlignment = HorizontalAlignment.Center };
-        cap.AddThemeFontSizeOverride("font_size", 12);
-        cap.AddThemeColorOverride("font_color", INK_DIM);
-        pv.AddChild(cap);
-        _portraitFrame.AddChild(pv);
+        pv.AddChild(new Label { Text = "PORTRAIT", ThemeTypeVariation = UiStyle.Muted, HorizontalAlignment = HorizontalAlignment.Center });
+        portraitPad.AddChild(pv);
         AddChild(_portraitFrame);
 
         BuildControls();
@@ -145,6 +145,10 @@ public partial class PalettePreview : Control
         var savedPower = scheme.ContainsKey("power") ? scheme["power"].As<GDict>() : new GDict();
         foreach (var fam in POWER_ORDER)
             _powerPicks[fam] = savedPower.ContainsKey(fam) ? savedPower[fam] : POWER_FAMILIES[fam];
+        _uiPicks.Clear();
+        var savedUi = scheme.ContainsKey("ui") ? scheme["ui"].As<GDict>() : new GDict(); // older saves have no "ui"
+        foreach (var k in UI_ORDER)
+            _uiPicks[k] = savedUi.ContainsKey(k) ? savedUi[k] : UI_DEFAULTS[k];
     }
 
     /// <summary>Push the current working picks to every live view.</summary>
@@ -156,6 +160,8 @@ public partial class PalettePreview : Control
             picker.Color = _bodyPicks.ContainsKey(m) ? _bodyPicks[m].As<Color>() : new Color(PaletteConfig.DEFAULT[m][1]);
         foreach (var (fam, picker) in _powerPickers)
             picker.Color = _powerPicks[fam].As<Color>();
+        foreach (var (k, picker) in _uiPickers)
+            picker.Color = _uiPicks[k].As<Color>();
         PushStatics();
         RebuildSample();
     }
@@ -164,7 +170,12 @@ public partial class PalettePreview : Control
     {
         PaletteConfig.SetPicks(_bodyPicks);
         VfxPalette.SetPicks(_powerPicks);
+        ApplyUiPicks();
     }
+
+    /// <summary>Recolour the whole UI (this screen live, plus every menu/HUD the run builds) from the UI picks.</summary>
+    private void ApplyUiPicks() =>
+        UiStyle.SetColors(_uiPicks[UiStyle.PickFrame].As<Color>(), _uiPicks[UiStyle.PickAccent].As<Color>());
 
     private void ApplyBodyDst() =>
         _mat.SetShaderParameter("dst", PaletteConfig.ToLinearVec3(PaletteConfig.BuildTargets(_bodyPicks)));
@@ -174,7 +185,6 @@ public partial class PalettePreview : Control
     private void BuildControls()
     {
         var panel = new PanelContainer { Position = new Vector2(32, 32) };
-        panel.AddThemeStyleboxOverride("panel", PanelBox(PANEL_BG, GOLD, 2, 12));
         AddChild(panel);
 
         var pad = new MarginContainer();
@@ -190,14 +200,10 @@ public partial class PalettePreview : Control
         _scroll.AddChild(col);
         _col = col;
 
-        var title = new Label { Text = "KHALID" };
-        title.AddThemeFontSizeOverride("font_size", 30);
-        title.AddThemeColorOverride("font_color", GOLD);
+        var title = new Label { Text = "KHALID", ThemeTypeVariation = UiStyle.Title };
+        title.AddThemeFontSizeOverride("font_size", UiStyle.SizeTitle * 2); // the screen's name — larger than a menu title
         col.AddChild(title);
-        var sub = new Label { Text = "COLOUR SCHEMES" };
-        sub.AddThemeFontSizeOverride("font_size", 12);
-        sub.AddThemeColorOverride("font_color", INK_DIM);
-        col.AddChild(sub);
+        col.AddChild(new Label { Text = "COLOUR SCHEMES", ThemeTypeVariation = UiStyle.Muted });
 
         // Scheme selector: radio toggles. "Default" (always available) + the 5 saved slots.
         col.AddChild(Header("SCHEME"));
@@ -206,14 +212,12 @@ public partial class PalettePreview : Control
         var group = new ButtonGroup();
         var def = new Button { ToggleMode = true, ButtonGroup = group, Text = "Default", CustomMinimumSize = new Vector2(66, 34) };
         def.ButtonPressed = _activeSlot == -1;
-        StyleSlot(def);
         def.Pressed += () => OnSlot(-1);
         slotRow.AddChild(def);
         for (int i = 0; i < SaveData.MAX_SCHEMES; i++)
         {
             var b = new Button { ToggleMode = true, ButtonGroup = group, CustomMinimumSize = new Vector2(38, 34) };
             b.ButtonPressed = i == _activeSlot;
-            StyleSlot(b);
             int idx = i;
             b.Pressed += () => OnSlot(idx);
             _slotButtons.Add(b);
@@ -236,6 +240,13 @@ public partial class PalettePreview : Control
             col.AddChild(SwatchRow(POWER_LABELS[fam], _powerPicks[fam].As<Color>(), c => OnPowerColour(c, f), _powerPickers, fam));
         }
 
+        col.AddChild(Header("UI"));
+        foreach (var k in UI_ORDER)
+        {
+            string key = k;
+            col.AddChild(SwatchRow(UI_LABELS[k], _uiPicks[k].As<Color>(), c => OnUiColour(c, key), _uiPickers, k));
+        }
+
         col.AddChild(Header("BACKDROP"));
         var bgPick = new ColorPickerButton { Color = _backdrop.Color };
         bgPick.ColorChanged += c => _backdrop.Color = c;
@@ -245,13 +256,15 @@ public partial class PalettePreview : Control
         var buttons = new HBoxContainer();
         buttons.AddThemeConstantOverride("separation", 10);
         var save = new Button { Text = "Save scheme", CustomMinimumSize = new Vector2(150, 42), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        StyleButton(save, false);
         save.Pressed += OnSave;
         save.Disabled = _activeSlot < 0;  // can't overwrite the built-in Default -- pick a slot to save
         _saveButton = save;
         buttons.AddChild(save);
-        var start = new Button { Text = "Start run  ▶", CustomMinimumSize = new Vector2(150, 42), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        StyleButton(start, true);
+        var start = new Button
+        {
+            Text = "Start run →", ThemeTypeVariation = UiStyle.PrimaryButton,
+            CustomMinimumSize = new Vector2(150, 42), SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
         start.Pressed += OnStart;
         buttons.AddChild(start);
         col.AddChild(buttons);
@@ -260,13 +273,13 @@ public partial class PalettePreview : Control
     private Color BodyPickFor(string matName) =>
         _bodyPicks.ContainsKey(matName) ? _bodyPicks[matName].As<Color>() : new Color(PaletteConfig.DEFAULT[matName][1]);
 
-    /// <summary>One labelled row in a subtle rounded strip. If `swatch` is given it's used; else a ColorPickerButton
+    /// <summary>One labelled row in a subtle strip. If `swatch` is given it's used; else a ColorPickerButton
     /// is made, seeded to `col`, wired to `cb`, and stored in `store[key]`.</summary>
     private PanelContainer SwatchRow(string labelText, Color col, Action<Color> cb,
         Dictionary<string, ColorPickerButton> store, string key, Control swatch = null)
     {
         var strip = new PanelContainer();
-        strip.AddThemeStyleboxOverride("panel", PanelBox(ROW_BG, new Color(0, 0, 0, 0), 0, 6));
+        strip.ThemeTypeVariation = UiStyle.RowPanel;
         var pad = new MarginContainer();
         pad.AddThemeConstantOverride("margin_left", 8);
         pad.AddThemeConstantOverride("margin_right", 6);
@@ -275,9 +288,7 @@ public partial class PalettePreview : Control
         strip.AddChild(pad);
         var row = new HBoxContainer();
         pad.AddChild(row);
-        var lbl = new Label { Text = labelText, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
-        lbl.AddThemeColorOverride("font_color", INK);
-        row.AddChild(lbl);
+        row.AddChild(new Label { Text = labelText, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, VerticalAlignment = VerticalAlignment.Center });
         Control pick = swatch;
         if (pick == null)
         {
@@ -293,25 +304,15 @@ public partial class PalettePreview : Control
 
     // --- styling helpers ----------------------------------------------------
 
-    private static StyleBoxFlat PanelBox(Color bg, Color border, int width, int radius)
+    /// <summary>A themed panel (so it follows UI recolours live) with a 10px inner pad; returns the pad to fill.</summary>
+    private static MarginContainer FramedBox(out PanelContainer panel)
     {
-        var sb = new StyleBoxFlat { BgColor = bg };
-        sb.SetCornerRadiusAll(radius);
-        if (width > 0)
-        {
-            sb.SetBorderWidthAll(width);
-            sb.BorderColor = border;
-        }
-        return sb;
-    }
-
-    private PanelContainer FramedBox()
-    {
-        var p = new PanelContainer();
-        var sb = PanelBox(PANEL_BG, GOLD, 2, 12);
-        sb.SetContentMarginAll(10);
-        p.AddThemeStyleboxOverride("panel", sb);
-        return p;
+        panel = new PanelContainer();
+        var pad = new MarginContainer();
+        foreach (var m in new[] { "margin_left", "margin_right", "margin_top", "margin_bottom" })
+            pad.AddThemeConstantOverride(m, 10);
+        panel.AddChild(pad);
+        return pad;
     }
 
     private VBoxContainer Header(string text)
@@ -320,49 +321,12 @@ public partial class PalettePreview : Control
         box.AddThemeConstantOverride("separation", 2);
         var top = new Control { CustomMinimumSize = new Vector2(0, 6) };
         box.AddChild(top);
-        var lbl = new Label { Text = text };
-        lbl.AddThemeFontSizeOverride("font_size", 13);
-        lbl.AddThemeColorOverride("font_color", GOLD);
-        box.AddChild(lbl);
-        var rule = new PanelContainer { CustomMinimumSize = new Vector2(0, 2) };
-        rule.AddThemeStyleboxOverride("panel", PanelBox(GOLD_DIM, new Color(0, 0, 0, 0), 0, 1));
-        box.AddChild(rule);
+        box.AddChild(new Label { Text = text, ThemeTypeVariation = UiStyle.Heading });
+        box.AddChild(new HSeparator());
         return box;
     }
 
     private static Control Spacer(int h) => new() { CustomMinimumSize = new Vector2(0, h) };
-
-    private void StyleSlot(Button b)
-    {
-        b.AddThemeFontSizeOverride("font_size", 15);
-        b.AddThemeColorOverride("font_color", INK_DIM);
-        b.AddThemeColorOverride("font_pressed_color", Colors.Black);
-        b.AddThemeColorOverride("font_hover_color", INK);
-        b.AddThemeStyleboxOverride("normal", PanelBox(new Color(1, 1, 1, 0.05f), GOLD_DIM, 1, 7));
-        b.AddThemeStyleboxOverride("hover", PanelBox(new Color(1, 1, 1, 0.10f), GOLD, 1, 7));
-        b.AddThemeStyleboxOverride("pressed", PanelBox(GOLD, GOLD, 1, 7));
-        b.AddThemeStyleboxOverride("focus", PanelBox(GOLD, GOLD, 1, 7));
-    }
-
-    private void StyleButton(Button b, bool primary)
-    {
-        b.AddThemeFontSizeOverride("font_size", 16);
-        Color baseCol = primary ? GOLD : new Color(0.16f, 0.15f, 0.18f);
-        Color hov = primary ? new Color(1.0f, 0.86f, 0.28f) : new Color(0.22f, 0.21f, 0.25f);
-        b.AddThemeColorOverride("font_color", primary ? Colors.Black : INK);
-        b.AddThemeColorOverride("font_hover_color", primary ? Colors.Black : GOLD);
-        b.AddThemeStyleboxOverride("normal", BtnBox(baseCol, primary));
-        b.AddThemeStyleboxOverride("hover", BtnBox(hov, primary));
-        b.AddThemeStyleboxOverride("pressed", BtnBox(baseCol.Darkened(0.15f), primary));
-        b.AddThemeStyleboxOverride("focus", BtnBox(baseCol, primary));
-    }
-
-    private StyleBoxFlat BtnBox(Color bg, bool primary)
-    {
-        var sb = PanelBox(bg, primary ? GOLD : GOLD_DIM, primary ? 0 : 1, 8);
-        sb.SetContentMarginAll(8);
-        return sb;
-    }
 
     private void RefreshSlotLabels()
     {
@@ -378,6 +342,12 @@ public partial class PalettePreview : Control
         ApplyBodyDst();
         PaletteConfig.ApplyPortraitHues(_portraitMat, _bodyPicks);
         PaletteConfig.SetPicks(_bodyPicks);
+    }
+
+    private void OnUiColour(Color colour, string key)
+    {
+        _uiPicks[key] = colour;
+        ApplyUiPicks();
     }
 
     private void OnPowerColour(Color colour, string fam)
@@ -403,7 +373,7 @@ public partial class PalettePreview : Control
     {
         if (_activeSlot < 0)
             return;
-        SaveData.SaveScheme(_activeSlot, _bodyPicks, _powerPicks);
+        SaveData.SaveScheme(_activeSlot, _bodyPicks, _powerPicks, _uiPicks);
         RefreshSlotLabels();
     }
 

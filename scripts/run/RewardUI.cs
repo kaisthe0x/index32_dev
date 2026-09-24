@@ -27,11 +27,11 @@ public partial class RewardUI : CanvasLayer
         GetTree().Paused = true;
         Input.MouseMode = Input.MouseModeEnum.Visible; // need the cursor to click a card
 
-        var dim = new ColorRect { Color = new Color(0, 0, 0, 0.62f), MouseFilter = Control.MouseFilterEnum.Stop };
+        var dim = new ColorRect { Color = UiStyle.Backdrop, MouseFilter = Control.MouseFilterEnum.Stop };
         dim.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         AddChild(dim);
 
-        var center = new CenterContainer();
+        var center = new CenterContainer { Theme = UiStyle.Theme };
         center.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         AddChild(center);
 
@@ -39,13 +39,7 @@ public partial class RewardUI : CanvasLayer
         col.AddThemeConstantOverride("separation", 16);
         center.AddChild(col);
 
-        var titleLabel = new Label
-        {
-            Text = title,
-            HorizontalAlignment = HorizontalAlignment.Center,
-        };
-        titleLabel.AddThemeFontSizeOverride("font_size", 22);
-        col.AddChild(titleLabel);
+        col.AddChild(new Label { Text = title, ThemeTypeVariation = UiStyle.Title, HorizontalAlignment = HorizontalAlignment.Center });
 
         var row = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
         row.AddThemeConstantOverride("separation", 18);
@@ -69,16 +63,10 @@ public partial class RewardUI : CanvasLayer
                 var tier = (Tier)r["tier"].As<int>();
                 Color tcol = Tiers.ColorOf(tier);
                 var badge = new Label { Text = Tiers.Label(tier).ToUpper(), Position = new Vector2(8, 6) };
-                badge.AddThemeFontSizeOverride("font_size", 12);
                 badge.AddThemeColorOverride("font_color", tcol);
-                badge.AddThemeColorOverride("font_outline_color", Colors.Black);
-                badge.AddThemeConstantOverride("outline_size", 3);
                 card.AddChild(badge);
-                var sb = new StyleBoxFlat { BgColor = new Color(0.12f, 0.12f, 0.15f, 0.96f), BorderColor = tcol };
-                sb.SetBorderWidthAll(2);
-                sb.SetCornerRadiusAll(4);
-                card.AddThemeStyleboxOverride("normal", sb);
-                card.AddThemeStyleboxOverride("hover", sb);
+                card.AddThemeStyleboxOverride("normal", UiStyle.Box(UiStyle.RaisedBg, tcol, 2));
+                card.AddThemeStyleboxOverride("hover", UiStyle.Box(UiStyle.RaisedBg.Lightened(0.08f), tcol, 2));
             }
             first ??= card;
         }
