@@ -55,6 +55,8 @@ public partial class HUD : CanvasLayer
 	private Label _leftLabel;   // "n LEFT" — shown only once few quota enemies remain
 	private Label _nextLabel;   // "NEXT ROUND IN n" — shown only during a breather
 	private Label _bestLabel;
+	private int _shownRound = 0; // the round whose intro has played (a higher one plays the intro again)
+	private Label _roundIntro;   // the big "ROUND n" flying from screen centre into _roundLabel (only while animating)
 	private VBoxContainer _buffPanel;
 
 	private static readonly Vector2 FigRowPos = new(16, 14);
@@ -63,6 +65,11 @@ public partial class HUD : CanvasLayer
 	// it from there in pixels (+x right, +y down).
 	private static readonly Vector2 RoundBlockAnchor = new(0.5f, 0.0f);
 	private static readonly Vector2 RoundBlockOffset = new(0.0f, 30.0f);
+	// Round intro: the big "ROUND n" fades in at screen centre, holds, then flies up + shrinks into the ROUND label.
+	private const float IntroFadeIn = 0.25f;
+	private const float IntroHold = 1.0f;
+	private const float IntroFly = 0.7f;
+	private const float IntroGlow = 1.8f;   // HDR multiplier on the accent while it's big (blooms), settling to 1
 	private const int PipGap = 1;              // pip pixels between pips
 	private const int RowGap = 1;              // pip pixels between the star and orb rows
 	private const float GaugeScreenY = 0.9f;   // Screen placement: gauge top, as a fraction of screen height
@@ -289,11 +296,60 @@ public partial class HUD : CanvasLayer
 		if (_roundLabel == null)
 			return;
 		_roundLabel.Text = round > 0 ? $"ROUND {round}" : "";
+		if (round > _shownRound)
+			PlayRoundIntro(round);
+		_shownRound = round; // a new run resets to 0, so round 1 plays again
 		_leftLabel.Text = $"{left} LEFT";
 		_leftLabel.Visible = left > 0;
 		_nextLabel.Text = $"NEXT ROUND IN {countdown}";
 		_nextLabel.Visible = countdown > 0;
 		_bestLabel.Text = best > 0 ? $"BEST {best}" : "";
+	}
+
+	/// <summary>The round-start intro: a big "ROUND n" (the title font at exactly 2x the label's size) fades in at screen
+	/// centre, holds, then glides up and shrinks to 0.5x onto <see cref="_roundLabel"/>'s rect — so it lands pixel-
+	/// aligned wherever the round block is placed — while its glow settles to the label's colour, then hands over to
+	/// the real label (kept invisible, not hidden, meanwhile so the block's layout doesn't jump).</summary>
+	private async void PlayRoundIntro(int round)
+	{
+		_roundIntro?.QueueFree();
+		var intro = new Label
+		{
+			Text = $"ROUND {round}",
+			ThemeTypeVariation = UiStyle.HudTitle,
+			HorizontalAlignment = HorizontalAlignment.Center,
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+			Modulate = new Color(1, 1, 1, 0),
+		};
+		intro.AddThemeFontSizeOverride("font_size", UiStyle.SizeTitle * 2);
+		Color glow = new(UiStyle.Accent.R * IntroGlow, UiStyle.Accent.G * IntroGlow, UiStyle.Accent.B * IntroGlow);
+		intro.AddThemeColorOverride("font_color", glow);
+		_roundIntro = intro;
+		_root.AddChild(intro);
+		_roundLabel.Modulate = new Color(1, 1, 1, 0);
+
+		await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame); // let the round block lay out the new text
+		if (_roundIntro != intro)
+			return; // a newer intro replaced this one
+
+		const float scale = 0.5f; // SizeTitle / (SizeTitle * 2)
+		intro.Size = _roundLabel.Size / scale;
+		intro.Position = (_root.Size - intro.Size) / 2.0f;
+		var t = intro.CreateTween();
+		t.TweenProperty(intro, "modulate:a", 1.0f, IntroFadeIn);
+		t.TweenInterval(IntroHold);
+		t.SetParallel();
+		t.TweenProperty(intro, "global_position", _roundLabel.GlobalPosition, IntroFly).SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.InOut);
+		t.TweenProperty(intro, "scale", new Vector2(scale, scale), IntroFly).SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.InOut);
+		t.TweenProperty(intro, "theme_override_colors/font_color", UiStyle.Accent, IntroFly);
+		t.SetParallel(false);
+		t.TweenCallback(Callable.From(() =>
+		{
+			_roundLabel.Modulate = Colors.White;
+			intro.QueueFree();
+			if (_roundIntro == intro)
+				_roundIntro = null;
+		}));
 	}
 
 	/// <summary>Set the spendable fada_fig balance shown beside the ring (pushed by <c>Player</c>); the ring pops on a gain.</summary>

@@ -37,11 +37,11 @@ Slopes / one-way platforms: paint the tiles, then hand-tweak those colliders in 
 generator only bakes full boxes). See [`docs/painting-levels.md`](../../docs/painting-levels.md).
 
 **Enemy spawning is ROUND-driven + PROXIMITY-based** (`TickRound`, tuning in `configs/Rounds.cs`). Round `r` has a
-hidden **quota** `Q(r) = QuotaBase + QuotaLinear·r + QuotaQuad·r²` (6, 9, 13, … 49 at r10). While `Fighting`, one enemy
+hidden **quota** `Q(r) = QuotaBase + QuotaLinear·r + QuotaQuad·r²` (11, 15, 20, … 73 at r10). While `Fighting`, one enemy
 spawns every `SpawnInterval(r)` (shortens per round, floored at `IntervalMin`) as long as fewer than the concurrent cap
 `C(r)` (`CapBase`, +1 every `CapGrowthRounds`, max `CapMax`) quota enemies are alive; once `Q(r)` have spawned,
 spawning **stops**, and the round **clears** on the last kill (`OnEnemyDied` → `ClearRound`) → a `BreatherTime` pause
-(`RoundPhase.Breather`) → `StartRound(r+1)` with a **ROUND n** banner. The roster is drawn uniformly from
+(`RoundPhase.Breather`) → `StartRound(r+1)`; the HUD plays the **ROUND n** intro (big at screen centre, then it flies up into the round block). The roster is drawn uniformly from
 `RunManager.SpawnPool` (the grunts + Ein + Nasen; Wardens are for the future Warden rounds). **Only non-optional enemies
 are quota enemies** — the sleeper Nasen (`optional`) spawns on its own cap but never counts or blocks a clear.
 **Per-type caps:** a kit with a `spawn_cap` (Nasen = 1) can't have more than that many alive at once — `PickSpawnKit`
@@ -50,7 +50,10 @@ Each enemy is placed by
 `SpawnPosition(kit)` relative to the player: **flyers** (`air`) overhead within `FlyerHeight*`/`FlyerXSpread`
 (headroom-checked so they don't spawn inside a ceiling); **stationary** (`movement == Stationary`, e.g. Nasen)
 far off on a ground tile (`StationarySpawn*`); **grunts** near on a ground tile but within a fair band
-(`GroundSpawnMin..Max`) — a **min distance so an enemy never spawns on top of the player**. Ground tiles come
+(`GroundSpawnMin..Max`) — a **min distance so an enemy never spawns on top of the player**. **Grunts and flyers
+arrive BEHIND Khalid** (opposite `Player.facing`), so a new enemy never lands in the swing he's already making and
+he has to turn and move; if there's no ground tile behind him in the band (back to the arena edge or a pit),
+`PickGroundSurface` falls back to either side. Nasen (stationary, far) ignores facing. Ground tiles come
 from `LevelLayout.GroundSurfaces()` (exposed tops of the Terrain tilemap — a solid cell with an empty cell
 above). The distance bands are tunable consts in `RunManager`; the round curves live in `Rounds`. (The old
 `spawn_ground`/`spawn_air` layout markers are unused — delete them from layouts.)
@@ -122,8 +125,8 @@ Related, but not in this folder:
 - **Cap a specific enemy type** → add `{ "spawn_cap", N }` to its kit in `EnemyKits` (e.g. Nasen = 1). The cap grows
   +1 every `Rounds.KitCapGrowthRounds` rounds. Kits with no `spawn_cap` are unlimited.
 - **Change the buff-menu cadence** → `RunManager` `FirstMilestone` / `MilestoneGapBase` / `MilestoneGapGrowth`
-  (the milestone curve) + `BuffMenuChoices`. `LevelUpDelay` = the "LEVEL UP" banner hold before the menu opens (both
-  banners share `RunManager.ShowBanner`; `RoundBannerHold` = how long "ROUND n" stays). Mild
+  (the milestone curve) + `BuffMenuChoices`. `LevelUpDelay` = the "LEVEL UP" banner hold before the menu opens
+  (`RunManager.ShowBanner`). The ROUND n intro's timing is `IntroFadeIn` / `IntroHold` / `IntroFly` in `HUD.cs`. Mild
   pool = `BuffCatalog.MildIds()`; tier skew = `RollMildTier`. Buff sfx: `buff_levelup` / `buff_select` in `SfxWorld`
   (PLACEHOLDER cues — repoint to real files when ready). The HUD "next buff" bar is `HUD.SetBuffProgress`.
 - **Change the mystery box** → `MysteryBox` consts: `Cost` (figs per pull), `DudChanceBase` (~0.97), `DudChanceGrowth`

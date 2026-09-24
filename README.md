@@ -125,7 +125,7 @@ you **pick an attack** (locked for the run) from an **inventory-style grid of we
 click an icon to see its name + stats (type/damage/knockback/stun/reach/cooldown/style, from the `Action`'s `Hit`
 data) + description in the details pane, then Confirm. You drop into
 a low, mostly-horizontal arena and fight **endless rounds**: each sends a hidden quota of enemies (a mixed roster,
-proximity-spawned near you, capped so it never floods), clears when they're all dead, and the next is bigger. You **start each
+proximity-spawned near you — behind you, so you have to turn — capped so it never floods), clears when they're all dead, and the next is bigger. You **start each
 run with 3 Ruh charges** — the surge meter, shown in charges (100 each), no decay — and refill it by
 **landing hits** (~5 hits = 1 charge; kills don't count, and a special's own hits don't self-pay).
 **Specials are now free and unlimited** (only a tiny anti-spam lag). Ruh instead fuels the **Aegis
@@ -1866,7 +1866,9 @@ instead of a fixed fps that desyncs the moment speed changes. `run_anim_speed`
 `scenes/hud.tscn` + `scripts/HUD.cs` — health + Ruh in a **gauge** (bottom-centre, or following
 Khalid — a player setting), the **Esc pause menu**, the **fig ring** (top-left), a top-centre **round block**
 (`ROUND n` in the scanline font, `n LEFT` once few remain, `NEXT ROUND IN n` counting down each breather, `BEST m`;
-pushed by RunManager via `HUD.SetRound`, placed by the `RoundBlockAnchor` / `RoundBlockOffset` consts in `HUD.cs`), the top-right
+pushed by RunManager via `HUD.SetRound`, placed by the `RoundBlockAnchor` / `RoundBlockOffset` consts in `HUD.cs`; each
+new round's number first appears big and glowing at screen centre, then flies up and shrinks into place —
+`HUD.PlayRoundIntro`, timing `IntroFadeIn` / `IntroHold` / `IntroFly`), the top-right
 active-buff list, off-screen enemy arrows and the low-HP screen effect. No portrait or name — those
 belong on the pause/character screens.
 

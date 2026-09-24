@@ -523,6 +523,9 @@ public partial class Player : Combatant
 
     public int get_state() => (int)_state;
     public bool is_spawning() => _state == State.SPAWN;
+
+    /// <summary>Which way Khalid faces: +1 right, -1 left (RunManager spawns grunts on the other side).</summary>
+    public int facing => _facing;
     public Action current_attack() => _currentAttack;
     public Action current_special() => _currentSpecial;
 

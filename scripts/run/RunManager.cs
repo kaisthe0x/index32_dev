@@ -85,7 +85,7 @@ public partial class RunManager : Node2D
     private readonly System.Collections.Generic.Dictionary<string, Buff> _menuBuffs = new(); // id → the exact offered buff (tiered)
     private string _menuSpecialId = "";           // the special-swap offered in the current menu, if any (else "")
     private readonly System.Collections.Generic.Dictionary<Enemy, float> _offscreen = new(); // living enemy → seconds off-screen (anti-camp cull)
-    private CanvasLayer _banner;                  // the transient centred banner ("ROUND n" / "LEVEL UP!")
+    private CanvasLayer _banner;                  // the transient centred "LEVEL UP!" banner
     private Node2D _content;
     private ColorRect _bg;
     private Sprite2D _bgSky;
@@ -290,8 +290,7 @@ public partial class RunManager : Node2D
         _killed = 0;
         _phase = RoundPhase.Fighting;
         _spawnAccum = SpawnInterval(round); // first enemy arrives immediately
-        ShowBanner($"ROUND {round}", RoundBannerHold);
-        PushRoundHud();
+        PushRoundHud(); // the HUD plays the ROUND n intro for a new round
     }
 
     /// <summary>The last quota enemy of the round died: start the breather toward the next round.</summary>
@@ -378,21 +377,23 @@ public partial class RunManager : Node2D
     private const float FlyerXSpread = 90.0f;
 
     /// <summary>Where to drop this enemy relative to the player: flyers overhead (with headroom), stationary far on a
-    /// ground tile, grunts near on a ground tile — always at least the min band away. <paramref name="fallback"/> is
-    /// the authored spec position, used only if the layout has no usable ground tiles.</summary>
+    /// ground tile, grunts near on a ground tile — always at least the min band away. Flyers and grunts arrive BEHIND
+    /// Khalid (opposite his facing), so a new enemy never lands in the swing he's already making — he has to turn and
+    /// move. <paramref name="fallback"/> is the authored spec position, used only if the layout has no usable ground.</summary>
     private Vector2 SpawnPosition(GDict kit, Vector2 fallback)
     {
         Vector2 player = _player?.GlobalPosition ?? Vector2.Zero;
+        int behind = -(_player?.facing ?? 1);
         if (kit.ContainsKey("air") && kit["air"].AsBool())
         {
-            float x = player.X + (float)GD.RandRange(-FlyerXSpread, FlyerXSpread);
+            float x = player.X + behind * (float)GD.RandRange(0.0f, FlyerXSpread);
             float up = (float)GD.RandRange(FlyerHeightMin, Mathf.Max(FlyerHeightMin, HeadroomAbove(player)));
             return new Vector2(x, player.Y - up);
         }
         bool stationary = kit.ContainsKey("movement") && kit["movement"].AsInt32() == (int)EnemyMovement.Stationary;
         float min = stationary ? StationarySpawnMin : GroundSpawnMin;
         float max = stationary ? StationarySpawnMax : GroundSpawnMax;
-        return PickGroundSurface(player.X, min, max) ?? fallback;
+        return PickGroundSurface(player.X, min, max, stationary ? 0 : behind) ?? fallback;
     }
 
     /// <summary>Clear vertical space above <paramref name="from"/> up to <see cref="FlyerHeightMax"/> — so a flyer isn't
@@ -411,12 +412,26 @@ public partial class RunManager : Node2D
 
     /// <summary>A random exposed ground-tile position whose horizontal distance from <paramref name="fromX"/> is in
     /// [min,max]; if none fall in that band, the nearest tile that is still ≥ min away (so it's never adjacent to the
-    /// player); null only if the layout has no ground tiles at all.</summary>
-    private Vector2? PickGroundSurface(float fromX, float min, float max)
+    /// player); null only if the layout has no ground tiles at all. A nonzero <paramref name="side"/> (+1 right / -1
+    /// left of <paramref name="fromX"/>) restricts the band to that side; if that side has no tile in the band (backed
+    /// against the arena edge or a pit), it falls back to either side.</summary>
+    private Vector2? PickGroundSurface(float fromX, float min, float max, int side = 0)
     {
         var surfaces = _layout?.GroundSurfaces();
         if (surfaces == null || surfaces.Count == 0)
             return null;
+        if (side != 0)
+        {
+            var sideBand = new System.Collections.Generic.List<Vector2>();
+            foreach (Vector2 s in surfaces)
+            {
+                float dx = (s.X - fromX) * side; // distance toward the requested side
+                if (dx >= min && dx <= max)
+                    sideBand.Add(s);
+            }
+            if (sideBand.Count > 0)
+                return sideBand[(int)(GD.Randi() % (uint)sideBand.Count)];
+        }
         var band = new System.Collections.Generic.List<Vector2>();
         Vector2? nearestFair = null;
         float nearestFairScore = float.MaxValue;
@@ -628,7 +643,7 @@ public partial class RunManager : Node2D
         _milestoneGap += MilestoneGapGrowth;
         PushBuffProgress();                           // bar resets toward the new milestone (visible behind the banner)
         GetTree().Paused = true;
-        ShowBanner("LEVEL UP!", 0.0f);
+        ShowBanner("LEVEL UP!");
         _sfx.play("buff_levelup");                    // PLACEHOLDER cue
         GetTree().CreateTimer(LevelUpDelay, true).Timeout += () =>
         {
@@ -645,20 +660,16 @@ public partial class RunManager : Node2D
         GetNodeOrNull<HUD>("/root/HUD")?.SetBuffProgress(_player.fada_lifetime - _prevMilestone, _nextMilestone - _prevMilestone);
     }
 
-    private const float RoundBannerHold = 1.6f; // seconds the "ROUND n" banner stays before fading
-    private const float BannerFade = 0.4f;
-
     /// <summary>A centred banner (own CanvasLayer, ProcessMode.Always so it animates while the game is paused) in the
-    /// scanline title font, glowing in the UI accent: pops in; if <paramref name="hold"/> &gt; 0 it fades out and frees
-    /// itself after that many seconds, else it stays until <see cref="HideBanner"/>. Replaces any banner already up.</summary>
-    private void ShowBanner(string text, float hold)
+    /// scanline title font, glowing in the UI accent; pops in and stays until <see cref="HideBanner"/>. Replaces any
+    /// banner already up.</summary>
+    private void ShowBanner(string text)
     {
         HideBanner();
-        var banner = new CanvasLayer { Layer = 60, ProcessMode = ProcessModeEnum.Always };
-        _banner = banner;
+        _banner = new CanvasLayer { Layer = 60, ProcessMode = ProcessModeEnum.Always };
         var center = new CenterContainer { Theme = UiStyle.Theme };
         center.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-        banner.AddChild(center);
+        _banner.AddChild(center);
         var label = new Label { Text = text, ThemeTypeVariation = UiStyle.Title, HorizontalAlignment = HorizontalAlignment.Center };
         label.AddThemeFontSizeOverride("font_size", UiStyle.SizeBanner);
         label.AddThemeColorOverride("font_color", new Color(UiStyle.Accent.R * 1.8f, UiStyle.Accent.G * 1.8f, UiStyle.Accent.B * 1.8f)); // HDR accent, blooms
@@ -667,19 +678,9 @@ public partial class RunManager : Node2D
         center.AddChild(label);
         label.Scale = new Vector2(0.6f, 0.6f);
         label.Resized += () => label.PivotOffset = label.Size / 2.0f; // pop from its centre
-        var t = banner.CreateTween(); // animates even while paused (banner is Always)
-        t.TweenProperty(label, "scale", Vector2.One, 0.28f).SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
-        if (hold > 0.0f)
-        {
-            t.TweenInterval(hold);
-            t.TweenProperty(label, "modulate:a", 0.0f, BannerFade);
-            t.TweenCallback(Callable.From(() =>
-            {
-                if (_banner == banner)
-                    HideBanner(); // only if a newer banner hasn't replaced it
-            }));
-        }
-        AddChild(banner);
+        _banner.CreateTween().TweenProperty(label, "scale", Vector2.One, 0.28f)
+            .SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out); // pops even while paused (banner is Always)
+        AddChild(_banner);
     }
 
     private void HideBanner()

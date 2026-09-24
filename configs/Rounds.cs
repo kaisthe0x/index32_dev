@@ -9,7 +9,7 @@ namespace MyGame;
 public static class Rounds
 {
     // Quota Q(r) = QuotaBase + QuotaLinear·r + QuotaQuad·r² (rounded) — ~quadratic like CoD's count curve.
-    // r1 = 6, r5 = 20, r10 = 49, r20 = 144.
+    // r1 = 11, r5 = 32, r10 = 73, r20 = 208.
     public const float QuotaBase = 8.0f;
     public const float QuotaLinear = 3.0f;
     public const float QuotaQuad = 0.35f;
