@@ -5,7 +5,8 @@ namespace MyGame;
 /// <summary>
 /// The player HUD. Health stars + Ruh orbs sit in the <see cref="_gauge"/> — fixed at bottom-centre, or following under
 /// Khalid's feet, per the player's <see cref="GaugePlacement"/> setting (dim at rest, bright on any change or at low
-/// HP). Also: the fada_fig ring (next-buff progress + spendable count, top-left), a WAVES/BEST line, the active-buff
+/// HP). Also: the fada_fig ring (next-buff progress + spendable count, top-left), the ROUND / n LEFT / BEST block (top
+/// centre, pushed by RunManager), the active-buff
 /// list, off-screen enemy arrows, the low-HP effect, and the Esc <see cref="PauseMenu"/> (where that setting lives).
 /// An autoload, so it exists in every scene; binds to whatever <see cref="Player"/> enters the tree and hides when
 /// there's none. Built entirely in code.
@@ -50,10 +51,25 @@ public partial class HUD : CanvasLayer
 	private FigRing _figRing;
 	private Label _figLabel;
 	private int _figCount = 0;
-	private Label _wavesLabel;
+	private Label _roundLabel;
+	private Label _leftLabel;   // "n LEFT" — shown only once few quota enemies remain
+	private Label _nextLabel;   // "NEXT ROUND IN n" — shown only during a breather
+	private Label _bestLabel;
+	private int _shownRound = 0; // the round whose intro has played (a higher one plays the intro again)
+	private Label _roundIntro;   // the big "ROUND n" flying from screen centre into _roundLabel (only while animating)
 	private VBoxContainer _buffPanel;
 
 	private static readonly Vector2 FigRowPos = new(16, 14);
+	// Round block placement: RoundBlockAnchor is the screen point (as fractions of width/height) the block's TOP-CENTRE
+	// sits on — (0.5, 0) = top-centre, (0.5, 0.5) = dead centre, (0.5, 0.85) = low centre — and RoundBlockOffset nudges
+	// it from there in pixels (+x right, +y down).
+	private static readonly Vector2 RoundBlockAnchor = new(0.5f, 0.0f);
+	private static readonly Vector2 RoundBlockOffset = new(0.0f, 30.0f);
+	// Round intro: the big "ROUND n" fades in at screen centre, holds, then flies up + shrinks into the ROUND label.
+	private const float IntroFadeIn = 0.25f;
+	private const float IntroHold = 1.0f;
+	private const float IntroFly = 0.7f;
+	private const float IntroGlow = 1.8f;   // HDR multiplier on the accent while it's big (blooms), settling to 1
 	private const int PipGap = 1;              // pip pixels between pips
 	private const int RowGap = 1;              // pip pixels between the star and orb rows
 	private const float GaugeScreenY = 0.9f;   // Screen placement: gauge top, as a fraction of screen height
@@ -61,7 +77,6 @@ public partial class HUD : CanvasLayer
 	// pixel is then the same size on screen as one sprite pixel. (FollowKhalid is in world units, so it matches natively.)
 	private const float GaugePixelScale = 1.5f;
 	private const float GaugeFeetGap = 3.0f;   // FollowKhalid: world px below Khalid's origin (his feet)
-	private const int GaugeLayer = 60;         // FollowKhalid: above the low-HP grade (50), below the screen HUD (100)
 	private const float GaugeIdleAlpha = 0.6f;
 	private const float GaugeWakeTime = 1.6f;
 	private const float GaugeFade = 4.0f;    // alpha per second
@@ -74,7 +89,7 @@ public partial class HUD : CanvasLayer
 
 	public override void _Ready()
 	{
-		Layer = 100;
+		Layer = UiLayers.Hud;
 		UiStyle.Install(); // first UI to exist (autoload) — make Sixtyfour the global fallback font before anything builds
 		BuildHud();
 		BuildLowHealth();
@@ -106,7 +121,7 @@ public partial class HUD : CanvasLayer
 		_root.AddChild(_gauge);
 		_hpRow = MkPipRow(_gauge);
 		_ruhRow = MkPipRow(_gauge);
-		_gaugeLayer = new CanvasLayer { Layer = GaugeLayer, FollowViewportEnabled = true };
+		_gaugeLayer = new CanvasLayer { Layer = UiLayers.Gauge, FollowViewportEnabled = true };
 		AddChild(_gaugeLayer);
 		_gaugeAnchor = new Node2D();
 		_gaugeLayer.AddChild(_gaugeAnchor);
@@ -121,12 +136,32 @@ public partial class HUD : CanvasLayer
 		_figLabel.Text = "0";
 		figRow.AddChild(_figLabel);
 
-		_wavesLabel = MkLabel(UiStyle.HudHeading);
-		_wavesLabel.SetAnchorsPreset(Control.LayoutPreset.CenterTop);
-		_wavesLabel.GrowHorizontal = Control.GrowDirection.Both;
-		_wavesLabel.OffsetTop = 10.0f;
-		_wavesLabel.HorizontalAlignment = HorizontalAlignment.Center;
-		_root.AddChild(_wavesLabel);
+		// Round block (placed by RoundBlockAnchor/Offset): ROUND n / n LEFT (late in a round) or NEXT ROUND IN n (breather)
+		// / BEST n. Grows both ways from its anchor, so it stays centred on it.
+		var roundBox = new VBoxContainer
+		{
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+			AnchorLeft = RoundBlockAnchor.X,
+			AnchorRight = RoundBlockAnchor.X,
+			AnchorTop = RoundBlockAnchor.Y,
+			AnchorBottom = RoundBlockAnchor.Y,
+			OffsetLeft = RoundBlockOffset.X,
+			OffsetRight = RoundBlockOffset.X,
+			OffsetTop = RoundBlockOffset.Y,
+			OffsetBottom = RoundBlockOffset.Y,
+			GrowHorizontal = Control.GrowDirection.Both,
+		};
+		roundBox.AddThemeConstantOverride("separation", 2);
+		_root.AddChild(roundBox);
+		_roundLabel = MkLabel(UiStyle.HudTitle);
+		_leftLabel = MkLabel(UiStyle.HudHeading);
+		_nextLabel = MkLabel(UiStyle.HudHeading);
+		_bestLabel = MkLabel(UiStyle.HudMuted);
+		foreach (var l in new[] { _roundLabel, _leftLabel, _nextLabel, _bestLabel })
+		{
+			l.HorizontalAlignment = HorizontalAlignment.Center;
+			roundBox.AddChild(l);
+		}
 
 		// Active-buff list, pinned top-right and growing leftward to fit its widest line.
 		_buffPanel = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore, Visible = false };
@@ -239,7 +274,7 @@ public partial class HUD : CanvasLayer
 
 	private void BuildLowHealth()
 	{
-		_lowHpLayer = new CanvasLayer { Layer = 50, Visible = false };
+		_lowHpLayer = new CanvasLayer { Layer = UiLayers.LowHealth, Visible = false };
 		AddChild(_lowHpLayer);
 
 		var rect = new ColorRect { MouseFilter = Control.MouseFilterEnum.Ignore };
@@ -251,6 +286,70 @@ public partial class HUD : CanvasLayer
 	}
 
 	// --- fada_figs ------------------------------------------------------------
+
+	/// <summary>Show round <paramref name="round"/> (0 = before round 1: blank), <paramref name="left"/> quota enemies
+	/// remaining (0 = hidden — RunManager only passes it once few remain), the breather <paramref name="countdown"/> in
+	/// whole seconds until the next round (0 = hidden — mid-round), and the <paramref name="best"/> round record.</summary>
+	public void SetRound(int round, int left, int countdown, int best)
+	{
+		if (_roundLabel == null)
+			return;
+		_roundLabel.Text = round > 0 ? $"ROUND {round}" : "";
+		if (round > _shownRound)
+			PlayRoundIntro(round);
+		_shownRound = round; // a new run resets to 0, so round 1 plays again
+		_leftLabel.Text = $"{left} LEFT";
+		_leftLabel.Visible = left > 0;
+		_nextLabel.Text = $"NEXT ROUND IN {countdown}";
+		_nextLabel.Visible = countdown > 0;
+		_bestLabel.Text = best > 0 ? $"BEST {best}" : "";
+	}
+
+	/// <summary>The round-start intro: a big "ROUND n" (the title font at exactly 2x the label's size) fades in at screen
+	/// centre, holds, then glides up and shrinks to 0.5x onto <see cref="_roundLabel"/>'s rect — so it lands pixel-
+	/// aligned wherever the round block is placed — while its glow settles to the label's colour, then hands over to
+	/// the real label (kept invisible, not hidden, meanwhile so the block's layout doesn't jump).</summary>
+	private async void PlayRoundIntro(int round)
+	{
+		_roundIntro?.QueueFree();
+		var intro = new Label
+		{
+			Text = $"ROUND {round}",
+			ThemeTypeVariation = UiStyle.HudTitle,
+			HorizontalAlignment = HorizontalAlignment.Center,
+			MouseFilter = Control.MouseFilterEnum.Ignore,
+			Modulate = new Color(1, 1, 1, 0),
+		};
+		intro.AddThemeFontSizeOverride("font_size", UiStyle.SizeTitle * 2);
+		Color glow = new(UiStyle.Accent.R * IntroGlow, UiStyle.Accent.G * IntroGlow, UiStyle.Accent.B * IntroGlow);
+		intro.AddThemeColorOverride("font_color", glow);
+		_roundIntro = intro;
+		_root.AddChild(intro);
+		_roundLabel.Modulate = new Color(1, 1, 1, 0);
+
+		await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame); // let the round block lay out the new text
+		if (_roundIntro != intro)
+			return; // a newer intro replaced this one
+
+		const float scale = 0.5f; // SizeTitle / (SizeTitle * 2)
+		intro.Size = _roundLabel.Size / scale;
+		intro.Position = (_root.Size - intro.Size) / 2.0f;
+		var t = intro.CreateTween();
+		t.TweenProperty(intro, "modulate:a", 1.0f, IntroFadeIn);
+		t.TweenInterval(IntroHold);
+		t.SetParallel();
+		t.TweenProperty(intro, "global_position", _roundLabel.GlobalPosition, IntroFly).SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.InOut);
+		t.TweenProperty(intro, "scale", new Vector2(scale, scale), IntroFly).SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.InOut);
+		t.TweenProperty(intro, "theme_override_colors/font_color", UiStyle.Accent, IntroFly);
+		t.SetParallel(false);
+		t.TweenCallback(Callable.From(() =>
+		{
+			_roundLabel.Modulate = Colors.White;
+			intro.QueueFree();
+			if (_roundIntro == intro)
+				_roundIntro = null;
+		}));
+	}
 
 	/// <summary>Set the spendable fada_fig balance shown beside the ring (pushed by <c>Player</c>); the ring pops on a gain.</summary>
 	public void SetFadaFigs(int count)
@@ -403,7 +502,6 @@ public partial class HUD : CanvasLayer
 		}
 		UpdateLowHealth(delta);
 		UpdateGaugeAlpha(delta);
-		_wavesLabel.Text = $"WAVES  {SaveData.GetCurrentWaves()}   ·   BEST {SaveData.WavesRecord()}";
 	}
 
 	private void UpdateLowHealth(float delta)

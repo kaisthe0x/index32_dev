@@ -190,6 +190,7 @@ public partial class Player : Combatant
     private bool _dead = false;
     private bool _deathFinished = false;
     private bool _deathFrozen = false;
+    private bool _fellOut = false;   // died by falling out of the arena — free-falls off-screen, no death animation
     private bool _slamImpacting = false;
     private float _slamStartY = 0.0f;
     private bool _justLanded = false;
@@ -523,6 +524,9 @@ public partial class Player : Combatant
 
     public int get_state() => (int)_state;
     public bool is_spawning() => _state == State.SPAWN;
+
+    /// <summary>Which way Khalid faces: +1 right, -1 left (RunManager spawns grunts on the other side).</summary>
+    public int facing => _facing;
     public Action current_attack() => _currentAttack;
     public Action current_special() => _currentSpecial;
 
@@ -610,6 +614,20 @@ public partial class Player : Combatant
     }
 
     public void heal(float amount) => health = Mathf.Min(health + amount, max_health);
+
+    /// <summary>Kill Khalid outright: he fell out of the arena. Ignores i-frames / Aegis (nothing survives the void).
+    /// Unlike a normal death there's no death animation — he keeps his fall animation and keeps dropping, out of
+    /// control (<see cref="ProcessFreefall"/>), with its own sound; RunManager ends the run.</summary>
+    public void fall_to_death()
+    {
+        if (_dead)
+            return;
+        health = 0.0f;
+        Die(fell: true);
+    }
+
+    /// <summary>True once the player has died by falling out of the arena (RunManager runs the fall-death flow).</summary>
+    public bool fell_out() => _fellOut;
 
     /// <summary>Grant a generic invulnerability window (the immunity buffs: dash/jump/slam/on-hit). Refreshes to the longer.</summary>
     public void grant_invuln(float seconds) => _iframesLeft = Mathf.Max(_iframesLeft, seconds);
@@ -1083,13 +1101,15 @@ public partial class Player : Combatant
         _sprite?.Play();
     }
 
-    private void Die()
+    /// <summary>Common death: stop everything in progress and disable the hurtbox. A normal death then plays the death
+    /// animation; a <paramref name="fell"/> death (out of the arena) skips it and free-falls in the fall animation.</summary>
+    private void Die(bool fell = false)
     {
         if (_dead)
             return;
         _dead = true;
         _deathFinished = false;
-        _sfx.play("player_death");
+        _sfx.play(fell ? "player_fall_death" : "player_death");
         _stunLeft = 0.0f;
         _comboPlaying = false;
         _flurry = false;
@@ -1103,10 +1123,25 @@ public partial class Player : Combatant
             // Die() runs inside the hurtbox's hit-signal flush; a direct set is blocked while physics
             // queries flush ("Function blocked during in/out signal"), so defer it to after the flush.
             _hurtbox.SetDeferred(Area2D.PropertyName.Monitorable, false);
+        if (fell)
+        {
+            _fellOut = true;
+            _deathFinished = true; // no death animation to wait for
+            if (HasFall())
+                _sprite.Play("fall");
+            return;
+        }
         if (HasAnim("death"))
             Enter(State.DEATH);
         else
             _deathFinished = true;
+    }
+
+    /// <summary>Fell out of the arena: no input, no state machine — gravity just carries him down in the fall animation.</summary>
+    private void ProcessFreefall(float delta)
+    {
+        AddVelY(_gravity * _fallGravityScale * delta);
+        MoveAndSlide();
     }
 
     private void ProcessDeath(float delta)
@@ -1144,6 +1179,7 @@ public partial class Player : Combatant
     {
         _dead = false;
         _deathFinished = false;
+        _fellOut = false;
         fada_figs = 0;
         fada_lifetime = 0;
         GetNodeOrNull<HUD>("/root/HUD")?.SetFadaFigs(0);
@@ -1186,6 +1222,11 @@ public partial class Player : Combatant
         if (Engine.IsEditorHint())
             return;
         float delta = (float)deltaD;
+        if (_fellOut)
+        {
+            ProcessFreefall(delta);
+            return;
+        }
 
         _dashCd = Mathf.Max(_dashCd - delta, 0.0f);
         _specialCd = Mathf.Max(_specialCd - delta, 0.0f);

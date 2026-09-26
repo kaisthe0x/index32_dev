@@ -20,11 +20,18 @@ public partial class Music : Node
     private const float SilenceDb = -60.0f;
     private const float StartFade = 1.5f;         // fade when a stage's music first starts / when it stops
     private const float CrossfadeBetween = 3.0f;  // the slight crossfade between one playlist track and the next
+    // "Underwater" muffle while a pause menu is up: a low-pass on the Music bus swept down to MuffleCutoffHz.
+    private const float MuffleCutoffHz = 650.0f;
+    private const float OpenCutoffHz = 20000.0f;  // top of hearing — the filter is inaudible here
+    private const float MuffleFade = 0.35f;
 
     private readonly List<AudioStreamPlayer> _players = new();
     private readonly Tween[] _tweens = new Tween[2];
     private int _active = 0;
     private readonly Dictionary<string, AudioStream> _cache = new();
+    private AudioEffectLowPassFilter _muffle;     // added to the Music bus in _Ready; ENABLED only while (un)muffling
+    private int _muffleIdx = -1;
+    private Tween _muffleTween;
 
     // Active playlist state.
     private string[] _playlist = System.Array.Empty<string>();
@@ -45,6 +52,14 @@ public partial class Music : Node
             };
             AddChild(p);
             _players.Add(p);
+        }
+        int busIdx = AudioServer.GetBusIndex(Bus);
+        if (busIdx != -1)
+        {
+            _muffle = new AudioEffectLowPassFilter { CutoffHz = OpenCutoffHz };
+            AudioServer.AddBusEffect(busIdx, _muffle);
+            _muffleIdx = AudioServer.GetBusEffectCount(busIdx) - 1;
+            AudioServer.SetBusEffectEnabled(busIdx, _muffleIdx, false); // no processing cost until muffled
         }
     }
 
@@ -177,6 +192,26 @@ public partial class Music : Node
     /// <summary>Freeze / continue the current track at its position (a menu). Not a fade.</summary>
     public void pause() => _players[_active].StreamPaused = true;
     public void resume() => _players[_active].StreamPaused = false;
+
+    /// <summary>Muffle the music "underwater" (a low-pass swept down over <see cref="MuffleFade"/>) or sweep it back
+    /// open — for the pause menu. Runs while paused (this node is ProcessMode.Always). Once fully open the filter is
+    /// switched off again.</summary>
+    public void set_muffled(bool on)
+    {
+        if (_muffle == null)
+            return;
+        int busIdx = AudioServer.GetBusIndex(Bus);
+        if (_muffleTween != null && _muffleTween.IsValid())
+            _muffleTween.Kill();
+        if (on)
+            AudioServer.SetBusEffectEnabled(busIdx, _muffleIdx, true);
+        _muffleTween = CreateTween();
+        // Exponential sweep — pitch perception is logarithmic, so a linear Hz sweep would sound like it snaps shut.
+        _muffleTween.TweenProperty(_muffle, "cutoff_hz", on ? MuffleCutoffHz : OpenCutoffHz, MuffleFade)
+            .SetTrans(Tween.TransitionType.Expo).SetEase(on ? Tween.EaseType.Out : Tween.EaseType.In);
+        if (!on)
+            _muffleTween.TweenCallback(Callable.From(() => AudioServer.SetBusEffectEnabled(busIdx, _muffleIdx, false)));
+    }
 
     /// <summary>Tween player `i`'s volume to `toDb` over `dur`; optionally stop it at the end. Kills any running fade.</summary>
     private void FadeTo(int i, float toDb, float dur, bool stopAfter)

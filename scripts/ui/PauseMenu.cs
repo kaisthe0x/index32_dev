@@ -32,7 +32,7 @@ public partial class PauseMenu : CanvasLayer
 
     public override void _Ready()
     {
-        Layer = 110;                          // above the HUD (100)
+        Layer = UiLayers.Pause;
         ProcessMode = ProcessModeEnum.Always; // must hear Esc while the tree is paused
         Visible = false;
         Build();
@@ -59,6 +59,7 @@ public partial class PauseMenu : CanvasLayer
         _dim.Color = UiStyle.Backdrop; // the UI palette may have been recoloured since Build
         GetTree().Paused = true;
         Input.MouseMode = Input.MouseModeEnum.Visible;
+        GetNode<Music>("/root/Music").set_muffled(true); // music goes "underwater" while paused
         Visible = true;
         _resume.GrabFocus();
     }
@@ -67,6 +68,7 @@ public partial class PauseMenu : CanvasLayer
     {
         Visible = false;
         GetTree().Paused = false;
+        GetNode<Music>("/root/Music").set_muffled(false);
         Input.MouseMode = Input.MouseModeEnum.Hidden; // back to play — hide the cursor
     }
 
