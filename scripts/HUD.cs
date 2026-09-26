@@ -3,7 +3,7 @@ using Godot;
 namespace MyGame;
 
 /// <summary>
-/// The player HUD. Health stars + Ruh orbs sit in the <see cref="_gauge"/> — fixed at bottom-centre, or following under
+/// The player HUD. Health stars + Ruh orbs + the special's cooldown bar sit in the <see cref="_gauge"/> — fixed at bottom-centre, or following under
 /// Khalid's feet, per the player's <see cref="GaugePlacement"/> setting (dim at rest, bright on any change or at low
 /// HP). Also: the fada_fig ring (next-buff progress + spendable count, top-left), the ROUND / n LEFT / BEST block (top
 /// centre, pushed by RunManager), the active-buff
@@ -47,6 +47,7 @@ public partial class HUD : CanvasLayer
 	private HBoxContainer _ruhRow;
 	private readonly List<RuhPip> _orbs = new();
 	private readonly List<float> _orbLevels = new();
+	private SpecialBar _specialBar;   // the special's cooldown, under the Ruh orbs (always shown; pulses when ready)
 	private Color _ruhFill;
 	private FigRing _figRing;
 	private Label _figLabel;
@@ -71,7 +72,10 @@ public partial class HUD : CanvasLayer
 	private const float IntroFly = 0.7f;
 	private const float IntroGlow = 1.8f;   // HDR multiplier on the accent while it's big (blooms), settling to 1
 	private const int PipGap = 1;              // pip pixels between pips
-	private const int RowGap = 1;              // pip pixels between the star and orb rows
+	private const int RowGap = 1;              // pip pixels between the gauge's rows
+	// Extra pixels above the special bar: the stars' pointed tips leave a lot of visual air above the orbs, while the
+	// orbs' rounded bottoms sit almost flush on the flat bar — this evens the two gaps out to the eye.
+	private const int SpecialBarTopGap = 2;
 	private const float GaugeScreenY = 0.9f;   // Screen placement: gauge top, as a fraction of screen height
 	// Screen placement: pips are pixel art, so scale them by the normal camera zoom (RunManager.CamZoomNormal) — one pip
 	// pixel is then the same size on screen as one sprite pixel. (FollowKhalid is in world units, so it matches natively.)
@@ -121,6 +125,11 @@ public partial class HUD : CanvasLayer
 		_root.AddChild(_gauge);
 		_hpRow = MkPipRow(_gauge);
 		_ruhRow = MkPipRow(_gauge);
+		_specialBar = new SpecialBar();
+		var barPad = new MarginContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
+		barPad.AddThemeConstantOverride("margin_top", SpecialBarTopGap);
+		barPad.AddChild(_specialBar);
+		_gauge.AddChild(barPad);
 		_gaugeLayer = new CanvasLayer { Layer = UiLayers.Gauge, FollowViewportEnabled = true };
 		AddChild(_gaugeLayer);
 		_gaugeAnchor = new Node2D();
@@ -501,6 +510,8 @@ public partial class HUD : CanvasLayer
 			return;
 		}
 		UpdateLowHealth(delta);
+		if (_specialBar.SetProgress(_player.special_ready()))
+			_gaugeWake = GaugeWakeTime; // the special just became ready — light the gauge up
 		UpdateGaugeAlpha(delta);
 	}
 

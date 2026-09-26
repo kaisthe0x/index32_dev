@@ -21,7 +21,7 @@ Main scene: `scenes/palette_preview.tscn` (the pre-game colour pickers) — pres
 **Game premise & the run loop:** *(see the banner above +
 [`docs/game-loop.md`](docs/game-loop.md))* see [`docs/game-design.md`](docs/game-design.md) — a roguelite
 arena crawler. **Levels/exits are retired:** it's now ONE arena and **endless numbered rounds**, CoD Zombies
-style — each round sends a hidden quota of enemies, and you survive as far as you can. Cast **specials** (now **free and unlimited**), and
+style — each round sends a hidden quota of enemies, and you survive as far as you can. Cast **specials** (free — no Ruh — but each has its own **cooldown**), and
 spend **Ruh** on your **Aegis** surge for an on-demand burst of invincibility (each use costs one
 **Ruh** charge — you start a run with 3, and refill Ruh by **landing hits**; Ruh is the only gate, no
 cooldown). Killing enemies drops **Fada Figs** + (at a ramping chance) a random **buff** you grab off the
@@ -63,7 +63,7 @@ tools/                Generator + verification scripts (not shipped)
 | Space | `jump` | Press again in the air to **double jump** (`max_air_jumps`) — the air jump re-boosts and spawns the character's jump particles; the ground jump is silent |
 | Shift | `dash` | Has a cooldown. **Dash into a launch orb** and it magnets you through and flings you up + forward (see Launch orbs) |
 | Left mouse | `attack` | The current *attack* — each press advances the combo (or, for a `"flurry"` attack like Khalid's, **hold** to keep punching). **Ground only** by default — an attack whose Action is tagged `"air"` is the exception and can be used mid-air (`Player._air_attack_ok`). *(No shipped attack is currently tagged `"air"`; the tag now lives on the Zahluq **special**.)* |
-| Right mouse | `special` | On the ground: the current *special* (committed full-animation move) — **free, no Ruh cost**; most have only a tiny anti-spam lag, though a strong one can set its own cooldown (**Come Closer = 3s**). **In the air: performs the ground slam instead** (characters with a `slam` sheet) |
+| Right mouse | `special` | On the ground: the current *special* (committed full-animation move) — **no Ruh cost, but every special has its own cooldown** (3–12s; shown by the special bar in the HUD gauge). **In the air: performs the ground slam instead** (characters with a `slam` sheet) |
 | Ctrl (RT / R2) | `surge` | Fires the equipped **Surge** — a passive ability (**Aegis** = ~5s invincibility; **Jnoon** = ~5s ×2 damage dealt; **Asra** = ~5s ×2 move speed) applied *without* interrupting your attacking/moving — **except Nem**, a committed sleep that locks you in place and restores one health block over 5s (a hit wakes/cancels it), and **Wara**, which *arms* and waits: the next enemy hit is negated and AoE-stuns everyone near you (2s). **Spends one Ruh charge per use** — Ruh is the only gate, no cooldown. RT on the pad because dash owns LT |
 | E | `interact` | Open the **mystery box** when standing next to it (spend fada figs; registered in code by `MysteryBox`) |
 | Z / X | `debug_damage` / `debug_heal` | Dev only |
@@ -128,7 +128,7 @@ a low, mostly-horizontal arena and fight **endless rounds**: each sends a hidden
 proximity-spawned near you — behind you, so you have to turn — capped so it never floods), clears when they're all dead, and the next is bigger. You **start each
 run with 3 Ruh charges** — the surge meter, shown in charges (100 each), no decay — and refill it by
 **landing hits** (~5 hits = 1 charge; kills don't count, and a special's own hits don't self-pay).
-**Specials are now free and unlimited** (only a tiny anti-spam lag). Ruh instead fuels the **Aegis
+**Specials cost no Ruh but each has its own cooldown** (shown by the special bar in the HUD). Ruh instead fuels the **Aegis
 surge** (a passive on its own button): it grants ~5s of invincibility on demand without interrupting
 you, and **each use spends one Ruh charge** — Ruh is the only gate, no cooldown (see below). **HP is separate**: damage hits it only, heals
 *only* from buffs. **Killing an enemy** drops **Fada Figs** (the run currency). **Buffs come from two places:**
@@ -699,12 +699,18 @@ While it recharges,
 gold **fill bar floats over Khalid's head** (`FloatingHealthBar`, the same world-space bar the
 enemies use, tinted for "charge") growing empty→full as `_attack_cd` counts down; it hides once
 ready or for any attack with `cooldown 0`. The timer starts the instant the swing fires and
-resets to 0 on run-start / character swap. This is the per-**attack** cooldown; specials have a
-short anti-spam window (`SPECIAL_COOLDOWN`, 0.6s) **but a special can also set its own real
-`cooldown`** — `Player._start_special` takes the larger (e.g. **Come Closer = 3s**, since its
-pull+stun is strong), and the same overhead bar shows it (a cooldown special takes the bar while it
-recharges). A cooldown attack is effectively a single heavy hit — the gate blocks re-entry, so it
-doesn't chain combo segments.
+resets to 0 on run-start / character swap. The overhead bar is the per-**attack** cooldown ONLY.
+
+**Special cooldowns.** Every special is unique and strong, so **every special has its own `Cooldown`**
+(`ActionsKhalid.SPECIALS`): Ground Breaker 6s · Frenemy 12s (longer than its 8s charm) · Come Closer 5s ·
+Redere Shield 3s · Redere Frisbee 3s · Zahluq 5s. `Player.StartSpecial` arms `_specialCd` from it; a **held**
+special (Redere Shield) doesn't tick its cooldown while it's up (`HoldingSpecial`) — it starts on release, so
+holding isn't free. The cooldown carries over if you swap specials. It has its **own bar in the HUD gauge**
+(`scripts/ui/SpecialBar.cs`, under the Ruh orbs, fed by `Player.special_ready()` 0..1): always shown, fills as
+it recharges, and when ready it pops, then **pulses and glows** (HDR) until used; becoming ready wakes the gauge.
+So an attack cooldown (Bakshen) and a special cooldown never share a bar. Buffs can cut it via
+`Player.reduce_special_cooldown(seconds)`. A cooldown attack is effectively a single heavy hit — the gate
+blocks re-entry, so it doesn't chain combo segments.
 
 **Dash moves (the `lunge` seam).** **`zahluq`** *bursts the wielder forward* — a heavy hit that slides him
 a long way. It is now a **rare special** (see below), but the dash mechanic is a shared move trait, honoured
@@ -781,7 +787,7 @@ floor.
 [`docs/game-design.md`](docs/game-design.md)), `grant_special_invuln(duration)` (the invuln window, now
 the **Aegis surge**'s effect), `begin_run()`, `is_dead()`, `death_complete()`, `spawn()`, `set_character()`,
 `portrait_path()`, and the `health_changed` / `ruh_changed` / `character_changed` signals. Ruh fills
-by landing hits (no decay) and is **spent on surges** (specials are free); it never shields HP. (Enemies deal real damage;
+by landing hits (no decay) and is **spent on surges** (specials cost no Ruh — they're gated by cooldowns); it never shields HP. (Enemies deal real damage;
 a lethal hit runs the full death lifecycle — see **Death** / **Spawn** below.)
 
 **Getting hit.** A landed hit (past the shield/super-armor/death guards) drops Khalid into a brief `HURT`
@@ -1143,6 +1149,13 @@ is pure data in per-area files — **`SfxCharacters`**, **`SfxEnemies`**, **`Sfx
 dict (dB, negative = quieter) — e.g. `["buff_levelup"] = -10f`. It's applied on top of any call-site `volume_db`;
 unlisted cues play at 0 dB. (There's also a brick-wall limiter on the whole SFX bus for summed peaks.)
 
+**Loudness reference (measured 2026-09-26).** Judge a new sound by the loudness of its **loudest 0.4 s** (RMS, dB) —
+integrated LUFS is meaningless for short one-shots. The SFX library's **median is ≈ −26.4 dB** (middle half −30 … −24);
+keep a new cue near that unless it's deliberately a headline sound. If it's louder, **trim it in `VOLUMES`** (turning
+down in code is lossless — same as a fader); go back to the DAW only if it must get *louder* or it clips (peaks
+above ≈ −3 dBFS). E.g. the round cues measured 3–4 dB hot and are trimmed −3 / −4 dB. (The library itself spans
+≈ −13 … −43 dB, so a one-time normalisation pass on the older files would tighten the whole mix.)
+
 Background **music** has its own sibling autoload, **`Music`** (`scripts/audio/Music.cs`), files organised
 **per stage** under **`music/<stage>/`**. A stage's **playlist is auto-discovered** — it's simply the audio
 files in that folder (`Music.StageTracks` globs them, sorted by filename), so you just drop files in and they
@@ -1151,7 +1164,8 @@ sequence, **crossfading gently between them** (a two-player ping-pong: one fades
 **looping back to the first** — so a stage has an endless, varied bed rather than one repeating loop. The
 crossfade lands right at each seam (position-based, tuned by `CrossfadeBetween`); `Music.stop()` fades to silence
 + ends the playlist; `Music.pause()`/`resume()` freeze at position. `.mp3`/`.ogg`/`.wav` are all force-looped as
-a safety net. In the run, `RunManager.BuildArena` calls `play_stage("stage1")` on every run start + death-restart.
+a safety net. In the run, `RunManager.BuildArena` calls `play_stage("stage1")` as the arena loads — every run start +
+death-restart (the colour-scheme screen before the run plays no music).
 Plays on a `"Music"` bus if present (else Master); an empty stage folder warns + plays nothing (no crash).
 **Pause muffle:** `Music.set_muffled(on)` sweeps a low-pass filter on the Music bus down to `MuffleCutoffHz` (650 Hz —
 "underwater") over `MuffleFade`, or back up; the pause menu calls it on open/close. The filter is added to the bus in
@@ -1881,9 +1895,9 @@ new round's number first appears big and glowing at screen centre, then flies up
 active-buff list, off-screen enemy arrows and the low-HP screen effect. No portrait or name — those
 belong on the pause/character screens.
 
-### The gauge (health + Ruh)
+### The gauge (health + Ruh + special)
 
-Two rows kept near the action, so you read your state without looking away from the fight:
+Three rows kept near the action, so you read your state without looking away from the fight:
 
 - **Health stars** — one `HealthPip` (an eight-point star) per health block. Every hit costs exactly
   half a block, so a star is only ever full / left-half / empty. All stars are tinted
@@ -1892,6 +1906,10 @@ Two rows kept near the action, so you read your state without looking away from 
 - **Ruh orbs** — one `RuhPip` per Ruh charge (`Player.RUH_PER_BLOCK`), filling **from the bottom
   like liquid** as hits bank Ruh. Coloured like the in-world Ruh orbs (red family, recoloured to
   the Power-1 pick via `VfxPalette.Recolor` at bind), so health and Ruh differ by shape *and* colour.
+- **Special bar** — `SpecialBar`: a short pixel bar (`BarWidth` 19 × `BarHeight` 4, centred — narrower than the orbs, so the gauge tapers like a triangle; `HUD.SpecialBarTopGap` adds 2px above it so the orb→bar gap *looks* as wide as the pointy star→orb gap) for the equipped special's cooldown, fed each frame
+  by `Player.special_ready()`. Always shown; fills in the UI accent as it recharges; when ready it pops, then
+  pulses + glows until used (it only runs per-frame work while pulsing), and becoming ready wakes the gauge.
+  See *Special cooldowns* for the cooldown rules.
 
 **Placement is a player setting** — `GaugePlacement` (`enums/ui/`), chosen in the pause menu, saved by
 `SaveData`, applied live by `HUD.ApplyGaugePlacement` (one `VBoxContainer`, reparented between two homes):

@@ -74,7 +74,7 @@ Related, but not in this folder:
   charges/blocks of `RUH_PER_BLOCK` (100), capped by `ruh_cap`. You **start a run with 3 charges**
   (`BASE_RUH_CAP` = 300 — `begin_run` sets it full) and **refill by landing HITS** (`RUH_PER_HIT` = 20,
   so ~5 hits = 1 charge) — **not kills** — and it **never decays**. API: `gain_ruh_on_hit` /
-  `take_damage` (HP only) / `heal` / `begin_run`. **Specials are free** now; **surges spend Ruh** (each
+  `take_damage` (HP only) / `heal` / `begin_run`. **Specials cost no Ruh** (each has its own cooldown); **surges spend Ruh** (each
   use costs its `SurgeSpec.cost`, 100 = one charge). Rewards raise `ruh_cap` (toward `MAX_RUH_CAP` = 500, 5 charges).
 - **The Ruh orbs** are in the HUD gauge under the health stars — one orb per charge; each surge empties one.
 - **Surges apply a timed effect + aura** (`Player._begin_surge(SurgeSpec)`, fired by `Player._try_surge`
@@ -88,14 +88,19 @@ Related, but not in this folder:
 ## The loop (endless arena)
 
 1. `RunManager.BuildArena()` sets the `bg` (from `Levels` index 0 — the one surviving use), loads a random
-   `stage1_v*.tscn` layout, places the player at its `PlayerSpawn`, and resets the round state to a short
-   `FirstRoundDelay` breather before **round 1**.
+   `stage1_v*.tscn` layout, places the player at its `PlayerSpawn`, and resets the round state to a full
+   `BreatherTime` countdown before **round 1** (it ticks once play starts — after the attack pick + spawn). The stage
+   music (`Music.play_stage`) starts as the arena loads (the colour-scheme screen before it is silent).
 2. **Rounds** (see *Enemy spawning* above): quota trickle under the cap → spawning stops → last kill clears →
    breather → next round. RunManager pushes `HUD.SetRound(round, left, countdown, best)` on every change — and
    once per whole second of a breather — so the HUD shows `ROUND n`, `n LEFT` once `Rounds.ShowLeftAt` or fewer
-   remain, `NEXT ROUND IN n` during the breather, and `BEST n`.
+   remain, `NEXT ROUND IN n` during the breather between rounds, and `BEST n`.
+   **Round sounds** (`SfxWorld`, files in `sfx/world/round/`): as the breather counter hits each of
+   `Rounds.CountdownSfxFrom` (4) … 1, RunManager plays `round_countdown` (`countdown.wav`, the same tick for every
+   number), and `round_start` (`round_start.wav`) plays as each round begins, with the ROUND n label. A missing
+   file just warns once + stays silent.
 3. **Hitting** an enemy → `damaged` → `gain_ruh_on_hit()` charges the surge meter (a special's own hits are
-   skipped). Specials are **free**; a **surge** fires only when you have the Ruh → `_try_surge()` spends its `cost`.
+   skipped). Specials cost no Ruh (cooldown-gated); a **surge** fires only when you have the Ruh → `_try_surge()` spends its `cost`.
 4. **Killing** an enemy → `died` → `OnEnemyDied`: always drops **Fada Figs** (deferred — death fires mid
    physics-flush); a quota enemy also frees a cap slot, counts toward the round, and the last one clears it.
 5. **Buffs come from two places:**
@@ -119,7 +124,7 @@ Related, but not in this folder:
 ## Tuning cheatsheet
 
 - **Change the round curve** → `configs/Rounds.cs`: `Quota*` (enemies per round), `Cap*` (concurrent alive),
-  `Interval*` (seconds between spawns), `BreatherTime`, `FirstRoundDelay`, `ShowLeftAt`. `RunManager.SpawnPool` is the
+  `Interval*` (seconds between spawns), `BreatherTime`, `ShowLeftAt`. `RunManager.SpawnPool` is the
   roster drawn from. Anti-camp: `OffscreenDespawnTime` (how long off-screen before an enemy is silently culled) /
   `OffscreenMargin`.
 - **Cap a specific enemy type** → add `{ "spawn_cap", N }` to its kit in `EnemyKits` (e.g. Nasen = 1). The cap grows
@@ -139,7 +144,7 @@ Related, but not in this folder:
 - **Change an enemy's stats** → its kit in `enemies.gd` (combat).
 - **Change the Ruh / surge economy** → `Player.RUH_PER_HIT` (fill rate per hit), `RUH_PER_BLOCK`
   (charge size), `BASE_RUH_CAP` (starting charges), and the Aegis surge's `cost` / `duration` in
-  `configs/actions_khalid.gd` (`SURGES`) for its Ruh price + invuln window. (Specials are free — no cost knob.)
+  `configs/actions_khalid.gd` (`SURGES`) for its Ruh price + invuln window. (Specials cost no Ruh — their knob is each special's `Cooldown` in `ActionsKhalid.SPECIALS`.)
 
 ## Known template gaps (deliberate, for later)
 

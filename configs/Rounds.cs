@@ -28,6 +28,6 @@ public static class Rounds
     public const int KitCapGrowthRounds = 5;
 
     public const float BreatherTime = 8.0f;   // seconds between a clear and the next round
-    public const float FirstRoundDelay = 1.5f; // seconds after the run starts before round 1
     public const int ShowLeftAt = 5;          // the HUD reveals "n LEFT" once this many (or fewer) quota enemies remain
+    public const int CountdownSfxFrom = 4;    // the breather counter plays round_countdown at each of this … 1 (SfxWorld)
 }

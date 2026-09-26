@@ -193,9 +193,9 @@ public partial class RunManager : Node2D
 
     private void BuildArena()
     {
-        _music.play_stage("stage1");
+        _music.play_stage("stage1"); // the stage music starts as the arena loads (the colour-scheme screen stays silent)
         _phase = RoundPhase.Breather;
-        _breatherLeft = Rounds.FirstRoundDelay;
+        _breatherLeft = Rounds.BreatherTime; // round 1 gets the full countdown too (it ticks once play starts: after the attack pick + spawn)
         _round = 0;
         _quota = 0;
         _spawned = 0;
@@ -266,7 +266,11 @@ public partial class RunManager : Node2D
             if ((_breatherLeft -= delta) <= 0.0f)
                 StartRound(_round + 1);
             else if (Mathf.CeilToInt(_breatherLeft) != _countdownShown)
+            {
                 PushRoundHud(); // tick the HUD countdown once per whole second
+                if (_countdownShown <= Rounds.CountdownSfxFrom)
+                    _sfx.play("round_countdown"); // the last few seconds tick audibly
+            }
             return;
         }
         if (_spawned >= _quota)
@@ -290,6 +294,7 @@ public partial class RunManager : Node2D
         _phase = RoundPhase.Fighting;
         _spawnAccum = SpawnInterval(round); // first enemy arrives immediately
         PushRoundHud(); // the HUD plays the ROUND n intro for a new round
+        _sfx.play("round_start");
     }
 
     /// <summary>The last quota enemy of the round died: start the breather toward the next round.</summary>

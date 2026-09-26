@@ -87,7 +87,7 @@ public static class ActionsKhalid
 				Stun = 1.0f,
 				VictimEffect = "res://vfx/character/khalid/status/ground_breaker_stun.tscn",
 			}),
-			Cooldown = 1.0f,
+			Cooldown = 6.0f,
 		},
 		[SpecialIds.Frenemy] = new Action
 		{
@@ -102,15 +102,18 @@ public static class ActionsKhalid
 				VictimEffect = "res://vfx/character/khalid/status/frenemy_stun.tscn",
 				VictimTime = 8.0f,
 			}),
+			Cooldown = 12.0f, // longer than the 8 s charm, so one converted enemy at a time
 		},
-		[SpecialIds.ComeCloser] = new Action { Name = "Come Closer", Icon = Ember, Tags = ["control"], Cooldown = 3.0f },
-		[SpecialIds.RedereShield] = new Action { Name = "Redere Shield", Icon = Shield, Tags = ["shield", "held"] },
+		[SpecialIds.ComeCloser] = new Action { Name = "Come Closer", Icon = Ember, Tags = ["control"], Cooldown = 5.0f },
+		// Held: its cooldown starts when the shield is RELEASED (Player.HoldingSpecial), so holding it isn't free.
+		[SpecialIds.RedereShield] = new Action { Name = "Redere Shield", Icon = Shield, Tags = ["shield", "held"], Cooldown = 3.0f },
 		[SpecialIds.RedereFrisbee] = new Action
 		{
 			Name = "Redere Frisbee",
 			Icon = Blast1,
 			Tags = ["shield"],
 			Hit = new HitData(StrikeType.Projectile, new SegmentData { Damage = 7, Knockback = 120 }),
+			Cooldown = 3.0f,
 		},
 		// Zahluq — ex-attack, now a RARE special only obtainable from the mystery box (replaces your special).
 		// AnimationOverride reuses its existing "attack_zahluq" sprite/vfx/sfx (assets keep the attack_ prefix).
@@ -120,7 +123,7 @@ public static class ActionsKhalid
 			Description = "A dash-through strike with super armor: blink forward and cut clean.",
 			Icon = Bolt, // PLACEHOLDER — no dedicated special icon yet
 			AnimationOverride = "attack_zahluq",
-			Cooldown = 3.0f,
+			Cooldown = 5.0f,
 			Tags = ["air"],
 			Hit = new HitData(StrikeType.Melee, new SegmentData
 			{

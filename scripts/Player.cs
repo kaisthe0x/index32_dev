@@ -73,7 +73,6 @@ public partial class Player : Combatant
     private const float RuhPerBlock = 100.0f; // one HUD "block" = one charge (the default surge cost)
     private const float RuhPerHit = 20.0f;     // Ruh gained per HIT landed (5 hits = 1 charge)
     private const float MaxRuhCap = 500.0f;    // hard ceiling: 5 charges
-    private const float SpecialCooldown = 0.6f; // tiny anti-spam between specials (they cost no Ruh)
 
     /// <summary>Instance accessor so GDScript (HUD block sizing / run debug) can read the block size — it can't read a C# const.</summary>
     public float RUH_PER_BLOCK => RuhPerBlock;
@@ -234,7 +233,7 @@ public partial class Player : Combatant
 
     private float _specialCd = 0.0f;
     private float _attackCd = 0.0f;
-    private FloatingHealthBar _cooldownBar = null;
+    private FloatingHealthBar _cooldownBar = null; // above-head ATTACK cooldown (specials have their own HUD bar)
     private AudioStreamPlayer _runSfx = null;
     private AudioStreamPlayer _slamDownSfx = null;
     private const float RuhFlashRefractory = 0.2f;
@@ -640,6 +639,16 @@ public partial class Player : Combatant
 
     /// <summary>Lower the current attack cooldown (Bakshen Overcharge on-hit). Clamped to zero (a huge value = full reset).</summary>
     public void reduce_attack_cooldown(float seconds) => _attackCd = Mathf.Max(_attackCd - seconds, 0.0f);
+
+    /// <summary>Shave <paramref name="seconds"/> off the special's cooldown (clamped at ready).</summary>
+    public void reduce_special_cooldown(float seconds) => _specialCd = Mathf.Max(_specialCd - seconds, 0.0f);
+
+    /// <summary>How recharged the special is, 0..1 (1 = ready to cast) — drives the HUD's special bar.</summary>
+    public float special_ready()
+    {
+        float cd = _currentSpecial != null ? CooldownOf(_currentSpecial) : 0.0f;
+        return cd > 0.0f ? 1.0f - _specialCd / cd : 1.0f;
+    }
 
     /// <summary>Zero the dash cooldown so the follow-up dash is free (Chain Dash on-dash).</summary>
     public void reset_dash_cooldown() => _dashCd = 0.0f;
@@ -1229,7 +1238,8 @@ public partial class Player : Combatant
         }
 
         _dashCd = Mathf.Max(_dashCd - delta, 0.0f);
-        _specialCd = Mathf.Max(_specialCd - delta, 0.0f);
+        if (!HoldingSpecial())
+            _specialCd = Mathf.Max(_specialCd - delta, 0.0f); // a held special's cooldown starts on release
         _launchCdLeft = Mathf.Max(_launchCdLeft - delta, 0.0f);
         UpdateOrbProximity();
         TrySurge();
@@ -1759,11 +1769,14 @@ public partial class Player : Combatant
         }
     }
 
+    /// <summary>A "held" special (Redere Shield) is up right now — its cooldown waits until it's released.</summary>
+    private bool HoldingSpecial() => _state == State.SPECIAL && _currentSpecial != null && HasTag(_currentSpecial, "held");
+
     private void StartSpecial()
     {
         if (_specialCd > 0.0f)
             return;
-        _specialCd = Mathf.Max(SpecialCooldown, _currentSpecial != null ? CooldownOf(_currentSpecial) : 0.0f);
+        _specialCd = _currentSpecial != null ? CooldownOf(_currentSpecial) : 0.0f; // every special has its own cooldown
         bool isShield = _currentSpecial != null && HasTag(_currentSpecial, "shield");
         foreach (var p in _passives)
             p.OnSpecialCast(this, _currentSpecial);
@@ -1950,17 +1963,14 @@ public partial class Player : Combatant
         _sprite.Play(Anim(_currentAttack));
     }
 
+    /// <summary>The above-head bar tracks the ATTACK cooldown only (e.g. Bakshen); specials have their own bar in the
+    /// HUD gauge, so the two never share one.</summary>
     private void UpdateCooldownBar()
     {
         if (_cooldownBar == null)
             return;
         float cd = 0.0f, left = 0.0f;
-        if (_currentSpecial != null && CooldownOf(_currentSpecial) > 0.0f && _specialCd > 0.0f)
-        {
-            cd = CooldownOf(_currentSpecial);
-            left = _specialCd;
-        }
-        else if (_currentAttack != null && CooldownOf(_currentAttack) > 0.0f && _attackCd > 0.0f)
+        if (_currentAttack != null && CooldownOf(_currentAttack) > 0.0f && _attackCd > 0.0f)
         {
             cd = CooldownOf(_currentAttack);
             left = _attackCd;
