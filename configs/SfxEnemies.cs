@@ -47,6 +47,19 @@ public static class SfxEnemies
     /// Only list cues that need trimming; unlisted cues play at 0 dB.</summary>
     public static readonly GDict VOLUMES = new();
 
+    /// <summary>Per-cue random PITCH range (± fraction, e.g. 0.06 = ±6%), re-rolled every play so repeated sounds don't
+    /// sound copy-pasted. A key may name a GROUP: a cue with no entry of its own uses its nearest dotted prefix
+    /// ("kebus.projectile.3" → "kebus.projectile" → "kebus"). Unlisted = fixed pitch. Keep it subtle (±3-8%);
+    /// signature stingers / alerts / loops stay unlisted.</summary>
+    public static readonly GDict PITCH = new()
+    {
+        ["enemy_death"] = 0.07f, // fire constantly — the biggest win
+        ["enemy_spawn"] = 0.07f,
+        // Every grunt's attack cues (a swarm stacking one identical sound turns robotic). Wardens (kroj) stay fixed.
+        ["kebus"] = 0.06f, ["baghel"] = 0.06f, ["mazab"] = 0.06f, ["matat"] = 0.06f,
+        ["tarri"] = 0.06f, ["breski"] = 0.06f, ["nasen"] = 0.06f, ["ein"] = 0.06f,
+    };
+
     public static readonly GDict FRAMES = new()
     {
         ["baghel"] = new GDict { ["attack_projectile"] = new GDict { [4] = "baghel.projectile.4" } },

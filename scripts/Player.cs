@@ -584,7 +584,7 @@ public partial class Player : Combatant
         float before = health;
         health -= HitCost;
         WarnLowHealth(before, health);
-        _sfx.play_random(new GArr { "hurt.1", "hurt.2", "hurt.3" }, 0.0f, (float)GD.RandRange(0.95, 1.06));
+        _sfx.play_random(new GArr { "hurt.1", "hurt.2", "hurt.3" }); // pitch variation comes from SfxCharacters.PITCH
         // Colour flash over the hurt anim, via the palette shader's `flash` uniform (a plain modulate is swallowed).
         FlashSprite(_sprite, Combat.DamageFlash, Combat.DamageFlashTime);
         if (health <= 0.0f && !_dead)

@@ -75,6 +75,25 @@ public static class SfxCharacters
     /// Only list cues that need trimming; unlisted cues play at 0 dB.</summary>
     public static readonly GDict VOLUMES = new();
 
+    /// <summary>Per-cue random PITCH range (± fraction, e.g. 0.06 = ±6%), re-rolled every play so repeated sounds don't
+    /// sound copy-pasted. A key may name a GROUP: a cue with no entry of its own uses its nearest dotted prefix
+    /// ("kebus.projectile.3" → "kebus.projectile" → "kebus"). Unlisted = fixed pitch. Keep it subtle (±3-8%);
+    /// signature stingers / alerts / loops stay unlisted.</summary>
+    public static readonly GDict PITCH = new()
+    {
+        ["hurt"] = 0.05f,        // hurt.1-3
+        ["dash"] = 0.05f,
+        ["jump"] = 0.05f,
+        ["slam"] = 0.04f,        // the impact (slam_down, the descent whoosh, is its own unlisted key)
+        ["ora_ora"] = 0.08f,     // the flurry repeats fastest — widest range
+        ["twin_reaper"] = 0.06f,
+        ["spear"] = 0.06f,
+        ["rope_dart"] = 0.06f,
+        ["cherry_shots"] = 0.06f,
+        ["redere_shield_block"] = 0.04f,
+        ["redere_frisbee.impact"] = 0.04f,
+    };
+
     public static readonly GDict FRAMES = new()
     {
         ["khalid"] = new GDict

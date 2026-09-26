@@ -35,4 +35,10 @@ public static class SfxWorld
 		["round_countdown"] = -3.0f, // countdown.wav: -23.8 dB → ~-26.8
 		["round_start"] = -4.0f,     // round_start.wav: -22.7 dB → ~-26.7
 	};
+
+	/// <summary>Per-cue random PITCH range (± fraction, e.g. 0.06 = ±6%), re-rolled every play so repeated sounds don't
+	/// sound copy-pasted. A key may name a GROUP: a cue with no entry of its own uses its nearest dotted prefix
+	/// ("kebus.projectile.3" → "kebus.projectile" → "kebus"). Unlisted = fixed pitch. Keep it subtle (±3-8%);
+	/// signature stingers / alerts / loops stay unlisted.</summary>
+	public static readonly GDict PITCH = new(); // world cues are stingers / UI — none randomized
 }

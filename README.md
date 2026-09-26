@@ -1148,6 +1148,14 @@ is pure data in per-area files — **`SfxCharacters`**, **`SfxEnemies`**, **`Sfx
 **`sfx/`**. **Per-cue volume**: to tame a too-loud sound in ONE place, add its key to that file's **`VOLUMES`**
 dict (dB, negative = quieter) — e.g. `["buff_levelup"] = -10f`. It's applied on top of any call-site `volume_db`;
 unlisted cues play at 0 dB. (There's also a brick-wall limiter on the whole SFX bus for summed peaks.)
+**Per-cue pitch variation**: each config also has a **`PITCH`** dict — a random range (± fraction, e.g. `0.06` = ±6%)
+re-rolled on every play (`Sfx.play` / `play_at`), so repeated sounds don't sound copy-pasted and a swarm firing one
+cue doesn't phase into a robotic drone. A key can name a **group**: a cue with no entry of its own uses its nearest
+dotted prefix (`kebus.projectile.3` → `kebus.projectile` → `kebus`), so one line covers a whole enemy / attack. Listed
+today: player attacks (Ora Ora ±8%, Twin Reaper / Spear / Rope Dart / Cherry Shots ±6%), dash / jump / hurt ±5%,
+slam impact / shield block / frisbee impact ±4%, enemy death / spawn ±7%, every grunt's attacks ±6%. **Unlisted on
+purpose** (fixed pitch): stingers (round start, level up, deaths), alerts (health warnings), signature specials /
+surges, Wardens, and loops (run, launch-orb hum — re-pitching a loop warbles). Keep ranges subtle (±3–8%).
 
 **Loudness reference (measured 2026-09-26).** Judge a new sound by the loudness of its **loudest 0.4 s** (RMS, dB) —
 integrated LUFS is meaningless for short one-shots. The SFX library's **median is ≈ −26.4 dB** (middle half −30 … −24);
