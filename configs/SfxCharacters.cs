@@ -23,6 +23,7 @@ public static class SfxCharacters
         ["run"] = "res://sfx/character/run.wav", // looping footsteps (Sfx.make_loop)
         ["ruh_absorb"] = "res://sfx/character/ruh_absorb.wav", // a Ruh soul lands on Khalid
         ["player_death"] = "res://sfx/character/death/player_death.wav", // death sting/tone — PLACEHOLDER
+        ["player_fall_death"] = "res://sfx/character/fall_to_death.wav", // fell out of the arena — PLACEHOLDER (reuses the slam whoosh)
         // Low-HP warnings — fired ONCE by Player.take_damage when HP crosses DOWN through a threshold (re-arms if healed).
         ["health_half"] = "res://sfx/character/health/health_half.wav", // crossed 50% HP — PLACEHOLDER
         ["health_low"] = "res://sfx/character/health/health_low.wav",   // crossed 20% HP — PLACEHOLDER

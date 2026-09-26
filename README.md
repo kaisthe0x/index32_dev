@@ -1755,6 +1755,12 @@ the build basics:
   round's unspawned quota, so a camper the AI can't reach still gets fresh enemies spawned near them.
 - **Per-type caps** — a kit's `spawn_cap` (e.g. Nasen = 1) limits how many of that type are alive at once; `PickSpawnKit`
   only rolls kits under their cap, and the cap grows +1 every `Rounds.KitCapGrowthRounds` rounds. No `spawn_cap` = unlimited.
+- **Player fall-death** — once Khalid's Y passes `RunManager.DeathY`, `Player.fall_to_death()` kills him outright
+  (ignoring i-frames / Aegis — nothing survives the void). It is deliberately NOT the normal death: no death
+  animation — he keeps his **fall** animation and free-falls out of control (`Player.ProcessFreefall`) — and it plays
+  its own cue, **`player_fall_death`** (`SfxCharacters`; a PLACEHOLDER reusing the slam whoosh). `RunManager.HandleFallDeath`
+  skips the death cinematic: the **camera stops where it is** (no follow, zoom or overlay), the music stops, and once
+  the fall sound has played (at least `FallDeathHold`, 1.2 s) the run records the round and restarts.
 - **Fall-death** — any enemy whose world Y passes `Enemy.FallDeathY` (below the platforms) `Die()`s (it walked/was
   knocked off into the void). It still emits `died` so the spawn-cap slot frees, but `RunManager.OnEnemyDied`
   skips its loot (`enemy.fell_off`) — those drops would be unreachable down there.

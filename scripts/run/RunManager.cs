@@ -21,7 +21,7 @@ public partial class RunManager : Node2D
 {
     private static readonly Vector2 SpawnFxOffset = new(0, -22);
     private static readonly Vector2 DamageNumberOffset = new(0, -42);
-    private const float DeathY = 320.0f;
+    private const float DeathY = 320.0f;   // falling below this world Y kills the player
     private const string StartCharacter = "khalid";
 
     // Anti-camp: an enemy that stays OFF-SCREEN this long (e.g. can't path to a camping player) is silently freed,
@@ -61,6 +61,7 @@ public partial class RunManager : Node2D
     private const float DeathFadeIn = 0.55f;
     private const float DeathFadeOut = 0.6f;
     private const float DeathFreeze = 0.5f;
+    private const float FallDeathHold = 1.2f;  // min seconds the run lingers after a fall-death (the fall sound may run longer)
 
     [Export] public NodePath player_path = "Player";
 
@@ -153,9 +154,7 @@ public partial class RunManager : Node2D
         }
         if (_player.GlobalPosition.Y > DeathY)
         {
-            PlaceAt(_player, _playerSpawn);
-            if (_camera != null)
-                PlaceAt(_camera, _playerSpawn + new Vector2(0, -30));
+            _player.fall_to_death(); // fell off the arena — that's a death (next tick runs the death flow)
             return;
         }
         if (_spawning)
@@ -795,6 +794,11 @@ public partial class RunManager : Node2D
 
     private void HandleDeath(float delta)
     {
+        if (_player.fell_out())
+        {
+            HandleFallDeath(delta);
+            return;
+        }
         if (!_deadPrev)
         {
             _deadPrev = true;
@@ -813,9 +817,24 @@ public partial class RunManager : Node2D
         }
     }
 
+    /// <summary>Fell out of the arena: NOT the death cinematic — the camera stops where it is (no follow, no zoom, no
+    /// overlay) and Khalid drops out of frame in his fall animation; the music stops, and once the fall sound has played
+    /// (at least <see cref="FallDeathHold"/>) the run ends.</summary>
+    private void HandleFallDeath(float delta)
+    {
+        if (!_deadPrev)
+        {
+            _deadPrev = true;
+            _music.stop();
+            _deathHold = Mathf.Max(FallDeathHold, CueLength("player_fall_death"));
+        }
+        if ((_deathHold -= delta) <= 0.0f)
+            RestartRun();
+    }
+
     private void BeginDeathCinematic()
     {
-        _deathTuneLeft = DeathTuneLength();
+        _deathTuneLeft = CueLength("player_death");
         _music.stop();
         if (_player != null)
         {
@@ -871,10 +890,11 @@ public partial class RunManager : Node2D
         }
     }
 
-    private float DeathTuneLength()
+    /// <summary>Length in seconds of a character sound cue (0 if the cue or its file is missing).</summary>
+    private static float CueLength(string cue)
     {
         var cues = SfxCharacters.CUES;
-        string path = cues.ContainsKey("player_death") ? cues["player_death"].AsString() : "";
+        string path = cues.ContainsKey(cue) ? cues[cue].AsString() : "";
         if (path == "" || !ResourceLoader.Exists(path))
             return 0.0f;
         var s = GD.Load<AudioStream>(path);
