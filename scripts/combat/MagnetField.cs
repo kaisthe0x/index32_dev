@@ -4,8 +4,9 @@ using System.Collections.Generic;
 namespace MyGame;
 
 /// <summary>
-/// The Come Closer special's effect: on spawn, MAGNETIZE the <see cref="max_targets"/> nearest enemies within
-/// <see cref="pull_range"/> toward Khalid — each dragged in (Enemy.magnetize) and STUNNED on arrival. Self-frees
+/// The Come Closer special's effect: on spawn, MAGNETIZE the <see cref="max_targets"/> nearest enemies IN FRONT of
+/// Khalid (the way he faces) within <see cref="pull_range"/> toward him — each dragged in (Enemy.magnetize) and
+/// STUNNED on arrival. Enemies behind him are never pulled. Self-frees
 /// after <see cref="life"/>. C# port of <c>scripts/combat/magnet_field.gd</c>. Public surface stays snake_case
 /// (the come_closer scene authors the exports). Enemy is still GDScript, so <c>magnetize</c> is a dynamic Call.
 /// </summary>
@@ -27,14 +28,16 @@ public partial class MagnetField : Node2D
         if (GetTree().GetFirstNodeInGroup("player") is Node2D khalid)
         {
             Vector2 origin = khalid.GlobalPosition;
-            // Collect every in-range, same-level enemy, then grab only the nearest `max_targets` (closest-first).
+            int facing = khalid is Player fp ? fp.facing : 1;
+            // Collect every in-range, same-level enemy IN FRONT (the facing side only), then grab the nearest
+            // `max_targets` (closest-first).
             var inReach = new List<(Node2D Enemy, float Dist)>();
             foreach (var e in GetTree().GetNodesInGroup("enemies"))
             {
                 if (e is not Node2D enemy)
                     continue;
-                float dx = Mathf.Abs(enemy.GlobalPosition.X - origin.X);
-                if (dx <= pull_range && Mathf.Abs(enemy.GlobalPosition.Y - origin.Y) <= pull_y_band)
+                float dx = (enemy.GlobalPosition.X - origin.X) * facing; // distance ahead; negative = behind him
+                if (dx >= 0.0f && dx <= pull_range && Mathf.Abs(enemy.GlobalPosition.Y - origin.Y) <= pull_y_band)
                     inReach.Add((enemy, dx));
             }
             inReach.Sort((a, b) => a.Dist.CompareTo(b.Dist));

@@ -414,15 +414,21 @@ public partial class Player : Combatant
 
     private void SeedPassives()
     {
-        foreach (var p in _passives)
-            p.Teardown(this);
-        _passives.Clear();
-        RefreshBuffHud();
+        ClearPassives();
         if (Engine.IsEditorHint())
             return;
         var ability = CharacterAbilityFor(character);
         if (ability != null)
             add_passive(ability);
+    }
+
+    /// <summary>Remove every passive, undoing each one's stat changes (Teardown) while those changes are still applied.</summary>
+    private void ClearPassives()
+    {
+        foreach (var p in _passives)
+            p.Teardown(this);
+        _passives.Clear();
+        RefreshBuffHud();
     }
 
     /// <summary>A character's intrinsic ability, or null. Khalid ships without one. (Add a case when a character gets a C# CharacterAbility.)</summary>
@@ -907,8 +913,6 @@ public partial class Player : Combatant
                 _stunLeft = flinch;
                 Enter(State.HURT);
             }
-            _comboPlaying = false;
-            _flurry = false;
             _bufferedSpecial = false;
         }
         if (hit.StatusColor.A > 0.0f)
@@ -1186,6 +1190,9 @@ public partial class Player : Combatant
 
     public void begin_run()
     {
+        // Buffs FIRST: each Teardown undoes its own change (e.g. -1 air jump, ÷ jump height), so it must run while
+        // those changes are still in place — resetting the stats below first made every undo apply twice.
+        ClearPassives();
         _dead = false;
         _deathFinished = false;
         _fellOut = false;
@@ -1714,19 +1721,15 @@ public partial class Player : Combatant
                 AddVelY(_gravity * delta);
         }
 
-        if (Input.IsActionJustPressed("special"))
-            _bufferedSpecial = true;
+        if (Input.IsActionJustPressed("special") && _specialCd <= 0.0f)
+            _bufferedSpecial = true; // only a READY special — one on cooldown would stall the attack until it recharged
 
         if (_flurry)
         {
             if (_bufferedSpecial)
-            {
-                _flurry = false;
                 StartSpecial();
-            }
             else if (!Input.IsActionPressed("attack"))
             {
-                _flurry = false;
                 NotifyAttackAnimEnd();
                 Enter(State.IDLE);
             }
@@ -1999,6 +2002,13 @@ public partial class Player : Combatant
     private void Enter(State state)
     {
         _state = state;
+        if (state != State.ATTACK)
+        {
+            // Leaving an attack by ANY route (release, special, surge, hurt, …) ends its flurry / combo segment. Done
+            // here, centrally, because a stale _flurry makes AdvanceCombo swallow every later attack press.
+            _flurry = false;
+            _comboPlaying = false;
+        }
         _sprite.SpeedScale = 1.0f;
         _sprite.Visible = true;
         switch (state)

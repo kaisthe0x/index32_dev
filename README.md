@@ -510,7 +510,8 @@ light **attack** still lacks an effect scene, so it deals no damage for now.)
 - **Ground Breaker** — AOE slam `Strike` (stun + a ground-crack).
 - **Frenemy** — a charm blast: the hit enemy becomes a temporary ally (`Hit.frenemy_time` → `Enemy.become_frenemy`).
 - **Come Closer** — a magnet: the `special_come_closer` effect scene (`scripts/combat/MagnetField.cs`) grabs
-  the **nearest** enemy in range and `Enemy.magnetize()`s it toward Khalid, stunning it on arrival (no damage).
+  the **nearest** enemy in range **in front of Khalid** (the side he faces — `Player.facing`; enemies behind him are
+  never pulled) and `Enemy.magnetize()`s it toward Khalid, stunning it on arrival (no damage).
   The field's **`max_targets`** (=1 today) caps how many it yanks — bump it to 3 later for a wider pull. The
   grab is measured from **Khalid's** position, *not* the field's own transform: the director spawns the field
   with `add_child()` (which runs its `_ready` scan) and only sets its world position with `Nodes.place_at()`
@@ -708,7 +709,10 @@ special (Redere Shield) doesn't tick its cooldown while it's up (`HoldingSpecial
 holding isn't free. The cooldown carries over if you swap specials. It has its **own bar in the HUD gauge**
 (`scripts/ui/SpecialBar.cs`, under the Ruh orbs, fed by `Player.special_ready()` 0..1): always shown, fills as
 it recharges, and when ready it pops, then **pulses and glows** (HDR) until used; becoming ready wakes the gauge.
-So an attack cooldown (Bakshen) and a special cooldown never share a bar. Buffs can cut it via
+So an attack cooldown (Bakshen) and a special cooldown never share a bar. A special pressed mid-attack is only
+buffered if it's READY (a buffered special on cooldown used to stall the attack until it recharged), and leaving
+ATTACK by any route (`Player.Enter` to any other state — surge, special, hurt, …) clears the flurry/combo flags
+centrally, so no exit can leave a stale `_flurry` that swallows later attack presses. Buffs can cut it via
 `Player.reduce_special_cooldown(seconds)`. A cooldown attack is effectively a single heavy hit — the gate
 blocks re-entry, so it doesn't chain combo segments.
 
@@ -834,7 +838,9 @@ are `[GlobalClass]` so the still-GDScript `Rewards` service can `Leech.new()` th
   `Player.CharacterAbilityFor(id)`, seeded FIRST in the list. Khalid ships without one.
 - a **reward-granted passive** — a `Passive` subclass, added at runtime via `Player.add_passive()` when its
   reward is taken (a reward row's `passive: "<id>"` → `Rewards._make_passive` `.new()`s the C# class), and
-  cleared on run restart (each passive's `Teardown` runs so it can undo lingering effects).
+  cleared on run restart (each passive's `Teardown` runs so it can undo lingering effects). `begin_run` clears them
+  FIRST (`ClearPassives`), before resetting stats — otherwise each undo lands on already-reset stats and applies
+  twice (the old bug: an Extra Air Jump left the next run at −1 air jumps, High Jump at ~0.7× height).
 
 ```csharp
 [GlobalClass]
