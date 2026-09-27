@@ -1810,10 +1810,10 @@ the build basics:
 - **Drop through a platform** — tap **`drop` (S / ↓ by default)** while standing on
   a one-way platform to fall through it; on the solid floor it's a no-op. `drop` is
   its own remappable action (controller: D-pad down / left-stick down), so jump is
-  now purely jump. `_drop_through_platform()` finds the platform under the feet via
-  the slide collisions (only bodies in the `oneway_platform` group qualify, so you
-  can't fall through the ground), adds a brief collision exception, and removes it
-  after `DROP_THROUGH_TIME`.
+  now purely jump. `DropThroughPlatform()` checks the floor contact's collision layer —
+  one-way tiles (e.g. tileset2) live on `Combat.Layer.Platform`, solid ground on `World` —
+  and only for a platform clears the Platform bit from the player's mask for
+  `DropThroughTime` (solid ground can never be fallen through).
 
 #### Pixel-crisp motion (why running isn't blurry)
 
@@ -1824,7 +1824,15 @@ Fixes, all in `project.godot`:
 - **`physics/common/physics_interpolation`** — renders nodes smoothly *between*
   physics ticks. This is the main fix. Camera + follow run in `_physics_process`
   so both interpolate together; teleports (spawn, respawn) call
-  `reset_physics_interpolation()` (`_place()`) so they snap instead of smearing.
+  `reset_physics_interpolation()` (`PlaceAt()`) so they snap instead of smearing.
+  > **Never set the `Camera2D`'s Physics Interpolation Mode to Off** (`arena.tscn`). It still moves in the physics
+  > tick, so with interpolation off it steps at 60 Hz while Khalid glides at the monitor's rate — on a 144 Hz
+  > display that's a frozen frame + catch-up jump every couple of frames (measured: 42 freezes / 39 jumps in a 2 s
+  > run-and-stop vs 0 / 0 interpolated): the "camera snaps into place when he stops" jitter.
+  > The follow is a **critically damped spring** (`RunManager.SmoothDamp`, tuned by `CamSmoothTime`, 0.055 s; tighter
+  > `CamSmoothTimeFast` at high vertical speed): it carries velocity, so a sudden jump (the ~76 px blink dash) makes it
+  > accelerate and decelerate smoothly instead of lurching off at full speed, and a stop eases out with no overshoot
+  > (trail ~14 px while running, settles ~0.23 s after a stop). Lower `CamSmoothTime` = tighter.
   > **Gotcha:** anything `add_child`'d and *then* moved to a spawn point (enemy
   > projectiles / the ground wave, a world-anchored particle burst) must call
   > `reset_physics_interpolation()` after positioning — otherwise it interpolates
@@ -1864,7 +1872,7 @@ instead of a fixed fps that desyncs the moment speed changes. `run_anim_speed`
   + `Player.begin_run()` (full HP / a full 3-charge Ruh meter, run-reward buffs cleared). Death is a real fail state
   now (roguelite), not a free respawn.
 - **Death cinematic** — a staged sequence: the death anim **freezes on its first frame** while the
-  camera **punches in hard** (`CAM_ZOOM_DEATH` 3.0 vs the 1.5 rest zoom) and **the whole world fades
+  camera **punches in hard** (`CamZoomDeath` 3.0 vs the 0.5 rest zoom, `CamZoomNormal`) and **the whole world fades
   to black behind him**; then the collapse **plays out on the void**; then respawn clears the black.
   A **death tune** (`Sfx.play("player_death")`) fires in `Player._die`, and the level music **ducks out**
   (`Music.stop`) so it plays clear; the **respawn waits for the whole tune to finish** — `_handle_death`
@@ -1930,10 +1938,10 @@ Three rows kept near the action, so you read your state without looking away fro
 
 - **`Screen`** (default) — in the screen HUD (`UiLayers.Hud`, above the low-HP grade), anchored at horizontal
   centre with its top at `GaugeScreenY` of screen height, and scaled about its top-centre by
-  `GaugePixelScale` (1.5 = `RunManager.CamZoomNormal`) so one pip pixel matches one sprite pixel on
-  screen. Screen UI — it ignores the spawn/death camera zooms.
+  `GaugePixelScale` (1.5) — a fixed, readable size. Screen UI — independent of the camera zoom (normal
+  and spawn/death alike).
 - **`FollowKhalid`** — centred `GaugeFeetGap` px under Khalid's feet, in world units (so it matches the
-  sprites' pixel size at any zoom). It hangs off a `Node2D` anchor on its own **camera-following
+  sprites' pixel size at any zoom — and shrinks with them at a zoomed-out camera). It hangs off a `Node2D` anchor on its own **camera-following
   `CanvasLayer`** (`FollowViewportEnabled`, **`UiLayers.Gauge`**: above the low-HP grade, below the screen HUD).
   A **`RemoteTransform2D` added to the Player** (only in this mode) carries the anchor, so it moves
   during physics and **physics interpolation** smooths it in step with Khalid. Deliberately *not* a
@@ -2019,7 +2027,7 @@ It follows health and Ruh changes over signals — nothing polls.
 
 ### Off-screen enemy arrows (`scripts/ui/OffscreenMarkers.cs`)
 
-With the tight 6× camera and the big orb launches, enemies leave the frame constantly — so you can't
+Enemies leave the frame easily (the orb launches especially) — so you can't
 see where to slam/approach. `OffscreenMarkers` is a full-viewport overlay the HUD builds (a sibling of
 the HUD's screen-space root, shown/hidden with it). Each frame it projects every enemy in the `"enemies"`
 group through the camera — `get_viewport().get_canvas_transform() * enemy.global_position` — and for

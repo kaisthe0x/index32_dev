@@ -32,6 +32,8 @@ Enemies spawn around the player on exposed ground tiles automatically — no spa
 | Dash | ~2.4 tiles |
 | Camera view (normal zoom) | ~24 × 13.5 tiles |
 
+- **tileset2 platforms are jump-through:** Khalid (and enemies) land on them, jump up through them, and **drop down
+  through with S / Down**. Solid tiles (tileset1) never let you drop through.
 - **Slopes are walkable** (up to 50°) — collision is traced from the art, so a painted 1:1 ramp just works, for the
   player and enemies alike (`Combat.ApplyFloorHandling`).
 - Space ledges 1 tile for easy hops, 2–3 tiles where a double jump is intended; use **launch orbs** for bigger climbs.

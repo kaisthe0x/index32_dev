@@ -28,7 +28,11 @@ public static class Combat
         EnemyHurt = 1u << 4,  // enemies receive hits here
         PlayerHit = 1u << 5,  // player attack boxes / friendly projectiles
         EnemyHit = 1u << 6,   // enemy attack boxes / hostile projectiles
+        Platform = 1u << 7,   // one-way (jump-through) terrain tiles — bodies stand on them; drop-through clears it briefly
     }
+
+    /// <summary>What a body stands on: solid terrain + one-way platforms.</summary>
+    public const uint GroundMask = (uint)(Layer.World | Layer.Platform);
 
     /// <summary>
     /// Layer an attack box / projectile lives on. Friendly (player) boxes hit enemies; hostile boxes hit

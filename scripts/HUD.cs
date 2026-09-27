@@ -77,8 +77,8 @@ public partial class HUD : CanvasLayer
 	// orbs' rounded bottoms sit almost flush on the flat bar — this evens the two gaps out to the eye.
 	private const int SpecialBarTopGap = 2;
 	private const float GaugeScreenY = 0.9f;   // Screen placement: gauge top, as a fraction of screen height
-	// Screen placement: pips are pixel art, so scale them by the normal camera zoom (RunManager.CamZoomNormal) — one pip
-	// pixel is then the same size on screen as one sprite pixel. (FollowKhalid is in world units, so it matches natively.)
+	// Screen placement: a fixed, readable pixel scale for the pips — screen UI, independent of the camera zoom.
+	// (FollowKhalid is in world units instead, so it scales with the camera zoom along with the sprites.)
 	private const float GaugePixelScale = 1.5f;
 	private const float GaugeFeetGap = 3.0f;   // FollowKhalid: world px below Khalid's origin (his feet)
 	private const float GaugeIdleAlpha = 0.6f;

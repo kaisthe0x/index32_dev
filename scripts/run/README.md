@@ -105,7 +105,8 @@ Related, but not in this folder:
      **"next buff" progress bar** (`HUD.SetBuffProgress`, spanning `_prevMilestone`→`_nextMilestone`). When the run's
      LIFETIME total crosses `_nextMilestone` (5 → 15 → 35 → …, the gap grows by `MilestoneGapGrowth`), `BeginBuffMilestone`
      **freezes the game, flashes a "LEVEL UP" banner + `buff_levelup` cue**, then after `LevelUpDelay` opens a `RewardUI`
-     of **3 mild buffs** (`BuffCatalog.MildIds` — general, NON-invuln; Common/Rare, easing toward Rare with
+     of **3 mild buffs** (`BuffCatalog.MildIds` — general, NON-invuln; Common/Rare — floored to each buff's
+     `BuffCatalog.MinTier` so a threshold buff like Extra Air Jump never rolls a do-nothing Common — easing toward Rare with
      `_milestoneIndex`). Picking grants it + plays `buff_select`. **No figs are spent** — the balance is left for the box.
    - **Mystery box (powerful, paid gamble):** one `MysteryBox` per arena; stand next to it + press **E** to spend `Cost`
      figs (`Player.spend_fada_figs`). Most pulls dud (`DudChanceBase`); a WIN fires the box's `won` signal →

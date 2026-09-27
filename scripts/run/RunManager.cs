@@ -47,11 +47,15 @@ public partial class RunManager : Node2D
         EnemyKits.TARRI, EnemyKits.BRESKI, EnemyKits.EIN, EnemyKits.NASEN,
     };
 
-    // Camera follow (speed-adaptive).
-    private const float CamFollowBase = 0.002f;
+    // Camera follow: a CRITICALLY DAMPED SPRING (SmoothDamp) toward Khalid — it has velocity, so after a sudden jump
+    // (a blink dash) it accelerates smoothly, glides and decelerates with no overshoot, and a stop eases out instead of
+    // "lagging into place". CamSmoothTime ≈ time to catch up; lower = tighter (trails a running Khalid by ~13 px at
+    // 0.055 s). Fast VERTICAL motion (launch orbs) tightens toward CamSmoothTimeFast so he never leaves the frame.
+    private const float CamSmoothTime = 0.055f;
+    private const float CamSmoothTimeFast = 0.015f;
     private const float CamTightenStart = 600.0f;
     private const float CamTightenFull = 1200.0f;
-    private const float CamTightK = 0.9f;
+    private Vector2 _camVel = Vector2.Zero; // the follow spring's velocity (zeroed whenever the camera is placed directly)
     private static readonly Vector2 CamZoomNormal = new(.5f, .5f);
     private static readonly Vector2 CamZoomDeath = new(3.0f, 3.0f);
     private static readonly Vector2 CamZoomSpawn = new(2, 2);
@@ -278,7 +282,7 @@ public partial class RunManager : Node2D
         _spawnAccum += delta;
         if (_spawnAccum < SpawnInterval(_round) || _alive >= ConcurrentCap(_round))
             return;
-        var kit = null as GDict;
+        var kit = PickSpawnKit(); // a random kit under its per-type cap (or null if every kit is at cap)
         if (kit == null)
             return; // every kit is at its per-type cap — try again next tick
         _spawnAccum = 0.0f;
@@ -725,7 +729,8 @@ public partial class RunManager : Node2D
         }
         foreach (string id in PickDistinct(pool, buffCount))
         {
-            Tier tier = powerful ? RollPowerfulTier() : RollMildTier();
+            Tier rolled = powerful ? RollPowerfulTier() : RollMildTier();
+            Tier tier = (Tier)Mathf.Max((int)rolled, (int)BuffCatalog.MinTier(id)); // threshold buffs never roll too low
             Buff buff = BuffCatalog.Make(id, tier);
             if (buff == null)
                 continue;
@@ -812,6 +817,7 @@ public partial class RunManager : Node2D
             BeginDeathCinematic();
         }
         _deathTuneLeft = Mathf.Max(_deathTuneLeft - delta, 0.0f);
+        _camVel = Vector2.Zero;
         if (_camera != null)
             _camera.GlobalPosition = _camera.GlobalPosition.Lerp(_player.GlobalPosition + new Vector2(0, -18), 0.12f);
         if (_player.death_complete() && _deathTuneLeft <= 0.0f)
@@ -913,6 +919,7 @@ public partial class RunManager : Node2D
             _spawning = true;
             ZoomTo(CamZoomSpawn, 0.35f);
         }
+        _camVel = Vector2.Zero;
         if (_camera != null)
             _camera.GlobalPosition = _camera.GlobalPosition.Lerp(_player.GlobalPosition + new Vector2(0, -18), 0.12f);
     }
@@ -921,11 +928,24 @@ public partial class RunManager : Node2D
     {
         if (_camera == null)
             return;
-        Vector2 target = new Vector2(_player.GlobalPosition.X, _player.GlobalPosition.Y - 30.0f) + _player.Velocity * delta;
+        Vector2 target = new(_player.GlobalPosition.X, _player.GlobalPosition.Y - 30.0f);
         float vy = Mathf.Abs(_player.Velocity.Y);
         float t = Mathf.Clamp((vy - CamTightenStart) / (CamTightenFull - CamTightenStart), 0.0f, 1.0f);
-        float k = Mathf.Lerp(1.0f - Mathf.Pow(CamFollowBase, delta), CamTightK, t);
-        _camera.GlobalPosition = _camera.GlobalPosition.Lerp(target, k);
+        float smoothTime = Mathf.Lerp(CamSmoothTime, CamSmoothTimeFast, t);
+        _camera.GlobalPosition = SmoothDamp(_camera.GlobalPosition, target, ref _camVel, smoothTime, delta);
+    }
+
+    /// <summary>Critically damped spring step (Game Programming Gems 4 §1.10 — the classic SmoothDamp): moves
+    /// <paramref name="from"/> toward <paramref name="to"/> with continuous velocity, no overshoot.</summary>
+    private static Vector2 SmoothDamp(Vector2 from, Vector2 to, ref Vector2 vel, float smoothTime, float delta)
+    {
+        float omega = 2.0f / Mathf.Max(smoothTime, 0.0001f);
+        float x = omega * delta;
+        float exp = 1.0f / (1.0f + x + 0.48f * x * x + 0.235f * x * x * x);
+        Vector2 change = from - to;
+        Vector2 temp = (vel + omega * change) * delta;
+        vel = (vel - omega * temp) * exp;
+        return to + (change + temp) * exp;
     }
 
     private void ZoomTo(Vector2 z, float dur)

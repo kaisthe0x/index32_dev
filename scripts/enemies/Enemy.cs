@@ -147,7 +147,7 @@ public partial class Enemy : Combatant
 	{
 		AddToGroup("enemies");
 		CollisionLayer = (uint)Combat.Layer.EnemyBody;
-		CollisionMask = (uint)Combat.Layer.World;
+		CollisionMask = Combat.GroundMask;
 
 		Combat.ApplyFloorHandling(this); // shared slope handling (walkable angle, snap, constant speed)
 
@@ -263,7 +263,7 @@ public partial class Enemy : Combatant
 			Position = new Vector2(x, -14),
 			TargetPosition = new Vector2(0, 42),
 			HitFromInside = true,
-			CollisionMask = (uint)Combat.Layer.World,
+			CollisionMask = Combat.GroundMask, // platforms count as footing too
 		};
 		AddChild(ray);
 		return ray;

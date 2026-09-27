@@ -786,7 +786,7 @@ public partial class Player : Combatant
     {
         AddToGroup("player");
         CollisionLayer = (uint)Combat.Layer.PlayerBody;
-        CollisionMask = (uint)Combat.Layer.World;
+        CollisionMask = Combat.GroundMask;
 
         _hurtbox = new Hurtbox { CollisionLayer = (uint)Combat.Layer.PlayerHurt, CollisionMask = 0 };
         _hurtbox.AddChild(MakeBox(new Vector2(16, 30), new Vector2(0, -15)));
@@ -1572,25 +1572,26 @@ public partial class Player : Combatant
 
     private const float DropThroughTime = 0.3f;
 
-    private bool DropThroughPlatform()
+    /// <summary>Drop down through the one-way platform he's standing on: stop colliding with the Platform layer for
+    /// <see cref="DropThroughTime"/> (solid ground stays solid). Only when the floor under him IS a platform — the
+    /// tile bodies of a TileMapLayer carry their physics layer's collision layer, so the floor contact tells us.</summary>
+    private void DropThroughPlatform()
     {
+        const uint platform = (uint)Combat.Layer.Platform;
         for (int i = 0; i < GetSlideCollisionCount(); i++)
         {
-            var collider = GetSlideCollision(i).GetCollider();
-            if (collider is Node n && n.IsInGroup("oneway_platform"))
+            var c = GetSlideCollision(i);
+            if (c.GetNormal().Dot(UpDirection) < 0.5f || (PhysicsServer2D.BodyGetCollisionLayer(c.GetColliderRid()) & platform) == 0)
+                continue; // not a floor contact with a platform
+            CollisionMask &= ~platform;
+            SetVelY(Mathf.Max(Velocity.Y, 60.0f));
+            GetTree().CreateTimer(DropThroughTime).Timeout += () =>
             {
-                AddCollisionExceptionWith(n);
-                SetVelY(Mathf.Max(Velocity.Y, 60.0f));
-                var body = n;
-                GetTree().CreateTimer(DropThroughTime).Timeout += () =>
-                {
-                    if (IsInstanceValid(body))
-                        RemoveCollisionExceptionWith(body);
-                };
-                return true;
-            }
+                if (IsInstanceValid(this))
+                    CollisionMask |= platform;
+            };
+            return;
         }
-        return false;
     }
 
     private void AirJump()

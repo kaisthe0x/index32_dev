@@ -43,7 +43,7 @@ public static class BuffCatalog
 
         // --- movement (Setup-hook) ---
         [BuffIds.ExtraAirJump] = t => new ExtraAirJumpBuff(BuffIds.ExtraAirJump,
-            new[] { 0, 1, 1, 2, 3 }) { Tier = t, Family = "extra_air_jump" },  // threshold: Common (0) not offered
+            new[] { 0, 1, 1, 2, 3 }) { Tier = t, Family = "extra_air_jump" },  // threshold: min Rare (MIN_TIER)
 
         // --- jump height: High Jump (permanent mult) + Slam Spring (one-shot, primed OnSlamLand) ---
         [BuffIds.HighJump] = t => new RunStatBuff(BuffIds.HighJump, RunStatBuff.Field.JumpHeight,
@@ -164,6 +164,15 @@ public static class BuffCatalog
     public static bool IsInvuln(string id) => Make(id, Tier.Common) is InvulnBuff;
 
     /// <summary>MILD pool — general buffs minus the invuln windows. The fada-fig milestone menu draws from these.</summary>
+    /// <summary>THRESHOLD buffs exist only from a minimum tier up (docs/buff-catalog.md) — below it they'd do nothing
+    /// (e.g. Extra Air Jump is +0 at Common). The buff menus raise a rolled tier to this floor. Unlisted = Common.</summary>
+    private static readonly Dictionary<string, Tier> MIN_TIER = new()
+    {
+        [BuffIds.ExtraAirJump] = Tier.Rare,
+    };
+
+    public static Tier MinTier(string id) => MIN_TIER.TryGetValue(id, out var t) ? t : Tier.Common;
+
     public static string[] MildIds() => _mild ??= General().Where(id => !IsInvuln(id)).ToArray();
 
     /// <summary>POWERFUL pool — the general buffs INCLUDING the invuln windows. The mystery box draws from these

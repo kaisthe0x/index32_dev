@@ -19,6 +19,19 @@ Each is a different design for the same stage, and each becomes its own palette 
 a full tile gets a box, a slope becomes a real walkable ramp, a cut corner collides where it looks solid. So draw
 the solid part of a tile as solid (opaque) and the air as transparent — that IS the physics.
 
+## Per-tileset physics
+
+Each tileset can collide differently — set in the table at the top of `tools/gen_terrain_tileset.gd`:
+
+| Setting | Effect |
+|---|---|
+| *(default)* **solid** | traced collision on the **World** layer — walls, floors, ramps |
+| `ONE_WAY_SHEETS` | **jump-through** on the **Platform** layer: land on top, jump up through from below, **drop down through with S / Down** |
+| `CELL_OVERRIDES` | one cell's physics against its sheet's: `SOLID`, `ONE_WAY`, or `NONE` (paintable decoration, no collision) |
+
+Current stage1 sets: **tileset1** = solid ground (block, fill, slope) · **tileset2** = floating brick platforms,
+jump-through; its support pole (cell 1,1) is overridden to **solid** so it blocks like a wall.
+
 ## Adding or updating a tileset
 
 1. Export the PNG into this stage folder as the next number (e.g. `stage1/tileset2.png`), or overwrite an existing one.

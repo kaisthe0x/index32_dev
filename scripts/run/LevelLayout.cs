@@ -28,7 +28,8 @@ public partial class LevelLayout : Node2D
 
     private List<Vector2> _groundSurfaces;
 
-    /// <summary>World positions on TOP of exposed ground tiles — a solid Terrain cell whose cell ABOVE is empty, i.e.
+    /// <summary>World positions on TOP of exposed ground tiles — a Terrain cell WITH COLLISION (solid or one-way
+    /// platform; decoration-only tiles like support poles don't count) whose cell ABOVE is empty, i.e.
     /// walkable footing. RunManager proximity-spawns ground/stationary enemies onto these (near the player, but never
     /// on him). Computed once from the Terrain tilemap; empty if the layout has no Terrain layer.</summary>
     public List<Vector2> GroundSurfaces()
@@ -44,9 +45,22 @@ public partial class LevelLayout : Node2D
         {
             if (tm.GetCellSourceId(cell + new Vector2I(0, -1)) != -1)
                 continue; // something sits directly above -> not an exposed top
+            if (!HasCollision(tm.GetCellTileData(cell), tm.TileSet.GetPhysicsLayersCount()))
+                continue; // decoration — nothing to stand on
             _groundSurfaces.Add(tm.ToGlobal(tm.MapToLocal(cell) - new Vector2(0.0f, halfH))); // tile-top, world space
         }
         return _groundSurfaces;
+    }
+
+    /// <summary>Whether a tile collides on any physics layer (solid ground or one-way platform).</summary>
+    private static bool HasCollision(TileData td, int physicsLayers)
+    {
+        if (td == null)
+            return false;
+        for (int layer = 0; layer < physicsLayers; layer++)
+            if (td.GetCollisionPolygonsCount(layer) > 0)
+                return true;
+        return false;
     }
 
     private Vector2 MarkerPos(string childName)
