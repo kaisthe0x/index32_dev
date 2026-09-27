@@ -1,9 +1,10 @@
 # Art direction — world / tiles / stages
 
-The look is **dark neon**: a near-black world lit by a few bright, blooming neon accents. The world is a
-**quiet dark stage**; the *colour* comes from the actors — Khalid (recolourable), combat effects (HDR red/gold/
-teal), and enemy neon accents. Keeping the environment dark + disciplined is what stops the screen turning to
-chaos and makes the neon (and, later, the glow bloom) pop.
+The look is a **muted world, bright actors** (the Risk of Rain approach): the environment is low-saturation
+and a little darker than its backdrop, with variety from several muted hue families rather than brightness. The
+*vivid* colour comes from the actors — Khalid (recolourable), combat effects (HDR red/gold/teal), and enemy
+accents. Keeping the environment muted + disciplined is what stops the screen turning to chaos and makes the
+actors (and, later, the glow bloom) pop.
 
 ## The stage is the art unit
 
@@ -24,15 +25,18 @@ chaos and makes the neon (and, later, the glow bloom) pop.
 | Character | 128×80 frame, body ≈ 2 tiles tall | Detail budget per tile is SMALL — bold silhouette + a few accent pixels, not fine detail. |
 | HDR 2D | on (glow bloom to be added later) | Draw neon glow *cores* near-white so they bloom once Glow is enabled. |
 
-## The palette recipe (every stage, ~8 swatches)
+## The palette recipe (every stage)
 
-Same philosophy as Khalid's 36-shade LUT, scaled for environment:
+Modelled on Risk of Rain: the environment is **low-saturation everywhere** and gets its variety from **several
+muted hue families**, not from brightness; everything saturated belongs to the actors.
 
-- **4× BASE** — near-black → dark, all **one hue**, low saturation. Tiles fill/body + background. ~90% of pixels.
-- **2× SURFACE** — mid-value, brighter: the walkable **lip** + platform edges (reads as "I stand here").
-- **2× NEON** — HDR bright (value >1): the stage **signature glow** — plants, props, particle motes, edge highlights.
-
-**The one rule: 1 dark base hue + 1–2 neon hues per stage. Never more.**
+- **Backdrop carries the stage hue** — one hue, muted (saturation ≈ 0.35–0.45) and mid-dark. Never a fully
+  saturated sky: next to one, no terrain colour reads right.
+- **Terrain + props = 3–4 muted hue families on shared value ramps** — e.g. a deep body hue, a slate mid-tone, a
+  moss/lichen top, a pale bone highlight. Each ramp is **hue-shifted** (shadows cooler, highlights warmer), so a
+  single prop spans several families from shadow to tip.
+- **Terrain is darker than the backdrop**; the walkable **lip is the lightest terrain band** (reads as "I stand here").
+- **One small accent** may echo the backdrop hue (fungus specks, vines) to tie the layers together.
 
 ## Tileset spec (match `configs/Terrain.cs`)
 
@@ -59,28 +63,19 @@ Don't enable glow on the current placeholder art — it comes once real neon til
 
 ---
 
-## Stage 1 — "Arcane Void" (LOCKED palette)
+## Stage 1 palette
 
-Mysterious near-black **violet** ruins floating in the dark; **violet + electric-blue** glow. Contrasts Khalid's
-red strongly. (sRGB hex; push glow cores toward the near-white value for bloom.)
+A muted plum sky over indigo stone, slate edges and mossy tops. Every stage1 asset (masters in
+`index32_art/art/stages/stage1/`, copies in `assets/terrain/stage1/`) is drawn from these ramps:
 
 ```
-BASE     #0B0812   #140E20   #1F1633   #2E2150     near-black → dark violet mass (fill, bg, deep shadow)
-SURFACE  #4A3A7A   #6E4CB0                         rune-lit walkable lip / platform edges
-NEON     #B44CFF   #4C6EFF                         violet glow + electric-blue accents (plants/props/motes/edges)
-GLOW CORE #EAD8FF                                  near-white violet — the brightest bloom centres
+BACKDROP  #422933 … #6c4555                          muted plum (bg1 — hue 335°, saturation ≈ 0.4)
+BODY      #221e30   #363548                          deep indigo fill → slate-indigo border (tileset1)
+TOP       #4a5566 → #5a705e → #6f8a66 → #86a071 → #9db582   slate fading up into the moss lip (tileset1)
+BRICKS    #20222f   #363c50   #474f66   #56607a      muted slate-blue platforms (tileset2)
+PROPS     #100d18 → #1f1c2e → #2e2c42 → #4b5166 → #647a63 → #7f9670 → #bcbf9c
+          one hue-shifted ramp by value: indigo shadow → slate → moss → bone (statue, trees, skeleton)
 ```
-
-Per-asset treatment:
-- **TOP tiles** — dark violet stone (`#1F1633`/`#2E2150`); top ~4–6px is a `#6E4CB0` lip with a 1px `#B44CFF`
-  neon edge (glow core `#EAD8FF` at the brightest points). 4 variants = vary the rune marks / cracks.
-- **FILL tiles** — darkest (`#140E20`/`#0B0812`), sparse `#1F1633` cracks, an occasional dim rune glint. Quiet.
-- **Plants / mushroom** — arcane fungi / small crystal shards: dark stem `#2E2150`, glowing cap `#B44CFF` or
-  `#4C6EFF` (HDR).
-- **Trees → crystal spires / rune-trees** — tall props (~48–128px), dark violet trunk `#1F1633` with electric-blue
-  `#4C6EFF` glowing veins + a few `#EAD8FF` glow points.
-- **Background** — far: `#0B0812` with faint `#140E20` distant monoliths + dim violet star-motes; mid: `#1F1633`
-  silhouetted arcane structures with occasional `#4C6EFF` rune-window glows. Ambient: drifting `#B44CFF` motes.
 
 ## Authoring levels — hand-painted layouts (the editor workflow)
 

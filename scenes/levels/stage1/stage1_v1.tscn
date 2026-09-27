@@ -3,17 +3,9 @@
 [ext_resource type="Script" uid="uid://dyd3ld37u8258" path="res://scripts/run/LevelLayout.cs" id="1_7gigr"]
 [ext_resource type="TileSet" uid="uid://otwyg87y5ke0" path="res://assets/terrain/stage1/terrain_tileset.tres" id="2_05n5f"]
 [ext_resource type="Texture2D" uid="uid://uwdg5vhd1klx" path="res://assets/terrain/stage1/man_choking_statue.png" id="3_whpx4"]
-[ext_resource type="Texture2D" uid="uid://bfoye17x53vnm" path="res://assets/terrain/stage1/giant_mushroom.png" id="4_3na6q"]
 [ext_resource type="Texture2D" uid="uid://cglqfybbu8ntd" path="res://assets/terrain/stage1/tree1.png" id="5_1t4uw"]
 [ext_resource type="Texture2D" uid="uid://dy2m3uxpunctw" path="res://assets/terrain/stage1/skeleton_chillin.png" id="5_hsxop"]
 [ext_resource type="Texture2D" uid="uid://d1b13lllamaur" path="res://assets/terrain/stage1/big_tree.png" id="7_8tbje"]
-[ext_resource type="PackedScene" uid="uid://cbushdecor01a" path="res://scenes/props/bush.tscn" id="7_ap2rm"]
-
-[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_tskwq"]
-load_path = "res://.godot/imported/big_tree.png-e9ecb111240ad8596ec8f60ea958e608.ctex"
-
-[sub_resource type="CompressedTexture2D" id="CompressedTexture2D_8tbje"]
-load_path = "res://.godot/imported/bushes.png-8f7b68aa3d6490639c2976ad25c7860c.ctex"
 
 [node name="LevelLayout" type="Node2D" unique_id=1745682419]
 position = Vector2(571, 518)
@@ -33,15 +25,10 @@ position = Vector2(400, -40)
 
 [node name="Statue" type="Sprite2D" parent="Aesthetic" unique_id=1659359735]
 z_index = -1
-position = Vector2(-541, -87.99999)
+position = Vector2(-694, -84.99999)
 scale = Vector2(0.7, 0.7)
 texture = ExtResource("3_whpx4")
 flip_h = true
-
-[node name="GiantMushroom" type="Sprite2D" parent="Aesthetic" unique_id=1442978109]
-z_index = -1
-position = Vector2(186, -127)
-texture = ExtResource("4_3na6q")
 
 [node name="SkeletonChillin" type="Sprite2D" parent="Aesthetic" unique_id=1537787700]
 z_index = -1
@@ -54,17 +41,7 @@ texture = ExtResource("5_hsxop")
 
 [node name="Tree" type="Sprite2D" parent="Aesthetic/Plants/Trees" unique_id=830546330]
 z_index = -1
-position = Vector2(2820, -184)
-texture = ExtResource("5_1t4uw")
-
-[node name="Tree3" type="Sprite2D" parent="Aesthetic/Plants/Trees" unique_id=1648928056]
-z_index = -1
-position = Vector2(-449, -24)
-texture = ExtResource("5_1t4uw")
-
-[node name="Tree2" type="Sprite2D" parent="Aesthetic/Plants/Trees" unique_id=1961784393]
-z_index = -1
-position = Vector2(610, -24)
+position = Vector2(1749, -24)
 texture = ExtResource("5_1t4uw")
 
 [node name="BigTree" type="Sprite2D" parent="Aesthetic/Plants/Trees" unique_id=1589343348]
@@ -73,37 +50,4 @@ position = Vector2(2535, -291)
 scale = Vector2(3, 3)
 texture = ExtResource("7_8tbje")
 
-[node name="BigTree2" type="Sprite2D" parent="Aesthetic/Plants/Trees" unique_id=1156871038]
-z_index = -1
-position = Vector2(879, -76)
-texture = SubResource("CompressedTexture2D_tskwq")
-
 [node name="Bushes" type="Node2D" parent="Aesthetic/Plants" unique_id=506939204]
-
-[node name="Bush" parent="Aesthetic/Plants/Bushes" unique_id=1577927457 instance=ExtResource("7_ap2rm")]
-position = Vector2(-52, -3.0000005)
-scale = Vector2(0.2, 0.2)
-texture = SubResource("CompressedTexture2D_8tbje")
-
-[node name="Bush5" parent="Aesthetic/Plants/Bushes" unique_id=226856942 instance=ExtResource("7_ap2rm")]
-position = Vector2(-47, -3.0000005)
-scale = Vector2(0.2, 0.2)
-texture = SubResource("CompressedTexture2D_8tbje")
-
-[node name="Bush2" parent="Aesthetic/Plants/Bushes" unique_id=321729271 instance=ExtResource("7_ap2rm")]
-position = Vector2(297, -6)
-scale = Vector2(0.5, 0.5)
-region_rect = Rect2(96, 0, 32, 32)
-Variant = 3
-
-[node name="Bush3" parent="Aesthetic/Plants/Bushes" unique_id=1133708108 instance=ExtResource("7_ap2rm")]
-position = Vector2(305, -6)
-scale = Vector2(0.5, 0.5)
-region_rect = Rect2(64, 0, 32, 32)
-Variant = 2
-
-[node name="Bush4" parent="Aesthetic/Plants/Bushes" unique_id=2097496304 instance=ExtResource("7_ap2rm")]
-position = Vector2(690, -6)
-scale = Vector2(0.5, 0.5)
-region_rect = Rect2(32, 0, 32, 32)
-Variant = 1

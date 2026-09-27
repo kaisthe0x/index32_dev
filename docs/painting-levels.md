@@ -11,7 +11,7 @@ the random pool automatically). Each is a **`LevelLayout`** scene (`scripts/run/
   generated one). Never "New TileSet" in the inspector: an embedded copy is invisible to the generator, so new
   tiles and collision fixes would never reach that level.
 - a **`PlayerSpawn`** `Marker2D` (where Khalid drops in), and optional launch-orb spots in the **`orb`** group,
-- decor sprites (trees, statues, bushes) — no collision.
+- decor sprites (trees, the statue, the skeleton) — no collision.
 
 Enemies spawn around the player on exposed ground tiles automatically — no spawn markers needed.
 

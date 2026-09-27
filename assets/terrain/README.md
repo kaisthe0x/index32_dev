@@ -46,5 +46,5 @@ positions. Adding tiles in empty cells, or adding a new `tilesetN`, is always sa
 
 ## Other stage art
 
-`bg1.png` (backdrop), and props (`big_tree.png`, `giant_mushroom.png`, statues, bushes …) are placed as sprites in
+`bg1.png` (backdrop), and props (`big_tree.png`, `tree1.png`, `man_choking_statue.png`, `skeleton_chillin.png`) are placed as sprites in
 the layout scenes — no collision; they're decoration.
