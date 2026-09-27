@@ -16,7 +16,8 @@ extends SceneTree
 ## Per-tileset physics (the table below): a sheet is SOLID by default (physics layer 0 → Combat.Layer.World). A sheet
 ## listed in ONE_WAY_SHEETS is jump-through (physics layer 1 → Combat.Layer.Platform, one-way): land on top, jump up
 ## through, drop down through. CELL_OVERRIDES sets a single cell's physics against its sheet's: SOLID / ONE_WAY / NONE
-## (NONE = paintable decoration, no collision).
+## (NONE = paintable decoration, no collision). COLLISION_FROM makes a decorated VARIANT (moss, drips) collide exactly
+## like its plain original: its collision is traced from the other cell's pixels, so decoration never becomes physics.
 
 const DIR := "res://assets/terrain/stage1/"
 const OUT := DIR + "terrain_tileset.tres"
@@ -30,8 +31,13 @@ const EDGE_SNAP := 2.0        # traced points this close (px) to a cell edge sna
 
 # --- per-tileset physics ---------------------------------------------------------------------------------------
 enum Physics { SOLID, ONE_WAY, NONE }
-const ONE_WAY_SHEETS := [2]                                   # tileset2 = floating brick platforms (jump-through)
-const CELL_OVERRIDES := {2: {Vector2i(1, 1): Physics.SOLID}}  # tileset2: the support pole blocks, like a wall
+const ONE_WAY_SHEETS := [2]  # tileset2 = floating brick platforms (jump-through)
+const CELL_OVERRIDES := {    # tileset2: the support poles (plain + mossy) block, like a wall
+	2: {Vector2i(2, 0): Physics.SOLID, Vector2i(2, 1): Physics.SOLID},
+}
+const COLLISION_FROM := {    # tileset2: the mossy row collides like the plain row above it
+	2: {Vector2i(0, 1): Vector2i(0, 0), Vector2i(1, 1): Vector2i(1, 0), Vector2i(2, 1): Vector2i(2, 0)},
+}
 
 func _init() -> void:
 	var sheets := _sheets()
@@ -60,16 +66,13 @@ func _init() -> void:
 		ts.add_source(src, n)
 		var sheet_physics: Physics = Physics.ONE_WAY if n in ONE_WAY_SHEETS else Physics.SOLID
 		var overrides: Dictionary = CELL_OVERRIDES.get(n, {})
-		var tiles := 0; var traced := 0; var overridden := 0
+		var shapes_from: Dictionary = COLLISION_FROM.get(n, {})
+		var tiles := 0; var traced := 0; var overridden := 0; var borrowed := 0
 		for cy in img.get_height() / TILE:
 			for cx in img.get_width() / TILE:
-				var cell := img.get_region(Rect2i(cx * TILE, cy * TILE, TILE, TILE))
-				var bm := BitMap.new()
-				bm.create_from_image_alpha(cell, ALPHA_CUTOFF)
-				var solid := bm.get_true_bit_count()
-				if solid == 0:
-					continue # empty cell — not a tile
 				var coord := Vector2i(cx, cy)
+				if _bitmap(img, coord).get_true_bit_count() == 0:
+					continue # empty cell — not a tile
 				src.create_tile(coord)
 				tiles += 1
 				var physics: Physics = overrides.get(coord, sheet_physics)
@@ -77,6 +80,11 @@ func _init() -> void:
 					overridden += 1
 				if physics == Physics.NONE:
 					continue # paintable decoration, no collision
+				var shape_cell: Vector2i = shapes_from.get(coord, coord)
+				if shape_cell != coord:
+					borrowed += 1
+				var bm := _bitmap(img, shape_cell)
+				var solid := bm.get_true_bit_count()
 				var one_way := physics == Physics.ONE_WAY
 				var layer := 1 if one_way else 0
 				var polys: Array[PackedVector2Array] = []
@@ -96,12 +104,21 @@ func _init() -> void:
 					if one_way:
 						td.set_collision_polygon_one_way(layer, added, true)
 					added += 1
-		print("gen_terrain_tileset: tileset%d -> source %d (%s): %d tiles (%d traced, %d cell overrides)" %
-			[n, n, "one-way" if sheet_physics == Physics.ONE_WAY else "solid", tiles, traced, overridden])
+		print("gen_terrain_tileset: tileset%d -> source %d (%s): %d tiles (%d traced, %d cell overrides, %d borrowed shapes)" %
+			[n, n, "one-way" if sheet_physics == Physics.ONE_WAY else "solid", tiles, traced, overridden, borrowed])
 
+	var uid := ResourceLoader.get_resource_uid(OUT) # keep the existing UID: levels reference the TileSet by it
 	var err := ResourceSaver.save(ts, OUT)
+	if err == OK and uid != ResourceUID.INVALID_ID:
+		err = ResourceSaver.set_uid(OUT, uid)
 	print("gen_terrain_tileset: %s -> %s" % ["OK" if err == OK else "ERR %d" % err, OUT])
 	quit()
+
+## The opaque-pixel mask of one cell of a sheet.
+func _bitmap(img: Image, coord: Vector2i) -> BitMap:
+	var bm := BitMap.new()
+	bm.create_from_image_alpha(img.get_region(Rect2i(coord * TILE, Vector2i(TILE, TILE))), ALPHA_CUTOFF)
+	return bm
 
 ## A traced polygon in tile-centred coords (tile polygons are centred on the cell), with every point within EDGE_SNAP
 ## of a cell edge moved onto it, and the resulting consecutive duplicates dropped.

@@ -28,10 +28,15 @@ public partial class LevelLayout : Node2D
 
     private List<Vector2> _groundSurfaces;
 
+    /// <summary>A spawn tile must sit in a flat run of at least this many walkable tiles — a lone scattered tile (or a
+    /// 2-tile ledge) would strand a grunt with nowhere to walk.</summary>
+    private const int MinSpawnFloorTiles = 3;
+
     /// <summary>World positions on TOP of exposed ground tiles — a Terrain cell WITH COLLISION (solid or one-way
-    /// platform; decoration-only tiles like support poles don't count) whose cell ABOVE is empty, i.e.
-    /// walkable footing. RunManager proximity-spawns ground/stationary enemies onto these (near the player, but never
-    /// on him). Computed once from the Terrain tilemap; empty if the layout has no Terrain layer.</summary>
+    /// platform; decoration-only tiles don't count) whose cell ABOVE is empty, i.e. walkable footing — that belong to
+    /// a flat run of at least <see cref="MinSpawnFloorTiles"/> such tiles, so an enemy spawned there can move left and
+    /// right. RunManager proximity-spawns ground/stationary enemies onto these (near the player, but never on him).
+    /// Computed once from the Terrain tilemap; empty if the layout has no Terrain layer.</summary>
     public List<Vector2> GroundSurfaces()
     {
         if (_groundSurfaces != null)
@@ -40,16 +45,34 @@ public partial class LevelLayout : Node2D
         var tm = GetNodeOrNull<TileMapLayer>("Terrain");
         if (tm?.TileSet == null)
             return _groundSurfaces;
-        float halfH = tm.TileSet.TileSize.Y * 0.5f;
+        var tops = new HashSet<Vector2I>();
         foreach (Vector2I cell in tm.GetUsedCells())
         {
             if (tm.GetCellSourceId(cell + new Vector2I(0, -1)) != -1)
                 continue; // something sits directly above -> not an exposed top
             if (!HasCollision(tm.GetCellTileData(cell), tm.TileSet.GetPhysicsLayersCount()))
                 continue; // decoration — nothing to stand on
+            tops.Add(cell);
+        }
+        float halfH = tm.TileSet.TileSize.Y * 0.5f;
+        foreach (Vector2I cell in tops)
+        {
+            if (FloorRun(tops, cell) < MinSpawnFloorTiles)
+                continue; // too short to walk on
             _groundSurfaces.Add(tm.ToGlobal(tm.MapToLocal(cell) - new Vector2(0.0f, halfH))); // tile-top, world space
         }
         return _groundSurfaces;
+    }
+
+    /// <summary>Length in tiles of the flat run of exposed tops through <paramref name="cell"/> (same row, contiguous).</summary>
+    private static int FloorRun(HashSet<Vector2I> tops, Vector2I cell)
+    {
+        int run = 1;
+        for (var c = cell + Vector2I.Left; tops.Contains(c); c += Vector2I.Left)
+            run++;
+        for (var c = cell + Vector2I.Right; tops.Contains(c); c += Vector2I.Right)
+            run++;
+        return run;
     }
 
     /// <summary>Whether a tile collides on any physics layer (solid ground or one-way platform).</summary>

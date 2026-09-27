@@ -605,7 +605,7 @@ on the impact frames (`3–4`). Keep those frame ranges consistent so `slam_hold
 (the last descent frame) lines up.
 
 **Ground attacks hug the terrain.** Two shared building blocks in `scripts/combat/`:
-[`GroundProbe`](scripts/combat/GroundProbe.cs) (`TryAt` — one downward `World` ray → surface point +
+[`GroundProbe`](scripts/combat/GroundProbe.cs) (`TryAt` — one downward `Combat.GroundMask` ray (solid terrain + one-way platforms) → surface point +
 normal, the single "where's the ground here?") and [`GroundContour`](scripts/combat/GroundContour.cs)
 (walks `GroundProbe` across a width into one contiguous contour centred on the impact, stopping at the
 first gap each side so an effect doesn't leap a pit). Used three ways:

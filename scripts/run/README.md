@@ -51,8 +51,9 @@ far off on a ground tile (`StationarySpawn*`); **grunts** near on a ground tile 
 arrive BEHIND Khalid** (opposite `Player.facing`), so a new enemy never lands in the swing he's already making and
 he has to turn and move; if there's no ground tile behind him in the band (back to the arena edge or a pit),
 `PickGroundSurface` falls back to either side. Nasen (stationary, far) ignores facing. Ground tiles come
-from `LevelLayout.GroundSurfaces()` (exposed tops of the Terrain tilemap — a solid cell with an empty cell
-above). The distance bands are tunable consts in `RunManager`; the round curves live in `Rounds`. (The old
+from `LevelLayout.GroundSurfaces()` (exposed tops of the Terrain tilemap — a collidable cell with an empty cell
+above — that sit in a flat run of at least `MinSpawnFloorTiles` (3), so nothing spawns stranded on a lone
+scattered tile). The distance bands are tunable consts in `RunManager`; the round curves live in `Rounds`. (The old
 `spawn_ground`/`spawn_air` layout markers are unused — delete them from layouts.)
 
 **Anti-camp cull:** a player could camp somewhere the AI can't reach and stall the round. So `CullOffscreen` tracks each

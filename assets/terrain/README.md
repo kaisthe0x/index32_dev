@@ -28,9 +28,11 @@ Each tileset can collide differently — set in the table at the top of `tools/g
 | *(default)* **solid** | traced collision on the **World** layer — walls, floors, ramps |
 | `ONE_WAY_SHEETS` | **jump-through** on the **Platform** layer: land on top, jump up through from below, **drop down through with S / Down** |
 | `CELL_OVERRIDES` | one cell's physics against its sheet's: `SOLID`, `ONE_WAY`, or `NONE` (paintable decoration, no collision) |
+| `COLLISION_FROM` | a decorated **variant** (moss, drips) collides exactly like its plain original — its collision is traced from the other cell, so decoration never becomes physics |
 
 Current stage1 sets: **tileset1** = solid ground (block, fill, slope) · **tileset2** = floating brick platforms,
-jump-through; its support pole (cell 1,1) is overridden to **solid** so it blocks like a wall.
+jump-through, 3×2 cells: row 0 = plain (left end, middle, support pole), row 1 = the same three mossy. Both poles
+(column 2) are overridden to **solid** so they block like a wall; the mossy row borrows row 0's collision.
 
 ## Adding or updating a tileset
 
@@ -42,7 +44,10 @@ jump-through; its support pole (cell 1,1) is overridden to **solid** so it block
 4. Reopen the editor and paint (see [`docs/painting-levels.md`](../../docs/painting-levels.md)).
 
 ⚠️ **Changing an existing sheet's layout** (moving/removing tiles) breaks cells already painted with the old
-positions. Adding tiles in empty cells, or adding a new `tilesetN`, is always safe.
+positions — the painted cells must be remapped to the new coordinates in each level's `tile_map_data`. Adding tiles
+in empty cells, growing the sheet right/down, or adding a new `tilesetN`, is always safe.
+
+The generator keeps `terrain_tileset.tres`'s UID across rebuilds, so levels' references to it stay valid.
 
 ## Other stage art
 

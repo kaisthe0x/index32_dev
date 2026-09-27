@@ -13,7 +13,8 @@ the random pool automatically). Each is a **`LevelLayout`** scene (`scripts/run/
 - a **`PlayerSpawn`** `Marker2D` (where Khalid drops in), and optional launch-orb spots in the **`orb`** group,
 - decor sprites (trees, the statue, the skeleton) — no collision.
 
-Enemies spawn around the player on exposed ground tiles automatically — no spawn markers needed.
+Enemies spawn around the player on exposed ground tiles automatically — no spawn markers needed. Only tiles in a
+flat run of 3+ walkable tiles count, so a lone scattered tile never strands a spawned enemy.
 
 ## Paint
 
