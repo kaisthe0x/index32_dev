@@ -95,7 +95,6 @@ public partial class RunManager : Node2D
     private ColorRect _bg;
     private Sprite2D _bgSky;
     private Vector2 _bgImgSize;
-    private AnimatedSprite2D _bgAnim;
     private LevelLayout _layout;
 
     private const string StageDir = "res://scenes/levels/stage1/";
@@ -985,18 +984,6 @@ public partial class RunManager : Node2D
             _bgSky = new Sprite2D { Texture = bgTex, TextureFilter = CanvasItem.TextureFilterEnum.Nearest };
             layer.AddChild(_bgSky);
         }
-        // Animated background element (orbiting planet) — over the sky, scaled with the same zoom.
-        var animFrames = Terrain.BackgroundAnimFrames();
-        if (animFrames != null)
-        {
-            _bgAnim = new AnimatedSprite2D
-            {
-                SpriteFrames = animFrames,
-                TextureFilter = CanvasItem.TextureFilterEnum.Nearest,
-            };
-            layer.AddChild(_bgAnim);
-            _bgAnim.Play("orbit");
-        }
         LayoutBg();
         GetViewport().SizeChanged += LayoutBg;
         _bg = new ColorRect { MouseFilter = Control.MouseFilterEnum.Ignore };
@@ -1004,24 +991,17 @@ public partial class RunManager : Node2D
         layer.AddChild(_bg);
     }
 
-    /// <summary>Centre + scale the single bg image (BackgroundZoom of the viewport) and place the animated element
-    /// inside its rect, for the current resolution. Re-run on viewport resize.</summary>
+    /// <summary>Centre + scale the single bg image (BackgroundZoom of the viewport) for the current resolution. Re-run
+    /// on viewport resize.</summary>
     private void LayoutBg()
     {
         Vector2 vp = GetViewport().GetVisibleRect().Size;
         float zoom = Terrain.BackgroundZoom;
         Vector2 skySize = vp * zoom;        // the image's on-screen rect (zoom 1.0 = fills)
-        Vector2 origin = (vp - skySize) / 2; // centred
         if (_bgSky != null && IsInstanceValid(_bgSky) && _bgImgSize.X > 0)
         {
             _bgSky.Position = vp / 2;
             _bgSky.Scale = skySize / _bgImgSize;
-        }
-        if (_bgAnim != null && IsInstanceValid(_bgAnim))
-        {
-            _bgAnim.Position = origin + Terrain.BackgroundAnimRatio * skySize;
-            float px = _bgImgSize.X > 0 ? skySize.X / _bgImgSize.X : zoom;
-            _bgAnim.Scale = new Vector2(px, px) * Terrain.BackgroundAnimScale;
         }
     }
 

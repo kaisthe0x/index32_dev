@@ -149,10 +149,8 @@ hand-painted `TileMapLayer` in each stage layout (see the run README); the old p
 The **background** (`RunManager.BuildBg`/`LayoutBg`, on a `-100` CanvasLayer) is a **single** star image
 (`assets/terrain/stage1/bg1.png`, no tiling) centred and scaled to `Terrain.BackgroundZoom` of the viewport
 (**1.0 = fills**, lower = zoomed out a little, over a dark backing sampled from the image's own edge so the
-gap never reads as a cut). Over it sits an optional **animated element** — an orbiting planet
-(`stage1/planet_moon.png`, a 10-frame 48px strip) placed by `BackgroundAnimRatio` *within the image's rect*
-and scaled to match it. Both live in `Terrain.cs`, re-layout on viewport resize, under the per-level colour
-tint (`BackgroundTintAlpha`).
+gap never reads as a cut). It lives in `Terrain.cs`, re-layouts on viewport resize, under the per-level colour
+tint (`BackgroundTintAlpha`). (The old animated orbiting planet was removed; its master is in `index32_art`.)
 
 **Fada Figs** — the collectible run currency (the Chest spends these; the old "Lira" idea is retired). Every enemy
 drops some on death: `RunManager.OnEnemyDied` → `SpawnFadaFigs` scatters `Enemy.fada_fig_drop` copies of
