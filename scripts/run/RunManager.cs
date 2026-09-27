@@ -52,7 +52,7 @@ public partial class RunManager : Node2D
     private const float CamTightenStart = 600.0f;
     private const float CamTightenFull = 1200.0f;
     private const float CamTightK = 0.9f;
-    private static readonly Vector2 CamZoomNormal = new(1.5f, 1.5f);
+    private static readonly Vector2 CamZoomNormal = new(.5f, .5f);
     private static readonly Vector2 CamZoomDeath = new(3.0f, 3.0f);
     private static readonly Vector2 CamZoomSpawn = new(2, 2);
     private const float DeathHold = 0.7f;
@@ -278,7 +278,7 @@ public partial class RunManager : Node2D
         _spawnAccum += delta;
         if (_spawnAccum < SpawnInterval(_round) || _alive >= ConcurrentCap(_round))
             return;
-        var kit = PickSpawnKit();
+        var kit = null as GDict;
         if (kit == null)
             return; // every kit is at its per-type cap — try again next tick
         _spawnAccum = 0.0f;

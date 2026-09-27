@@ -26,15 +26,12 @@ implements is [`docs/game-loop.md`](../../docs/game-loop.md) — **endless CoD-Z
 **Hand-painted stage layouts** are the active approach: `RunManager` loads a random
 `scenes/levels/stage1/stage1_v*.tscn` (a `LevelLayout`, discovered by the `stage1_v` glob in
 `StageLayoutPaths`) and reads its `PlayerSpawn` / `Exit` markers (+ optional `orb` group). Terrain
-is a **`TileMapLayer` with per-tile collision**: `tools/gen_terrain_tileset.gd` reads the terrain sheet
-(`assets/terrain/stage1/tileset1.png`) and builds `terrain_tileset.tres` — every non-empty 32px cell
-becomes a paintable tile, and every **≥85%-opaque (solid) cell gets a full-box collider** on the World
-physics layer; decor cells (5–85% opaque) are paintable but pass-through. So paint = collision. This
-requires a **genuinely modular sheet** (distinct reusable tiles: surface / fill / edges / corners /
-platforms / decor) — a single mural does *not* work (its cells aren't reusable and its opaque interior
-would all turn solid). Re-run the generator after editing the sheet, then paint the level in-editor.
-Slopes / one-way platforms: paint the tiles, then hand-tweak those colliders in the TileSet editor (the
-generator only bakes full boxes). See [`docs/painting-levels.md`](../../docs/painting-levels.md).
+is a **`TileMapLayer` with per-tile collision**: `tools/gen_terrain_tileset.gd` builds the shared
+`assets/terrain/stage1/terrain_tileset.tres` from every **`tilesetN.png`** in that folder (each its own atlas source,
+id = N), with collision **traced from each tile's pixels** (full tiles = boxes; slopes/cut corners = traced polygons,
+snapped flush to the cell edges). So paint = collision, and painted ramps are walkable. Author modular 32px sheets,
+re-run the generator (editor closed), then paint in-editor. See [`assets/terrain/README.md`](../../assets/terrain/README.md)
++ [`docs/painting-levels.md`](../../docs/painting-levels.md).
 
 **Enemy spawning is ROUND-driven + PROXIMITY-based** (`TickRound`, tuning in `configs/Rounds.cs`). Round `r` has a
 hidden **quota** `Q(r) = QuotaBase + QuotaLinear·r + QuotaQuad·r²` (11, 15, 20, … 73 at r10). While `Fighting`, one enemy

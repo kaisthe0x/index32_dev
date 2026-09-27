@@ -86,19 +86,18 @@ Per-asset treatment:
 
 Levels are **hand-painted layout scenes**, not code. Structure:
 ```
-scenes/levels/stage1/l1/v1.tscn … v7.tscn   (5 levels × 7 variants; RunManager picks one at random per entry)
-assets/terrain/stage1/terrain_tileset.tres  (the TileSet — regen via tools/gen_terrain_tileset.gd)
+scenes/levels/stage1/stage1_v*.tscn         (the arena layouts; RunManager picks one at random per run)
+assets/terrain/stage1/tilesetN.png          (tileset1, tileset2, … — modular 32px sheets, see assets/terrain/README.md)
+assets/terrain/stage1/terrain_tileset.tres  (the generated TileSet — regen via tools/gen_terrain_tileset.gd)
 ```
 Each layout is a `LevelLayout` scene (`scripts/run/LevelLayout.cs`) containing:
 - a **`Terrain` TileMapLayer** you paint (its solid tiles carry collision — **paint = collision**),
 - **`PlayerSpawn`** + **`Exit`** `Marker2D`s,
-- enemy-spawn `Marker2D`s, each in the **`spawn_ground`** (walkers) or **`spawn_air`** (flyers) group,
 - optional launch-orb spots in the **`orb`** group, and hand-placed decor (Tree/plant instances).
 
-**To author:** duplicate `v1.tscn` → `v2…v7`, open one, paint the Terrain layer, drag the markers where they make
-sense, save. WHICH enemies appear (roster + escalation) stays shared per-level data in `Levels.cs`; the layout only
-says WHERE they *can* spawn. Regenerate the TileSet (`tools/gen_terrain_tileset.gd`) after editing the sheet;
-flip `ONE_WAY` in that tool for jump-through platforms.
+**To author:** see [`docs/painting-levels.md`](painting-levels.md). Enemies spawn on exposed ground tiles around the
+player automatically. Regenerate the TileSet (`tools/gen_terrain_tileset.gd`, editor closed) after adding or editing a
+`tilesetN.png` — collision is traced from the art.
 
 **Editor-clobber discipline:** the editor overwrites open `.tscn`/`.tres` on disk. Author with the editor, but
 close/reload before a headless run, and don't hand-edit a scene the editor has open.

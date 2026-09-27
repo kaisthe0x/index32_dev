@@ -257,6 +257,7 @@ public partial class Player : Combatant
     public override void _Ready()
     {
         _sprite = GetNode<AnimatedSprite2D>("AnimatedSprite2D");
+        Combat.ApplyFloorHandling(this); // shared slope handling — walk up painted ramps, stay glued going down
 
         health = max_health;
         ApplyCharacter();
