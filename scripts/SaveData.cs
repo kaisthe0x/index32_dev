@@ -5,42 +5,36 @@ using GArr = Godot.Collections.Array;
 namespace MyGame;
 
 /// <summary>
-/// Persistent run record + the current run's progress, shared between RunManager (writes) and the HUD (reads), plus
-/// saved character COLOUR SCHEMES from the picker and player SETTINGS from the pause menu. C# port of
-/// <c>scripts/save_data.gd</c>. The RECORD (most WAVES survived in one run, ever — levels are retired) persists to
-/// user://; the current run's wave count is session-only, in memory. All static: one record, no instance needed.
+/// Persistent player data in <c>user://save.cfg</c>: the run RECORD (highest round reached, ever), the character
+/// COLOUR SCHEMES from the picker, and player SETTINGS from the pause menu. C# port of <c>scripts/save_data.gd</c>.
+/// All static: one record, no instance needed.
 /// </summary>
 public static class SaveData
 {
     private const string PATH = "user://save.cfg";
 
-    private static int _record = -1;   // lazy-loaded best-ever waves survived (-1 = not read from disk yet)
-    /// <summary>Waves survived in the CURRENT run. RunManager sets it; the HUD shows it next to the record.</summary>
-    public static int CurrentWaves = 0;
+    private static int _record = -1;   // lazy-loaded best-ever round reached (-1 = not read from disk yet)
 
-    public static void SetCurrentWaves(int n) => CurrentWaves = n;
-    public static int GetCurrentWaves() => CurrentWaves;
-
-    /// <summary>The record: most waves survived in a single run, ever. Read from disk once, then cached.</summary>
-    public static int WavesRecord()
+    /// <summary>The record: the highest round reached in a single run, ever. Read from disk once, then cached.</summary>
+    public static int RoundsRecord()
     {
         if (_record < 0)
         {
             var cfg = new ConfigFile();
-            _record = cfg.Load(PATH) == Error.Ok ? cfg.GetValue("run", "waves_record", 0).As<int>() : 0;
+            _record = cfg.Load(PATH) == Error.Ok ? cfg.GetValue("run", "rounds_record", 0).As<int>() : 0;
         }
         return _record;
     }
 
-    /// <summary>Report a finished run's wave count; persist a new best if it beats the record. True on a new best.</summary>
-    public static bool ReportRun(int waves)
+    /// <summary>Report the round a finished run reached; persist a new best if it beats the record. True on a new best.</summary>
+    public static bool ReportRun(int round)
     {
-        if (waves <= WavesRecord())
+        if (round <= RoundsRecord())
             return false;
-        _record = waves;
+        _record = round;
         var cfg = new ConfigFile();
         cfg.Load(PATH); // keep any other keys already saved
-        cfg.SetValue("run", "waves_record", _record);
+        cfg.SetValue("run", "rounds_record", _record);
         cfg.Save(PATH);
         return true;
     }

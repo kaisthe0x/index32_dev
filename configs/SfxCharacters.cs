@@ -23,6 +23,7 @@ public static class SfxCharacters
         ["run"] = "res://sfx/character/run.wav", // looping footsteps (Sfx.make_loop)
         ["ruh_absorb"] = "res://sfx/character/ruh_absorb.wav", // a Ruh soul lands on Khalid
         ["player_death"] = "res://sfx/character/death/player_death.wav", // death sting/tone — PLACEHOLDER
+        ["player_fall_death"] = "res://sfx/character/fall_to_death.wav", // fell out of the arena — PLACEHOLDER (reuses the slam whoosh)
         // Low-HP warnings — fired ONCE by Player.take_damage when HP crosses DOWN through a threshold (re-arms if healed).
         ["health_half"] = "res://sfx/character/health/health_half.wav", // crossed 50% HP — PLACEHOLDER
         ["health_low"] = "res://sfx/character/health/health_low.wav",   // crossed 20% HP — PLACEHOLDER
@@ -73,6 +74,25 @@ public static class SfxCharacters
     /// <summary>Per-cue base VOLUME in decibels (negative = quieter), applied on top of any call-site volume_db.
     /// Only list cues that need trimming; unlisted cues play at 0 dB.</summary>
     public static readonly GDict VOLUMES = new();
+
+    /// <summary>Per-cue random PITCH range (± fraction, e.g. 0.06 = ±6%), re-rolled every play so repeated sounds don't
+    /// sound copy-pasted. A key may name a GROUP: a cue with no entry of its own uses its nearest dotted prefix
+    /// ("kebus.projectile.3" → "kebus.projectile" → "kebus"). Unlisted = fixed pitch. Keep it subtle (±3-8%);
+    /// signature stingers / alerts / loops stay unlisted.</summary>
+    public static readonly GDict PITCH = new()
+    {
+        ["hurt"] = 0.05f,        // hurt.1-3
+        ["dash"] = 0.05f,
+        ["jump"] = 0.05f,
+        ["slam"] = 0.04f,        // the impact (slam_down, the descent whoosh, is its own unlisted key)
+        ["ora_ora"] = 0.08f,     // the flurry repeats fastest — widest range
+        ["twin_reaper"] = 0.06f,
+        ["spear"] = 0.06f,
+        ["rope_dart"] = 0.06f,
+        ["cherry_shots"] = 0.06f,
+        ["redere_shield_block"] = 0.04f,
+        ["redere_frisbee.impact"] = 0.04f,
+    };
 
     public static readonly GDict FRAMES = new()
     {

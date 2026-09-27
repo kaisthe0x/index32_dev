@@ -10,13 +10,12 @@ namespace MyGame;
 ///
 /// PARKED (like the other per-move buffs): the run flow only offers <see cref="BuffCatalog.MildIds"/>/<see
 /// cref="BuffCatalog.PowerfulIds"/>, which exclude move-gated buffs, so this is never offered yet. NOTE for a future
-/// per-move-offer pass — Zahluq is now a *special*, not an attack, so before this can work it needs (1) special-box
-/// whiffs to emit OnMiss (<see cref="Hitbox.deactivate"/> currently gates OnMiss to <c>!from_special</c>), and (2) to
-/// reset the SPECIAL cooldown, not the attack one (there is no <c>reduce_special_cooldown</c> yet).
+/// per-move-offer pass — Zahluq is now a *special*, so it resets the SPECIAL cooldown; before it can fire, special-box
+/// whiffs still need to emit OnMiss (<see cref="Hitbox.deactivate"/> currently gates OnMiss to <c>!from_special</c>).
 /// </summary>
 public partial class InstantResetBuff : Buff
 {
-    private const float FullReset = 9999.0f; // huge subtraction → cooldown clamps to zero (reduce_attack_cooldown)
+    private const float FullReset = 9999.0f; // huge subtraction → cooldown clamps to zero (reduce_special_cooldown)
 
     public InstantResetBuff(string id)
     {
@@ -24,5 +23,5 @@ public partial class InstantResetBuff : Buff
         Trigger = Trigger.OnMiss;
     }
 
-    public override void OnMiss(Player p) => p.reduce_attack_cooldown(FullReset);
+    public override void OnMiss(Player p) => p.reduce_special_cooldown(FullReset);
 }

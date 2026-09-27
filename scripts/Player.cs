@@ -73,7 +73,6 @@ public partial class Player : Combatant
     private const float RuhPerBlock = 100.0f; // one HUD "block" = one charge (the default surge cost)
     private const float RuhPerHit = 20.0f;     // Ruh gained per HIT landed (5 hits = 1 charge)
     private const float MaxRuhCap = 500.0f;    // hard ceiling: 5 charges
-    private const float SpecialCooldown = 0.6f; // tiny anti-spam between specials (they cost no Ruh)
 
     /// <summary>Instance accessor so GDScript (HUD block sizing / run debug) can read the block size — it can't read a C# const.</summary>
     public float RUH_PER_BLOCK => RuhPerBlock;
@@ -190,6 +189,7 @@ public partial class Player : Combatant
     private bool _dead = false;
     private bool _deathFinished = false;
     private bool _deathFrozen = false;
+    private bool _fellOut = false;   // died by falling out of the arena — free-falls off-screen, no death animation
     private bool _slamImpacting = false;
     private float _slamStartY = 0.0f;
     private bool _justLanded = false;
@@ -233,7 +233,7 @@ public partial class Player : Combatant
 
     private float _specialCd = 0.0f;
     private float _attackCd = 0.0f;
-    private FloatingHealthBar _cooldownBar = null;
+    private FloatingHealthBar _cooldownBar = null; // above-head ATTACK cooldown (specials have their own HUD bar)
     private AudioStreamPlayer _runSfx = null;
     private AudioStreamPlayer _slamDownSfx = null;
     private const float RuhFlashRefractory = 0.2f;
@@ -414,15 +414,21 @@ public partial class Player : Combatant
 
     private void SeedPassives()
     {
-        foreach (var p in _passives)
-            p.Teardown(this);
-        _passives.Clear();
-        RefreshBuffHud();
+        ClearPassives();
         if (Engine.IsEditorHint())
             return;
         var ability = CharacterAbilityFor(character);
         if (ability != null)
             add_passive(ability);
+    }
+
+    /// <summary>Remove every passive, undoing each one's stat changes (Teardown) while those changes are still applied.</summary>
+    private void ClearPassives()
+    {
+        foreach (var p in _passives)
+            p.Teardown(this);
+        _passives.Clear();
+        RefreshBuffHud();
     }
 
     /// <summary>A character's intrinsic ability, or null. Khalid ships without one. (Add a case when a character gets a C# CharacterAbility.)</summary>
@@ -523,6 +529,9 @@ public partial class Player : Combatant
 
     public int get_state() => (int)_state;
     public bool is_spawning() => _state == State.SPAWN;
+
+    /// <summary>Which way Khalid faces: +1 right, -1 left (RunManager spawns grunts on the other side).</summary>
+    public int facing => _facing;
     public Action current_attack() => _currentAttack;
     public Action current_special() => _currentSpecial;
 
@@ -581,7 +590,7 @@ public partial class Player : Combatant
         float before = health;
         health -= HitCost;
         WarnLowHealth(before, health);
-        _sfx.play_random(new GArr { "hurt.1", "hurt.2", "hurt.3" }, 0.0f, (float)GD.RandRange(0.95, 1.06));
+        _sfx.play_random(new GArr { "hurt.1", "hurt.2", "hurt.3" }); // pitch variation comes from SfxCharacters.PITCH
         // Colour flash over the hurt anim, via the palette shader's `flash` uniform (a plain modulate is swallowed).
         FlashSprite(_sprite, Combat.DamageFlash, Combat.DamageFlashTime);
         if (health <= 0.0f && !_dead)
@@ -611,6 +620,20 @@ public partial class Player : Combatant
 
     public void heal(float amount) => health = Mathf.Min(health + amount, max_health);
 
+    /// <summary>Kill Khalid outright: he fell out of the arena. Ignores i-frames / Aegis (nothing survives the void).
+    /// Unlike a normal death there's no death animation — he keeps his fall animation and keeps dropping, out of
+    /// control (<see cref="ProcessFreefall"/>), with its own sound; RunManager ends the run.</summary>
+    public void fall_to_death()
+    {
+        if (_dead)
+            return;
+        health = 0.0f;
+        Die(fell: true);
+    }
+
+    /// <summary>True once the player has died by falling out of the arena (RunManager runs the fall-death flow).</summary>
+    public bool fell_out() => _fellOut;
+
     /// <summary>Grant a generic invulnerability window (the immunity buffs: dash/jump/slam/on-hit). Refreshes to the longer.</summary>
     public void grant_invuln(float seconds) => _iframesLeft = Mathf.Max(_iframesLeft, seconds);
 
@@ -622,6 +645,16 @@ public partial class Player : Combatant
 
     /// <summary>Lower the current attack cooldown (Bakshen Overcharge on-hit). Clamped to zero (a huge value = full reset).</summary>
     public void reduce_attack_cooldown(float seconds) => _attackCd = Mathf.Max(_attackCd - seconds, 0.0f);
+
+    /// <summary>Shave <paramref name="seconds"/> off the special's cooldown (clamped at ready).</summary>
+    public void reduce_special_cooldown(float seconds) => _specialCd = Mathf.Max(_specialCd - seconds, 0.0f);
+
+    /// <summary>How recharged the special is, 0..1 (1 = ready to cast) — drives the HUD's special bar.</summary>
+    public float special_ready()
+    {
+        float cd = _currentSpecial != null ? CooldownOf(_currentSpecial) : 0.0f;
+        return cd > 0.0f ? 1.0f - _specialCd / cd : 1.0f;
+    }
 
     /// <summary>Zero the dash cooldown so the follow-up dash is free (Chain Dash on-dash).</summary>
     public void reset_dash_cooldown() => _dashCd = 0.0f;
@@ -880,8 +913,6 @@ public partial class Player : Combatant
                 _stunLeft = flinch;
                 Enter(State.HURT);
             }
-            _comboPlaying = false;
-            _flurry = false;
             _bufferedSpecial = false;
         }
         if (hit.StatusColor.A > 0.0f)
@@ -1083,13 +1114,15 @@ public partial class Player : Combatant
         _sprite?.Play();
     }
 
-    private void Die()
+    /// <summary>Common death: stop everything in progress and disable the hurtbox. A normal death then plays the death
+    /// animation; a <paramref name="fell"/> death (out of the arena) skips it and free-falls in the fall animation.</summary>
+    private void Die(bool fell = false)
     {
         if (_dead)
             return;
         _dead = true;
         _deathFinished = false;
-        _sfx.play("player_death");
+        _sfx.play(fell ? "player_fall_death" : "player_death");
         _stunLeft = 0.0f;
         _comboPlaying = false;
         _flurry = false;
@@ -1103,10 +1136,25 @@ public partial class Player : Combatant
             // Die() runs inside the hurtbox's hit-signal flush; a direct set is blocked while physics
             // queries flush ("Function blocked during in/out signal"), so defer it to after the flush.
             _hurtbox.SetDeferred(Area2D.PropertyName.Monitorable, false);
+        if (fell)
+        {
+            _fellOut = true;
+            _deathFinished = true; // no death animation to wait for
+            if (HasFall())
+                _sprite.Play("fall");
+            return;
+        }
         if (HasAnim("death"))
             Enter(State.DEATH);
         else
             _deathFinished = true;
+    }
+
+    /// <summary>Fell out of the arena: no input, no state machine — gravity just carries him down in the fall animation.</summary>
+    private void ProcessFreefall(float delta)
+    {
+        AddVelY(_gravity * _fallGravityScale * delta);
+        MoveAndSlide();
     }
 
     private void ProcessDeath(float delta)
@@ -1142,8 +1190,12 @@ public partial class Player : Combatant
 
     public void begin_run()
     {
+        // Buffs FIRST: each Teardown undoes its own change (e.g. -1 air jump, ÷ jump height), so it must run while
+        // those changes are still in place — resetting the stats below first made every undo apply twice.
+        ClearPassives();
         _dead = false;
         _deathFinished = false;
+        _fellOut = false;
         fada_figs = 0;
         fada_lifetime = 0;
         GetNodeOrNull<HUD>("/root/HUD")?.SetFadaFigs(0);
@@ -1186,9 +1238,15 @@ public partial class Player : Combatant
         if (Engine.IsEditorHint())
             return;
         float delta = (float)deltaD;
+        if (_fellOut)
+        {
+            ProcessFreefall(delta);
+            return;
+        }
 
         _dashCd = Mathf.Max(_dashCd - delta, 0.0f);
-        _specialCd = Mathf.Max(_specialCd - delta, 0.0f);
+        if (!HoldingSpecial())
+            _specialCd = Mathf.Max(_specialCd - delta, 0.0f); // a held special's cooldown starts on release
         _launchCdLeft = Mathf.Max(_launchCdLeft - delta, 0.0f);
         UpdateOrbProximity();
         TrySurge();
@@ -1663,19 +1721,15 @@ public partial class Player : Combatant
                 AddVelY(_gravity * delta);
         }
 
-        if (Input.IsActionJustPressed("special"))
-            _bufferedSpecial = true;
+        if (Input.IsActionJustPressed("special") && _specialCd <= 0.0f)
+            _bufferedSpecial = true; // only a READY special — one on cooldown would stall the attack until it recharged
 
         if (_flurry)
         {
             if (_bufferedSpecial)
-            {
-                _flurry = false;
                 StartSpecial();
-            }
             else if (!Input.IsActionPressed("attack"))
             {
-                _flurry = false;
                 NotifyAttackAnimEnd();
                 Enter(State.IDLE);
             }
@@ -1718,11 +1772,14 @@ public partial class Player : Combatant
         }
     }
 
+    /// <summary>A "held" special (Redere Shield) is up right now — its cooldown waits until it's released.</summary>
+    private bool HoldingSpecial() => _state == State.SPECIAL && _currentSpecial != null && HasTag(_currentSpecial, "held");
+
     private void StartSpecial()
     {
         if (_specialCd > 0.0f)
             return;
-        _specialCd = Mathf.Max(SpecialCooldown, _currentSpecial != null ? CooldownOf(_currentSpecial) : 0.0f);
+        _specialCd = _currentSpecial != null ? CooldownOf(_currentSpecial) : 0.0f; // every special has its own cooldown
         bool isShield = _currentSpecial != null && HasTag(_currentSpecial, "shield");
         foreach (var p in _passives)
             p.OnSpecialCast(this, _currentSpecial);
@@ -1909,17 +1966,14 @@ public partial class Player : Combatant
         _sprite.Play(Anim(_currentAttack));
     }
 
+    /// <summary>The above-head bar tracks the ATTACK cooldown only (e.g. Bakshen); specials have their own bar in the
+    /// HUD gauge, so the two never share one.</summary>
     private void UpdateCooldownBar()
     {
         if (_cooldownBar == null)
             return;
         float cd = 0.0f, left = 0.0f;
-        if (_currentSpecial != null && CooldownOf(_currentSpecial) > 0.0f && _specialCd > 0.0f)
-        {
-            cd = CooldownOf(_currentSpecial);
-            left = _specialCd;
-        }
-        else if (_currentAttack != null && CooldownOf(_currentAttack) > 0.0f && _attackCd > 0.0f)
+        if (_currentAttack != null && CooldownOf(_currentAttack) > 0.0f && _attackCd > 0.0f)
         {
             cd = CooldownOf(_currentAttack);
             left = _attackCd;
@@ -1948,6 +2002,13 @@ public partial class Player : Combatant
     private void Enter(State state)
     {
         _state = state;
+        if (state != State.ATTACK)
+        {
+            // Leaving an attack by ANY route (release, special, surge, hurt, …) ends its flurry / combo segment. Done
+            // here, centrally, because a stale _flurry makes AdvanceCombo swallow every later attack press.
+            _flurry = false;
+            _comboPlaying = false;
+        }
         _sprite.SpeedScale = 1.0f;
         _sprite.Visible = true;
         switch (state)

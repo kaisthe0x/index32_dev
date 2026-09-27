@@ -47,6 +47,7 @@ public static class UiStyle
     public const string PrimaryButton = "PrimaryButton"; // the one call-to-action on a screen (filled, deep frame hue)
     public const string RowPanel = "RowPanel";      // a subtle list-row strip (PanelContainer)
     // HUD text floats over the world, so its styles carry a black outline.
+    public const string HudTitle = "HudTitle";      // scanline title font, accent (the round number)
     public const string HudHeading = "HudHeading";  // frame colour
     public const string HudValue = "HudValue";      // accent colour, title size (counters)
     public const string HudMuted = "HudMuted";      // secondary text
@@ -140,6 +141,9 @@ public static class UiStyle
         t.SetTypeVariation(Muted, "Label");
         t.SetColor("font_color", Muted, TextDim);
 
+        HudLabel(t, HudTitle, Accent);
+        t.SetFont("font", HudTitle, TitleFont);
+        t.SetFontSize("font_size", HudTitle, SizeTitle);
         HudLabel(t, HudHeading, Frame);
         HudLabel(t, HudValue, Accent);
         t.SetFontSize("font_size", HudValue, SizeTitle);

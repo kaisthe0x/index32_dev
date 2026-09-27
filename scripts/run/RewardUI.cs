@@ -16,7 +16,7 @@ public partial class RewardUI : CanvasLayer
 
     public RewardUI()
     {
-        Layer = 50;
+        Layer = UiLayers.Menu;
         ProcessMode = ProcessModeEnum.Always; // keep working while the tree is paused
     }
 

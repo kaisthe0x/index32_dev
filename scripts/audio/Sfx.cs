@@ -30,6 +30,7 @@ public partial class Sfx : Node
     private readonly Dictionary<string, AudioStream> _cache = new();
     private readonly GDict _cues = new(); // key -> path, merged from the per-area configs
     private readonly GDict _vol = new();  // key -> per-cue base volume (dB), merged; unlisted = 0
+    private readonly GDict _pitch = new(); // key or dotted-prefix group -> random pitch range (±), merged; unlisted = fixed
     private StringName _bus = "Master";
 
     public override void _Ready()
@@ -40,6 +41,9 @@ public partial class Sfx : Node
         _vol.Merge(SfxCharacters.VOLUMES);
         _vol.Merge(SfxEnemies.VOLUMES);
         _vol.Merge(SfxWorld.VOLUMES);
+        _pitch.Merge(SfxCharacters.PITCH);
+        _pitch.Merge(SfxEnemies.PITCH);
+        _pitch.Merge(SfxWorld.PITCH);
         if (PreferredOutput != "" && System.Array.IndexOf(AudioServer.GetOutputDeviceList(), PreferredOutput) != -1)
             AudioServer.OutputDevice = PreferredOutput;
         _bus = AudioServer.GetBusIndex(Bus) != -1 ? Bus : "Master";
@@ -108,8 +112,24 @@ public partial class Sfx : Node
         _fi = (_fi + 1) % _flat.Count;
         pl.Stream = s;
         pl.VolumeDb = volume_db + VolumeFor(key);
-        pl.PitchScale = pitch;
+        pl.PitchScale = pitch * PitchJitter(key);
         pl.Play();
+    }
+
+    /// <summary>A random pitch multiplier for <paramref name="key"/> from the PITCH tables: ± its own entry, else its
+    /// nearest dotted prefix's ("kebus.projectile.3" → "kebus.projectile" → "kebus"); 1 if none.</summary>
+    private float PitchJitter(string key)
+    {
+        for (string k = key; ; k = k[..k.LastIndexOf('.')])
+        {
+            if (_pitch.ContainsKey(k))
+            {
+                float range = _pitch[k].As<float>();
+                return 1.0f + (float)GD.RandRange(-range, range);
+            }
+            if (!k.Contains('.'))
+                return 1.0f;
+        }
     }
 
     /// <summary>The per-cue base volume (dB) for <paramref name="key"/> from the merged VOLUMES tables (0 if unlisted).</summary>
@@ -196,7 +216,7 @@ public partial class Sfx : Node
         pl.Stream = s;
         pl.GlobalPosition = world_pos;
         pl.VolumeDb = volume_db + VolumeFor(key);
-        pl.PitchScale = pitch;
+        pl.PitchScale = pitch * PitchJitter(key);
         pl.Play();
     }
 }

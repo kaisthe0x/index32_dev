@@ -28,7 +28,7 @@ public partial class AttackSelect : CanvasLayer
 
     public AttackSelect()
     {
-        Layer = 60;
+        Layer = UiLayers.Menu;
         ProcessMode = ProcessModeEnum.Always; // keep working while the tree is paused
     }
 

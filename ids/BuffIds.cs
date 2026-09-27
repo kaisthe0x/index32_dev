@@ -63,14 +63,4 @@ public static class BuffIds
     public const string TrapSap = "trap_sap";
     public const string TrapPyre = "trap_pyre";
     public const string TrapMine = "trap_mine";
-
-    // --- Seal (the Fissure verb; not in rewards-design.md) ---
-    public const string SwiftSeal = "swift_seal";
-    public const string WardSeal = "ward_seal";
-    public const string CheapSeal = "cheap_seal";
-    public const string SealNova = "seal_nova";          // NEW
-    public const string WardensToll = "wardens_toll";    // NEW; trigger OnWardenKill
-    public const string FreeSeal = "free_seal";          // NEW; OnWardenKill
-    public const string RemoteSeal = "remote_seal";      // NEW
-    public const string SealSurge = "seal_surge";
 }
