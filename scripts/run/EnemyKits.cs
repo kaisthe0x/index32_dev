@@ -4,7 +4,7 @@ using GDict = Godot.Collections.Dictionary;
 namespace MyGame;
 
 /// <summary>
-/// The enemy roster — one named kit per enemy TYPE, referenced by the level/wave tables in <see cref="Levels"/>.
+/// The enemy roster — one named kit per enemy TYPE, drawn from by RunManager's spawn pool.
 /// A kit is a spawn spec: an `id` (built from scenes/enemy.tscn) or a custom `scene`, plus Enemy @export overrides
 /// (combat tuning), applied by RunManager via <c>enemy.Set(key, value)</c> — so a kit stays a by-name override BAG
 /// (its keys mirror Enemy's [Export] names), not a fixed record. A few keys are ADVISORY metadata RunManager reads
@@ -23,6 +23,7 @@ public static class EnemyKits
 		// attack_align_y is wide so he'll engage you a level up/down.
 		{ "far_aim_cap", 45.0 }, { "attack_align_y", 120.0 }, { "far_hitbox_extents", new Vector2(7, 10) },
 		{ "projectile_speed", 200.0 },
+		{ "fig_chance", 0.25 }, // the hardest grunt — better fig odds than the 10 % default
 	};
 
 	public static readonly GDict BAGHEL = new()
@@ -96,7 +97,7 @@ public static class EnemyKits
 		{ "scene", "res://scenes/warden.tscn" }, { "id", EnemyIds.Kroj }, { "display_name", "Kroj" },
 		{ "movement", (int)EnemyMovement.Ground }, { "tier", (int)EnemyTier.Strong },
 		{ "max_health", 300.0 }, { "body_size", new Vector2(28, 44) }, { "hurtbox_size", new Vector2(34, 52) },
-		{ "move_speed", 55.0 }, { "aggro", true }, { "aggro_range", 640.0 }, { "fada_fig_drop", 12 },
+		{ "move_speed", 55.0 }, { "aggro", true }, { "aggro_range", 640.0 }, { "lira_drop", 12 },
         // Attack = a LUNGE (close_type=lunge): he closes and body-checks; close_lunge is the forward impulse.
         { "close_type", StrikeType.Lunge.Key() }, { "close_range", 130.0 }, { "close_lunge", 460.0 },
 		{ "close_damage", 22.0 }, { "close_knockback", 190.0 }, { "close_stun", 0.3 },

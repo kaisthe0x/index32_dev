@@ -6,7 +6,7 @@ namespace MyGame;
 /// A MYSTERY BOX (placeholder art — a purple "?" crate): stand next to it and press <b>E</b> (the <c>interact</c>
 /// action) to spend <see cref="Cost"/> fada_figs for a gamble. It is DELIBERATELY stingy: <see cref="DudChanceBase"/>
 /// of pulls give nothing; on a WIN it fires <see cref="won"/> and RunManager opens a pick-1-of-3 menu of POWERFUL
-/// buffs (same UI as the milestone menu, above-rare tiers). Every win raises the dud chance further (capped by
+/// buffs (a `RewardUI`, above-rare tiers). Every win raises the dud chance further (capped by
 /// <see cref="DudChanceCap"/>), so repeat wins get rarer within a run. One box spawns per arena
 /// (RunManager.BuildArena) — its escalation is that box's. Built entirely in code.
 /// </summary>
@@ -16,7 +16,7 @@ public partial class MysteryBox : Node2D
     [Signal] public delegate void wonEventHandler();
 
     private const string InteractAction = "interact"; // E (registered in _Ready if the project hasn't)
-    private const int Cost = 25;                 // fada_figs spent per pull
+    private const int Cost = 8;                  // fada_figs spent per pull (figs are rare — ~10 % of kills)
     private const float DudChanceBase = 0.2f;    // chance a pull gives nothing (tune here)
     private const float DudChanceGrowth = 0.01f; // + per win, so wins get rarer
     private const float DudChanceCap = 0.995f;

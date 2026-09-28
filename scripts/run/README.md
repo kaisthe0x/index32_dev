@@ -4,11 +4,8 @@ Everything that makes the game a *run* lives here: the arena, the round loop + s
 plumbing, the buff menu, and the mystery box. One folder, driven by data you can tune in one place each. The design it
 implements is [`docs/game-loop.md`](../../docs/game-loop.md) — **endless CoD-Zombies-style rounds**.
 
-> **Levels/exits are RETIRED.** There is now ONE arena and endless numbered **rounds**; the run ends only on
-> death — no stage exit, no next-level, no reward door. The old machinery (`Levels` data,
-> `ExitGate`, `Rewards`/`Build`/`RewardsCatalog`, `RewardUI`) is **parked, not wired** — `RunManager` no
-> longer references it. It stays parked (not part of the round design);
-> `RewardUI` is the one still live, reused by the run-start `AttackSelect`.
+> **Levels/exits are gone.** There is ONE arena and endless numbered **rounds**; the run ends only on death — no
+> stage exit, no next level, no reward doors — that code is deleted.
 
 `scenes/arena.tscn`'s root **is** `RunManager` — open it and press F6 to drop straight into a run (F5 starts at the `palette_preview` colour pickers, which then load `arena.tscn`).
 
@@ -16,16 +13,15 @@ implements is [`docs/game-loop.md`](../../docs/game-loop.md) — **endless CoD-Z
 
 | File | What it is |
 |---|---|
-| `RunManager.cs` (`RunManager`) | The brain + the arena root. Builds ONE arena and runs the **round loop** (a hidden quota per round, trickled in from a mixed roster — proximity-placed around the player, under a concurrent cap — then a breather + ROUND banner), **awards Ruh per damaging hit landed** (via `gain_ruh_on_hit`, skipping a special's own hits — not per kill), **drops Fada Figs on each kill**, **pops a free pick-1-of-3 MILD buff menu at escalating fada-fig milestones**, **spawns a mystery box** (spend figs for a stingy powerful-buff gamble — a win rarely offers a **special-swap** instead), and restarts the run on death. Owns the camera/death/spawn flair. |
+| `RunManager.cs` (`RunManager`) | The brain + the arena root. Builds ONE arena and runs the **round loop** (a hidden quota per round, trickled in from a mixed roster — proximity-placed around the player, under a concurrent cap — then a breather + ROUND banner), **awards Ruh per damaging hit landed** (via `gain_ruh_on_hit`, skipping a special's own hits — not per kill), **pays Lira on every kill** (coins that fly to the player) **plus a per-kit chance of one Fada Fig**, **spawns a mystery box** (spend figs for a stingy powerful-buff gamble — a win rarely offers a **special-swap** instead), and restarts the run on death. Owns the camera/death/spawn flair. |
 | `enemies.gd` (`EnemyKits`) | **The enemy roster** — one named kit per type (combat tuning + which scene), plus a `Tier`. `RunManager.SpawnPool` draws from these. Edit here to change *who* the enemies are. |
 | `MysteryBox.cs` (`MysteryBox`, in `scripts/things/`) | A code-built placeholder "?" crate. Stand next to it (a "E" prompt shows) and press **E** (the `interact` action, registered in code) to spend `Cost` fada_figs on a gamble: `DudChanceBase` of pulls give nothing, otherwise it fires `won` and RunManager opens the **same 3-choice menu** from the POWERFUL pool (`BuffCatalog.PowerfulIds`, above-rare tiers). Each win raises the dud chance further (per-run). Press E again to pull again. |
-| `RewardUI.cs` (`RewardUI`) | The pick-a-card popup (pauses the game, emits `chosen(id)`) — `Open(cards, title)`. Now drives the milestone **buff menu**. |
+| `RewardUI.cs` (`RewardUI`) | The pick-a-card popup (pauses the game, emits `chosen(id)`) — `Open(cards, title)`. Now drives the mystery box's **buff menu**. |
 | `configs/Rounds.cs` (`Rounds`) | **Round tuning** — quota curve, concurrent cap, spawn interval, breather, when "n LEFT" shows. Pure data. |
-| *(parked — not wired)* | `levels.gd` (`Levels`, still read once for the arena `bg` tint), `Rewards.cs`/`Build.cs`/`configs/RewardsCatalog.cs` (build-aware reward offers), `ExitGate.cs`. Parked; `RunManager` no longer drives them. |
 
 **Hand-painted stage layouts** are the active approach: `RunManager` loads a random
 `scenes/levels/stage1/stage1_v*.tscn` (a `LevelLayout`, discovered by the `stage1_v` glob in
-`StageLayoutPaths`) and reads its `PlayerSpawn` / `Exit` markers (+ optional `orb` group). Terrain
+`StageLayoutPaths`) and reads its `PlayerSpawn` marker (+ optional `orb` group). Terrain
 is a **`TileMapLayer` with per-tile collision**: `tools/gen_terrain_tileset.gd` builds the shared
 `assets/terrain/stage1/terrain_tileset.tres` from every **`tilesetN.png`** in that folder (each its own atlas source,
 id = N), with collision **traced from each tile's pixels** (full tiles = boxes; slopes/cut corners = traced polygons,
@@ -50,11 +46,16 @@ far off on a ground tile (`StationarySpawn*`); **grunts** near on a ground tile 
 (`GroundSpawnMin..Max`) — a **min distance so an enemy never spawns on top of the player**. **Grunts and flyers
 arrive BEHIND Khalid** (opposite `Player.facing`), so a new enemy never lands in the swing he's already making and
 he has to turn and move; if there's no ground tile behind him in the band (back to the arena edge or a pit),
-`PickGroundSurface` falls back to either side. Nasen (stationary, far) ignores facing. Ground tiles come
-from `LevelLayout.GroundSurfaces()` (exposed tops of the Terrain tilemap — a collidable cell with an empty cell
-above — that sit in a flat run of at least `MinSpawnFloorTiles` (3), so nothing spawns stranded on a lone
-scattered tile). The distance bands are tunable consts in `RunManager`; the round curves live in `Rounds`. (The old
-`spawn_ground`/`spawn_air` layout markers are unused — delete them from layouts.)
+`PickGroundSurface` falls back to either side. Nasen (stationary, far) ignores facing. **Ground spawns stay on
+the player's floor.** `LevelLayout` splits the Terrain's exposed tops (a collidable cell with an empty cell above) into
+connected **floor regions** — tops join only where their surfaces actually meet: flat tiles side by side, a ramp
+and the floors at its two ends (`LevelLayout.Linked`; a ramp is a tile whose collision has a diagonal edge of half a
+tile or more). A block step, or slopes laid as a sawtooth, splits regions. `SpawnSurfacesNear` returns the region
+under the player (found by `RunManager.GroundBelow`, a ray down from his
+feet, so a jump doesn't change it), limited to flat runs of at least `MinSpawnFloorTiles` (3) so nothing spawns
+stranded on a lone scattered tile. So an enemy never appears on a platform the player can't reach (or that can't
+reach him). If the player's own region has no such run (perched on a lone tile), the nearest region that does is
+used. The distance bands are tunable consts in `RunManager`; the round curves live in `Rounds`.
 
 **Anti-camp cull:** a player could camp somewhere the AI can't reach and stall the round. So `CullOffscreen` tracks each
 living enemy's time OFF-SCREEN (`_offscreen`, using the camera's visible rect grown by `OffscreenMargin`); once one stays
@@ -85,7 +86,7 @@ Related, but not in this folder:
 
 ## The loop (endless arena)
 
-1. `RunManager.BuildArena()` sets the `bg` (from `Levels` index 0 — the one surviving use), loads a random
+1. `RunManager.BuildArena()` sets the `bg` tint (`Terrain.BackgroundTint`), loads a random
    `stage1_v*.tscn` layout, places the player at its `PlayerSpawn`, and resets the round state to a full
    `BreatherTime` countdown before **round 1** (it ticks once play starts — after the attack pick + spawn). The stage
    music (`Music.play_stage`) starts as the arena loads (the colour-scheme screen before it is silent).
@@ -99,23 +100,18 @@ Related, but not in this folder:
    file just warns once + stays silent.
 3. **Hitting** an enemy → `damaged` → `gain_ruh_on_hit()` charges the surge meter (a special's own hits are
    skipped). Specials cost no Ruh (cooldown-gated); a **surge** fires only when you have the Ruh → `_try_surge()` spends its `cost`.
-4. **Killing** an enemy → `died` → `OnEnemyDied`: always drops **Fada Figs** (deferred — death fires mid
-   physics-flush); a quota enemy also frees a cap slot, counts toward the round, and the last one clears it.
-5. **Buffs come from two places:**
-   - **Milestone menu (mild, free):** collecting fada_figs fires `Player.fada_collected`, which drives the HUD's
-     **"next buff" progress bar** (`HUD.SetBuffProgress`, spanning `_prevMilestone`→`_nextMilestone`). When the run's
-     LIFETIME total crosses `_nextMilestone` (5 → 15 → 35 → …, the gap grows by `MilestoneGapGrowth`), `BeginBuffMilestone`
-     **freezes the game, flashes a "LEVEL UP" banner + `buff_levelup` cue**, then after `LevelUpDelay` opens a `RewardUI`
-     of **3 mild buffs** (`BuffCatalog.MildIds` — general, NON-invuln; Common/Rare — floored to each buff's
-     `BuffCatalog.MinTier` so a threshold buff like Extra Air Jump never rolls a do-nothing Common — easing toward Rare with
-     `_milestoneIndex`). Picking grants it + plays `buff_select`. **No figs are spent** — the balance is left for the box.
+4. **Killing** an enemy → `died` → `OnEnemyDied` → `SpawnDrops` (deferred — death fires mid physics-flush):
+   `Enemy.lira_drop` **Lira** coins that fly to the player and bank on arrival, and — at `Enemy.fig_chance` (10 %
+   default, Kebus 25 %) — **one Fada Fig** that settles until touched. Nothing drops if the enemy fell off the map. A
+   quota enemy also frees a cap slot, counts toward the round, and the last one clears it.
+5. **Buffs come from the mystery box** (Lira has no sink yet — Needle Point + Dekken are the next economy steps):
    - **Mystery box (powerful, paid gamble):** one `MysteryBox` per arena; stand next to it + press **E** to spend `Cost`
-     figs (`Player.spend_fada_figs`). Most pulls dud (`DudChanceBase`); a WIN fires the box's `won` signal →
-     `RunManager.OpenPowerfulBuffMenu` opens the **same 3-choice `RewardUI`** from `BuffCatalog.PowerfulIds` (above-rare,
-     incl. invuln). Each win raises the dud chance. On a win, one of the three cards is **rarely** a **special-swap**
+     figs (`Player.spend_fada_figs`). Some pulls dud (`DudChanceBase`, 20 %); a WIN fires the box's `won` signal →
+     `RunManager.OpenBoxMenu` opens a **3-choice `RewardUI`** from `BuffCatalog.PowerfulIds` (above-rare tiers, floored
+     to each buff's `BuffCatalog.MinTier`). Each win raises the dud chance. On a win, one of the three cards is **rarely** a **special-swap**
      instead of a buff (`RollBoxSpecial`, `SpecialOfferChance`, drawn from `BoxSpecialIds` — currently just **Zahluq**);
      picking it **replaces your equipped special** (`OnBuffChosen` → `Player.equip`, keyed by `_menuSpecialId`) rather
-     than adding a passive. (Both menus share `ShowBuffMenu` / `OnBuffChosen`.)
+     than adding a passive. Picking plays `buff_select`.
 6. **Death** (HP hits 0 — the 6th hit) → `SaveData.ReportRun(_round)` records the round reached (new best →
    `rounds_record`), then the whole run restarts via `Player.begin_run` (buffs cleared, a full 3 blocks of HP / a
    full 3-charge Ruh meter) + a fresh `BuildArena()`; the run-start `AttackSelect` re-opens.
@@ -128,18 +124,16 @@ Related, but not in this folder:
   `OffscreenMargin`.
 - **Cap a specific enemy type** → add `{ "spawn_cap", N }` to its kit in `EnemyKits` (e.g. Nasen = 1). The cap grows
   +1 every `Rounds.KitCapGrowthRounds` rounds. Kits with no `spawn_cap` are unlimited.
-- **Change the buff-menu cadence** → `RunManager` `FirstMilestone` / `MilestoneGapBase` / `MilestoneGapGrowth`
-  (the milestone curve) + `BuffMenuChoices`. `LevelUpDelay` = the "LEVEL UP" banner hold before the menu opens
-  (`RunManager.ShowBanner`). The ROUND n intro's timing is `IntroFadeIn` / `IntroHold` / `IntroFly` in `HUD.cs`. Mild
-  pool = `BuffCatalog.MildIds()`; tier skew = `RollMildTier`. Buff sfx: `buff_levelup` / `buff_select` in `SfxWorld`
-  (PLACEHOLDER cues — repoint to real files when ready). The HUD "next buff" bar is `HUD.SetBuffProgress`.
-- **Change the mystery box** → `MysteryBox` consts: `Cost` (figs per pull), `DudChanceBase` (~0.97), `DudChanceGrowth`
-  (+per win), `DudChanceCap`. Powerful pool = `BuffCatalog.PowerfulIds()`; tier weights = `RollPowerfulTier`.
+- **Change the drops** → Lira per kill: `RunManager.LiraForTier` (by advisory tier) or a kit's `lira_drop`; fig
+  odds: a kit's `fig_chance` (default `Enemy.fig_chance` = 0.1). Pickup cues `lira_collect` / `fada_fig_collect` in
+  `SfxWorld` (PLACEHOLDERS). The ROUND n intro's timing is `IntroFadeIn` / `IntroHold` / `IntroFly` in `HUD.cs`.
+- **Change the mystery box** → `MysteryBox` consts: `Cost` (figs per pull, 8 — figs are rare), `DudChanceBase`,
+  `DudChanceGrowth` (+per win), `DudChanceCap`. Cards per win: `RunManager.BuffMenuChoices`. Powerful pool = `BuffCatalog.PowerfulIds()`; tier weights = `RollPowerfulTier`.
 - **Change the box special-swap** → `RunManager` `SpecialOfferChance` (chance a win offers a special instead of a 3rd
   buff) + `BoxSpecialIds` (which specials are box-only; currently `SpecialIds.Zahluq`). `RollBoxSpecial` skips a special
   you already have equipped.
-- **Move a buff between pools** → the invuln family is box-only via `BuffCatalog.IsInvuln`; move-gated buffs are
-  excluded from both by the `General()` filter.
+- **Which buffs the box offers** → `BuffCatalog.PowerfulIds()` (every general buff; move-gated buffs are excluded by
+  the `General()` filter).
 - **Change an enemy's stats** → its kit in `enemies.gd` (combat).
 - **Change the Ruh / surge economy** → `Player.RUH_PER_HIT` (fill rate per hit), `RUH_PER_BLOCK`
   (charge size), `BASE_RUH_CAP` (starting charges), and the Aegis surge's `cost` / `duration` in
@@ -152,5 +146,5 @@ Related, but not in this folder:
   reward-card popup. No dedicated art/sfx yet.
 - The rest of the round design is still to build, in order (`docs/game-loop.md` § Build order): stragglers hunting
   the player → enemy **ranks** (tier-coloured, heavier hits) → **round drops** (Max Health / Max Ruh) → **Warden
-  rounds** (every 10th). The parked `Rewards`/`ExitGate` code is not part of it.
+  rounds** (every 10th).
 - No win screen / meta-progression yet.

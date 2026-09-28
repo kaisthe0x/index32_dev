@@ -4,15 +4,14 @@ using System.Collections.Generic;
 namespace MyGame;
 
 /// <summary>
-/// Root of a hand-painted level LAYOUT scene (<c>scenes/levels/stageN/lM/vK.tscn</c>). Holds a painted
-/// <c>TileMapLayer</c> ("Terrain" — its solid tiles carry collision) plus spawn <c>Marker2D</c>s. RunManager
-/// instantiates ONE random variant per level and reads these, so each entry into a level is a hand-made look.
+/// Root of a hand-painted arena LAYOUT scene (<c>scenes/levels/stageN/stageN_vK.tscn</c>). Holds a painted
+/// <c>TileMapLayer</c> ("Terrain" — its tiles carry collision) plus a <b>PlayerSpawn</b> <c>Marker2D</c>. RunManager
+/// instantiates ONE random variant per run and reads these.
 ///
-/// <para>AUTHORING (in the editor): paint the <b>Terrain</b> layer with the terrain TileSet; drag the
-/// <b>PlayerSpawn</b> + <b>Exit</b> markers where you want them. Enemy spawn positions are NO LONGER authored —
-/// RunManager proximity-spawns around the player using the Terrain's exposed ground tiles (<see cref="GroundSurfaces"/>),
-/// so old <c>spawn_ground</c>/<c>spawn_air</c> markers are unused and can be deleted. Optional launch-orb spots still
-/// go in the <b>orb</b> group. WHICH enemies appear is the shared per-level roster in <see cref="Levels"/>.</para>
+/// <para>AUTHORING (in the editor): paint the <b>Terrain</b> layer with the terrain TileSet and drag the
+/// <b>PlayerSpawn</b> marker where you want it. Enemy spawn positions aren't authored — RunManager proximity-spawns
+/// around the player on the floor he's standing on (<see cref="SpawnSurfacesNear"/>). Optional launch-orb spots
+/// go in the <b>orb</b> group. WHICH enemies appear is RunManager's spawn pool (kits in <see cref="EnemyKits"/>).</para>
 /// </summary>
 [GlobalClass]
 public partial class LevelLayout : Node2D
@@ -20,60 +19,179 @@ public partial class LevelLayout : Node2D
     /// <summary>World position of the player start.</summary>
     public Vector2 PlayerSpawn() => MarkerPos("PlayerSpawn");
 
-    /// <summary>World position of the exit door.</summary>
-    public Vector2 ExitPoint() => MarkerPos("Exit");
-
     /// <summary>Optional launch-orb positions.</summary>
     public List<Vector2> Orbs() => GroupPositions("orb");
-
-    private List<Vector2> _groundSurfaces;
 
     /// <summary>A spawn tile must sit in a flat run of at least this many walkable tiles — a lone scattered tile (or a
     /// 2-tile ledge) would strand a grunt with nowhere to walk.</summary>
     private const int MinSpawnFloorTiles = 3;
 
-    /// <summary>World positions on TOP of exposed ground tiles — a Terrain cell WITH COLLISION (solid or one-way
-    /// platform; decoration-only tiles don't count) whose cell ABOVE is empty, i.e. walkable footing — that belong to
-    /// a flat run of at least <see cref="MinSpawnFloorTiles"/> such tiles, so an enemy spawned there can move left and
-    /// right. RunManager proximity-spawns ground/stationary enemies onto these (near the player, but never on him).
-    /// Computed once from the Terrain tilemap; empty if the layout has no Terrain layer.</summary>
-    public List<Vector2> GroundSurfaces()
+    // The walkable floors, computed once from the Terrain tilemap. A "top" is a Terrain cell WITH COLLISION (solid or
+    // one-way; decoration doesn't count) whose cell ABOVE is empty. Two neighbouring tops join the same FLOOR region
+    // only where their surfaces actually MEET (see Linked) — flat tiles side by side, a ramp and the floors at its two
+    // ends — so a block step, or slopes laid as a sawtooth, splits regions. A region is somewhere a grunt can walk.
+    private readonly List<(Vector2 Pos, int Region)> _topPositions = new();         // every top: tile-top world pos + region
+    private readonly Dictionary<int, List<Vector2>> _spawnable = new();             // region → its spawn-worthy tops
+    private bool _groundBuilt;
+
+    /// <summary>Where a ground/stationary enemy may spawn so it can actually reach the player: the tops of the FLOOR
+    /// region nearest <paramref name="groundPoint"/> (the ground under the player), limited to flat runs of at least
+    /// <see cref="MinSpawnFloorTiles"/> tiles. If that region has no such run (the player is perched on a lone tile or
+    /// short ledge), the region of the nearest spawn-worthy top instead. World positions on the tile tops; empty only if
+    /// the layout has no walkable run at all.</summary>
+    public List<Vector2> SpawnSurfacesNear(Vector2 groundPoint)
     {
-        if (_groundSurfaces != null)
-            return _groundSurfaces;
-        _groundSurfaces = new List<Vector2>();
+        BuildGround();
+        int region = NearestRegion(groundPoint, requireSpawnable: false);
+        if (region >= 0 && _spawnable.TryGetValue(region, out var here))
+            return here;
+        region = NearestRegion(groundPoint, requireSpawnable: true);
+        return region >= 0 ? _spawnable[region] : new List<Vector2>();
+    }
+
+    /// <summary>The region of the top nearest <paramref name="point"/> (optionally only regions with spawn-worthy tops);
+    /// -1 if there's none.</summary>
+    private int NearestRegion(Vector2 point, bool requireSpawnable)
+    {
+        int best = -1;
+        float bestD = float.MaxValue;
+        foreach (var (pos, region) in _topPositions)
+        {
+            if (requireSpawnable && !_spawnable.ContainsKey(region))
+                continue;
+            float d = pos.DistanceSquaredTo(point);
+            if (d < bestD)
+            {
+                bestD = d;
+                best = region;
+            }
+        }
+        return best;
+    }
+
+    private void BuildGround()
+    {
+        if (_groundBuilt)
+            return;
+        _groundBuilt = true;
         var tm = GetNodeOrNull<TileMapLayer>("Terrain");
         if (tm?.TileSet == null)
-            return _groundSurfaces;
+            return;
+        int layers = tm.TileSet.GetPhysicsLayersCount();
         var tops = new HashSet<Vector2I>();
+        var slopes = new Dictionary<Vector2I, int>(); // slope cell → the side it rises toward (+1 right, -1 left)
         foreach (Vector2I cell in tm.GetUsedCells())
         {
-            if (tm.GetCellSourceId(cell + new Vector2I(0, -1)) != -1)
+            if (tm.GetCellSourceId(cell + Vector2I.Up) != -1)
                 continue; // something sits directly above -> not an exposed top
-            if (!HasCollision(tm.GetCellTileData(cell), tm.TileSet.GetPhysicsLayersCount()))
+            TileData td = tm.GetCellTileData(cell);
+            if (!HasCollision(td, layers))
                 continue; // decoration — nothing to stand on
             tops.Add(cell);
+            int rise = SlopeRise(td, layers);
+            if (rise != 0)
+                slopes[cell] = rise;
         }
+        var regionOf = LabelRegions(tops, slopes);
         float halfH = tm.TileSet.TileSize.Y * 0.5f;
         foreach (Vector2I cell in tops)
         {
-            if (FloorRun(tops, cell) < MinSpawnFloorTiles)
+            Vector2 pos = tm.ToGlobal(tm.MapToLocal(cell) - new Vector2(0.0f, halfH)); // tile-top, world space
+            int region = regionOf[cell];
+            _topPositions.Add((pos, region));
+            if (FloorRun(tops, slopes, cell) < MinSpawnFloorTiles)
                 continue; // too short to walk on
-            _groundSurfaces.Add(tm.ToGlobal(tm.MapToLocal(cell) - new Vector2(0.0f, halfH))); // tile-top, world space
+            if (!_spawnable.TryGetValue(region, out var list))
+                _spawnable[region] = list = new List<Vector2>();
+            list.Add(pos);
         }
-        return _groundSurfaces;
     }
 
-    /// <summary>Length in tiles of the flat run of exposed tops through <paramref name="cell"/> (same row, contiguous).</summary>
-    private static int FloorRun(HashSet<Vector2I> tops, Vector2I cell)
+    /// <summary>Flood-fill the tops into connected floor regions over the cells left/right and diagonally up/down,
+    /// joining only where the surfaces meet (<see cref="Linked"/>).</summary>
+    private static Dictionary<Vector2I, int> LabelRegions(HashSet<Vector2I> tops, Dictionary<Vector2I, int> slopes)
+    {
+        var regionOf = new Dictionary<Vector2I, int>();
+        int next = 0;
+        var queue = new Queue<Vector2I>();
+        foreach (Vector2I start in tops)
+        {
+            if (regionOf.ContainsKey(start))
+                continue;
+            regionOf[start] = next;
+            queue.Enqueue(start);
+            while (queue.Count > 0)
+            {
+                Vector2I c = queue.Dequeue();
+                foreach (int dx in new[] { -1, 1 })
+                    for (int dy = -1; dy <= 1; dy++)
+                    {
+                        var n = c + new Vector2I(dx, dy);
+                        if (tops.Contains(n) && !regionOf.ContainsKey(n) && Linked(c, n, slopes))
+                        {
+                            regionOf[n] = next;
+                            queue.Enqueue(n);
+                        }
+                    }
+            }
+            next++;
+        }
+        return regionOf;
+    }
+
+    /// <summary>Whether neighbouring tops <paramref name="a"/> and <paramref name="b"/> (b = a + (±1, -1..1)) have surfaces
+    /// that meet, so a body can walk from one onto the other. Side by side: both must reach the TOP of their row on the
+    /// facing sides (a flat tile always does; a slope only on the side it rises toward). Diagonal: the upper one must be
+    /// a slope whose LOW side faces the lower one (a ramp tile sits a row above the floor it rises from), and the lower
+    /// one must reach its row top on the facing side.</summary>
+    private static bool Linked(Vector2I a, Vector2I b, Dictionary<Vector2I, int> slopes)
+    {
+        bool TopOpen(Vector2I cell, int side) => !slopes.TryGetValue(cell, out int rise) || rise == side;
+        if (a.Y == b.Y)
+        {
+            int dx = b.X - a.X;
+            return TopOpen(a, dx) && TopOpen(b, -dx);
+        }
+        Vector2I upper = a.Y < b.Y ? a : b, lower = a.Y < b.Y ? b : a;
+        int toward = lower.X - upper.X; // the side of the upper cell that faces the lower one
+        return slopes.TryGetValue(upper, out int upRise) && upRise == -toward && TopOpen(lower, -toward);
+    }
+
+    /// <summary>Length in tiles of the walkable run of tops through <paramref name="cell"/> along its row (contiguous,
+    /// each step <see cref="Linked"/>).</summary>
+    private static int FloorRun(HashSet<Vector2I> tops, Dictionary<Vector2I, int> slopes, Vector2I cell)
     {
         int run = 1;
-        for (var c = cell + Vector2I.Left; tops.Contains(c); c += Vector2I.Left)
-            run++;
-        for (var c = cell + Vector2I.Right; tops.Contains(c); c += Vector2I.Right)
-            run++;
+        foreach (Vector2I step in new[] { Vector2I.Left, Vector2I.Right })
+            for (Vector2I c = cell; tops.Contains(c + step) && Linked(c, c + step, slopes); c += step)
+                run++;
         return run;
     }
+
+    /// <summary>If a tile's collision is a RAMP — any polygon edge running diagonally over at least
+    /// <see cref="SlopeEdgeMin"/> px both ways (so a cut or rounded corner doesn't count) — the side it rises toward
+    /// (+1 right / -1 left, from where its highest point sits); 0 if it isn't a slope.</summary>
+    private static int SlopeRise(TileData td, int physicsLayers)
+    {
+        bool sloped = false;
+        Vector2 highest = new(0.0f, float.MaxValue);
+        for (int layer = 0; layer < physicsLayers; layer++)
+            for (int i = 0; i < td.GetCollisionPolygonsCount(layer); i++)
+            {
+                Vector2[] pts = td.GetCollisionPolygonPoints(layer, i);
+                for (int j = 0; j < pts.Length; j++)
+                {
+                    Vector2 d = pts[(j + 1) % pts.Length] - pts[j];
+                    if (Mathf.Abs(d.X) >= SlopeEdgeMin && Mathf.Abs(d.Y) >= SlopeEdgeMin)
+                        sloped = true;
+                    if (pts[j].Y < highest.Y)
+                        highest = pts[j];
+                }
+            }
+        return sloped ? (highest.X > 0.0f ? 1 : -1) : 0;
+    }
+
+    private const float SlopeEdgeMin = 16.0f; // half a tile — a real ramp; a cut or rounded corner (≤ ~9 px) isn't one
 
     /// <summary>Whether a tile collides on any physics layer (solid ground or one-way platform).</summary>
     private static bool HasCollision(TileData td, int physicsLayers)

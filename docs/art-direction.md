@@ -87,11 +87,11 @@ assets/terrain/stage1/terrain_tileset.tres  (the generated TileSet — regen via
 ```
 Each layout is a `LevelLayout` scene (`scripts/run/LevelLayout.cs`) containing:
 - a **`Terrain` TileMapLayer** you paint (its solid tiles carry collision — **paint = collision**),
-- **`PlayerSpawn`** + **`Exit`** `Marker2D`s,
+- a **`PlayerSpawn`** `Marker2D`,
 - optional launch-orb spots in the **`orb`** group, and hand-placed decor (Tree/plant instances).
 
-**To author:** see [`docs/painting-levels.md`](painting-levels.md). Enemies spawn on exposed ground tiles around the
-player automatically. Regenerate the TileSet (`tools/gen_terrain_tileset.gd`, editor closed) after adding or editing a
+**To author:** see [`docs/painting-levels.md`](painting-levels.md). Enemies spawn automatically on the floor the
+player is standing on. Regenerate the TileSet (`tools/gen_terrain_tileset.gd`, editor closed) after adding or editing a
 `tilesetN.png` — collision is traced from the art.
 
 **Editor-clobber discipline:** the editor overwrites open `.tscn`/`.tres` on disk. Author with the editor, but

@@ -5,7 +5,7 @@ namespace MyGame;
 /// <summary>
 /// The player HUD. Health stars + Ruh orbs + the special's cooldown bar sit in the <see cref="_gauge"/> — fixed at bottom-centre, or following under
 /// Khalid's feet, per the player's <see cref="GaugePlacement"/> setting (dim at rest, bright on any change or at low
-/// HP). Also: the fada_fig ring (next-buff progress + spendable count, top-left), the ROUND / n LEFT / BEST block (top
+/// HP). Also: the Lira + Fada Fig counters (top-left), the ROUND / n LEFT / BEST block (top
 /// centre, pushed by RunManager), the active-buff
 /// list, off-screen enemy arrows, the low-HP effect, and the Esc <see cref="PauseMenu"/> (where that setting lives).
 /// An autoload, so it exists in every scene; binds to whatever <see cref="Player"/> enters the tree and hides when
@@ -49,9 +49,8 @@ public partial class HUD : CanvasLayer
 	private readonly List<float> _orbLevels = new();
 	private SpecialBar _specialBar;   // the special's cooldown, under the Ruh orbs (always shown; pulses when ready)
 	private Color _ruhFill;
-	private FigRing _figRing;
-	private Label _figLabel;
-	private int _figCount = 0;
+	private CurrencyCounter _liraCounter;
+	private CurrencyCounter _figCounter;
 	private Label _roundLabel;
 	private Label _leftLabel;   // "n LEFT" — shown only once few quota enemies remain
 	private Label _nextLabel;   // "NEXT ROUND IN n" — shown only during a breather
@@ -60,7 +59,7 @@ public partial class HUD : CanvasLayer
 	private Label _roundIntro;   // the big "ROUND n" flying from screen centre into _roundLabel (only while animating)
 	private VBoxContainer _buffPanel;
 
-	private static readonly Vector2 FigRowPos = new(16, 14);
+	private static readonly Vector2 CurrencyPos = new(16, 14);
 	// Round block placement: RoundBlockAnchor is the screen point (as fractions of width/height) the block's TOP-CENTRE
 	// sits on — (0.5, 0) = top-centre, (0.5, 0.5) = dead centre, (0.5, 0.85) = low centre — and RoundBlockOffset nudges
 	// it from there in pixels (+x right, +y down).
@@ -136,14 +135,13 @@ public partial class HUD : CanvasLayer
 		_gaugeLayer.AddChild(_gaugeAnchor);
 		ApplyGaugePlacement(SaveData.GetGaugePlacement());
 
-		var figRow = new HBoxContainer { Position = FigRowPos, MouseFilter = Control.MouseFilterEnum.Ignore };
-		figRow.AddThemeConstantOverride("separation", 6);
-		_root.AddChild(figRow);
-		_figRing = new FigRing();
-		figRow.AddChild(_figRing);
-		_figLabel = MkLabel(UiStyle.HudValue);
-		_figLabel.Text = "0";
-		figRow.AddChild(_figLabel);
+		var currencies = new VBoxContainer { Position = CurrencyPos, MouseFilter = Control.MouseFilterEnum.Ignore };
+		currencies.AddThemeConstantOverride("separation", 4);
+		_root.AddChild(currencies);
+		_liraCounter = new CurrencyCounter("res://assets/things/lira.png");
+		currencies.AddChild(_liraCounter);
+		_figCounter = new CurrencyCounter("res://assets/things/fada_fig.png");
+		currencies.AddChild(_figCounter);
 
 		// Round block (placed by RoundBlockAnchor/Offset): ROUND n / n LEFT (late in a round) or NEXT ROUND IN n (breather)
 		// / BEST n. Grows both ways from its anchor, so it stays centred on it.
@@ -294,8 +292,6 @@ public partial class HUD : CanvasLayer
 		_lowHpLayer.AddChild(rect);
 	}
 
-	// --- fada_figs ------------------------------------------------------------
-
 	/// <summary>Show round <paramref name="round"/> (0 = before round 1: blank), <paramref name="left"/> quota enemies
 	/// remaining (0 = hidden — RunManager only passes it once few remain), the breather <paramref name="countdown"/> in
 	/// whole seconds until the next round (0 = hidden — mid-round), and the <paramref name="best"/> round record.</summary>
@@ -360,23 +356,13 @@ public partial class HUD : CanvasLayer
 		}));
 	}
 
-	/// <summary>Set the spendable fada_fig balance shown beside the ring (pushed by <c>Player</c>); the ring pops on a gain.</summary>
-	public void SetFadaFigs(int count)
-	{
-		if (_figLabel == null)
-			return;
-		if (count > _figCount)
-			HudFx.Pop(_figRing);
-		_figCount = count;
-		_figLabel.Text = count.ToString();
-	}
+	// --- currencies -------------------------------------------------------------
 
-	/// <summary>Fill the fig ring to <paramref name="have"/> of <paramref name="need"/> figs toward the next buff
-	/// milestone (pushed by RunManager).</summary>
-	public void SetBuffProgress(int have, int need)
-	{
-		_figRing?.SetProgress((float)have / Mathf.Max(need, 1));
-	}
+	/// <summary>Show the Lira balance (pushed by <c>Player</c>).</summary>
+	public void SetLira(int count) => _liraCounter?.SetCount(count);
+
+	/// <summary>Show the fada_fig balance (pushed by <c>Player</c>).</summary>
+	public void SetFadaFigs(int count) => _figCounter?.SetCount(count);
 
 	// --- health stars + Ruh orbs (the gauge) ----------------------------------
 

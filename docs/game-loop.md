@@ -280,7 +280,7 @@ The existing `Buff : Passive` + `Trigger` + `ModifyTuning` foundation fits. Ever
 
 **The economy (§ Economy)** lands in its own playable steps — each leaves the game working:
 
-- **E1. Lira + fig drops** — the Lira pickup (magnet, placeholder sfx, HUD counter), per-kit fig chance, and
+- **E1. Lira + fig drops** *(built 2026-09-28)* — the Lira pickup (magnet, placeholder sfx, HUD counter), per-kit fig chance, and
   **removing** the fig milestone menu + the fig ring.
 - **E2. Needle Point** — the shot catalog, next-round start + half-price buy-now, reset-on-rebuy, fig upgrades with
   the level colours.
@@ -297,8 +297,9 @@ The existing `Buff : Passive` + `Trigger` + `ModifyTuning` foundation fits. Ever
 - **`RunManager`'s steady trickle** (`SpawnWave` / `_waveCount` / fixed `MaxAlive`) → the round state machine;
   `SaveData`'s waves record → a **rounds** record.
 - **Retired with Fissure/Seal:** the Seal buff ids (`BuffIds` Seal block) and any Fissure/Seal wording.
-- **Already obsolete (older loops):** reward doors (`DoorType`, `ExitGate`, `RewardUI` door flavour),
-  5-levels-as-data (`Levels.cs`) + exit-gate assumptions. `RewardUI` itself lives on as the buff-card menu.
+- **Deleted (older loops):** 5-levels-as-data (`Levels.cs`), the exit gate (`ExitGate.cs`), the level-template tool.
+  The reward doors (`Rewards`, `RewardsCatalog`, `Build`, `DoorType`, `RewardIds`, and their Leech / Parry Mend /
+  Reaper Edge passives) are **deleted** too. `RewardUI` lives on as the buff-card menu.
 - **Kept:** the arena + tileset/terrain authoring, the enemies (`EnemyKits`, `WardenEnemy`), the typed
   enums/records/ids foundation, combat components, art direction.
 - **Reworked by the economy:** fig-on-every-kill → Lira (+ a per-kit fig chance); the **fig milestone buff menu**

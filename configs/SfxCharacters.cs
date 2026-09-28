@@ -71,27 +71,34 @@ public static class SfxCharacters
         ["redere_frisbee.impact"] = "res://sfx/character/special/redere_frisbee/redere_frisbee_impact.wav",
     };
 
-    /// <summary>Per-cue base VOLUME in decibels (negative = quieter), applied on top of any call-site volume_db.
-    /// Only list cues that need trimming; unlisted cues play at 0 dB.</summary>
-    public static readonly GDict VOLUMES = new();
+    /// <summary>Per-cue MIX offset in decibels (negative = quieter), on top of the automatic loudness normalization
+    /// (every cue already plays at <see cref="Sfx.TargetLoudness"/>). Only for DELIBERATE choices — a cue that should
+    /// sit under or over the rest — never to fix a hot or quiet file. Unlisted = 0.</summary>
+    public static readonly GDict VOLUMES = new()
+    {
+        ["run"] = -15.0f, // the looping footsteps are a bed under the action, not a hit
+		["dash"] = -15.0f,
+		["jump"] = -15.0f,
+    };
 
-    /// <summary>Per-cue random PITCH range (± fraction, e.g. 0.06 = ±6%), re-rolled every play so repeated sounds don't
-    /// sound copy-pasted. A key may name a GROUP: a cue with no entry of its own uses its nearest dotted prefix
-    /// ("kebus.projectile.3" → "kebus.projectile" → "kebus"). Unlisted = fixed pitch. Keep it subtle (±3-8%);
-    /// signature stingers / alerts / loops stay unlisted.</summary>
+    /// <summary>Per-cue random PITCH range as (min, max) offsets from normal pitch — <c>new(-0.06f, 0.06f)</c> = ±6%,
+    /// <c>new(0f, 0.08f)</c> = same-or-up to +8% — re-rolled every play so repeated sounds don't sound copy-pasted. A key
+    /// may name a GROUP: a cue with no entry of its own uses its nearest dotted prefix ("kebus.projectile.3" →
+    /// "kebus.projectile" → "kebus"). Unlisted = fixed pitch. Keep it subtle (3-8%); signature stingers / alerts /
+    /// loops stay unlisted.</summary>
     public static readonly GDict PITCH = new()
     {
-        ["hurt"] = 0.05f,        // hurt.1-3
-        ["dash"] = 0.05f,
-        ["jump"] = 0.05f,
-        ["slam"] = 0.04f,        // the impact (slam_down, the descent whoosh, is its own unlisted key)
-        ["ora_ora"] = 0.08f,     // the flurry repeats fastest — widest range
-        ["twin_reaper"] = 0.06f,
-        ["spear"] = 0.06f,
-        ["rope_dart"] = 0.06f,
-        ["cherry_shots"] = 0.06f,
-        ["redere_shield_block"] = 0.04f,
-        ["redere_frisbee.impact"] = 0.04f,
+        ["hurt"] = new Vector2(-0.05f, 0.05f),        // hurt.1-3
+        ["dash"] = new Vector2(-0.05f, 0.05f),
+        ["jump"] = new Vector2(-0.05f, 0.05f),
+        ["slam"] = new Vector2(-0.04f, 0.04f),        // the impact (slam_down, the descent whoosh, is its own unlisted key)
+        ["ora_ora"] = new Vector2(-0.08f, 0.08f),     // the flurry repeats fastest — widest range
+        ["twin_reaper"] = new Vector2(-0.06f, 0.06f),
+        ["spear"] = new Vector2(-0.06f, 0.06f),
+        ["rope_dart"] = new Vector2(-0.06f, 0.06f),
+        ["cherry_shots"] = new Vector2(-0.06f, 0.06f),
+        ["redere_shield_block"] = new Vector2(-0.04f, 0.04f),
+        ["redere_frisbee.impact"] = new Vector2(-0.04f, 0.04f),
     };
 
     public static readonly GDict FRAMES = new()

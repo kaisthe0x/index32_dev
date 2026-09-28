@@ -13,9 +13,8 @@ namespace MyGame;
 /// first on equip) and a REWARD-granted passive (added at runtime via <c>Player.add_passive</c> when its reward
 /// is taken, torn down on run restart). <see cref="Buff"/> extends this with move-scope + tier + duration.</para>
 ///
-/// <para>[GlobalClass] so the still-GDScript Rewards service can instantiate concrete passives by name
-/// (<c>Leech.new()</c>) and check <c>p is Passive</c>. <c>action</c> params are the GDScript <c>Action</c> object,
-/// carried as <see cref="GodotObject"/> (bridge: <c>action.Get("id")</c> / <c>.Call("segment", seg)</c>).</para>
+/// <para><c>action</c> params are the <c>Action</c> object, carried as <see cref="GodotObject"/> (bridge:
+/// <c>action.Get("id")</c> / <c>.Call("segment", seg)</c>).</para>
 /// </summary>
 [GlobalClass]
 public partial class Passive : RefCounted

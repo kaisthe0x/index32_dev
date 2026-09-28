@@ -125,7 +125,6 @@ public partial class Player : Combatant
     public float jump_velocity_bonus = 1.0f;  // High Jump: multiplies applied jump velocity (all jumps)
     public int magnet_target_bonus = 0;        // Wider Pull: extra Come Closer magnet targets
 
-    private readonly List<string> _rewardsTaken = new();
     private const string StartingDashEffect = "dash_default";
     private string _dashEffect = StartingDashEffect;
 
@@ -455,28 +454,27 @@ public partial class Player : Combatant
     /// <summary>Push the current buff loadout to the HUD's active-buff list (autoload).</summary>
     private void RefreshBuffHud() => GetNodeOrNull<HUD>("/root/HUD")?.RefreshBuffs(_passives);
 
-    /// <summary>Emitted whenever fada_figs are collected — carries the current spendable balance + the run's LIFETIME
-    /// total collected. RunManager listens to fire the milestone buff-menu off the lifetime total.</summary>
-    [Signal] public delegate void fada_collectedEventHandler(int balance, int lifetime);
+    /// <summary>Lira banked this run — the common currency (docs/game-loop.md § Economy). Reset by <see cref="begin_run"/>.</summary>
+    public int lira { get; private set; } = 0;
 
-    /// <summary>FadaFigs banked this run — the SPENDABLE balance (mystery box spends it). Reset by <see cref="begin_run"/>.</summary>
+    /// <summary>Collect <paramref name="n"/> Lira (a <see cref="Lira"/> coin reached the player) — bank it + update the HUD.</summary>
+    public void collect_lira(int n)
+    {
+        lira += n;
+        GetNodeOrNull<HUD>("/root/HUD")?.SetLira(lira);
+    }
+
+    /// <summary>FadaFigs banked this run — the rare currency (the mystery box spends it). Reset by <see cref="begin_run"/>.</summary>
     public int fada_figs { get; private set; } = 0;
-
-    /// <summary>Total fada_figs collected this run (monotonic — the box's spending never lowers it). Drives the free
-    /// milestone buff-menu, so spending at the box doesn't cost menu progress. Reset by <see cref="begin_run"/>.</summary>
-    public int fada_lifetime { get; private set; } = 0;
 
     /// <summary>Collect <paramref name="n"/> fada_fig(s) (a FadaFig touched the player) — bank them + update the HUD.</summary>
     public void collect_fada_fig(int n = 1)
     {
         fada_figs += n;
-        fada_lifetime += n;
         GetNodeOrNull<HUD>("/root/HUD")?.SetFadaFigs(fada_figs);
-        EmitSignal(SignalName.fada_collected, fada_figs, fada_lifetime);
     }
 
-    /// <summary>Try to spend <paramref name="cost"/> fada_figs (the mystery box). True + deducts if affordable; else false.
-    /// Only the spendable balance moves — <see cref="fada_lifetime"/> (menu progress) is untouched.</summary>
+    /// <summary>Try to spend <paramref name="cost"/> fada_figs (the mystery box). True + deducts if affordable; else false.</summary>
     public bool spend_fada_figs(int cost)
     {
         if (cost <= 0 || fada_figs < cost)
@@ -505,27 +503,6 @@ public partial class Player : Combatant
     {
         foreach (var p in _passives)
             p.OnAnimEnd(this);
-    }
-
-    public void record_reward(string id) => _rewardsTaken.Add(id);
-
-    public GArr rewards_taken()
-    {
-        var arr = new GArr();
-        foreach (var id in _rewardsTaken)
-            arr.Add(id);
-        return arr;
-    }
-
-    /// <summary>Advance the run one LEVEL: tick down every level-scoped buff's lifetime and tear out any that expired (doc: temporary buffs). Call from RunManager on level advance.</summary>
-    public void advance_level()
-    {
-        foreach (var existing in new List<Passive>(_passives))
-            if (existing is Buff b && b.TickLevelAndExpired())
-            {
-                existing.Teardown(this);
-                _passives.Remove(existing);
-            }
     }
 
     public int get_state() => (int)_state;
@@ -1197,8 +1174,9 @@ public partial class Player : Combatant
         _dead = false;
         _deathFinished = false;
         _fellOut = false;
+        lira = 0;
         fada_figs = 0;
-        fada_lifetime = 0;
+        GetNodeOrNull<HUD>("/root/HUD")?.SetLira(0);
         GetNodeOrNull<HUD>("/root/HUD")?.SetFadaFigs(0);
         EndSurge();
         _shakeLeft = 0.0f;
@@ -1221,7 +1199,6 @@ public partial class Player : Combatant
         magnet_target_bonus = 0;
         ruh_cap = BaseRuhCap;
         air_jump_bonus = 0;
-        _rewardsTaken.Clear();
         max_health = BaseMaxHealth;
         _loadout.Clear();
         ApplyCharacter();

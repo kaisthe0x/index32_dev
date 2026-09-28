@@ -10,6 +10,11 @@ namespace MyGame;
 /// sounds exist lives in the pure-DATA configs (SfxCharacters/SfxEnemies/SfxWorld, bridged). Every sound is a
 /// stable <c>key</c>; an unregistered key is a silent no-op. C# port of <c>scripts/audio/sfx.gd</c>.
 ///
+/// <para><b>Every cue plays at the same loudness, automatically.</b> On boot each cue's file is measured
+/// (<see cref="SfxLoudness"/>: its peak momentary loudness) and given the gain that brings it to
+/// <see cref="TargetLoudness"/> — so a new WAV needs no mastering or trim: drop it in, register its key. The per-cue
+/// VOLUMES tables are then only for DELIBERATE mix choices on top (a quiet ambient hum), never loudness fixes.</para>
+///
 /// <para>PUBLIC surface stays snake_case: GDScript calls <c>Sfx.play(...)</c> on the autoload singleton and the
 /// still-bridged C# callers use <c>GetNode("/root/Sfx").Call("play", …)</c> — both address these by exact name.</para>
 /// </summary>
@@ -18,6 +23,10 @@ public partial class Sfx : Node
     private static readonly StringName Bus = "SFX";
     private const int Pool = 12;
     private const float LimiterCeilingDb = -2.0f; // peak ceiling for the summed SFX bus (see InstallLimiter)
+    // The one loudness every cue is normalized to (peak momentary LUFS — see SfxLoudness). Raise/lower the whole SFX
+    // mix against the music here; a single cue that should sit differently goes in a VOLUMES table instead.
+    public const float TargetLoudness = -26.0f;   // the SFX library's median — so the overall mix stays put
+    private const float MaxNormalizeDb = 24.0f;   // clamp on the auto gain, so a near-silent file isn't blown up
     // Output device. "" (default) = follow the SYSTEM DEFAULT, so audio goes wherever the OS routes it — it
     // switches to headphones when you plug them in / make them the default sink. Only set a specific device name
     // here (from AudioServer.GetOutputDeviceList()) to FORCE one on a machine whose default is misrouted; leaving
@@ -29,8 +38,9 @@ public partial class Sfx : Node
     private int _fi, _pi;
     private readonly Dictionary<string, AudioStream> _cache = new();
     private readonly GDict _cues = new(); // key -> path, merged from the per-area configs
-    private readonly GDict _vol = new();  // key -> per-cue base volume (dB), merged; unlisted = 0
-    private readonly GDict _pitch = new(); // key or dotted-prefix group -> random pitch range (±), merged; unlisted = fixed
+    private readonly GDict _vol = new();  // key -> deliberate per-cue mix offset (dB), merged; unlisted = 0
+    private readonly GDict _pitch = new(); // key or dotted-prefix group -> random pitch range (min,max), merged; unlisted = fixed
+    private readonly Dictionary<string, float> _normalize = new(); // file path -> gain (dB) bringing it to TargetLoudness
     private StringName _bus = "Master";
 
     public override void _Ready()
@@ -47,6 +57,8 @@ public partial class Sfx : Node
         if (PreferredOutput != "" && System.Array.IndexOf(AudioServer.GetOutputDeviceList(), PreferredOutput) != -1)
             AudioServer.OutputDevice = PreferredOutput;
         _bus = AudioServer.GetBusIndex(Bus) != -1 ? Bus : "Master";
+        foreach (Variant key in _cues.Keys)
+            Stream(key.AsString()); // load + measure every cue now, so no first-play hitch mid-fight
         for (int i = 0; i < Pool; i++)
         {
             // ProcessMode.Always so one-shots (UI/level-up cues) still play while the game is paused (menus).
@@ -70,9 +82,7 @@ public partial class Sfx : Node
     ///      smoothly instead of hard-clamping — more polished dynamics.
     ///   2. Per-cue CONCURRENCY CAP / dedupe: skip or duck a cue already playing N copies (or fired within a few ms),
     ///      which tackles the ROOT (the same sound stacking) rather than the summed symptom.
-    ///   3. Author per-cue base levels (a `volume_db` in the Sfx* configs) so loud cues (Bakshen/Nasen) sit lower at
-    ///      the source, reducing how hard the limiter has to work.
-    ///   4. Expose the ceiling / limiter on-off to the options menu for players who want it off.
+    ///   3. Expose the ceiling / limiter on-off to the options menu for players who want it off.
     private void InstallLimiter()
     {
         if (AudioServer.GetBusIndex(_bus) == -1)
@@ -94,12 +104,30 @@ public partial class Sfx : Node
         {
             string path = _cues[key].AsString();
             if (ResourceLoader.Exists(path))
+            {
                 s = GD.Load<AudioStream>(path);
+                if (s != null && !_normalize.ContainsKey(path))
+                    _normalize[path] = NormalizeGain(s, path);
+            }
             else
                 GD.PushWarning($"Sfx: cue '{key}' -> {path} not found (playing nothing)");
         }
         _cache[key] = s;
         return s;
+    }
+
+    /// <summary>The gain (dB) that brings <paramref name="s"/> to <see cref="TargetLoudness"/>; 0 (with a warning) if it
+    /// can't be measured — a compressed import (re-import the WAV uncompressed) or pure silence.</summary>
+    private static float NormalizeGain(AudioStream s, string path)
+    {
+        float? lufs = s is AudioStreamWav wav ? SfxLoudness.Measure(wav) : null;
+        if (lufs is not float measured)
+        {
+            GD.PushWarning($"Sfx: can't measure {path} (compressed import or silent) — it plays un-normalized. " +
+                "Import WAVs with compress/mode = Disabled.");
+            return 0.0f;
+        }
+        return Mathf.Clamp(TargetLoudness - measured, -MaxNormalizeDb, MaxNormalizeDb);
     }
 
     /// <summary>Fire a one-shot (non-positional). No-op if the key is unregistered or its file is missing.</summary>
@@ -111,29 +139,37 @@ public partial class Sfx : Node
         var pl = _flat[_fi];
         _fi = (_fi + 1) % _flat.Count;
         pl.Stream = s;
-        pl.VolumeDb = volume_db + VolumeFor(key);
+        pl.VolumeDb = volume_db + GainFor(key);
         pl.PitchScale = pitch * PitchJitter(key);
         pl.Play();
     }
 
-    /// <summary>A random pitch multiplier for <paramref name="key"/> from the PITCH tables: ± its own entry, else its
-    /// nearest dotted prefix's ("kebus.projectile.3" → "kebus.projectile" → "kebus"); 1 if none.</summary>
+    /// <summary>A random pitch multiplier for <paramref name="key"/> from the PITCH tables — 1 + a random offset in its
+    /// entry's (min, max) range, else its nearest dotted prefix's ("kebus.projectile.3" → "kebus.projectile" →
+    /// "kebus"); 1 if none.</summary>
     private float PitchJitter(string key)
     {
         for (string k = key; ; k = k[..k.LastIndexOf('.')])
         {
             if (_pitch.ContainsKey(k))
             {
-                float range = _pitch[k].As<float>();
-                return 1.0f + (float)GD.RandRange(-range, range);
+                Vector2 range = _pitch[k].As<Vector2>();
+                return 1.0f + (float)GD.RandRange(range.X, range.Y);
             }
             if (!k.Contains('.'))
                 return 1.0f;
         }
     }
 
-    /// <summary>The per-cue base volume (dB) for <paramref name="key"/> from the merged VOLUMES tables (0 if unlisted).</summary>
-    private float VolumeFor(string key) => _vol.ContainsKey(key) ? _vol[key].As<float>() : 0.0f;
+    /// <summary>The volume (dB) <paramref name="key"/> plays at: its file's loudness normalization + any deliberate
+    /// VOLUMES offset. Every player the service hands out starts from this.</summary>
+    private float GainFor(string key)
+    {
+        float gain = _vol.ContainsKey(key) ? _vol[key].As<float>() : 0.0f;
+        if (_cues.ContainsKey(key) && _normalize.TryGetValue(_cues[key].AsString(), out float n))
+            gain += n;
+        return gain;
+    }
 
     /// <summary>Fire ONE random variant from `keys` (skips unregistered / missing). No-op if none resolve.</summary>
     public void play_random(GArr keys, float volume_db = 0.0f, float pitch = 1.0f)
@@ -177,32 +213,35 @@ public partial class Sfx : Node
         return s;
     }
 
+    // The make_* players below the CALLER owns start at the cue's GainFor volume — a caller that wants it quieter/
+    // louder ADDS to VolumeDb (never overwrites it, which would drop the normalization).
+
     /// <summary>A dedicated LOOPING player for `key` the CALLER owns + parents (footsteps, a hum). Null if missing.</summary>
     public AudioStreamPlayer make_loop(string key)
     {
         var s = LoopedStream(key);
-        return s == null ? null : new AudioStreamPlayer { Bus = _bus, Stream = s };
+        return s == null ? null : new AudioStreamPlayer { Bus = _bus, Stream = s, VolumeDb = GainFor(key) };
     }
 
     /// <summary>A dedicated ONE-SHOT player the CALLER owns (stoppable early, e.g. a slam whoosh). Null if missing.</summary>
     public AudioStreamPlayer make_oneshot(string key)
     {
         var s = Stream(key);
-        return s == null ? null : new AudioStreamPlayer { Bus = _bus, Stream = s };
+        return s == null ? null : new AudioStreamPlayer { Bus = _bus, Stream = s, VolumeDb = GainFor(key) };
     }
 
     /// <summary>Positional twin of make_oneshot(): a one-shot AudioStreamPlayer2D the caller parents on a world object.</summary>
     public AudioStreamPlayer2D make_oneshot_2d(string key)
     {
         var s = Stream(key);
-        return s == null ? null : new AudioStreamPlayer2D { Bus = _bus, Stream = s };
+        return s == null ? null : new AudioStreamPlayer2D { Bus = _bus, Stream = s, VolumeDb = GainFor(key) };
     }
 
     /// <summary>Positional twin of make_loop(): a looping AudioStreamPlayer2D the caller parents at a world spot (an orb hum).</summary>
     public AudioStreamPlayer2D make_loop_2d(string key)
     {
         var s = LoopedStream(key);
-        return s == null ? null : new AudioStreamPlayer2D { Bus = _bus, Stream = s };
+        return s == null ? null : new AudioStreamPlayer2D { Bus = _bus, Stream = s, VolumeDb = GainFor(key) };
     }
 
     /// <summary>Fire a one-shot at a world position (2D panning). No-op if missing.</summary>
@@ -215,7 +254,7 @@ public partial class Sfx : Node
         _pi = (_pi + 1) % _pos.Count;
         pl.Stream = s;
         pl.GlobalPosition = world_pos;
-        pl.VolumeDb = volume_db + VolumeFor(key);
+        pl.VolumeDb = volume_db + GainFor(key);
         pl.PitchScale = pitch * PitchJitter(key);
         pl.Play();
     }

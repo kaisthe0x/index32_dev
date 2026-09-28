@@ -34,6 +34,12 @@ project/assembly_name="mygamedev"
 
 enabled=PackedStringArray("res://addons/GDQuest_GDScript_formatter/plugin.cfg")
 
+[importer_defaults]
+
+wav={
+"compress/mode": 0
+}
+
 [input]
 
 move_left={

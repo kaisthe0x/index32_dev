@@ -139,7 +139,7 @@ public static class BuffCatalog
     public static bool Implemented(string id) => FACTORIES.ContainsKey(id);
 
     // --- reward POOLS (used by the fada-fig buff menu + the mystery box) --------------------------------------
-    private static string[] _general, _mild, _powerful;
+    private static string[] _general, _powerful;
 
     /// <summary>Implemented ids that aren't gated to a SPECIFIC move (AppliesTo only "*"/"attack"/"special", or none)
     /// — so offering one is always meaningful. Cached.</summary>
@@ -159,11 +159,6 @@ public static class BuffCatalog
         return _general;
     }
 
-    /// <summary>True if <paramref name="id"/> is an invulnerability buff (the offer-heavy dash/jump/slam/hit-guard/
-    /// follow-through windows) — flagged POWERFUL so it's box-only, kept out of the mild menu.</summary>
-    public static bool IsInvuln(string id) => Make(id, Tier.Common) is InvulnBuff;
-
-    /// <summary>MILD pool — general buffs minus the invuln windows. The fada-fig milestone menu draws from these.</summary>
     /// <summary>THRESHOLD buffs exist only from a minimum tier up (docs/buff-catalog.md) — below it they'd do nothing
     /// (e.g. Extra Air Jump is +0 at Common). The buff menus raise a rolled tier to this floor. Unlisted = Common.</summary>
     private static readonly Dictionary<string, Tier> MIN_TIER = new()
@@ -173,9 +168,6 @@ public static class BuffCatalog
 
     public static Tier MinTier(string id) => MIN_TIER.TryGetValue(id, out var t) ? t : Tier.Common;
 
-    public static string[] MildIds() => _mild ??= General().Where(id => !IsInvuln(id)).ToArray();
-
-    /// <summary>POWERFUL pool — the general buffs INCLUDING the invuln windows. The mystery box draws from these
-    /// (at above-rare tiers).</summary>
+    /// <summary>POWERFUL pool — every general (not move-gated) buff. The mystery box draws from these at above-rare tiers.</summary>
     public static string[] PowerfulIds() => _powerful ??= General().ToArray();
 }

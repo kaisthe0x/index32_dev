@@ -43,21 +43,25 @@ public static class SfxEnemies
         ["breski.melee.9"] = "res://sfx/enemy/breski/attack/melee_9.wav",  // PLACEHOLDER — combo hit 2
     };
 
-    /// <summary>Per-cue base VOLUME in decibels (negative = quieter), applied on top of any call-site volume_db.
-    /// Only list cues that need trimming; unlisted cues play at 0 dB.</summary>
+    /// <summary>Per-cue MIX offset in decibels (negative = quieter), on top of the automatic loudness normalization
+    /// (every cue already plays at <see cref="Sfx.TargetLoudness"/>). Only for DELIBERATE choices — a cue that should
+    /// sit under or over the rest — never to fix a hot or quiet file. Unlisted = 0.</summary>
     public static readonly GDict VOLUMES = new();
 
-    /// <summary>Per-cue random PITCH range (± fraction, e.g. 0.06 = ±6%), re-rolled every play so repeated sounds don't
-    /// sound copy-pasted. A key may name a GROUP: a cue with no entry of its own uses its nearest dotted prefix
-    /// ("kebus.projectile.3" → "kebus.projectile" → "kebus"). Unlisted = fixed pitch. Keep it subtle (±3-8%);
-    /// signature stingers / alerts / loops stay unlisted.</summary>
+    /// <summary>Per-cue random PITCH range as (min, max) offsets from normal pitch — <c>new(-0.06f, 0.06f)</c> = ±6%,
+    /// <c>new(0f, 0.08f)</c> = same-or-up to +8% — re-rolled every play so repeated sounds don't sound copy-pasted. A key
+    /// may name a GROUP: a cue with no entry of its own uses its nearest dotted prefix ("kebus.projectile.3" →
+    /// "kebus.projectile" → "kebus"). Unlisted = fixed pitch. Keep it subtle (3-8%); signature stingers / alerts /
+    /// loops stay unlisted.</summary>
     public static readonly GDict PITCH = new()
     {
-        ["enemy_death"] = 0.07f, // fire constantly — the biggest win
-        ["enemy_spawn"] = 0.07f,
+        ["enemy_death"] = new Vector2(-0.07f, 0.07f), // fire constantly — the biggest win
+        ["enemy_spawn"] = new Vector2(-0.07f, 0.07f),
         // Every grunt's attack cues (a swarm stacking one identical sound turns robotic). Wardens (kroj) stay fixed.
-        ["kebus"] = 0.06f, ["baghel"] = 0.06f, ["mazab"] = 0.06f, ["matat"] = 0.06f,
-        ["tarri"] = 0.06f, ["breski"] = 0.06f, ["nasen"] = 0.06f, ["ein"] = 0.06f,
+        ["kebus"] = new Vector2(-0.06f, 0.06f), ["baghel"] = new Vector2(-0.06f, 0.06f),
+        ["mazab"] = new Vector2(-0.06f, 0.06f), ["matat"] = new Vector2(-0.06f, 0.06f),
+        ["tarri"] = new Vector2(-0.06f, 0.06f), ["breski"] = new Vector2(-0.06f, 0.06f),
+        ["nasen"] = new Vector2(-0.06f, 0.06f), ["ein"] = new Vector2(-0.06f, 0.06f),
     };
 
     public static readonly GDict FRAMES = new()

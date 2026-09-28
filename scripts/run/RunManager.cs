@@ -5,16 +5,15 @@ using GArr = Godot.Collections.Array;
 namespace MyGame;
 
 /// <summary>
-/// The run driver + the <c>arena.tscn</c> root. Builds ONE arena (levels/exits are retired) and runs the endless ROUND
+/// The run driver + the <c>arena.tscn</c> root. Builds ONE arena and runs the endless ROUND
 /// loop (<c>docs/game-loop.md</c>, tuning in <see cref="Rounds"/>): each round trickles a hidden QUOTA of enemies in from
 /// a mixed roster, proximity-placed around the player, up to a concurrent cap; spawning stops once the quota has
-/// spawned; the round clears when they're all dead; a breather + ROUND banner, then the next. Banks Ruh on hits, drops Fada Figs on each kill, pops a free pick-1-of-3 MILD buff menu at escalating
-/// fada-fig milestones (25/55/105…), spawns a mystery box (spend figs for a stingy powerful-buff gamble), and restarts
-/// the run on death. Owns the player spawn, camera follow, and death/spawn flair. C# port of <c>run_manager.gd</c>.
+/// spawned; the round clears when they're all dead; a breather + ROUND banner, then the next. Banks Ruh on hits, drops
+/// Lira on every kill (+ a per-kit chance of a Fada Fig), spawns a mystery box (spend figs for a stingy powerful-buff
+/// gamble), and restarts the run on death. Owns the player spawn, camera follow, and death/spawn flair. C# port of <c>run_manager.gd</c>.
 ///
-/// <para>Talks to the C# body tree (Player/Enemy) + collectibles (FadaFig) + MysteryBox directly; BRIDGES the still-GDScript
-/// config/autoload layer (Terrain/Levels via the constant map, Music/Sfx via <c>/root/*</c>, AttackSelect/LaunchOrb via
-/// <c>.New()</c> + signals). Levels data survives only as the arena's palette source; the reward-door system is parked.</para>
+/// <para>Talks to the C# body tree (Player/Enemy), the collectibles (Lira, FadaFig), the MysteryBox, and the autoloads
+/// (Music/Sfx via <c>/root/*</c>) directly.</para>
 /// </summary>
 [GlobalClass]
 public partial class RunManager : Node2D
@@ -28,13 +27,7 @@ public partial class RunManager : Node2D
     // freeing its cap slot so a fresh one can spawn near the player. Margin grows the on-screen rect a little.
     private const float OffscreenDespawnTime = 8.0f;
     private const float OffscreenMargin = 96.0f;
-    // Buff menu: every time LIFETIME fada_figs collected crosses the next milestone, a free pick-1-of-3 MILD buff
-    // menu pops (game pauses). The gap to the next grows, so milestones land at 25, 55, 105, 175, … (tune here).
-    private const int FirstMilestone = 5;
-    private const int MilestoneGapBase = 10;
-    private const int MilestoneGapGrowth = 10;
-    private const int BuffMenuChoices = 3;
-    private const float LevelUpDelay = 1.1f;   // "LEVEL UP" banner hold before the buff menu opens
+    private const int BuffMenuChoices = 3;     // cards in the mystery box's menu
     // Mystery box can, at EXTREME rarity, offer a special-SWAP in place of a buff (picking it replaces your special).
     private const float SpecialOfferChance = 0.06f;
     private static readonly string[] BoxSpecialIds = { SpecialIds.Zahluq };
@@ -82,15 +75,10 @@ public partial class RunManager : Node2D
     private float _spawnAccum = 0.0f;  // seconds accrued toward the next spawn
     private float _breatherLeft = 0.0f; // seconds until the next round starts (Breather phase)
     private int _countdownShown = 0;    // the whole-second breather countdown last pushed to the HUD
-    private int _nextMilestone = FirstMilestone; // lifetime fada_figs that pops the next buff menu
-    private int _prevMilestone = 0;              // the last milestone reached (the progress bar spans prev→next)
-    private int _milestoneGap = MilestoneGapBase; // grows each milestone (25 → +30 → +50 → …)
-    private int _milestoneIndex = 0;              // how many buff menus taken this run (scales offered tiers)
     private bool _menuOpen = false;               // a buff menu is up (game paused) — don't stack another
     private readonly System.Collections.Generic.Dictionary<string, Buff> _menuBuffs = new(); // id → the exact offered buff (tiered)
     private string _menuSpecialId = "";           // the special-swap offered in the current menu, if any (else "")
     private readonly System.Collections.Generic.Dictionary<Enemy, float> _offscreen = new(); // living enemy → seconds off-screen (anti-camp cull)
-    private CanvasLayer _banner;                  // the transient centred "LEVEL UP!" banner
     private Node2D _content;
     private ColorRect _bg;
     private Sprite2D _bgSky;
@@ -109,7 +97,7 @@ public partial class RunManager : Node2D
     // --- bridges (cached in _Ready) ---
     private Music _music;
     private Sfx _sfx;
-    private PackedScene _enemyScene, _spawnFx, _ruhOrb, _fadaFigScene;
+    private PackedScene _enemyScene, _spawnFx, _ruhOrb, _liraScene, _fadaFigScene;
 
     public override void _Ready()
     {
@@ -120,6 +108,7 @@ public partial class RunManager : Node2D
         _enemyScene = GD.Load<PackedScene>("res://scenes/enemy.tscn");
         _spawnFx = GD.Load<PackedScene>("res://vfx/spawn/enemy_spawn.tscn");
         _ruhOrb = GD.Load<PackedScene>("res://vfx/character/khalid/ruh_orb/ruh_orb.tscn");
+        _liraScene = GD.Load<PackedScene>("res://scenes/lira.tscn");
         _fadaFigScene = GD.Load<PackedScene>("res://scenes/fada_fig.tscn");
 
         Engine.TimeScale = 1.0;
@@ -135,8 +124,6 @@ public partial class RunManager : Node2D
         if (_camera != null)
             PlaceAt(_camera, _playerSpawn + new Vector2(0, -30));
         ChooseAttack();
-        if (_player != null)
-            _player.fada_collected += OnFadaCollected; // milestone buff menu (fires off the lifetime total)
     }
 
     public override void _PhysicsProcess(double deltaD)
@@ -205,22 +192,15 @@ public partial class RunManager : Node2D
         _killed = 0;
         _alive = 0;
         _spawnAccum = 0.0f;
-        _nextMilestone = FirstMilestone;
-        _prevMilestone = 0;
-        _milestoneGap = MilestoneGapBase;
-        _milestoneIndex = 0;
         _menuOpen = false;
         _offscreen.Clear(); // old enemies free with _content
         PushRoundHud();
-        PushBuffProgress();
-        HideBanner();
         if (_content != null && IsInstanceValid(_content))
             _content.QueueFree();
         _content = new Node2D();
         AddChild(_content);
 
-        // Levels are retired, but index 0 still holds the arena's background palette (a single source of the look).
-        Color tint = Levels.GetLevel(0)["bg"].As<Color>();
+        Color tint = Terrain.BackgroundTint;
         if (Terrain.BackgroundTexture() != null)
             tint.A = Terrain.BackgroundTintAlpha;
         _bg.Color = tint;
@@ -248,9 +228,9 @@ public partial class RunManager : Node2D
             _content.AddChild(new LaunchOrb { Position = op });
 
         // One mystery box per arena, on a ground tile a short walk from spawn (the fig sink for powerful buffs).
-        Vector2 boxPos = PickGroundSurface(_playerSpawn.X, 120.0f, 320.0f) ?? _playerSpawn + new Vector2(120, 0);
+        Vector2 boxPos = PickGroundSurface(_playerSpawn, 120.0f, 320.0f) ?? _playerSpawn + new Vector2(120, 0);
         var box = new MysteryBox { Position = boxPos };
-        box.won += OpenPowerfulBuffMenu; // a winning pull opens the 3-choice powerful menu
+        box.won += OpenBoxMenu; // a winning pull opens the 3-choice powerful menu
         _content.AddChild(box);
 
         if (_player != null)
@@ -382,6 +362,7 @@ public partial class RunManager : Node2D
     private const float FlyerHeightMin = 130.0f;
     private const float FlyerHeightMax = 210.0f;
     private const float FlyerXSpread = 90.0f;
+    private const float GroundProbeDepth = 600.0f; // how far below the player to look for the floor he's over
 
     /// <summary>Where to drop this enemy relative to the player: flyers overhead (with headroom), stationary far on a
     /// ground tile, grunts near on a ground tile — always at least the min band away. Flyers and grunts arrive BEHIND
@@ -400,7 +381,7 @@ public partial class RunManager : Node2D
         bool stationary = kit.ContainsKey("movement") && kit["movement"].AsInt32() == (int)EnemyMovement.Stationary;
         float min = stationary ? StationarySpawnMin : GroundSpawnMin;
         float max = stationary ? StationarySpawnMax : GroundSpawnMax;
-        return PickGroundSurface(player.X, min, max, stationary ? 0 : behind) ?? fallback;
+        return PickGroundSurface(player, min, max, stationary ? 0 : behind) ?? fallback;
     }
 
     /// <summary>Clear vertical space above <paramref name="from"/> up to <see cref="FlyerHeightMax"/> — so a flyer isn't
@@ -417,14 +398,17 @@ public partial class RunManager : Node2D
         return Mathf.Clamp(from.Y - hit["position"].As<Vector2>().Y - 14.0f, FlyerHeightMin * 0.5f, FlyerHeightMax);
     }
 
-    /// <summary>A random exposed ground-tile position whose horizontal distance from <paramref name="fromX"/> is in
-    /// [min,max]; if none fall in that band, the nearest tile that is still ≥ min away (so it's never adjacent to the
-    /// player); null only if the layout has no ground tiles at all. A nonzero <paramref name="side"/> (+1 right / -1
-    /// left of <paramref name="fromX"/>) restricts the band to that side; if that side has no tile in the band (backed
-    /// against the arena edge or a pit), it falls back to either side.</summary>
-    private Vector2? PickGroundSurface(float fromX, float min, float max, int side = 0)
+    /// <summary>A random spawn tile ON THE FLOOR <paramref name="from"/> stands on (<see cref="LevelLayout.SpawnSurfacesNear"/>,
+    /// found from the ground straight below it — so a grunt never spawns on a platform the player can't reach, or that
+    /// can't reach the player) whose horizontal distance from <paramref name="from"/> is in [min,max]; if none fall in
+    /// that band, the nearest tile that is still ≥ min away (so it's never adjacent to the player); null only if the
+    /// layout has no walkable run at all. A nonzero <paramref name="side"/> (+1 right / -1 left) restricts the band to
+    /// that side; if that side has no tile in the band (backed against the arena edge or a pit), it falls back to
+    /// either side.</summary>
+    private Vector2? PickGroundSurface(Vector2 from, float min, float max, int side = 0)
     {
-        var surfaces = _layout?.GroundSurfaces();
+        float fromX = from.X;
+        var surfaces = _layout?.SpawnSurfacesNear(GroundBelow(from));
         if (surfaces == null || surfaces.Count == 0)
             return null;
         if (side != 0)
@@ -457,6 +441,18 @@ public partial class RunManager : Node2D
         return nearestFair ?? farthest; // band empty → closest tile still ≥min; if even that fails, the farthest we have
     }
 
+    /// <summary>The ground straight below <paramref name="from"/> (within <see cref="GroundProbeDepth"/>) — so a player
+    /// mid-jump still counts as on the floor under him. Over a pit (nothing below), <paramref name="from"/> itself.</summary>
+    private Vector2 GroundBelow(Vector2 from)
+    {
+        var space = GetWorld2D()?.DirectSpaceState;
+        if (space == null)
+            return from;
+        var q = PhysicsRayQueryParameters2D.Create(from + new Vector2(0.0f, -4.0f), from + new Vector2(0.0f, GroundProbeDepth), Combat.GroundMask);
+        var hit = space.IntersectRay(q);
+        return hit.Count > 0 ? hit["position"].As<Vector2>() : from;
+    }
+
     private Enemy SpawnEnemy(GDict kit, Vector2 pos)
     {
         var scene = kit.ContainsKey("scene") ? GD.Load<PackedScene>(kit["scene"].AsString()) : _enemyScene;
@@ -471,16 +467,16 @@ public partial class RunManager : Node2D
             else
                 enemy.Set(k, kit[key]);
         }
-        // FadaFig drop count defaults from the advisory tier unless the kit set fada_fig_drop explicitly (Wardens do).
-        if (!kit.ContainsKey("fada_fig_drop") && kit.ContainsKey("tier"))
-            enemy.fada_fig_drop = FadaFigsForTier((EnemyTier)kit["tier"].AsInt32());
+        // Lira drop count defaults from the advisory tier unless the kit set lira_drop explicitly (Wardens do).
+        if (!kit.ContainsKey("lira_drop") && kit.ContainsKey("tier"))
+            enemy.lira_drop = LiraForTier((EnemyTier)kit["tier"].AsInt32());
         enemy.Position = pos;
         _content.AddChild(enemy);
         return enemy;
     }
 
-    /// <summary>Default fada_figs dropped by an enemy of a given advisory tier (Wardens override via their kit).</summary>
-    private static int FadaFigsForTier(EnemyTier tier) => tier switch
+    /// <summary>Default Lira dropped by an enemy of a given advisory tier (Wardens override via their kit).</summary>
+    private static int LiraForTier(EnemyTier tier) => tier switch
     {
         EnemyTier.Chip => 1,
         EnemyTier.Mid => 2,
@@ -505,11 +501,12 @@ public partial class RunManager : Node2D
     {
         // Death fires INSIDE a physics query flush (Hitbox callback), where adding a RigidBody is illegal
         // ("Can't change this state while flushing queries"). Capture the values (the enemy frees) + defer the drop.
-        // Buffs no longer drop on kill — they come from the fada-fig milestone menu + the mystery box (below).
+        // Every kill pays Lira; a per-kit chance also drops ONE fada_fig (the rare currency). None if it fell off-map.
         Vector2 at = enemy.GlobalPosition;
-        int figs = enemy.fada_fig_drop;
+        int lira = enemy.lira_drop;
+        bool fig = GD.Randf() < enemy.fig_chance;
         if (!enemy.fell_off)
-            Callable.From(() => SpawnFadaFigs(at, figs)).CallDeferred();
+            Callable.From(() => SpawnDrops(at, lira, fig)).CallDeferred();
         _offscreen.Remove(enemy);
         if (enemy.optional)
             return; // optional enemies (the sleeper) aren't part of the round
@@ -563,12 +560,19 @@ public partial class RunManager : Node2D
         e.QueueFree();
     }
 
-    /// <summary>Scatter <paramref name="count"/> collectible fada_figs out of a corpse (they bounce, roll, and settle).</summary>
-    private void SpawnFadaFigs(Vector2 at, int count)
+    /// <summary>A corpse's drops: <paramref name="lira"/> coins that fly straight to the player (banked on arrival), and
+    /// optionally one fada_fig that bounces out and settles until touched.</summary>
+    private void SpawnDrops(Vector2 at, int lira, bool fig)
     {
-        if (_fadaFigScene == null)
-            return;
-        for (int i = 0; i < count; i++)
+        if (_player != null)
+            for (int i = 0; i < lira; i++)
+            {
+                var coin = _liraScene.Instantiate<Lira>();
+                _content.AddChild(coin);
+                PlaceAt(coin, at + new Vector2((float)GD.RandRange(-8, 8), -18));
+                coin.launch(_player);
+            }
+        if (fig)
         {
             var fada_fig = _fadaFigScene.Instantiate<Node2D>();
             _content.AddChild(fada_fig);
@@ -627,89 +631,13 @@ public partial class RunManager : Node2D
 
     private void OnAttackChosen(string id) => _player.equip(LoadoutCategory.Attack, id);
 
-    // --- fada-fig milestone buff menu -----------------------------------------
+    // --- mystery box buff menu -------------------------------------------------
 
-    /// <summary>Every time the run's LIFETIME fada_figs crosses the next milestone, pop a free pick-1-of-3 MILD buff
-    /// menu (game pauses). The spendable balance is untouched — that's the mystery box's currency.</summary>
-    private void OnFadaCollected(int balance, int lifetime)
+    /// <summary>The mystery box's payoff (a non-dud pull): roll BuffMenuChoices distinct buffs from the POWERFUL pool at
+    /// above-rare tiers → a 3-card `RewardUI`; picking grants the exact tiered buff shown. Pauses the game.</summary>
+    private void OpenBoxMenu()
     {
-        if (!_menuOpen && lifetime >= _nextMilestone)
-            BeginBuffMilestone();
-        else
-            PushBuffProgress();
-    }
-
-    /// <summary>Hit a fada-fig milestone: advance the counter, freeze the game, flash a "LEVEL UP" banner + cue, then
-    /// (after a beat) open the mild buff menu. The menu is FREE — figs aren't spent (balance is the box's currency).</summary>
-    private void BeginBuffMilestone()
-    {
-        _menuOpen = true; // lock out re-triggers + stacking through the whole banner→menu flow
-        _prevMilestone = _nextMilestone;
-        _milestoneIndex += 1;
-        _nextMilestone += _milestoneGap;              // 5 → 15 → 35 → … (gap grows by MilestoneGapGrowth)
-        _milestoneGap += MilestoneGapGrowth;
-        PushBuffProgress();                           // bar resets toward the new milestone (visible behind the banner)
-        GetTree().Paused = true;
-        ShowBanner("LEVEL UP!");
-        _sfx.play("buff_levelup");                    // PLACEHOLDER cue
-        GetTree().CreateTimer(LevelUpDelay, true).Timeout += () =>
-        {
-            HideBanner();
-            ShowBuffMenu(BuffCatalog.MildIds(), false, "CHOOSE A BUFF");
-        };
-    }
-
-    /// <summary>Push progress toward the next buff milestone (figs since the last one) to the HUD bar.</summary>
-    private void PushBuffProgress()
-    {
-        if (_player == null)
-            return;
-        GetNodeOrNull<HUD>("/root/HUD")?.SetBuffProgress(_player.fada_lifetime - _prevMilestone, _nextMilestone - _prevMilestone);
-    }
-
-    /// <summary>A centred banner (own CanvasLayer, ProcessMode.Always so it animates while the game is paused) in the
-    /// scanline title font, glowing in the UI accent; pops in and stays until <see cref="HideBanner"/>. Replaces any
-    /// banner already up.</summary>
-    private void ShowBanner(string text)
-    {
-        HideBanner();
-        _banner = new CanvasLayer { Layer = UiLayers.Banner, ProcessMode = ProcessModeEnum.Always };
-        var center = new CenterContainer { Theme = UiStyle.Theme };
-        center.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-        _banner.AddChild(center);
-        var label = new Label { Text = text, ThemeTypeVariation = UiStyle.Title, HorizontalAlignment = HorizontalAlignment.Center };
-        label.AddThemeFontSizeOverride("font_size", UiStyle.SizeBanner);
-        label.AddThemeColorOverride("font_color", new Color(UiStyle.Accent.R * 1.8f, UiStyle.Accent.G * 1.8f, UiStyle.Accent.B * 1.8f)); // HDR accent, blooms
-        label.AddThemeColorOverride("font_outline_color", Colors.Black);
-        label.AddThemeConstantOverride("outline_size", 8);
-        center.AddChild(label);
-        label.Scale = new Vector2(0.6f, 0.6f);
-        label.Resized += () => label.PivotOffset = label.Size / 2.0f; // pop from its centre
-        _banner.CreateTween().TweenProperty(label, "scale", Vector2.One, 0.28f)
-            .SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out); // pops even while paused (banner is Always)
-        AddChild(_banner);
-    }
-
-    private void HideBanner()
-    {
-        if (_banner != null && IsInstanceValid(_banner))
-            _banner.QueueFree();
-        _banner = null;
-    }
-
-    /// <summary>The mystery box's payoff — same pick-1-of-3 menu as the milestone, but from the POWERFUL pool
-    /// (above-rare tiers). Called when a (non-dud) box pull wins.</summary>
-    private void OpenPowerfulBuffMenu()
-    {
-        if (!_menuOpen)
-            ShowBuffMenu(BuffCatalog.PowerfulIds(), true, "MYSTERY BOX");
-    }
-
-    /// <summary>Roll BuffMenuChoices distinct buffs from <paramref name="pool"/> (powerful vs mild tiers) → a 3-card
-    /// `RewardUI`; picking grants the exact tiered buff shown. Pauses the game.</summary>
-    private void ShowBuffMenu(string[] pool, bool powerful, string title)
-    {
-        if (_player == null)
+        if (_menuOpen || _player == null)
             return;
         _menuOpen = true;
         _menuBuffs.Clear();
@@ -717,7 +645,7 @@ public partial class RunManager : Node2D
         int buffCount = BuffMenuChoices;
         var cards = new GArr();
         // Rare: the box may offer a special-SWAP in place of one buff (picking it replaces the player's special).
-        string special = powerful ? RollBoxSpecial() : "";
+        string special = RollBoxSpecial();
         if (special != "")
         {
             buffCount -= 1;
@@ -726,9 +654,9 @@ public partial class RunManager : Node2D
             cards.Add(new GDict { { "id", special }, { "name", sp?.Name ?? special },
                 { "desc", $"SPECIAL — replaces your current special. {sp?.Description}" }, { "tier", (int)Tier.Epic } });
         }
-        foreach (string id in PickDistinct(pool, buffCount))
+        foreach (string id in PickDistinct(BuffCatalog.PowerfulIds(), buffCount))
         {
-            Tier rolled = powerful ? RollPowerfulTier() : RollMildTier();
+            Tier rolled = RollPowerfulTier();
             Tier tier = (Tier)Mathf.Max((int)rolled, (int)BuffCatalog.MinTier(id)); // threshold buffs never roll too low
             Buff buff = BuffCatalog.Make(id, tier);
             if (buff == null)
@@ -739,7 +667,7 @@ public partial class RunManager : Node2D
         var ui = new RewardUI();
         AddChild(ui);
         ui.chosen += OnBuffChosen;
-        ui.Open(cards, title);
+        ui.Open(cards, "MYSTERY BOX");
     }
 
     /// <summary>Whether the box offers a special-swap this pull, and which id (empty = none). EXTREME-luck rarity;
@@ -769,13 +697,6 @@ public partial class RunManager : Node2D
         _menuBuffs.Clear();
         _menuSpecialId = "";
         _sfx.play("buff_select"); // PLACEHOLDER cue
-    }
-
-    /// <summary>Mild tiers skew Common, easing toward Rare as more milestones are taken this run.</summary>
-    private Tier RollMildTier()
-    {
-        float rare = Mathf.Min(0.6f, 0.2f + 0.08f * _milestoneIndex);
-        return GD.Randf() < rare ? Tier.Rare : Tier.Common;
     }
 
     /// <summary>Powerful (mystery-box) tiers — above rare: mostly Hot, some Sensational, rarely Epic.</summary>

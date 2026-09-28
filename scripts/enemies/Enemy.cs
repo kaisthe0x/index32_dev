@@ -41,9 +41,12 @@ public partial class Enemy : Combatant
 	[Export] public Vector2 body_size { get; set; } = new(18, 30);
 	[Export] public Vector2 hurtbox_size { get; set; } = new(20, 34);
 
+	[ExportGroup("Drops")]
+	[Export] public int lira_drop { get; set; } = 1;          // Lira coins on death (RunManager defaults it by tier)
+	[Export] public float fig_chance { get; set; } = 0.1f;    // chance a kill also drops ONE fada_fig (per-kit override)
+
 	[ExportGroup("Patrol")]
 	[Export] public float move_speed { get; set; } = 40.0f;
-	[Export] public int fada_fig_drop { get; set; } = 1;   // fada_figs dropped on death (RunManager defaults it by tier)
 	[Export] public float patrol_distance { get; set; } = 90.0f;
 	[Export] public float idle_time_min { get; set; } = 2.0f;
 	[Export] public float idle_time_max { get; set; } = 3.0f;

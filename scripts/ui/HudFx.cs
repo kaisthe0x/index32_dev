@@ -3,7 +3,7 @@ using Godot;
 namespace MyGame;
 
 /// <summary>
-/// Tiny tween "juice" shared by the HUD widgets (<see cref="PixelPip"/>, <see cref="FigRing"/>). Scale/rotation only —
+/// Tiny tween "juice" shared by the HUD widgets (<see cref="PixelPip"/>, <see cref="CurrencyCounter"/>). Scale/rotation only —
 /// never position — so they're safe inside containers, which own their children's positions.
 /// </summary>
 public static class HudFx

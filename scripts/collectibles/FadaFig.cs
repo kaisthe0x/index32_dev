@@ -3,11 +3,11 @@ using Godot;
 namespace MyGame;
 
 /// <summary>
-/// A collectible Fada Fig dropped by a dying enemy — the run currency (spent later at the Chest). It pops out of the
-/// corpse with a little bounce + tumble (RigidBody physics) and settles on the ground; the player collects it by
-/// physically touching it — the child <c>Pickup</c> Area detects the player's body. There is intentionally no
-/// wide magnet: a FUTURE reward calls <see cref="magnetize"/> to make loose Fada Figs fly to the player like a Ruh soul.
-/// RunManager spawns this scene on enemy death (count = <c>Enemy.fada_fig_drop</c>).
+/// A collectible Fada Fig — the RARE currency (docs/game-loop.md § Economy; spent at the mystery box). A kill drops one
+/// at the enemy's <c>Enemy.fig_chance</c> (10 % default, per-kit override). It pops out of the corpse with a little
+/// bounce + tumble (RigidBody physics) and settles on the ground; the player collects it by physically touching it —
+/// the child <c>Pickup</c> Area detects the player's body. There is intentionally no wide magnet: a FUTURE reward
+/// calls <see cref="magnetize"/> to make loose Fada Figs fly to the player like a Ruh soul.
 /// </summary>
 public partial class FadaFig : RigidBody2D
 {
