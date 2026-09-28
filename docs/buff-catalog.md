@@ -1,6 +1,6 @@
 # Buff catalog — tiered, from `rewards-design.md`
 
-**STATUS: proposed tiers for red-pen.** This turns the `rewards-design.md` wishlist into a structured, tiered
+**STATUS: sorted into the three stalls (see "The three pools" below); the tier tables are the source of the numbers.** This turns the `rewards-design.md` wishlist into a structured, tiered
 catalog + a new **Seal** category, ready to become code against the buff-system spec in `game-loop.md`
 (§ Buff system). **Tiers and numbers are my proposal — adjust freely.**
 
@@ -11,6 +11,60 @@ catalog + a new **Seal** category, ready to become code against the buff-system 
 > **Note:** an earlier draft carried a `greedWeight` per buff (to scale a hidden boss). **Greed and the boss are
 > retired** — Wardens grow on a pure time + Seal-brake curve, nothing buff-side feeds them — so there is **no
 > greed column** here. If you see one anywhere, it's stale.
+
+---
+
+## The three pools (2026-09-28 — supersedes tiers + source-driven persistence below)
+
+The economy in `game-loop.md` § Economy sorts every buff into **one** stall by **kind**: **numbers** on Khalid's
+body → **Needle Point** (shots, N rounds, upgradeable levels) · **utility / tactics** → **Dekken** (perks, per-perk
+duration) · **new mechanics** → **Mystery Box** (permanent, single version). The tier tables further down stay as
+the source of the numbers: a shot's **levels** take the five `C / R / H / S / E` values (level 0 = C … level 4 = E);
+a box buff starts from its **Hot** value as its single version. "Built" = implemented in `configs/BuffCatalog.cs`
+today.
+
+**Needle Point — shots**
+
+| Shot | From | Built | Note |
+|---|---|---|---|
+| **+Dash** | Chain Dash | ✓ | +1 dash per step; the Epic "unlimited for 2 s" rider is a mechanic → dropped |
+| **+Air Jump** | Extra Air Jump | ✓ | the old min-Rare floor goes — level 0 is already +1 |
+| **Jump Height** | High Jump | ✓ | |
+| **Reach** | Long Reach | ✓ | |
+| **Slam Damage** | Slam Force | ✓ | |
+| **Run Speed** | — | NEW | +% run speed |
+| **Attack Damage** | — | NEW | +% attack damage (the "+20 % damage" idea lives here, not in the box) |
+| **Attack Speed** | — | NEW | +% attack speed |
+
+**Dekken — perks**
+
+| Perk | From | Built | Duration |
+|---|---|---|---|
+| **Heal** | — | NEW | one use (a block) |
+| **Fast Travel** | — | NEW | one use (teleport to the box) |
+| **Fig Chance** | — | NEW | whole run (+5 % on every enemy); leaves the pool once bought |
+| **Magnet** | — | NEW | rounds (bigger pickup range) |
+| **Shield** | — | NEW | rounds (blocks the first hit of the round) |
+| **Prepared** | Prepared | — | rounds (auto-surge at **round** start — retagged from "stage") |
+| **Wider Pull** | Wider Pull | ✓ | rounds (Come Closer pulls more enemies) |
+
+**Mystery Box — mechanics**
+
+- **Built:** Dash Immunity · Jump Immunity · Slam Immunity · Hit Guard · Follow-through · Slam Quake ·
+  Slam Spring · Slam Wrath · Momentum · Bloodrush · Skim · Instant Reset · Overcharge.
+- **Planned (NEW / ⏳ below):** Dash Damage · Dash Leech · Dash Stun · Dash Trap · Jump Trap (+ the four trap
+  flavours) · Perfect Dodge Haste / Fury / Aegis · Peak Slam · Slam Volley · Slam Feast · Opening Fury (retagged to
+  the first seconds of a **round**) · Ledge Save · Barrage · Air Wall · Spear Finisher · Backstab · Missfire ·
+  Discord (parked).
+- **Special-swap** (e.g. into Zahluq) stays an extreme-rarity box outcome.
+
+**For review (placement calls I made):**
+- **Wider Pull → Dekken:** it's a number, but on a *special*, not Khalid's body — Needle Point is body stats, so it
+  reads as a tactical perk. Alternatively it could stay a box buff.
+- **Prepared → Dekken:** a round-start surge is preparation. It could equally be a box mechanic.
+- **Slam Damage → Needle Point:** a pure number, but only matters if you slam — keep, or fold into Attack Damage.
+- **All five invuln procs → the box.** They're the strongest defensive mechanics; if the box pool feels
+  defense-heavy, one could move.
 
 ---
 
