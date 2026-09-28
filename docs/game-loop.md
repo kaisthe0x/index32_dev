@@ -128,7 +128,7 @@ The rule that sorts every buff (`buff-catalog.md`):
 
 | Stall | Sells | Examples | Feel |
 |---|---|---|---|
-| **Needle Point** | **numbers** on Khalid's body (a "shot") | +dash, +air jump, run speed, jump height, attack damage, attack speed | "I'm stronger this round" |
+| **Needle Point** | **numbers** on Khalid's body (a "shot") | +dash, +air jump, run speed, jump height, attack damage | "I'm stronger this round" |
 | **Dekken** | **utility / tactics** (a "perk") | heal, fast travel to the box, fig chance, pickup magnet range, a one-round shield | "I'm prepared this round" |
 | **Mystery Box** | **new mechanics** that define the build | Zahluq, invuln after a dash, a vortex on the dash, chain hits | "my run plays differently now" |
 
@@ -136,21 +136,25 @@ A stat boost changes a number Khalid already has; a perk changes *how* something
 box's pull is that **its mechanics can't be bought anywhere else**. (A second dash = Needle Point; a dash that
 leaves a vortex = the box.) A flat "+20 % damage forever" is a number → it's a Needle Point shot, not a box buff.
 
+**Both stalls are open only in the BREAK between rounds (changed 2026-09-28).** One rule, no "this round or the
+next?": what you buy in a break is **active immediately** — so an Extra Jump bought now can carry you up to the box
+during the same break — and lasts through the next round(s). The break becomes the shopping phase instead of dead
+time. During a round the stalls show CLOSED. (The mystery box stays open during rounds — the risky real-time gamble.)
+
 ### Needle Point — the stat shots
 
 - **Stock:** the **whole catalog, always** (small — ~6–8 shots). No rotation, so an upgrade is never wasted.
-- **Duration:** a shot lasts **N rounds**, set per shot (**1 round** for every shot to start). It **starts next
-  round** — so a player can shop freely during a round or the breather without timing anything.
-- **Buy now:** **half price**, active **immediately until the end of the current round** (in a breather: until the
-  next round starts). A cheap, risky panic button. Hidden while the shot is already active.
+- **Duration:** a shot lasts **N rounds**, set per shot (**1 round** for every shot to start), counted from the
+  next round; bought in a break, it's **active at once**.
 - **Rebuying an active shot resets its duration** to full — it never stacks (so a rich player can't prepay rounds).
+  (The earlier half-price "buy now" is gone — break-only buying made it redundant.)
 - **Upgrades (figs):** each shot has a **level** — `0` grey → `1` green → `2` blue → `3` purple → `4` gold → more
   as needed — up to that shot's own max; the **Upgrade** button disables at max. Upgrading **also grants the shot**
-  (swaps any active copy for the new level, full duration). The level **lasts the run**; from then on the shot is
+  (swaps any active copy for the new level, full duration, active at once). The level **lasts the run**; from then on the shot is
   bought with Lira at its new level.
 - **Prices:** flat per shot; **only an upgrade raises its Lira price**. (Per-purchase price growth is parked —
   revisit if late rounds feel Lira-rich, since income grows with the quota.)
-- **Pauses the game** (it's a menu).
+- **Pauses the game** (it's a menu) — for now; see *Later ideas → the timed break*.
 - Placeholders: shot **10 Lira** · each level **+50 %** Lira price · upgrade cost **3 / 5 / 8 / 12 figs** for
   levels 1–4 · max level **4**.
 
@@ -158,10 +162,10 @@ leaves a vortex = the box.) A flat "+20 % damage forever" is a number → it's a
 
 - **Stock:** **5 random perks, rerolled at the start of every round**; no duplicate in the five.
 - **Duration: per perk** — a number of rounds (**1** to start), **one use** (fast travel), or **the whole run**
-  (fig chance). Timed perks **start next round**, like shots.
+  (fig chance). Like shots, a perk bought in the break is **active at once** and timed perks count from the next round.
 - **Whole-run perks leave the pool** once bought (they're done for the run and shouldn't take a slot).
 - **Rebuying an active timed perk resets its duration.** Perks are **not upgradeable**.
-- **Pauses the game.**
+- **Pauses the game** (for now — see *Later ideas → the timed break*).
 - Placeholder perks: **Heal** (a block, 20 Lira) · **Fast Travel** (teleport to the box, one use, 20 Lira) ·
   **Fig Chance** (+5 % fig chance on every enemy, whole run, 40 Lira) · **Magnet** (bigger pickup range, 15 Lira) ·
   **Shield** (blocks the first hit of the round, 25 Lira).
@@ -199,6 +203,11 @@ leaves a vortex = the box.) A flat "+20 % damage forever" is a number → it's a
 - **Shop relocation** (the CoD teddy bear, but for the stalls).
 - **HP-cost altars** (Risk of Rain blood shrine): pay health for power.
 - **Per-purchase price growth** for shots (see Prices).
+- **The timed break (agreed 2026-09-28, build later):** the stall menus **stop pausing** — the player has to get
+  everything from both stalls within the break itself. The break starts long (**~15 s or more**) and **shrinks every
+  ~2 rounds**, down to **4 s**, so shopping becomes a skill that tightens with the run. A player who's done early
+  gets a small prompt — **"Hold E to start the next round"** (hold, on the interact key, so nobody skips by accident)
+  — instead of waiting out the clock. The schedule (start, step, every-N-rounds, floor) goes in `configs/Rounds.cs`.
 
 ---
 
@@ -282,7 +291,7 @@ The existing `Buff : Passive` + `Trigger` + `ModifyTuning` foundation fits. Ever
 
 - **E1. Lira + fig drops** *(built 2026-09-28)* — the Lira pickup (magnet, placeholder sfx, HUD counter), per-kit fig chance, and
   **removing** the fig milestone menu + the fig ring.
-- **E2. Needle Point** — the shot catalog, next-round start + half-price buy-now, reset-on-rebuy, fig upgrades with
+- **E2. Needle Point** *(built 2026-09-28)* — the shot catalog, next-round start + half-price buy-now, reset-on-rebuy, fig upgrades with
   the level colours.
 - **E3. Dekken** — 5 rotating perks, per-perk durations, whole-run perks leaving the pool.
 - **E4. Mystery Box rework** — the mechanics pool (single version, reroll duplicates, decline), the teddy bear,

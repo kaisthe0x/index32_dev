@@ -84,6 +84,8 @@ public partial class RunManager : Node2D
     private Sprite2D _bgSky;
     private Vector2 _bgImgSize;
     private LevelLayout _layout;
+    private ShotLedger _shots;                   // this run's Needle Point shots (levels, active)
+    private NeedlePointStall _needlePoint;       // open only in the break between rounds
 
     private const string StageDir = "res://scenes/levels/stage1/";
     private Vector2 _playerSpawn = Vector2.Zero;
@@ -227,11 +229,17 @@ public partial class RunManager : Node2D
         foreach (var op in _layout?.Orbs() ?? new System.Collections.Generic.List<Vector2>())
             _content.AddChild(new LaunchOrb { Position = op });
 
-        // One mystery box per arena, on a ground tile a short walk from spawn (the fig sink for powerful buffs).
+        // One mystery box per arena, on a ground tile a short walk from spawn (the fig sink for powerful buffs), and
+        // Needle Point (the stat stall) a short walk the OTHER way, so the two never overlap.
         Vector2 boxPos = PickGroundSurface(_playerSpawn, 120.0f, 320.0f) ?? _playerSpawn + new Vector2(120, 0);
         var box = new MysteryBox { Position = boxPos };
         box.won += OpenBoxMenu; // a winning pull opens the 3-choice powerful menu
         _content.AddChild(box);
+        int awayFromBox = boxPos.X >= _playerSpawn.X ? -1 : 1;
+        _shots = new ShotLedger(_player, () => _phase == RoundPhase.Breather);
+        Vector2 needlePos = PickGroundSurface(_playerSpawn, 120.0f, 320.0f, awayFromBox) ?? _playerSpawn + new Vector2(120 * awayFromBox, 0);
+        _needlePoint = new NeedlePointStall { Position = needlePos, Ledger = _shots };
+        _content.AddChild(_needlePoint); // the run starts in a break, so it starts open
 
         if (_player != null)
             PlaceAt(_player, _playerSpawn);
@@ -275,6 +283,7 @@ public partial class RunManager : Node2D
         _spawned = 0;
         _killed = 0;
         _phase = RoundPhase.Fighting;
+        _needlePoint.SetOpen(false); // the shops close while a round is fought
         _spawnAccum = SpawnInterval(round); // first enemy arrives immediately
         PushRoundHud(); // the HUD plays the ROUND n intro for a new round
         _sfx.play("round_start");
@@ -284,6 +293,8 @@ public partial class RunManager : Node2D
     private void ClearRound()
     {
         _phase = RoundPhase.Breather;
+        _shots.OnRoundClear(); // every active shot spends a round
+        _needlePoint.SetOpen(true);
         _breatherLeft = Rounds.BreatherTime;
         PushRoundHud();
     }
@@ -656,8 +667,7 @@ public partial class RunManager : Node2D
         }
         foreach (string id in PickDistinct(BuffCatalog.PowerfulIds(), buffCount))
         {
-            Tier rolled = RollPowerfulTier();
-            Tier tier = (Tier)Mathf.Max((int)rolled, (int)BuffCatalog.MinTier(id)); // threshold buffs never roll too low
+            Tier tier = RollPowerfulTier();
             Buff buff = BuffCatalog.Make(id, tier);
             if (buff == null)
                 continue;

@@ -23,18 +23,18 @@ the source of the numbers: a shot's **levels** take the five `C / R / H / S / E`
 a box buff starts from its **Hot** value as its single version. "Built" = implemented in `configs/BuffCatalog.cs`
 today.
 
-**Needle Point — shots**
+**Needle Point — shots** *(built 2026-09-28 — `configs/NeedlePoint.cs`; the old buffs listed under "From" are gone
+from the box pool and their buff classes deleted)*
 
 | Shot | From | Built | Note |
 |---|---|---|---|
-| **+Dash** | Chain Dash | ✓ | +1 dash per step; the Epic "unlimited for 2 s" rider is a mechanic → dropped |
-| **+Air Jump** | Extra Air Jump | ✓ | the old min-Rare floor goes — level 0 is already +1 |
-| **Jump Height** | High Jump | ✓ | |
-| **Reach** | Long Reach | ✓ | |
-| **Slam Damage** | Slam Force | ✓ | |
-| **Run Speed** | — | NEW | +% run speed |
-| **Attack Damage** | — | NEW | +% attack damage (the "+20 % damage" idea lives here, not in the box) |
-| **Attack Speed** | — | NEW | +% attack speed |
+| **Extra Dash** | Chain Dash | ✓ | +1 / 2 / 3 dash **charges** (a new charge model); the "unlimited for 2 s" rider is a mechanic → dropped |
+| **Extra Jump** | Extra Air Jump | ✓ | +1 / 2 / 3 air jumps |
+| **Jump Height** | High Jump | ✓ | +15 … 80 % |
+| **Reach** | Long Reach | ✓ | +25 … 150 % |
+| **Slam Damage** | Slam Force | ✓ | +20 … 100 % |
+| **Run Speed** | — | ✓ | +10 … 30 % |
+| **Attack Damage** | — | ✓ | +15 … 65 % (the "+20 % damage" idea lives here, not in the box) |
 
 **Dekken — perks**
 

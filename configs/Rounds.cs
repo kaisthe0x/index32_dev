@@ -9,15 +9,15 @@ namespace MyGame;
 public static class Rounds
 {
     // Quota Q(r) = QuotaBase + QuotaLinear·r + QuotaQuad·r² (rounded) — ~quadratic like CoD's count curve.
-    // r1 = 11, r5 = 32, r10 = 73, r20 = 208.
-    public const float QuotaBase = 8.0f;
-    public const float QuotaLinear = 3.0f;
+    // r1 = 16, r5 = 41, r10 = 87, r20 = 232.
+    public const float QuotaBase = 12.0f;
+    public const float QuotaLinear = 4.0f;
     public const float QuotaQuad = 0.35f;
 
     // Concurrent cap C(r) = CapBase + (r-1) / CapGrowthRounds, never above CapMax — the arena gets "stickier" slowly.
-    public const int CapBase = 6;
+    public const int CapBase = 10;
     public const int CapGrowthRounds = 2;
-    public const int CapMax = 24;
+    public const int CapMax = 32;
 
     // Spawn interval = max(IntervalMin, IntervalBase · IntervalDecay^(r-1)) seconds — refills come faster each round.
     public const float IntervalBase = 0.9f;

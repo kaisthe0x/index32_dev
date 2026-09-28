@@ -250,6 +250,22 @@ public partial class HUD : CanvasLayer
 	private static Label MkLabel(string style) =>
 		new() { ThemeTypeVariation = style, MouseFilter = Control.MouseFilterEnum.Ignore, VerticalAlignment = VerticalAlignment.Center };
 
+	/// <summary>One active Needle Point shot in the buff list: its name in its LEVEL colour, what it gives, and how long
+	/// it has left ("1 ROUND").</summary>
+	private static Control ShotLine(Shot s)
+	{
+		var line = new HBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
+		line.AddThemeConstantOverride("separation", 8);
+		var name = MkLabel(UiStyle.HudHeading);
+		name.AddThemeColorOverride("font_color", NeedlePoint.LevelColor(s.Level));
+		name.Text = $"{s.Def.Name} · {Shot.FormatValue(s.Def, s.Level)}";
+		line.AddChild(name);
+		var left = MkLabel(UiStyle.HudMuted);
+		left.Text = s.RoundsLeft == 1 ? "1 ROUND" : $"{s.RoundsLeft} ROUNDS";
+		line.AddChild(left);
+		return line;
+	}
+
 	/// <summary>Rebuild the top-right active-buff list from the player's passives (call on grant / clear).</summary>
 	public void RefreshBuffs(List<Passive> passives)
 	{
@@ -260,6 +276,12 @@ public partial class HUD : CanvasLayer
 		bool any = false;
 		foreach (Passive p in passives)
 		{
+			if (p is Shot s)
+			{
+				any = true;
+				_buffPanel.AddChild(ShotLine(s));
+				continue;
+			}
 			if (p is not Buff b)
 				continue;
 			any = true;

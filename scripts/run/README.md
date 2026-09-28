@@ -13,9 +13,12 @@ implements is [`docs/game-loop.md`](../../docs/game-loop.md) — **endless CoD-Z
 
 | File | What it is |
 |---|---|
-| `RunManager.cs` (`RunManager`) | The brain + the arena root. Builds ONE arena and runs the **round loop** (a hidden quota per round, trickled in from a mixed roster — proximity-placed around the player, under a concurrent cap — then a breather + ROUND banner), **awards Ruh per damaging hit landed** (via `gain_ruh_on_hit`, skipping a special's own hits — not per kill), **pays Lira on every kill** (coins that fly to the player) **plus a per-kit chance of one Fada Fig**, **spawns a mystery box** (spend figs for a stingy powerful-buff gamble — a win rarely offers a **special-swap** instead), and restarts the run on death. Owns the camera/death/spawn flair. |
+| `RunManager.cs` (`RunManager`) | The brain + the arena root. Builds ONE arena and runs the **round loop** (a hidden quota per round, trickled in from a mixed roster — proximity-placed around the player, under a concurrent cap — then a breather + ROUND banner), **awards Ruh per damaging hit landed** (via `gain_ruh_on_hit`, skipping a special's own hits — not per kill), **pays Lira on every kill** (coins that fly to the player) **plus a per-kit chance of one Fada Fig**, **spawns a mystery box** (spend figs for a stingy powerful-buff gamble — a win rarely offers a **special-swap** instead) **and Needle Point** (the shot stall, on the other side of the spawn), ticks the run's `ShotLedger` at each round start/clear, and restarts the run on death. Owns the camera/death/spawn flair. |
 | `enemies.gd` (`EnemyKits`) | **The enemy roster** — one named kit per type (combat tuning + which scene), plus a `Tier`. `RunManager.SpawnPool` draws from these. Edit here to change *who* the enemies are. |
-| `MysteryBox.cs` (`MysteryBox`, in `scripts/things/`) | A code-built placeholder "?" crate. Stand next to it (a "E" prompt shows) and press **E** (the `interact` action, registered in code) to spend `Cost` fada_figs on a gamble: `DudChanceBase` of pulls give nothing, otherwise it fires `won` and RunManager opens the **same 3-choice menu** from the POWERFUL pool (`BuffCatalog.PowerfulIds`, above-rare tiers). Each win raises the dud chance further (per-run). Press E again to pull again. |
+| `ShotLedger.cs` (`ShotLedger`) | **Needle Point's rules** for one run: each shot's upgrade level and which are active (as `Shot` passives). BUY / UPGRADE (break only) + `OnRoundClear`. Data in `configs/NeedlePoint.cs`; see the main README § Needle Point shots. |
+| `NeedlePointStall.cs` (`NeedlePointStall`, in `scripts/things/`) | The stat stall (placeholder teal cabinet). Press **E** at it to open the `NeedlePointMenu` (`scripts/ui/`) over the run's ledger. |
+| `Stall.cs` (`Stall`, in `scripts/things/`) | The shared stand-next-to-it-and-press-**E** base: interact range, the "E" prompt, the key (`interact`, registered in code). The mystery box and Needle Point extend it. |
+| `MysteryBox.cs` (`MysteryBox`, in `scripts/things/`) | A code-built placeholder "?" crate (a `Stall`). Press **E** at it to spend `Cost` fada_figs on a gamble: `DudChanceBase` of pulls give nothing, otherwise it fires `won` and RunManager opens the **same 3-choice menu** from the POWERFUL pool (`BuffCatalog.PowerfulIds`, above-rare tiers). Each win raises the dud chance further (per-run). Press E again to pull again. |
 | `RewardUI.cs` (`RewardUI`) | The pick-a-card popup (pauses the game, emits `chosen(id)`) — `Open(cards, title)`. Now drives the mystery box's **buff menu**. |
 | `configs/Rounds.cs` (`Rounds`) | **Round tuning** — quota curve, concurrent cap, spawn interval, breather, when "n LEFT" shows. Pure data. |
 
@@ -30,7 +33,7 @@ re-run the generator (editor closed), then paint in-editor. See [`assets/terrain
 + [`docs/painting-levels.md`](../../docs/painting-levels.md).
 
 **Enemy spawning is ROUND-driven + PROXIMITY-based** (`TickRound`, tuning in `configs/Rounds.cs`). Round `r` has a
-hidden **quota** `Q(r) = QuotaBase + QuotaLinear·r + QuotaQuad·r²` (11, 15, 20, … 73 at r10). While `Fighting`, one enemy
+hidden **quota** `Q(r) = QuotaBase + QuotaLinear·r + QuotaQuad·r²` (16, 21, 27, … 87 at r10). While `Fighting`, one enemy
 spawns every `SpawnInterval(r)` (shortens per round, floored at `IntervalMin`) as long as fewer than the concurrent cap
 `C(r)` (`CapBase`, +1 every `CapGrowthRounds`, max `CapMax`) quota enemies are alive; once `Q(r)` have spawned,
 spawning **stops**, and the round **clears** on the last kill (`OnEnemyDied` → `ClearRound`) → a `BreatherTime` pause
@@ -104,11 +107,13 @@ Related, but not in this folder:
    `Enemy.lira_drop` **Lira** coins that fly to the player and bank on arrival, and — at `Enemy.fig_chance` (10 %
    default, Kebus 25 %) — **one Fada Fig** that settles until touched. Nothing drops if the enemy fell off the map. A
    quota enemy also frees a cap slot, counts toward the round, and the last one clears it.
-5. **Buffs come from the mystery box** (Lira has no sink yet — Needle Point + Dekken are the next economy steps):
+5. **Buffs come from the stalls** (Dekken, the perk shop, is the next economy step):
+   - **Needle Point (Lira, temporary stats), open only in the break:** buy shots (active at once, through the next
+     round) or spend figs to upgrade one's level for the run — `ShotLedger`, ticked at `ClearRound`; `StartRound` /
+     `ClearRound` close and reopen the stall.
    - **Mystery box (powerful, paid gamble):** one `MysteryBox` per arena; stand next to it + press **E** to spend `Cost`
      figs (`Player.spend_fada_figs`). Some pulls dud (`DudChanceBase`, 20 %); a WIN fires the box's `won` signal →
-     `RunManager.OpenBoxMenu` opens a **3-choice `RewardUI`** from `BuffCatalog.PowerfulIds` (above-rare tiers, floored
-     to each buff's `BuffCatalog.MinTier`). Each win raises the dud chance. On a win, one of the three cards is **rarely** a **special-swap**
+     `RunManager.OpenBoxMenu` opens a **3-choice `RewardUI`** from `BuffCatalog.PowerfulIds` (above-rare tiers). Each win raises the dud chance. On a win, one of the three cards is **rarely** a **special-swap**
      instead of a buff (`RollBoxSpecial`, `SpecialOfferChance`, drawn from `BoxSpecialIds` — currently just **Zahluq**);
      picking it **replaces your equipped special** (`OnBuffChosen` → `Player.equip`, keyed by `_menuSpecialId`) rather
      than adding a passive. Picking plays `buff_select`.
@@ -132,6 +137,9 @@ Related, but not in this folder:
 - **Change the box special-swap** → `RunManager` `SpecialOfferChance` (chance a win offers a special instead of a 3rd
   buff) + `BoxSpecialIds` (which specials are box-only; currently `SpecialIds.Zahluq`). `RollBoxSpecial` skips a special
   you already have equipped.
+- **Change the shots** → `configs/NeedlePoint.cs`: each shot's per-level values, rounds and price in `SHOTS`, plus
+  `LevelPriceGrowth`, `UPGRADE_FIGS`, `LEVEL_COLORS`. A new shot = a `ShotIds` id + a `ShotStat` + its
+  case in `Shot.Apply`.
 - **Which buffs the box offers** → `BuffCatalog.PowerfulIds()` (every general buff; move-gated buffs are excluded by
   the `General()` filter).
 - **Change an enemy's stats** → its kit in `enemies.gd` (combat).

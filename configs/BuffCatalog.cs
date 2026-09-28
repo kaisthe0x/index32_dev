@@ -5,8 +5,9 @@ using System.Linq;
 namespace MyGame;
 
 /// <summary>
-/// The buff registry: <c>id → a factory that builds the buff at a given <see cref="Tier"/></c>. The single place
-/// a granted buff is instantiated by id (the pivot's drops / warden-kills / chest will call <see cref="Make"/>).
+/// The MYSTERY BOX's buff registry: <c>id → a factory that builds the buff at a given <see cref="Tier"/></c>. The single
+/// place a granted buff is instantiated by id (the box's menu calls <see cref="Make"/>). Stat boosts aren't here — they
+/// are Needle Point shots (<see cref="NeedlePoint"/>).
 /// Only IMPLEMENTED buffs live here; the FULL catalogue is <see cref="BuffIds"/> + docs/buff-catalog.md, and each
 /// lands as its mechanic is built (Phase 2 = NEW-mechanic buffs + the reserved triggers; Phase 3 = delivery).
 ///
@@ -18,10 +19,6 @@ public static class BuffCatalog
 {
     public static readonly Dictionary<string, Func<Tier, Buff>> FACTORIES = new()
     {
-        // --- pure-stat (StatBuff via ModifyTuning) ---
-        [BuffIds.LongReach] = t => new StatBuff(BuffIds.LongReach, StatBuff.Stat.Reach,
-            new[] { 1.25f, 1.50f, 1.75f, 2.00f, 2.50f }) { Tier = t, Family = "long_reach", AppliesTo = { "attack" } },
-
         // --- lifesteal (LifestealBuff via OnHitDealt) ---
         [BuffIds.Bloodrush] = t => new LifestealBuff(BuffIds.Bloodrush,
             new[] { 0.03f, 0.05f, 0.08f, 0.12f, 0.18f }) { Tier = t, Family = "bloodrush" },
@@ -41,19 +38,9 @@ public static class BuffCatalog
         [BuffIds.FollowThrough] = t => new InvulnBuff(BuffIds.FollowThrough, Trigger.OnAnimEnd,
             new[] { 0.5f, 1.0f, 1.5f, 2.0f, 3.0f }) { Tier = t, Family = "follow_through", AppliesTo = { "attack" } },
 
-        // --- movement (Setup-hook) ---
-        [BuffIds.ExtraAirJump] = t => new ExtraAirJumpBuff(BuffIds.ExtraAirJump,
-            new[] { 0, 1, 1, 2, 3 }) { Tier = t, Family = "extra_air_jump" },  // threshold: min Rare (MIN_TIER)
-
-        // --- jump height: High Jump (permanent mult) + Slam Spring (one-shot, primed OnSlamLand) ---
-        [BuffIds.HighJump] = t => new RunStatBuff(BuffIds.HighJump, RunStatBuff.Field.JumpHeight,
-            new[] { 1.15f, 1.30f, 1.45f, 1.60f, 1.80f }) { Tier = t, Family = "high_jump" },
+        // --- Slam Spring (one-shot jump boost, primed OnSlamLand) ---
         [BuffIds.SlamSpring] = t => new SlamSpringBuff(BuffIds.SlamSpring,
             new[] { 1.30f, 1.50f, 1.70f, 1.90f, 2.20f }) { Tier = t, Family = "slam_spring" },
-
-        // --- slam damage (Slam Force via the existing slam_damage_mult field, applied in Player.SlamRelease) ---
-        [BuffIds.SlamForce] = t => new RunStatBuff(BuffIds.SlamForce, RunStatBuff.Field.SlamDamage,
-            new[] { 1.20f, 1.35f, 1.50f, 1.70f, 2.00f }) { Tier = t, Family = "slam_force" },
 
         // --- slam on-land procs (OnSlamLand) ---
         [BuffIds.SlamQuake] = t => new SlamQuakeBuff(BuffIds.SlamQuake,
@@ -62,9 +49,6 @@ public static class BuffCatalog
             new[] { 1.30f, 1.50f, 1.70f, 1.90f, 2.20f },     // attack-damage mult
             new[] { 1.0f, 1.5f, 2.0f, 2.5f, 3.0f })          // window seconds
             { Tier = t, Family = "slam_wrath", AppliesTo = { "attack" } },
-
-        // --- dash: Chain Dash (OnDash → free re-dash; minimal, see class TODO) ---
-        [BuffIds.ChainDash] = t => new ChainDashBuff(BuffIds.ChainDash) { Tier = t, Family = "chain_dash" },
 
         // --- per-attack (offer-gated): Bakshen Overcharge (OnHitDealt → cooldown cut; Epic = full reset) ---
         [BuffIds.Overcharge] = t => new OverchargeBuff(BuffIds.Overcharge,
@@ -99,7 +83,6 @@ public static class BuffCatalog
     /// scaling in FACTORIES. Keep in sync with FACTORIES as buffs are added.</summary>
     public static readonly Dictionary<string, (string Name, string Desc)> INFO = new()
     {
-        [BuffIds.LongReach] = ("Long Reach", "Your attacks reach noticeably farther."),
         [BuffIds.Bloodrush] = ("Bloodrush", "Landing a hit has a good chance to restore half a health block."),
         [BuffIds.Skim] = ("Skim", "Landing a hit has a small chance to restore half a health block."),
         [BuffIds.DashImmunity] = ("Phase Dash", "Briefly invulnerable right after you dash."),
@@ -107,13 +90,9 @@ public static class BuffCatalog
         [BuffIds.SlamImmunity] = ("Ground Zero", "Invulnerable for a moment after you slam-land."),
         [BuffIds.HitGuard] = ("Hit Guard", "A flicker of invulnerability whenever you land a hit."),
         [BuffIds.FollowThrough] = ("Follow-through", "Briefly invulnerable as an attack finishes."),
-        [BuffIds.ExtraAirJump] = ("Extra Wind", "Gain extra mid-air jumps."),
-        [BuffIds.HighJump] = ("Sky Legs", "Jump significantly higher."),
         [BuffIds.SlamSpring] = ("Coiled Spring", "Your first ground jump after a slam launches you much higher."),
-        [BuffIds.SlamForce] = ("Meteor", "Your slam hits much harder."),
         [BuffIds.SlamQuake] = ("Quake", "Slam-landing stuns nearby enemies."),
         [BuffIds.SlamWrath] = ("Wrath", "After a slam, your attacks deal bonus damage for a few seconds."),
-        [BuffIds.ChainDash] = ("Chain Dash", "Dash again instantly — no cooldown."),
         [BuffIds.Overcharge] = ("Overcharge", "Landing a Bakshen hit cuts its cooldown."),
         [BuffIds.InstantReset] = ("Instant Reset", "Whiffing Zahluq instantly resets its cooldown."),
         [BuffIds.WiderPull] = ("Wider Pull", "Come Closer magnetizes additional enemies."),
@@ -138,7 +117,7 @@ public static class BuffCatalog
     /// <summary>Whether <paramref name="id"/> has a working factory (vs. catalogued-only, pending its mechanic).</summary>
     public static bool Implemented(string id) => FACTORIES.ContainsKey(id);
 
-    // --- reward POOLS (used by the fada-fig buff menu + the mystery box) --------------------------------------
+    // --- the mystery box's offer pool ---------------------------------------------------------------------------
     private static string[] _general, _powerful;
 
     /// <summary>Implemented ids that aren't gated to a SPECIFIC move (AppliesTo only "*"/"attack"/"special", or none)
@@ -158,15 +137,6 @@ public static class BuffCatalog
         _general = ids.ToArray();
         return _general;
     }
-
-    /// <summary>THRESHOLD buffs exist only from a minimum tier up (docs/buff-catalog.md) — below it they'd do nothing
-    /// (e.g. Extra Air Jump is +0 at Common). The buff menus raise a rolled tier to this floor. Unlisted = Common.</summary>
-    private static readonly Dictionary<string, Tier> MIN_TIER = new()
-    {
-        [BuffIds.ExtraAirJump] = Tier.Rare,
-    };
-
-    public static Tier MinTier(string id) => MIN_TIER.TryGetValue(id, out var t) ? t : Tier.Common;
 
     /// <summary>POWERFUL pool — every general (not move-gated) buff. The mystery box draws from these at above-rare tiers.</summary>
     public static string[] PowerfulIds() => _powerful ??= General().ToArray();

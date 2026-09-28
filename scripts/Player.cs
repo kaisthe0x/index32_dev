@@ -115,14 +115,15 @@ public partial class Player : Combatant
     public float damage_mult = 1.0f;
     public float run_mult = 1.0f;
     public int air_jump_bonus = 0;
+    public int dash_bonus = 0;                // extra dash CHARGES on top of the one you always have
     public float damage_taken_mult = 1.0f;   // Thick Hide
-    public float slam_damage_mult = 1.0f;    // Meteor
+    public float slam_damage_mult = 1.0f;    // Slam Damage shot
     public float attack_reach_mult = 1.0f;   // Long Arm
     public int attack_projectile_bonus = 0;  // Split Shot (WIP)
     public bool impervious_until_hit = false; // Last Stand (WIP)
     public float special_radius_mult = 1.0f;  // Wide Impact (WIP)
     public float special_invuln_bonus = 0.0f; // Fortitude: extends any surge window
-    public float jump_velocity_bonus = 1.0f;  // High Jump: multiplies applied jump velocity (all jumps)
+    public float jump_velocity_bonus = 1.0f;  // Jump Height shot: multiplies applied jump velocity (all jumps)
     public int magnet_target_bonus = 0;        // Wider Pull: extra Come Closer magnet targets
 
     private const string StartingDashEffect = "dash_default";
@@ -175,7 +176,8 @@ public partial class Player : Combatant
     private SegmentData _activeHit = new();
     private float _dashLeft = 0.0f;
     private float _dashAnimLeft = 0.0f;
-    private float _dashCd = 0.0f;
+    private float _dashCd = 0.0f;         // time until the next dash charge refills (runs while below max)
+    private int _dashCharges = 1;
     private bool _dashCustom = false;
     private bool _blinkDash = false;
     private bool _blinkPhaseWalls = false;
@@ -331,6 +333,8 @@ public partial class Player : Combatant
         _bufferedAttack = false;
         _flurry = false;
         _attackCd = 0.0f;
+        _dashCd = 0.0f;
+        _dashCharges = MaxDashCharges;
         if (!Engine.IsEditorHint())
             _state = State.IDLE;
         sprite.SpeedScale = 1.0f;
@@ -450,6 +454,18 @@ public partial class Player : Combatant
         p.Setup(this);
         RefreshBuffHud();
     }
+
+    /// <summary>Remove one held passive, undoing its changes (a Needle Point shot running out). No-op if not held.</summary>
+    public void remove_passive(Passive p)
+    {
+        if (!_passives.Remove(p))
+            return;
+        p.Teardown(this);
+        RefreshBuffHud();
+    }
+
+    /// <summary>Re-push the active-buff list to the HUD (a shot's rounds-left changed without the list changing).</summary>
+    public void refresh_buff_hud() => RefreshBuffHud();
 
     /// <summary>Push the current buff loadout to the HUD's active-buff list (autoload).</summary>
     private void RefreshBuffHud() => GetNodeOrNull<HUD>("/root/HUD")?.RefreshBuffs(_passives);
@@ -615,7 +631,7 @@ public partial class Player : Combatant
     /// <summary>Grant a generic invulnerability window (the immunity buffs: dash/jump/slam/on-hit). Refreshes to the longer.</summary>
     public void grant_invuln(float seconds) => _iframesLeft = Mathf.Max(_iframesLeft, seconds);
 
-    /// <summary>Add air jumps for the run (ExtraAirJump buff) — bumps the bonus AND the live max. Undo with n &lt; 0.</summary>
+    /// <summary>Add air jumps (the Extra Jump shot) — bumps the bonus AND the live max. Undo with n &lt; 0.</summary>
     public void add_air_jumps(int n) { air_jump_bonus += n; _maxAirJumps += n; }
 
     /// <summary>Prime the NEXT ground jump with a height multiplier (Slam Spring) — one-shot, consumed on that jump.</summary>
@@ -634,8 +650,32 @@ public partial class Player : Combatant
         return cd > 0.0f ? 1.0f - _specialCd / cd : 1.0f;
     }
 
-    /// <summary>Zero the dash cooldown so the follow-up dash is free (Chain Dash on-dash).</summary>
-    public void reset_dash_cooldown() => _dashCd = 0.0f;
+    /// <summary>How many dashes are banked now vs. the most you can hold (1 + <see cref="dash_bonus"/>).</summary>
+    private int MaxDashCharges => 1 + dash_bonus;
+
+    /// <summary>Add dash charges (the +Dash shot) — raises the max AND hands the new charges over now. Undo with n &lt; 0.</summary>
+    public void add_dash_charges(int n)
+    {
+        dash_bonus += n;
+        _dashCharges = Mathf.Clamp(_dashCharges + n, 0, MaxDashCharges);
+    }
+
+    /// <summary>Scale run speed (the Run Speed shot) — the live speed as well as the multiplier the next equip reads.</summary>
+    public void scale_run_speed(float f)
+    {
+        run_mult *= f;
+        _runSpeedV *= f;
+    }
+
+    /// <summary>Try to spend <paramref name="cost"/> Lira (the stalls). True + deducts if affordable; else false.</summary>
+    public bool spend_lira(int cost)
+    {
+        if (cost < 0 || lira < cost)
+            return false;
+        lira -= cost;
+        GetNodeOrNull<HUD>("/root/HUD")?.SetLira(lira);
+        return true;
+    }
 
     /// <summary>Global cooldown fairness: an action whose windup is interrupted by a stagger BEFORE its hit came out
     /// never actually fired, so it shouldn't burn its cooldown. An ATTACK still short of its hit frame
@@ -700,7 +740,7 @@ public partial class Player : Combatant
         }
     }
 
-    /// <summary>The jump velocity to apply, folding in High Jump (all jumps) and, for a GROUND jump, a one-shot Slam Spring (consumed here).</summary>
+    /// <summary>The jump velocity to apply, folding in the Jump Height shot (all jumps) and, for a GROUND jump, a one-shot Slam Spring (consumed here).</summary>
     private float AppliedJumpVelocity(bool ground)
     {
         float v = _jumpVelocity * jump_velocity_bonus;
@@ -1185,6 +1225,7 @@ public partial class Player : Combatant
         _parryLeft = 0.0f;
         damage_mult = 1.0f;
         run_mult = 1.0f;
+        dash_bonus = 0;
         damage_taken_mult = 1.0f;
         slam_damage_mult = 1.0f;
         attack_reach_mult = 1.0f;
@@ -1222,7 +1263,11 @@ public partial class Player : Combatant
             return;
         }
 
-        _dashCd = Mathf.Max(_dashCd - delta, 0.0f);
+        if (_dashCharges < MaxDashCharges && (_dashCd -= delta) <= 0.0f)
+        {
+            _dashCharges += 1; // one charge back per cooldown; keep timing if more are still missing
+            _dashCd = _dashCharges < MaxDashCharges ? _dashCooldown : 0.0f;
+        }
         if (!HoldingSpecial())
             _specialCd = Mathf.Max(_specialCd - delta, 0.0f); // a held special's cooldown starts on release
         _launchCdLeft = Mathf.Max(_launchCdLeft - delta, 0.0f);
@@ -1423,7 +1468,7 @@ public partial class Player : Combatant
                     return;
                 }
             }
-            if (_dashCd <= 0.0f)
+            if (_dashCharges > 0)
             {
                 Enter(State.DASH);
                 return;
@@ -1623,7 +1668,7 @@ public partial class Player : Combatant
                         return;
                     }
                 }
-                if (_dashCd <= 0.0f)
+                if (_dashCharges > 0)
                 {
                     Enter(State.DASH);
                     return;
@@ -1644,7 +1689,7 @@ public partial class Player : Combatant
             AdvanceCombo();
             return;
         }
-        if (Input.IsActionJustPressed("dash") && _dashCd <= 0.0f)
+        if (Input.IsActionJustPressed("dash") && _dashCharges > 0)
         {
             Enter(State.DASH);
             return;
@@ -1995,7 +2040,9 @@ public partial class Player : Combatant
             case State.DASH:
                 _dashLeft = _dashTime;
                 _dashAnimLeft = Mathf.Max(_dashAnimTime, _dashTime);
-                _dashCd = _dashCooldown;
+                if (_dashCharges == MaxDashCharges)
+                    _dashCd = _dashCooldown; // the refill clock starts with the first charge spent
+                _dashCharges -= 1;
                 _bufferedAttack = false;
                 _sfx.play("dash");
                 foreach (var p in _passives)

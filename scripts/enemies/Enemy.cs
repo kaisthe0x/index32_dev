@@ -87,7 +87,7 @@ public partial class Enemy : Combatant
 
 	[ExportGroup("Behaviour")]
 	[Export] public bool aggro { get; set; } = true;
-	[Export] public float aggro_range { get; set; } = 480.0f;
+	[Export] public float aggro_range { get; set; } = 900.0f; // how far away an enemy notices + chases the player (px)
 	[Export] public float alert_duration { get; set; } = 5.0f;
 	[Export] public bool friendly_fire { get; set; }
 	/// <summary>World Y past which an enemy has fallen off into the void below the platforms → it dies (see _PhysicsProcess).

@@ -61,11 +61,11 @@ tools/                Generator + verification scripts (not shipped)
 | A / D | `move_left` / `move_right` | |
 | S / ↓ | `drop` | Tap to fall through the one-way platform you're on (ground only; a no-op on solid floor). Controller: D-pad down / left-stick down; remappable in the Input Map |
 | Space | `jump` | Press again in the air to **double jump** (`max_air_jumps`) — the air jump re-boosts and spawns the character's jump particles; the ground jump is silent |
-| Shift | `dash` | Has a cooldown. **Dash into a launch orb** and it magnets you through and flings you up + forward (see Launch orbs) |
+| Shift | `dash` | Uses a **dash charge** — you hold 1 (the **Extra Dash** shot adds more); a spent charge refills after the dash cooldown, one at a time. **Dash into a launch orb** and it magnets you through and flings you up + forward (see Launch orbs) |
 | Left mouse | `attack` | The current *attack* — each press advances the combo (or, for a `"flurry"` attack like Khalid's, **hold** to keep punching). **Ground only** by default — an attack whose Action is tagged `"air"` is the exception and can be used mid-air (`Player._air_attack_ok`). *(No shipped attack is currently tagged `"air"`; the tag now lives on the Zahluq **special**.)* |
 | Right mouse | `special` | On the ground: the current *special* (committed full-animation move) — **no Ruh cost, but every special has its own cooldown** (3–12s; shown by the special bar in the HUD gauge). **In the air: performs the ground slam instead** (characters with a `slam` sheet) |
 | Ctrl (RT / R2) | `surge` | Fires the equipped **Surge** — a passive ability (**Aegis** = ~5s invincibility; **Jnoon** = ~5s ×2 damage dealt; **Asra** = ~5s ×2 move speed) applied *without* interrupting your attacking/moving — **except Nem**, a committed sleep that locks you in place and restores one health block over 5s (a hit wakes/cancels it), and **Wara**, which *arms* and waits: the next enemy hit is negated and AoE-stuns everyone near you (2s). **Spends one Ruh charge per use** — Ruh is the only gate, no cooldown. RT on the pad because dash owns LT |
-| E | `interact` | Open the **mystery box** when standing next to it (spend fada figs; registered in code by `MysteryBox`) |
+| E | `interact` | Use the stall you're standing at — the **mystery box** (spend fada figs) or **Needle Point** (the shot menu; E / Esc closes it). Registered in code by `Stall` |
 | Z / X | `debug_damage` / `debug_heal` | Dev only |
 | 0 | `debug_respawn` | Dev only — rebuild the current level fresh |
 
@@ -134,8 +134,8 @@ you, and **each use spends one Ruh charge** — Ruh is the only gate, no cooldow
 *only* from buffs. **Killing an enemy** pays **Lira** (the common currency) and, at a per-enemy chance, a **Fada
 Fig** (the rare one) — see below. **Buffs come from the mystery box** in the arena: stand next to it and press **E**
 to **spend** figs on a gamble — a win opens a **pick-1-of-3 menu** from the POWERFUL pool (above-rare tiers), each
-win making the next rarer. *(Lira has nothing to buy yet: the Needle Point and Dekken stalls are the next build
-steps — `docs/game-loop.md` § Economy.)* Moves are independent — they **upgrade by layering
+win making the next rarer. **Lira buys shots at Needle Point** — temporary stat boosts (§ Needle Point shots below);
+the Dekken perk shop is the next build step (`docs/game-loop.md` § Economy). Moves are independent — they **upgrade by layering
 buffs**, not by turning into a different move (Rope Dart & Redere Frisbee are now standalone swaps, not
 successors). Take 0 HP and the run restarts (a fresh arena; buffs cleared, HP + Ruh refilled). All of this — the
 spawner, the enemy roster, the buff pools, the box, the attack picker — lives in
@@ -160,7 +160,7 @@ tint (`BackgroundTintAlpha`). (The old animated orbiting planet was removed; its
   [`ArcFlight`](scripts/collectibles/ArcFlight.cs), the shared quadratic-Bezier flight with an absorb at the end —
   with its arc and flight time jittered so a multi-coin drop fans out. It's **banked on arrival**
   (`Player.collect_lira` → `HUD.SetLira`) with the `lira_collect` cue (**PLACEHOLDER** — the fig pickup sound,
-  pitch-varied ±8 % so a streak doesn't machine-gun one note). Nothing spends Lira yet.
+  pitch-varied upward only, 0 … +8 %). Needle Point spends it (`Player.spend_lira`).
 - **Fada Figs** — the rare currency: a kill also drops **one** fig at the enemy's `Enemy.fig_chance` (**10 %**
   default; per-kit override — **Kebus 25 %**, the hardest grunt). A fig
   ([`scenes/fada_fig.tscn`](scenes/fada_fig.tscn), [`scripts/collectibles/FadaFig.cs`](scripts/collectibles/FadaFig.cs),
@@ -845,7 +845,7 @@ together because an `extends` chain must be one language (see `docs/csharp-migra
 - a **granted buff** — a `Passive` subclass, added at runtime via `Player.add_passive()` when it's granted (today:
   picked from the mystery box's menu, built by `BuffCatalog.Make`), and cleared on run restart (each passive's `Teardown` runs so it can undo lingering effects). `begin_run` clears them
   FIRST (`ClearPassives`), before resetting stats — otherwise each undo lands on already-reset stats and applies
-  twice (the old bug: an Extra Air Jump left the next run at −1 air jumps, High Jump at ~0.7× height).
+  twice (the old bug: an extra-air-jump buff left the next run at −1 air jumps, a jump-height one at ~0.7× height).
 
 ```csharp
 // Illustration (not in the codebase): a lifesteal rule.
@@ -913,6 +913,31 @@ Two ways a buff acts (either/both): **numbers** — override `ModifyTuning` to c
 (folded in last inside `resolve_tuning`); **behaviour** — override an event hook. The buffs themselves are
 the tiered catalog below.
 
+#### Needle Point shots (`configs/NeedlePoint.cs`)
+
+The **stat stall** (`docs/game-loop.md` § Economy): temporary numbers on Khalid's body, bought with Lira. The whole
+catalog is always on sale — **Extra Dash, Extra Jump, Jump Height, Run Speed, Reach, Attack Damage, Slam Damage** — each a `ShotDef` (`records/shots/`) in `NeedlePoint.SHOTS`: which `ShotStat` it changes, its value at
+each **level** (index 0 = grey, then green / blue / purple / gold), how many rounds it lasts (1 each for now) and its
+level-0 Lira price. Prices/costs are consts there too (`LevelPriceGrowth` ×1.5 per level,
+`UPGRADE_FIGS` 3 / 5 / 8 / 12). All placeholders.
+
+- **Open only in the break between rounds** — `RunManager` closes the stall at `StartRound` and reopens it at
+  `ClearRound` (`Stall.SetOpen`: dimmed, "CLOSED" prompt, E ignored). What you buy there is **active at once** and
+  lasts through the next round(s), so there's never a "this round or next?" question.
+- **The rules** live in `ShotLedger` (`scripts/run/`, one per run, owned by `RunManager`, ticked at `ClearRound`):
+  **BUY** (Lira) activates the shot for its full duration; buying it again renews it (refused while already full) —
+  never stacks. **UPGRADE** (figs) raises its level for the run and grants it at the new level the same way. Each
+  round clear spends a round; a shot out of rounds ends.
+- **The effect** is a `Shot` (`scripts/abilities/`), a `Passive` the ledger adds/removes (`Player.add_passive` /
+  `remove_passive`): Setup applies the stat, Teardown undoes it exactly — `add_dash_charges`, `add_air_jumps`,
+  `jump_velocity_bonus`, `scale_run_speed`, `attack_reach_mult`, `damage_mult`,
+  `slam_damage_mult`.
+- **Dash charges:** Khalid holds `1 + dash_bonus` dashes; each spends one, and a spent one refills after the dash
+  cooldown, one at a time — so with one charge it plays exactly like the old single cooldown.
+- **The stall** is `NeedlePointStall` (a `Stall` — the shared stand-and-press-E base the mystery box uses too), placed
+  near spawn on the other side from the box; its `NeedlePointMenu` lists every shot (name in its level colour, effect,
+  status, BUY / UPGRADE) and pauses the game. Active shots show in the HUD's top-right list with their rounds left.
+
 #### The tiered buff catalog (`configs/BuffCatalog.cs`)
 
 The **pivot's** buff system (`docs/buff-catalog.md`) is a data registry: `BuffCatalog.FACTORIES` maps a
@@ -920,19 +945,13 @@ The **pivot's** buff system (`docs/buff-catalog.md`) is a data registry: `BuffCa
 factory's arrays; `Family` gives replace-in-place so a higher tier supersedes a lower). Most entries reuse a
 **generic buff class** rather than a bespoke one:
 
-- **`StatBuff`** — scales one `SegmentData` stat (Damage/Reach/Knockback/Stun) by a per-tier mult via
-  `ModifyTuning` (Long Reach).
 - **`LifestealBuff`** — heals a per-tier fraction of damage dealt, via `OnHitDealt` (Bloodrush, Skim).
 - **`InvulnBuff`** — grants an i-frame window on its bound `Trigger` (Dash/Jump/Slam/Hit immunity, plus
   **Follow-through** on `OnAnimEnd`), via `Player.grant_invuln`.
-- **`ExtraAirJumpBuff`** — Setup adds air jumps (`Player.add_air_jumps`), Teardown restores.
-- **`RunStatBuff`** — Setup/Teardown scales a run-scoped Player mult-field: **High Jump** (`jump_velocity_bonus`,
-  folded into the applied jump velocity) and **Slam Force** (`slam_damage_mult`, read in `SlamRelease`).
 - **`SlamSpringBuff`** — `OnSlamLand` primes the next ground jump's height (`Player.set_jump_spring`, one-shot).
 - **`SlamQuakeBuff`** — `OnSlamLand` stuns nearby enemies (`Player.stun_nearby`, the surge stun-sweep pattern).
 - **`SlamWrathBuff`** — `OnSlamLand` opens a timed attack-damage window; self-contained (ticks in `Physics`,
   boosts via `ModifyTuning` gated to `"attack"`).
-- **`ChainDashBuff`** — `OnDash` zeroes the dash cooldown (`Player.reset_dash_cooldown`); minimal (tier riders TODO).
 - **`OverchargeBuff`** — Bakshen `OnHitDealt` cuts the attack cooldown (`Player.reduce_attack_cooldown`; Epic = full).
 - **`InstantResetBuff`** — Zahluq `OnMiss` fully resets the attack cooldown (`reduce_attack_cooldown`, huge value);
   Zahluq fires one hitbox per swing so a whiff = one reset. **Parked** with the other move-gated buffs (never
@@ -1372,7 +1391,7 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
   `FloorSnapLength=16` + `FloorConstantSpeed` so they glide up/down slopes without
   floating off descents or crawling up climbs.
 - **`aggro`** (default **on** — enemies are hunters): it *chases* the player up to
-  `aggro_range` (the **give-up leash**: get farther and it drops back to patrol), instead of only
+  `aggro_range` (900 px; the **give-up leash**: get farther and it drops back to patrol), instead of only
   fighting whoever wanders into its line. It chases to its **attack reach** — a *far-attack* mob closes
   only to **firing range** (`far_range`) and holds (it won't run its bow into your face), a
   *close-only* mob closes to `close_range` and swings. It's a per-instance export, so set it **false**
