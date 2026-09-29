@@ -28,7 +28,11 @@ public static class Combat
         EnemyHurt = 1u << 4,  // enemies receive hits here
         PlayerHit = 1u << 5,  // player attack boxes / friendly projectiles
         EnemyHit = 1u << 6,   // enemy attack boxes / hostile projectiles
+        Platform = 1u << 7,   // one-way (jump-through) terrain tiles — bodies stand on them; drop-through clears it briefly
     }
+
+    /// <summary>What a body stands on: solid terrain + one-way platforms.</summary>
+    public const uint GroundMask = (uint)(Layer.World | Layer.Platform);
 
     /// <summary>
     /// Layer an attack box / projectile lives on. Friendly (player) boxes hit enemies; hostile boxes hit
@@ -53,6 +57,22 @@ public static class Combat
     // --- combat feel (shared by Player and Enemy hit reactions) ---
     /// <summary>Upward pop on a knockback, as a fraction of the horizontal shove, so a hit lifts the victim a little and reads.</summary>
     public const float KnockbackPop = 0.25f;
+
+    /// <summary>Slope handling shared by EVERY body (player + enemies), so they agree on what's walkable. Terrain tiles
+    /// get traced collision (tools/gen_terrain_tileset.gd), so painted ramps are real slopes: a 1:1 (45°) ramp must
+    /// count as FLOOR, hence a limit a bit above 45° (Godot's default is exactly 45°, which makes 45° a coin-flip wall).
+    /// Snap keeps a body glued to the ground walking DOWN a slope; constant speed stops it crawling UP one.</summary>
+    public const float FloorMaxAngleDeg = 50.0f;
+    public const float FloorSnapLength = 16.0f;
+
+    /// <summary>Apply the shared slope handling to a ground body.</summary>
+    public static void ApplyFloorHandling(CharacterBody2D body)
+    {
+        body.UpDirection = Vector2.Up;
+        body.FloorMaxAngle = Mathf.DegToRad(FloorMaxAngleDeg);
+        body.FloorSnapLength = FloorSnapLength;
+        body.FloorConstantSpeed = true;
+    }
     /// <summary>A knockback always freezes the victim at least this long, or the AI/input overwrites the shove next frame.</summary>
     public const float MinStagger = 0.18f;
     /// <summary>How long a discrete melee strike's hitbox stays live for one swing.</summary>

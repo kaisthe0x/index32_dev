@@ -24,9 +24,9 @@ arena crawler. **Levels/exits are retired:** it's now ONE arena and **endless nu
 style — each round sends a hidden quota of enemies, and you survive as far as you can. Cast **specials** (free — no Ruh — but each has its own **cooldown**), and
 spend **Ruh** on your **Aegis** surge for an on-demand burst of invincibility (each use costs one
 **Ruh** charge — you start a run with 3, and refill Ruh by **landing hits**; Ruh is the only gate, no
-cooldown). Killing enemies drops **Fada Figs** + (at a ramping chance) a random **buff** you grab off the
-ground. Attack is chosen at run start and locked; die and the run restarts. *(The old reward-door / next-level
-machinery is parked, not wired — see `scripts/run/README.md`.)*
+cooldown). Killing enemies pays **Lira** (coins that fly to you) and sometimes a rare **Fada Fig**, spent on
+buffs. Attack is chosen at run start and locked; die and the run restarts. *(The old reward-door / next-level
+machinery is deleted.)*
 
 > Potential names for the game:
 > - Index32
@@ -46,7 +46,7 @@ resources/enemies/    GENERATED enemy SpriteFrames -- do not hand-edit
 scenes/               player, level, hud
 scripts/              player, hud
 scripts/run/          the roguelite run: arena, round loop + spawner, Ruh, buff menu + mystery box, attack picker (see scripts/run/README.md)
-scripts/abilities/    Passive/Buff base (C#) + reward passives (Leech/ParryMend/ReaperEdge.cs) + reward-tier/trigger types (RewardTypes.cs)
+scripts/abilities/    Passive/Buff base (C#) + the buff classes + tier/trigger types (RewardTypes.cs)
 scripts/combat/       Hurtbox, hitbox, Combatant base, health bar, floating text, status overlay — all C# now (constants -> configs/Combat.cs)
 scripts/enemies/      Enemy base + projectile
 sprites/characters/   Source pixel-art sheets, one folder per character
@@ -61,11 +61,11 @@ tools/                Generator + verification scripts (not shipped)
 | A / D | `move_left` / `move_right` | |
 | S / ↓ | `drop` | Tap to fall through the one-way platform you're on (ground only; a no-op on solid floor). Controller: D-pad down / left-stick down; remappable in the Input Map |
 | Space | `jump` | Press again in the air to **double jump** (`max_air_jumps`) — the air jump re-boosts and spawns the character's jump particles; the ground jump is silent |
-| Shift | `dash` | Has a cooldown. **Dash into a launch orb** and it magnets you through and flings you up + forward (see Launch orbs) |
+| Shift | `dash` | Uses a **dash charge** — you hold 1 (the **Extra Dash** shot adds more); a spent charge refills after the dash cooldown, one at a time. **Dash into a launch orb** and it magnets you through and flings you up + forward (see Launch orbs) |
 | Left mouse | `attack` | The current *attack* — each press advances the combo (or, for a `"flurry"` attack like Khalid's, **hold** to keep punching). **Ground only** by default — an attack whose Action is tagged `"air"` is the exception and can be used mid-air (`Player._air_attack_ok`). *(No shipped attack is currently tagged `"air"`; the tag now lives on the Zahluq **special**.)* |
 | Right mouse | `special` | On the ground: the current *special* (committed full-animation move) — **no Ruh cost, but every special has its own cooldown** (3–12s; shown by the special bar in the HUD gauge). **In the air: performs the ground slam instead** (characters with a `slam` sheet) |
 | Ctrl (RT / R2) | `surge` | Fires the equipped **Surge** — a passive ability (**Aegis** = ~5s invincibility; **Jnoon** = ~5s ×2 damage dealt; **Asra** = ~5s ×2 move speed) applied *without* interrupting your attacking/moving — **except Nem**, a committed sleep that locks you in place and restores one health block over 5s (a hit wakes/cancels it), and **Wara**, which *arms* and waits: the next enemy hit is negated and AoE-stuns everyone near you (2s). **Spends one Ruh charge per use** — Ruh is the only gate, no cooldown. RT on the pad because dash owns LT |
-| E | `interact` | Open the **mystery box** when standing next to it (spend fada figs; registered in code by `MysteryBox`) |
+| E | `interact` | Use the stall you're standing at — the **mystery box** (spend fada figs), **Needle Point** (shots) or **Dekken** (perks); a shop menu closes with E / Esc. Registered in code by `Stall` |
 | Z / X | `debug_damage` / `debug_heal` | Dev only |
 | 0 | `debug_respawn` | Dev only — rebuild the current level fresh |
 
@@ -84,7 +84,7 @@ mouse cursor does **not** steer facing or aim (a previous mouse-look experiment 
 removed). If you want cursor-aim back for keyboard+mouse without breaking controller
 play, the clean way is "last input device wins" — ask and I'll wire it.
 
-**Launch orbs — magnet traversal (`State.LAUNCH`).** Levels place **launch orbs**
+**Launch orbs — magnet traversal (`State.LAUNCH`).** Layouts place **launch orbs**
 (`scripts/things/LaunchOrb.cs`, `LaunchOrb`) — levitating orbs above/between platforms. **Dash into (or
 near) one** and it acts as a **magnet**: it sucks Khalid through and flings him out the far side with the
 orb's **own set impulse** — a strong **up + forward** along his facing (`SwingOrb.launch_up` /
@@ -98,8 +98,8 @@ platform. Fully automatic — no aiming, no pumping. (This replaced an earlier c
   `LAUNCH_*` consts at the top of `Player.cs` plus each orb's `launch_*` exports.
 - **The orb is dumb by design** (`LaunchOrb`). It bobs and joins the `"orbs"` group; the Player owns the
   range test (`_orb_in_pull_range`, the way it scans `"enemies"`), drives which orb is lit (`set_near`),
-  and owns the magnet/launch. Adding one to a level is a single `Vector2` in that level's **`orbs`** list
-  (`scripts/run/Levels.cs`); RunManager instantiates them in `_build_level`.
+  and owns the magnet/launch. Adding one to a layout is a `Marker2D` in the layout scene's **`orb`**
+  group; `RunManager.BuildArena` instantiates a `LaunchOrb` at each.
 - **The orb reshades to the power palette AND glows.** Its red art is baked into its *texture* (which
   `VfxPalette.RecolorTree` can't touch) **and is dark** (luma ~0.19 — a hue-swap alone rendered
   near-black). So it wears `vfx/shaders/thing_recolor.gdshader`, which paints every pixel a single
@@ -131,40 +131,48 @@ run with 3 Ruh charges** — the surge meter, shown in charges (100 each), no de
 **Specials cost no Ruh but each has its own cooldown** (shown by the special bar in the HUD). Ruh instead fuels the **Aegis
 surge** (a passive on its own button): it grants ~5s of invincibility on demand without interrupting
 you, and **each use spends one Ruh charge** — Ruh is the only gate, no cooldown (see below). **HP is separate**: damage hits it only, heals
-*only* from buffs. **Killing an enemy** drops **Fada Figs** (the run currency). **Buffs come from two places:**
-(1) as you collect figs, hitting escalating **lifetime milestones** (25 / 55 / 105 / …) pauses the game and pops a
-**free pick-1-of-3 MILD buff menu** (non-invuln, Common/Rare) — the figs aren't spent; (2) a **mystery box** in the
-arena you stand next to and press **E** to **spend** figs on a **stingy gamble** — most pulls dud, but a win opens the
-**same pick-1-of-3 menu** from the POWERFUL pool (above-rare, including the invuln windows), each win making the next
-rarer. Moves are independent — they **upgrade by layering
+*only* from buffs. **Killing an enemy** pays **Lira** (the common currency) and, at a per-enemy chance, a **Fada
+Fig** (the rare one) — see below. **Buffs come from the mystery box** in the arena: stand next to it and press **E**
+to **spend** figs on a gamble — a win opens a **pick-1-of-3 menu** from the POWERFUL pool (above-rare tiers), each
+win making the next rarer. **Lira buys shots at Needle Point** (temporary stat boosts) **and perks at Dekken** (utility —
+a heal, a teleport, a shield …); both are open only in the break between rounds (§ Needle Point shots / § Dekken perks
+below, `docs/game-loop.md` § Economy). Moves are independent — they **upgrade by layering
 buffs**, not by turning into a different move (Rope Dart & Redere Frisbee are now standalone swaps, not
 successors). Take 0 HP and the run restarts (a fresh arena; buffs cleared, HP + Ruh refilled). All of this — the
 spawner, the enemy roster, the buff pools, the box, the attack picker — lives in
 [`scripts/run/`](scripts/run/README.md) (`RunManager` is `arena.tscn`'s root; `EnemyKits` is the roster, `MysteryBox`
-+ `BuffCatalog` the powerful gamble, `RewardUI` the buff menu; the old `Levels` / `Rewards` / `RewardsCatalog` /
-`Build` reward-door code is **parked, not wired**, kept for the pivot's reward phase). The `.tscn` stays minimal because the editor
++ `BuffCatalog` the powerful gamble, `RewardUI` the buff menu). The `.tscn` stays minimal because the editor
 clobbers it, so the level content is built in code from that data. The **look** of the terrain itself is the
 hand-painted `TileMapLayer` in each stage layout (see the run README); the old procedural tileset/plant/tree
 "skin" is **retired**, and `configs/Terrain.cs` now only holds the backdrop config.
 The **background** (`RunManager.BuildBg`/`LayoutBg`, on a `-100` CanvasLayer) is a **single** star image
 (`assets/terrain/stage1/bg1.png`, no tiling) centred and scaled to `Terrain.BackgroundZoom` of the viewport
 (**1.0 = fills**, lower = zoomed out a little, over a dark backing sampled from the image's own edge so the
-gap never reads as a cut). Over it sits an optional **animated element** — an orbiting planet
-(`stage1/planet_moon.png`, a 10-frame 48px strip) placed by `BackgroundAnimRatio` *within the image's rect*
-and scaled to match it. Both live in `Terrain.cs`, re-layout on viewport resize, under the per-level colour
-tint (`BackgroundTintAlpha`).
+gap never reads as a cut). It lives in `Terrain.cs`, re-layouts on viewport resize, under the per-level colour
+tint (`BackgroundTintAlpha`). (The old animated orbiting planet was removed; its master is in `index32_art`.)
 
-**Fada Figs** — the collectible run currency (the Chest spends these; the old "Lira" idea is retired). Every enemy
-drops some on death: `RunManager.OnEnemyDied` → `SpawnFadaFigs` scatters `Enemy.fada_fig_drop` copies of
-[`scenes/fada_fig.tscn`](scenes/fada_fig.tscn) ([`scripts/collectibles/FadaFig.cs`](scripts/collectibles/FadaFig.cs), a
-`RigidBody2D`) which pop out, bounce/tumble, and settle on the terrain. The player collects one by **physically
-touching** it — the Fada Fig's child `Pickup` Area detects the `PlayerBody`, calls `Player.collect_fada_fig`, plays
-`fada_fig_collect` (placeholder sfx), and frees. `FadaFig.magnetize(target)` is a ready hook for a FUTURE reward that
-makes loose Fada Figs fly to the player like a Ruh soul (not wired yet). Drop counts default by advisory
-`EnemyTier` (`RunManager.FadaFigsForTier`: Chip 1 / Mid 2 / Strong 3), overridable per kit — **Wardens drop 12**
-(`KROJ` kit). The spendable balance shows on the HUD beside the fig ring (`HUD.SetFadaFigs`); `Player.begin_run` zeroes it.
-The sprite wears a shared **`vfx/shaders/world/pulse_glow.gdshader`** material (assigned in `FadaFig._Ready`, one
-instance for all Fada Figs) that breathes its brightness above 1.0 so it **blooms** — reads as an energy mote and pops.
+**The two currencies** (`docs/game-loop.md` § Economy). Both are dropped in `RunManager.OnEnemyDied` →
+`SpawnDrops`, and `Player.begin_run` zeroes both.
+
+- **Lira** — the common currency: **every kill** pays `Enemy.lira_drop` coins (defaults by advisory `EnemyTier`,
+  `RunManager.LiraForTier`: Chip 1 / Mid 2 / Strong 3, overridable per kit — **Wardens drop 12**, `KROJ`). Each coin
+  ([`scenes/lira.tscn`](scenes/lira.tscn), [`scripts/collectibles/Lira.cs`](scripts/collectibles/Lira.cs), art
+  `assets/things/lira.png`) pops off the corpse and **flies to Khalid on the Ruh soul's curve** — both extend
+  [`ArcFlight`](scripts/collectibles/ArcFlight.cs), the shared quadratic-Bezier flight with an absorb at the end —
+  with its arc and flight time jittered so a multi-coin drop fans out. It's **banked on arrival**
+  (`Player.collect_lira` → `HUD.SetLira`) with the `lira_collect` cue (**PLACEHOLDER** — the fig pickup sound,
+  pitch-varied upward only, 0 … +8 %). Needle Point spends it (`Player.spend_lira`).
+- **Fada Figs** — the rare currency: a kill also drops **one** fig at the enemy's `Enemy.fig_chance` (**10 %**
+  default; per-kit override — **Kebus 25 %**, the hardest grunt). A fig
+  ([`scenes/fada_fig.tscn`](scenes/fada_fig.tscn), [`scripts/collectibles/FadaFig.cs`](scripts/collectibles/FadaFig.cs),
+  a `RigidBody2D`) pops out, bounces/tumbles, and settles on the terrain; the player collects it by **physically
+  touching** it (the child `Pickup` Area → `Player.collect_fada_fig`, `fada_fig_collect` placeholder sfx).
+  `FadaFig.magnetize(target)` is a ready hook for a future perk that pulls loose figs in. The mystery box spends
+  them (`Player.spend_fada_figs`).
+
+Both balances show top-left on the HUD. The fig sprite wears a shared **`vfx/shaders/world/pulse_glow.gdshader`**
+material (one instance for all figs; the Lira coins share their own) that breathes its brightness above 1.0 so it
+**blooms** — reads as an energy mote and pops.
 
 ---
 
@@ -607,7 +615,7 @@ on the impact frames (`3–4`). Keep those frame ranges consistent so `slam_hold
 (the last descent frame) lines up.
 
 **Ground attacks hug the terrain.** Two shared building blocks in `scripts/combat/`:
-[`GroundProbe`](scripts/combat/GroundProbe.cs) (`TryAt` — one downward `World` ray → surface point +
+[`GroundProbe`](scripts/combat/GroundProbe.cs) (`TryAt` — one downward `Combat.GroundMask` ray (solid terrain + one-way platforms) → surface point +
 normal, the single "where's the ground here?") and [`GroundContour`](scripts/combat/GroundContour.cs)
 (walks `GroundProbe` across a width into one contiguous contour centred on the impact, stopping at the
 first gap each side so an effect doesn't leap a pit). Used three ways:
@@ -831,24 +839,21 @@ such rule bundle; the Player holds a **list** of them (`_passives`) and dispatch
 Two flavours, identical interface:
 
 The passive/buff stack + the Player are **C#** now (`scripts/abilities/*.cs`, `Player.cs`) — they ported
-together because an `extends` chain must be one language (see `docs/csharp-migration.md`). Concrete passives
-are `[GlobalClass]` so the still-GDScript `Rewards` service can `Leech.new()` them by name.
+together because an `extends` chain must be one language (see `docs/csharp-migration.md`).
 
 - a character's **intrinsic ability** — a `CharacterAbility` (which *is* a `Passive`) returned by
   `Player.CharacterAbilityFor(id)`, seeded FIRST in the list. Khalid ships without one.
-- a **reward-granted passive** — a `Passive` subclass, added at runtime via `Player.add_passive()` when its
-  reward is taken (a reward row's `passive: "<id>"` → `Rewards._make_passive` `.new()`s the C# class), and
-  cleared on run restart (each passive's `Teardown` runs so it can undo lingering effects). `begin_run` clears them
+- a **granted buff** — a `Passive` subclass, added at runtime via `Player.add_passive()` when it's granted (today:
+  picked from the mystery box's menu, built by `BuffCatalog.Make`), and cleared on run restart (each passive's `Teardown` runs so it can undo lingering effects). `begin_run` clears them
   FIRST (`ClearPassives`), before resetting stats — otherwise each undo lands on already-reset stats and applies
-  twice (the old bug: an Extra Air Jump left the next run at −1 air jumps, High Jump at ~0.7× height).
+  twice (the old bug: an extra-air-jump buff left the next run at −1 air jumps, a jump-height one at ~0.7× height).
 
 ```csharp
-[GlobalClass]
-public partial class Leech : Passive   // (or : Buff for a move-scoped one, : CharacterAbility for intrinsic)
+// Illustration (not in the codebase): a lifesteal rule.
+public partial class Lifesteal : Passive   // (or : Buff for a move-scoped one, : CharacterAbility for intrinsic)
 {
-    public Leech() => Id = "leech";
     public override void OnHitDealt(Player player, float amount, Node target)
-        => player.heal(amount * 0.08f);   // lifesteal (scripts/abilities/Leech.cs)
+        => player.heal(amount * 0.08f);
 }
 ```
 
@@ -881,8 +886,6 @@ i-frames disable the hurtbox, so an avoided hit fires no event) and a level/stag
 
 ### Current passives
 
-- **Leech** (`scripts/abilities/Leech.cs`) — a reward-granted passive: heal 8% of damage dealt, via
-  `OnHitDealt`. The worked example of a rewardable behavioural ability.
 - **No character-intrinsic ability ships** — Khalid has no C# `CharacterAbility`; his
   attacks/specials are all data (`Actions`) + effect scenes. Dropping that file gives him an intrinsic
   hook set. The parked characters in `playground/` had abilities (fall-damage-on-land, a channeled
@@ -892,7 +895,7 @@ i-frames disable the hurtbox, so an avoided hit fires no event) and a level/stag
 ### Buffs — move-scoped passives (`scripts/abilities/Buff.cs`)
 
 A **`Buff` IS a `Passive`** (so it grants, dispatches, and tears down through the exact same machinery —
-a reward row's `passive: "<id>"` → `add_passive`), plus the **item/build layer** the reward doc calls for
+`add_passive`), plus the **item/build layer** the reward doc calls for
 (`docs/rewards-design.md`):
 
 - **`AppliesTo`** — *which* move(s) it touches: a move id (`"twin_reaper"`), a family keyword
@@ -906,15 +909,59 @@ a reward row's `passive: "<id>"` → `add_passive`), plus the **item/build layer
 - **`Tier`** — the doc's rarity ladder, `Common → Rare → Hot → Sensational → Epic` (`RewardTypes.cs`),
   carrying the badge colour (none/blue/orange/purple/red); the concrete buff reads its own `Tier` to scale
   its magnitude (and can add effects per tier, e.g. +bounces).
-- **`DurationLevels`** — the doc's lifetime: `null` = permanent (whole run), `N` = expires after N level
-  advances. `Player.advance_level()` ticks it down each level and tears the buff out when it runs out.
 
 Two ways a buff acts (either/both): **numbers** — override `ModifyTuning` to change a move's tuning dict
-(folded in last inside `resolve_tuning`); **behaviour** — override an event hook. Current buffs:
+(folded in last inside `resolve_tuning`); **behaviour** — override an event hook. The buffs themselves are
+the tiered catalog below.
 
-- **Reaper's Edge** (`ReaperEdge.cs`, `["twin_reaper"]`) — +25% Twin Reaper damage via `ModifyTuning`.
-  The worked example of the numbers path (a single move, unlike the global "+12% attack damage" reward).
-- **Guardian's Mend** (`ParryMend.cs`, `["redere_shield"]`) — a perfect parry also heals, via `OnParry`.
+#### Needle Point shots (`configs/NeedlePoint.cs`)
+
+The **stat stall** (`docs/game-loop.md` § Economy): temporary numbers on Khalid's body, bought with Lira. The whole
+catalog is always on sale — **Extra Dash, Extra Jump, Jump Height, Run Speed, Reach, Attack Damage, Slam Damage** — each a `ShotDef` (`records/shots/`) in `NeedlePoint.SHOTS`: which `ShotStat` it changes, its value at
+each **level** (index 0 = grey, then green / blue / purple / gold), how many rounds it lasts (1 each for now) and its
+level-0 Lira price. Prices/costs are consts there too (`LevelPriceGrowth` ×1.5 per level,
+`UPGRADE_FIGS` 3 / 5 / 8 / 12). All placeholders.
+
+- **Open only in the break between rounds** — `RunManager` closes the stall at `StartRound` and reopens it at
+  `ClearRound` (`Stall.SetOpen`: dimmed, "CLOSED" prompt, E ignored). What you buy there is **active at once** and
+  lasts through the next round(s), so there's never a "this round or next?" question.
+- **The rules** live in `ShotLedger` (`scripts/run/`, one per run, owned by `RunManager`, ticked at `ClearRound`):
+  **BUY** (Lira) activates the shot for its full duration; buying it again renews it (refused while already full) —
+  never stacks. **UPGRADE** (figs) raises its level for the run and grants it at the new level the same way. Each
+  round clear spends a round; a shot out of rounds ends.
+- **The effect** is a `Shot` (`scripts/abilities/`), a `Passive` the ledger adds/removes (`Player.add_passive` /
+  `remove_passive`): Setup applies the stat, Teardown undoes it exactly — `add_dash_charges`, `add_air_jumps`,
+  `jump_velocity_bonus`, `scale_run_speed`, `attack_reach_mult`, `damage_mult`,
+  `slam_damage_mult`.
+- **Dash charges:** Khalid holds `1 + dash_bonus` dashes; each spends one, and a spent one refills after the dash
+  cooldown, one at a time — so with one charge it plays exactly like the old single cooldown.
+- **The stall** is `NeedlePointStall` (a `Stall` — the shared stand-and-press-E base the mystery box uses too), placed
+  near spawn on the other side from the box; its `NeedlePointMenu` lists every shot (name in its level colour, effect,
+  status, BUY / UPGRADE) and pauses the game. Active shots show in the HUD's top-right list with their rounds left.
+
+#### Dekken perks (`configs/Dekken.cs`)
+
+The **perk shop** (`docs/game-loop.md` § Economy): utility and tactics, bought with Lira. Each break it stocks
+`Dekken.StockSize` (5) perks drawn at random from `Dekken.PERKS` — each a `PerkDef` (`records/perks/`): name, text, a
+`PerkDuration` (`Rounds` / `OneUse` / `Run`), rounds, Lira price, one tuning `Value`, and optionally the special it
+needs equipped. The pool: **Heal** (a block, one use), **Fast Travel** (beside the mystery box, one use), **Fig
+Chance** (+5 % fig odds on every kill, whole run), **Magnet** (figs within 400 px fly to you), **Shield** (blocks the
+first hit each round), **Prepared** (your surge fires free as each round starts — Wara arms), **Wider Pull** (Come
+Closer +2 targets; only stocked with Come Closer). All placeholders.
+
+- **Open only in the break**, like Needle Point (`DekkenStall`, a `Stall`; `RunManager` closes/reopens it with the
+  rounds). A perk bought in the break takes effect **at once**.
+- **The rules** live in `PerkLedger` (`scripts/run/`, one per run, ticked at `ClearRound`): the stock (rerolled every
+  break — never a whole-run perk you own, never one gated to a special you don't have), buying (`Blocked` says why a
+  perk can't be bought: FULL HEALTH / OWNED / ACTIVE), timed perks spending a round per clear, whole-run perks leaving
+  the pool. One-use perks just happen (`Player.heal`, `RunManager.FastTravelToBox`).
+- **The effect** of a lasting perk is a `Perk` (`scripts/abilities/`), a `Passive`: Setup/Teardown set and undo a
+  Player field (`fig_chance_bonus` — added in `RunManager.OnEnemyDied`; `fig_magnet_range` — read by each `FadaFig`,
+  whose `Collector` RunManager sets; `hit_shields` — spent in `Player.OnHurt`; `magnet_target_bonus`), and the new
+  `Passive.OnRoundStart` hook (dispatched by `RunManager.StartRound` → `Player.notify_round_start`) re-arms the Shield
+  and fires Prepared (`Player.surge_free`, no Ruh).
+- **The menu** is `DekkenMenu`, on the same `StallMenu` frame as Needle Point's. Active perks show in the HUD's
+  top-right list (rounds left, or RUN).
 
 #### The tiered buff catalog (`configs/BuffCatalog.cs`)
 
@@ -923,25 +970,18 @@ The **pivot's** buff system (`docs/buff-catalog.md`) is a data registry: `BuffCa
 factory's arrays; `Family` gives replace-in-place so a higher tier supersedes a lower). Most entries reuse a
 **generic buff class** rather than a bespoke one:
 
-- **`StatBuff`** — scales one `SegmentData` stat (Damage/Reach/Knockback/Stun) by a per-tier mult via
-  `ModifyTuning` (Long Reach).
 - **`LifestealBuff`** — heals a per-tier fraction of damage dealt, via `OnHitDealt` (Bloodrush, Skim).
 - **`InvulnBuff`** — grants an i-frame window on its bound `Trigger` (Dash/Jump/Slam/Hit immunity, plus
   **Follow-through** on `OnAnimEnd`), via `Player.grant_invuln`.
-- **`ExtraAirJumpBuff`** — Setup adds air jumps (`Player.add_air_jumps`), Teardown restores.
-- **`RunStatBuff`** — Setup/Teardown scales a run-scoped Player mult-field: **High Jump** (`jump_velocity_bonus`,
-  folded into the applied jump velocity) and **Slam Force** (`slam_damage_mult`, read in `SlamRelease`).
 - **`SlamSpringBuff`** — `OnSlamLand` primes the next ground jump's height (`Player.set_jump_spring`, one-shot).
 - **`SlamQuakeBuff`** — `OnSlamLand` stuns nearby enemies (`Player.stun_nearby`, the surge stun-sweep pattern).
 - **`SlamWrathBuff`** — `OnSlamLand` opens a timed attack-damage window; self-contained (ticks in `Physics`,
   boosts via `ModifyTuning` gated to `"attack"`).
-- **`ChainDashBuff`** — `OnDash` zeroes the dash cooldown (`Player.reset_dash_cooldown`); minimal (tier riders TODO).
 - **`OverchargeBuff`** — Bakshen `OnHitDealt` cuts the attack cooldown (`Player.reduce_attack_cooldown`; Epic = full).
 - **`InstantResetBuff`** — Zahluq `OnMiss` fully resets the attack cooldown (`reduce_attack_cooldown`, huge value);
   Zahluq fires one hitbox per swing so a whiff = one reset. **Parked** with the other move-gated buffs (never
   offered yet — the pools exclude move-gated ids). Note: Zahluq is now a *special*, so a future wiring pass must
   make special whiffs emit `OnMiss` and reset the *special* cooldown (see the class doc-comment).
-- **`WiderPullBuff`** — Setup bumps `Player.magnet_target_bonus` (read by `MagnetField` on spawn) for Come Closer.
 - **`MomentumBuff`** — a consecutive-hit damage ramp: `OnHitDealt` stacks a per-tier multiplier (capped at
   `MaxStacks`, applied via `ModifyTuning`), and `OnAnimEnd` resets it when a full swing/combo recovered having
   connected nothing (per-swing whiff, sidestepping the per-hitbox `OnMiss`). `MaxStacks` is a placeholder — tune at playtest.
@@ -1151,24 +1191,36 @@ purple, `> HUE_TOL`) are left untouched.
 Sound effects split **config from code**, mirroring `Emitters`. The **catalog** of what sounds exist
 is pure data in per-area files — **`SfxCharacters`**, **`SfxEnemies`**, **`SfxWorld`** (`configs/Sfx*.cs`)
 — and the autoload **`Sfx`** (`scripts/audio/Sfx.cs`) is just the runtime that plays them. Files live in
-**`sfx/`**. **Per-cue volume**: to tame a too-loud sound in ONE place, add its key to that file's **`VOLUMES`**
-dict (dB, negative = quieter) — e.g. `["buff_levelup"] = -10f`. It's applied on top of any call-site `volume_db`;
-unlisted cues play at 0 dB. (There's also a brick-wall limiter on the whole SFX bus for summed peaks.)
-**Per-cue pitch variation**: each config also has a **`PITCH`** dict — a random range (± fraction, e.g. `0.06` = ±6%)
-re-rolled on every play (`Sfx.play` / `play_at`), so repeated sounds don't sound copy-pasted and a swarm firing one
-cue doesn't phase into a robotic drone. A key can name a **group**: a cue with no entry of its own uses its nearest
-dotted prefix (`kebus.projectile.3` → `kebus.projectile` → `kebus`), so one line covers a whole enemy / attack. Listed
-today: player attacks (Ora Ora ±8%, Twin Reaper / Spear / Rope Dart / Cherry Shots ±6%), dash / jump / hurt ±5%,
-slam impact / shield block / frisbee impact ±4%, enemy death / spawn ±7%, every grunt's attacks ±6%. **Unlisted on
-purpose** (fixed pitch): stingers (round start, level up, deaths), alerts (health warnings), signature specials /
-surges, Wardens, and loops (run, launch-orb hum — re-pitching a loop warbles). Keep ranges subtle (±3–8%).
+**`sfx/`**.
 
-**Loudness reference (measured 2026-09-26).** Judge a new sound by the loudness of its **loudest 0.4 s** (RMS, dB) —
-integrated LUFS is meaningless for short one-shots. The SFX library's **median is ≈ −26.4 dB** (middle half −30 … −24);
-keep a new cue near that unless it's deliberately a headline sound. If it's louder, **trim it in `VOLUMES`** (turning
-down in code is lossless — same as a fader); go back to the DAW only if it must get *louder* or it clips (peaks
-above ≈ −3 dBFS). E.g. the round cues measured 3–4 dB hot and are trimmed −3 / −4 dB. (The library itself spans
-≈ −13 … −43 dB, so a one-time normalisation pass on the older files would tighten the whole mix.)
+**Every cue plays at the same loudness — automatically.** On boot `Sfx` loads every registered cue and measures it
+([`SfxLoudness`](scripts/audio/SfxLoudness.cs): its **peak momentary loudness** — the BS.1770 K-weighted loudness
+(LUFS) of its loudest 400 ms, or its whole length if shorter — the right yardstick for short one-shots, where
+integrated LUFS over a tail of silence isn't), then plays it with the gain that brings it to
+**`Sfx.TargetLoudness`** (−26 LUFS, the library's median, so the overall mix didn't move; clamped to ±24 dB). So a new
+sound needs **no mastering and no trim**: drop the WAV in `sfx/`, register its key, done — it can be any loudness in
+the DAW (just not clipping). Move the whole SFX mix against the music by changing `TargetLoudness`. The make_* players
+(footsteps loop, slam whoosh, orb hum) start at the same normalized volume; a caller adjusts by *adding* to `VolumeDb`.
+
+**This needs the raw audio**, so **WAVs import UNCOMPRESSED** (`compress/mode = Disabled`) — the project's default
+for WAVs (`project.godot` `[importer_defaults]`), so new files get it automatically; the SFX are small, so it costs
+nothing. A cue that can't be measured (a compressed import, or silence) warns once and plays un-normalized.
+
+**Per-cue mix offset**: each config's **`VOLUMES`** dict (dB, negative = quieter) is now only for **deliberate** mix
+choices on top of the normalization — a cue that should sit under or over the rest — never to fix a hot/quiet file.
+Today: the looping footsteps (`run`, −15) and the orb hum (`launch_orb`, −16) are beds under the action. (There's
+also a brick-wall limiter on the whole SFX bus for summed peaks.)
+
+**Per-cue pitch variation**: each config also has a **`PITCH`** dict — a random range as **(min, max) offsets** from
+normal pitch (`new Vector2(-0.06f, 0.06f)` = ±6 %; `new Vector2(0f, 0.08f)` = same-or-higher, up to +8 %), re-rolled on
+every play (`Sfx.play` / `play_at`), so repeated sounds don't sound copy-pasted and a swarm firing one cue doesn't
+phase into a robotic drone. A key can name a **group**: a cue with no entry of its own uses its nearest dotted prefix
+(`kebus.projectile.3` → `kebus.projectile` → `kebus`), so one line covers a whole enemy / attack. Listed today: player
+attacks (Ora Ora ±8%, Twin Reaper / Spear / Rope Dart / Cherry Shots ±6%), dash / jump / hurt ±5%, slam impact /
+shield block / frisbee impact ±4%, enemy death / spawn ±7%, every grunt's attacks ±6%, and the **Lira pickup
+same-or-higher (0 … +8%)** — never below its real pitch. **Unlisted on purpose** (fixed pitch): stingers (round start,
+deaths), alerts (health warnings), signature specials / surges, Wardens, and loops (run, launch-orb hum — re-pitching
+a loop warbles). Keep ranges subtle (3–8%).
 
 Background **music** has its own sibling autoload, **`Music`** (`scripts/audio/Music.cs`), files organised
 **per stage** under **`music/<stage>/`**. A stage's **playlist is auto-discovered** — it's simply the audio
@@ -1363,7 +1415,7 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
   `FloorSnapLength=16` + `FloorConstantSpeed` so they glide up/down slopes without
   floating off descents or crawling up climbs.
 - **`aggro`** (default **on** — enemies are hunters): it *chases* the player up to
-  `aggro_range` (the **give-up leash**: get farther and it drops back to patrol), instead of only
+  `aggro_range` (900 px; the **give-up leash**: get farther and it drops back to patrol), instead of only
   fighting whoever wanders into its line. It chases to its **attack reach** — a *far-attack* mob closes
   only to **firing range** (`far_range`) and holds (it won't run its bow into your face), a
   *close-only* mob closes to `close_range` and swings. It's a per-instance export, so set it **false**
@@ -1777,7 +1829,7 @@ the build basics:
   clears on the last kill (only non-optional enemies count). A **kit** (`EnemyKits.KEBUS`, …) is either an `id` (built
   from the generic `enemy.tscn` with that `enemy_id`) or a `scene` (a custom enemy — `sleeper_enemy.tscn`,
   `diver_enemy.tscn`), plus any Enemy `@export` overrides. `RunManager.SpawnEnemy` applies them; the enemy's
-  `died` signal frees a cap slot and drops Fada Figs (buffs come from the milestone menu + mystery box, not kills).
+  `died` signal frees a cap slot and drops Lira (+ a chance of a Fada Fig) — buffs come from the mystery box, not kills.
 - **Anti-camp cull** — `RunManager.CullOffscreen` silently frees any enemy that stays OFF-SCREEN for
   `OffscreenDespawnTime` (8s) — no death VFX/sfx/figs, and not a kill: it releases its cap slot and returns to the
   round's unspawned quota, so a camper the AI can't reach still gets fresh enemies spawned near them.
@@ -1810,10 +1862,10 @@ the build basics:
 - **Drop through a platform** — tap **`drop` (S / ↓ by default)** while standing on
   a one-way platform to fall through it; on the solid floor it's a no-op. `drop` is
   its own remappable action (controller: D-pad down / left-stick down), so jump is
-  now purely jump. `_drop_through_platform()` finds the platform under the feet via
-  the slide collisions (only bodies in the `oneway_platform` group qualify, so you
-  can't fall through the ground), adds a brief collision exception, and removes it
-  after `DROP_THROUGH_TIME`.
+  now purely jump. `DropThroughPlatform()` checks the floor contact's collision layer —
+  one-way tiles (e.g. tileset2) live on `Combat.Layer.Platform`, solid ground on `World` —
+  and only for a platform clears the Platform bit from the player's mask for
+  `DropThroughTime` (solid ground can never be fallen through).
 
 #### Pixel-crisp motion (why running isn't blurry)
 
@@ -1824,7 +1876,15 @@ Fixes, all in `project.godot`:
 - **`physics/common/physics_interpolation`** — renders nodes smoothly *between*
   physics ticks. This is the main fix. Camera + follow run in `_physics_process`
   so both interpolate together; teleports (spawn, respawn) call
-  `reset_physics_interpolation()` (`_place()`) so they snap instead of smearing.
+  `reset_physics_interpolation()` (`PlaceAt()`) so they snap instead of smearing.
+  > **Never set the `Camera2D`'s Physics Interpolation Mode to Off** (`arena.tscn`). It still moves in the physics
+  > tick, so with interpolation off it steps at 60 Hz while Khalid glides at the monitor's rate — on a 144 Hz
+  > display that's a frozen frame + catch-up jump every couple of frames (measured: 42 freezes / 39 jumps in a 2 s
+  > run-and-stop vs 0 / 0 interpolated): the "camera snaps into place when he stops" jitter.
+  > The follow is a **critically damped spring** (`RunManager.SmoothDamp`, tuned by `CamSmoothTime`, 0.055 s; tighter
+  > `CamSmoothTimeFast` at high vertical speed): it carries velocity, so a sudden jump (the ~76 px blink dash) makes it
+  > accelerate and decelerate smoothly instead of lurching off at full speed, and a stop eases out with no overshoot
+  > (trail ~14 px while running, settles ~0.23 s after a stop). Lower `CamSmoothTime` = tighter.
   > **Gotcha:** anything `add_child`'d and *then* moved to a spawn point (enemy
   > projectiles / the ground wave, a world-anchored particle burst) must call
   > `reset_physics_interpolation()` after positioning — otherwise it interpolates
@@ -1864,7 +1924,7 @@ instead of a fixed fps that desyncs the moment speed changes. `run_anim_speed`
   + `Player.begin_run()` (full HP / a full 3-charge Ruh meter, run-reward buffs cleared). Death is a real fail state
   now (roguelite), not a free respawn.
 - **Death cinematic** — a staged sequence: the death anim **freezes on its first frame** while the
-  camera **punches in hard** (`CAM_ZOOM_DEATH` 3.0 vs the 1.5 rest zoom) and **the whole world fades
+  camera **punches in hard** (`CamZoomDeath` 3.0 vs the 0.5 rest zoom, `CamZoomNormal`) and **the whole world fades
   to black behind him**; then the collapse **plays out on the void**; then respawn clears the black.
   A **death tune** (`Sfx.play("player_death")`) fires in `Player._die`, and the level music **ducks out**
   (`Music.stop`) so it plays clear; the **respawn waits for the whole tune to finish** — `_handle_death`
@@ -1901,7 +1961,7 @@ instead of a fixed fps that desyncs the moment speed changes. `run_anim_speed`
 ## HUD
 
 `scenes/hud.tscn` + `scripts/HUD.cs` — health + Ruh in a **gauge** (bottom-centre, or following
-Khalid — a player setting), the **Esc pause menu**, the **fig ring** (top-left), a top-centre **round block**
+Khalid — a player setting), the **Esc pause menu**, the **Lira + fig counters** (top-left), a top-centre **round block**
 (`ROUND n` in the scanline font, `n LEFT` once few remain, `NEXT ROUND IN n` counting down each breather, `BEST m`;
 pushed by RunManager via `HUD.SetRound`, placed by the `RoundBlockAnchor` / `RoundBlockOffset` consts in `HUD.cs`; each
 new round's number first appears big and glowing at screen centre, then flies up and shrinks into place —
@@ -1930,10 +1990,10 @@ Three rows kept near the action, so you read your state without looking away fro
 
 - **`Screen`** (default) — in the screen HUD (`UiLayers.Hud`, above the low-HP grade), anchored at horizontal
   centre with its top at `GaugeScreenY` of screen height, and scaled about its top-centre by
-  `GaugePixelScale` (1.5 = `RunManager.CamZoomNormal`) so one pip pixel matches one sprite pixel on
-  screen. Screen UI — it ignores the spawn/death camera zooms.
+  `GaugePixelScale` (1.5) — a fixed, readable size. Screen UI — independent of the camera zoom (normal
+  and spawn/death alike).
 - **`FollowKhalid`** — centred `GaugeFeetGap` px under Khalid's feet, in world units (so it matches the
-  sprites' pixel size at any zoom). It hangs off a `Node2D` anchor on its own **camera-following
+  sprites' pixel size at any zoom — and shrinks with them at a zoomed-out camera). It hangs off a `Node2D` anchor on its own **camera-following
   `CanvasLayer`** (`FollowViewportEnabled`, **`UiLayers.Gauge`**: above the low-HP grade, below the screen HUD).
   A **`RemoteTransform2D` added to the Player** (only in this mode) carries the anchor, so it moves
   during physics and **physics interpolation** smooths it in step with Khalid. Deliberately *not* a
@@ -1944,12 +2004,11 @@ full for `GaugeWakeTime` (1.6 s) on any health/Ruh change, and stays full while 
 the low-HP effect is on). Star and orb counts follow `max_health` / `ruh_cap`, so max-HP or Ruh-cap
 buffs add pips.
 
-### The fig ring (screen, top-left)
+### The currency counters (screen, top-left)
 
-`FigRing`: the fada_fig icon inside a ring that fills clockwise toward the next buff milestone
-(`HUD.SetBuffProgress`, pushed by RunManager off the LIFETIME total), with the **spendable balance**
-as a number beside it (`HUD.SetFadaFigs`). Economy, not moment-to-moment survival — so it stays in
-the corner rather than in the gauge.
+Two `CurrencyCounter`s stacked top-left — **Lira** then **Fada Figs** — each its icon + balance, the icon
+popping on a gain (`HUD.SetLira` / `HUD.SetFadaFigs`, pushed by `Player`). Economy, not moment-to-moment
+survival — so it stays in the corner rather than in the gauge.
 
 ### UI style (`scripts/ui/UiStyle.cs`)
 
@@ -1969,8 +2028,7 @@ scales cleanly at any resolution.
 - **`UiStyle.Theme`** — a `Theme` built in code: default font/size, `Label` colours, `PanelContainer`
   frame, `HSeparator` rule, and `Button` states (hover/pressed/focus light the border electric blue).
   Controls under a `CanvasLayer` don't inherit the window's theme, so each menu **root** sets
-  `Theme = UiStyle.Theme` (HUD `_root`, `PauseMenu`, `AttackSelect`, `RewardUI`, the LEVEL UP banner,
-  `PalettePreview`).
+  `Theme = UiStyle.Theme` (HUD `_root`, `PauseMenu`, `AttackSelect`, `RewardUI`, `PalettePreview`).
 - **Named styles** are theme type variations — set `ThemeTypeVariation`, don't add per-node overrides:
   `UiStyle.Title` (16px, scanline font, accent), `UiStyle.Heading` (frame colour), `UiStyle.Muted`
   (captions), `UiStyle.PrimaryButton` (the one call-to-action per screen), `UiStyle.RowPanel` (list-row
@@ -1978,7 +2036,7 @@ scales cleanly at any resolution.
 - **Font:** Sixtyfour is a variable font with two axes — `SCAN` (-53..100, negative = CRT scanline gaps)
   and `BLED` (0..100, phosphor bleed/weight). `BodyFont` is clean with a touch of bleed (legible at 8px);
   `TitleFont` uses visible scanlines + heavy bleed for the CRT look. It's drawn on an **8px grid**, so
-  sizes are multiples of 8 (`SizeBody` 8, `SizeTitle` 16, `SizeBanner` 32). It lacks some symbols
+  sizes are multiples of 8 (`SizeBody` 8, `SizeTitle` 16). It lacks some symbols
   (e.g. `▶ ► ■ ★`) — check coverage before adding a new glyph to UI text.
 - **`UiStyle.Install()`** (called first thing in the HUD autoload) makes Sixtyfour the global
   **fallback font**, so un-themed text (enemy name tags, world prompts) matches too.
@@ -1995,15 +2053,15 @@ shared `UiStyle` theme.
 
 **Draw order — `scripts/ui/UiLayers.cs`.** Every `CanvasLayer` takes its layer from this one table (never a literal),
 so screens can't silently cover each other: `Background` (-100) → `LowHealth` (50) → `Gauge` (60) → `Hud` (100) →
-`Banner` (105, "LEVEL UP!") → `Menu` (110, the attack picker + buff cards) → `Pause` (120). Menus sit above the HUD
+`Menu` (110, the attack picker + buff cards) → `Pause` (120). Menus sit above the HUD
 so it never hides their content. New settings: add the value to `SaveData`
 (stored by enum NAME, so reordering an enum never remaps a saved choice) and a row to `PauseMenu.Build`.
 
 ### Feedback + the pip art
 
 **Feedback** (`scripts/ui/HudFx.cs`, scale/rotation tweens only, so they're container-safe): a lost
-half-star flashes + wiggles, a healed star pops, an orb pops the moment it fills, the fig ring pops
-on every fig banked. The first sync on bind is silent (no pop-in).
+half-star flashes + wiggles, a healed star pops, an orb pops the moment it fills, a currency icon pops
+on every coin or fig banked. The first sync on bind is silent (no pop-in).
 
 The pips are drawn in code (`scripts/ui/PixelPip.cs`): a character mask (`#` body, `s` shine,
 `.` empty) with an auto-traced 1-pixel outline. `HealthPip` / `RuhPip` only supply their mask and
@@ -2019,7 +2077,7 @@ It follows health and Ruh changes over signals — nothing polls.
 
 ### Off-screen enemy arrows (`scripts/ui/OffscreenMarkers.cs`)
 
-With the tight 6× camera and the big orb launches, enemies leave the frame constantly — so you can't
+Enemies leave the frame easily (the orb launches especially) — so you can't
 see where to slam/approach. `OffscreenMarkers` is a full-viewport overlay the HUD builds (a sibling of
 the HUD's screen-space root, shown/hidden with it). Each frame it projects every enemy in the `"enemies"`
 group through the camera — `get_viewport().get_canvas_transform() * enemy.global_position` — and for

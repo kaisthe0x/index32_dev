@@ -1,19 +1,55 @@
-# assets/terrain — drop your terrain art here
+# assets/terrain — stage tilesets + stage art
 
-These PNGs replace the placeholder rectangles (floor, platforms, background). **Just drop a file
-with the exact name below and it renders automatically** — no code changes. Leave one out and that
-surface stays its flat placeholder colour. Wiring lives in [`configs/terrain.gd`](../../configs/terrain.gd)
-+ `RunManager._terrain_visual`.
+Each stage has a folder (`stage1/`, …) holding its **tilesets** (what levels are painted with) and its standalone
+art (background, props).
 
-| File | Replaces | Guidance |
-|---|---|---|
-| `platform.png` | the one-way ledges | short horizontal strip, **seamless left↔right**, ~16 px tall (platforms are 14). Any length — it **tiles** across each platform's width. |
-| `floor.png` | the ground band | same idea; taller ok (floor band is 40 px). Tiles across the whole floor. |
-| `background.png` | the level backdrop | one image, **stretched** to fill. The per-level colour becomes a translucent tint over it (keeps levels distinct). |
+## Tilesets — `tilesetN.png`
 
-**Notes**
-- Pixel-art is kept crisp (NEAREST filtering).
-- Want **end-caps** (a grass lip, rounded corners) instead of a plain tile? Author the texture with
-  a border and set that border's px thickness in `configs/terrain.gd` → the surface's `margins`
-  `[left, top, right, bottom]` (9-slice: edges stay fixed, the middle tiles).
-- Per-level terrain variants (different biome per level) are an easy later add — ask when you want it.
+A stage can have any number of tilesets, named by increment: **`tileset1.png`, `tileset2.png`, `tileset3.png`, …**
+Each is a different design for the same stage, and each becomes its own palette when painting.
+
+**Authoring rules** (masters live in `index32_art/art/stages/<stage>/tilesetN.aseprite`):
+- **32 × 32 px tiles** on a grid starting at the top-left — **no padding, no spacing, no extrusion, no trimming**.
+- The sheet can be **any size** that's a multiple of 32 (96 × 96, 128 × 64, 320 × 160 …) — as big as the design needs.
+- **One reusable piece per cell**, nothing crossing a cell edge. Draw each unique piece once (a middle surface tile
+  is painted many times in Godot — it only needs to exist once in the sheet). Empty cells are fine (skipped).
+- Export with *File → Export As…* at 100% (not *Export Sprite Sheet* — that's for animation frames).
+
+**Collision is automatic and follows the art.** The generator traces each tile's collision from its own pixels:
+a full tile gets a box, a slope becomes a real walkable ramp, a cut corner collides where it looks solid. So draw
+the solid part of a tile as solid (opaque) and the air as transparent — that IS the physics.
+
+## Per-tileset physics
+
+Each tileset can collide differently — set in the table at the top of `tools/gen_terrain_tileset.gd`:
+
+| Setting | Effect |
+|---|---|
+| *(default)* **solid** | traced collision on the **World** layer — walls, floors, ramps |
+| `ONE_WAY_SHEETS` | **jump-through** on the **Platform** layer: land on top, jump up through from below, **drop down through with S / Down** |
+| `CELL_OVERRIDES` | one cell's physics against its sheet's: `SOLID`, `ONE_WAY`, or `NONE` (paintable decoration, no collision) |
+| `COLLISION_FROM` | a decorated **variant** (moss, drips) collides exactly like its plain original — its collision is traced from the other cell, so decoration never becomes physics |
+
+Current stage1 sets: **tileset1** = solid ground (block, fill, slope) · **tileset2** = floating brick platforms,
+jump-through, 3×2 cells: row 0 = plain (left end, middle, support pole), row 1 = the same three mossy. Both poles
+(column 2) are overridden to **solid** so they block like a wall; the mossy row borrows row 0's collision.
+
+## Adding or updating a tileset
+
+1. Export the PNG into this stage folder as the next number (e.g. `stage1/tileset2.png`), or overwrite an existing one.
+2. **Close the Godot editor** (an open editor writes its stale copy of the TileSet back over the new one).
+3. Rebuild: `godot-mono --headless --import` then `godot-mono --headless --script tools/gen_terrain_tileset.gd`.
+   It rebuilds `stage1/terrain_tileset.tres` with every `tilesetN.png` as **atlas source N** — adding tileset3
+   never renumbers tileset1/2, so painted levels stay valid.
+4. Reopen the editor and paint (see [`docs/painting-levels.md`](../../docs/painting-levels.md)).
+
+⚠️ **Changing an existing sheet's layout** (moving/removing tiles) breaks cells already painted with the old
+positions — the painted cells must be remapped to the new coordinates in each level's `tile_map_data`. Adding tiles
+in empty cells, growing the sheet right/down, or adding a new `tilesetN`, is always safe.
+
+The generator keeps `terrain_tileset.tres`'s UID across rebuilds, so levels' references to it stay valid.
+
+## Other stage art
+
+`bg1.png` (backdrop), and props (`big_tree.png`, `tree1.png`, `man_choking_statue.png`, `skeleton_chillin.png`) are placed as sprites in
+the layout scenes — no collision; they're decoration.

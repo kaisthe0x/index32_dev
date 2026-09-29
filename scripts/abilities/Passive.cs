@@ -13,9 +13,8 @@ namespace MyGame;
 /// first on equip) and a REWARD-granted passive (added at runtime via <c>Player.add_passive</c> when its reward
 /// is taken, torn down on run restart). <see cref="Buff"/> extends this with move-scope + tier + duration.</para>
 ///
-/// <para>[GlobalClass] so the still-GDScript Rewards service can instantiate concrete passives by name
-/// (<c>Leech.new()</c>) and check <c>p is Passive</c>. <c>action</c> params are the GDScript <c>Action</c> object,
-/// carried as <see cref="GodotObject"/> (bridge: <c>action.Get("id")</c> / <c>.Call("segment", seg)</c>).</para>
+/// <para><c>action</c> params are the <c>Action</c> object, carried as <see cref="GodotObject"/> (bridge:
+/// <c>action.Get("id")</c> / <c>.Call("segment", seg)</c>).</para>
 /// </summary>
 [GlobalClass]
 public partial class Passive : RefCounted
@@ -81,4 +80,8 @@ public partial class Passive : RefCounted
     /// <summary>A player attack hitbox deactivated having struck NOBODY — a WHIFF (doc: "On Miss"). Fires per
     /// attack hitbox; single-box attacks (e.g. Zahluq) get exactly one per swing.</summary>
     public virtual void OnMiss(Player player) { }
+
+    /// <summary>A round begins (dispatched by RunManager through <see cref="Player.notify_round_start"/>) — round-scoped
+    /// effects re-arm here (Dekken's Shield, Prepared).</summary>
+    public virtual void OnRoundStart(Player player) { }
 }

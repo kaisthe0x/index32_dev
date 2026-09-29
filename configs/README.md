@@ -11,9 +11,9 @@ cheap to change. **Config data and the code that reads it stay in separate files
 the catalog tables (`actions_<char>.gd`, `sfx_*.gd`) are pure data; the accessors
 (`actions.gd`, the `Sfx` service) are the readers.
 
-> The roguelite **run** data (the 5 levels, the enemy roster/kits, the reward pool) is
-> *not* here — it lives with the run logic in [`scripts/run/`](../scripts/run/README.md)
-> (`Levels`, `EnemyKits`, `Rewards`). This folder is the player/combat tuning tables.
+> The roguelite **run** data (the enemy roster/kits) is *not* here — it lives with the run
+> logic in [`scripts/run/`](../scripts/run/README.md) (`EnemyKits`). This folder is the
+> player/combat tuning tables (+ `Rounds`, `BuffCatalog`, `Terrain`).
 
 ## What's here
 
@@ -25,9 +25,7 @@ the catalog tables (`actions_<char>.gd`, `sfx_*.gd`) are pure data; the accessor
 | `locomotion.gd` | `Locomotion` | The **"Locomotion" component** of a movement Action (run/jump/dash/slam): every movement/physics knob (run speed/accel/friction, jump velocity/air-jumps/gravity/land, dash speed/time/blink, slam speed/timing/drop-scaling) as one typed spec. Holds the shared BASELINE; each character's `MOVEMENTS` catalog overlays only its deviations. This is where movement lives now — **nothing** movement-related is a Player `@export` anymore. |
 | `actions_khalid.gd` | `ActionsKhalid` | Khalid's action catalog — PURE DATA: `ATTACKS` + `SPECIALS` + `MOVEMENTS` (run/jump/dash/slam, each a `move`/Locomotion row) tables (each row an `Action.make` dict, icon embedded) + `DEFAULT_ATTACK`/`DEFAULT_SPECIAL`/`DEFAULT_MOVEMENTS`. **Edit the defaults here to change what Khalid starts with.** One `actions_<char>.gd` per character. |
 | `actions.gd` | `Actions` | The accessor over the per-character catalogs (`get_action(character, kind, id)`, `ids(...)`) — the reader half, kept separate from the data. `kind` is one of `attacks`/`specials`/`run`/`jump`/`dash`/`slam`; returns `null` for an empty pool. |
-| `loadout.gd` | `Loadout` | The swappable **loadout + tier** layer: per category (attack/special/run/jump/dash/slam) the options a character has, each with a **tier** (`typical`/`elite`/`broken`). ALL six categories now come from the `Actions` catalog (each action's `tier` + `name` + `icon`) — a movement variant is added exactly like an attack variant, a new catalog row. A gate reward offers a swap whenever a category has >1 option (see `scripts/run/`). |
-| `reward.gd` | `Reward` | One offerable **reward** as typed data (id/name/icon/desc/tier/**tags**) + its build conditions — `requires` (offer gate), `synergy` (roll-weight nudge), `unique`, and its effect (`equip` a move upgrade / grant a `passive` / else a stat buff keyed by id). Built from the catalog; the offer/effect logic lives in `scripts/run/rewards.gd`. |
-| `rewards_catalog.gd` | `RewardsCatalog` | The reward catalog — PURE DATA: `POOLS` keyed by door type (health/athletic/attack/special), each a list of `Reward.make` rows. **Add/retune a reward here**; wire a novel stat effect in `Rewards._buff`. |
+| `loadout.gd` | `Loadout` | The swappable **loadout + tier** layer: per category (attack/special/run/jump/dash/slam) the options a character has, each with a **tier** (`typical`/`elite`/`broken`). ALL six categories now come from the `Actions` catalog (each action's `tier` + `name` + `icon`) — a movement variant is added exactly like an attack variant, a new catalog row. |
 | `character_config.gd` | `CharacterConfig` | The player roster `IDS` + the per-id resource path templates (`FRAMES_PATH`, `PORTRAIT_PATH`, `ABILITY_PATH`). Identity only — movement stats moved to the `Locomotion` baseline + each character's `MOVEMENTS` catalog. Ships **Khalid only** (others parked in `playground/`). |
 | `terrain.gd` | `Terrain` | The level **art skin**: the 32px tileset sheet + which atlas cells are surface vs fill tiles, ground-plant + tree props, and the background image. `RunManager` stamps these as sprites over the colliders (`_paint_surface`) — see [`scripts/run/`](../scripts/run/README.md). Drop art in `assets/terrain/`. |
 

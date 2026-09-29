@@ -10,7 +10,6 @@ size = Vector2(3200, 40)
 script = ExtResource("2_switch")
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=2095628982]
-physics_interpolation_mode = 1
 position = Vector2(0, -60)
 scale = Vector2(1.4029833, 1.4555173)
 zoom = Vector2(6, 6)
@@ -29,4 +28,7 @@ offset_bottom = 40.0
 color = Color(0.16, 0.17, 0.22, 1)
 
 [node name="Player" parent="." unique_id=1329512334 instance=ExtResource("1_2q6dc")]
+floor_constant_speed = true
+floor_max_angle = 0.87266463
+floor_snap_length = 16.0
 combo_reset_time = 0.6

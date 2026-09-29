@@ -41,9 +41,12 @@ public partial class Enemy : Combatant
 	[Export] public Vector2 body_size { get; set; } = new(18, 30);
 	[Export] public Vector2 hurtbox_size { get; set; } = new(20, 34);
 
+	[ExportGroup("Drops")]
+	[Export] public int lira_drop { get; set; } = 1;          // Lira coins on death (RunManager defaults it by tier)
+	[Export] public float fig_chance { get; set; } = 0.1f;    // chance a kill also drops ONE fada_fig (per-kit override)
+
 	[ExportGroup("Patrol")]
 	[Export] public float move_speed { get; set; } = 40.0f;
-	[Export] public int fada_fig_drop { get; set; } = 1;   // fada_figs dropped on death (RunManager defaults it by tier)
 	[Export] public float patrol_distance { get; set; } = 90.0f;
 	[Export] public float idle_time_min { get; set; } = 2.0f;
 	[Export] public float idle_time_max { get; set; } = 3.0f;
@@ -84,7 +87,7 @@ public partial class Enemy : Combatant
 
 	[ExportGroup("Behaviour")]
 	[Export] public bool aggro { get; set; } = true;
-	[Export] public float aggro_range { get; set; } = 480.0f;
+	[Export] public float aggro_range { get; set; } = 900.0f; // how far away an enemy notices + chases the player (px)
 	[Export] public float alert_duration { get; set; } = 5.0f;
 	[Export] public bool friendly_fire { get; set; }
 	/// <summary>World Y past which an enemy has fallen off into the void below the platforms → it dies (see _PhysicsProcess).
@@ -147,13 +150,9 @@ public partial class Enemy : Combatant
 	{
 		AddToGroup("enemies");
 		CollisionLayer = (uint)Combat.Layer.EnemyBody;
-		CollisionMask = (uint)Combat.Layer.World;
+		CollisionMask = Combat.GroundMask;
 
-		// Slope-friendly floor handling: snap keeps them glued to the ground going DOWN a slope (no float/bounce);
-		// constant speed stops them slowing to a crawl going UP one. Default snap (1px) detaches on any descent.
-		UpDirection = Vector2.Up;
-		FloorSnapLength = 16.0f;
-		FloorConstantSpeed = true;
+		Combat.ApplyFloorHandling(this); // shared slope handling (walkable angle, snap, constant speed)
 
 		BuildSprite();
 		BuildBody();
@@ -267,7 +266,7 @@ public partial class Enemy : Combatant
 			Position = new Vector2(x, -14),
 			TargetPosition = new Vector2(0, 42),
 			HitFromInside = true,
-			CollisionMask = (uint)Combat.Layer.World,
+			CollisionMask = Combat.GroundMask, // platforms count as footing too
 		};
 		AddChild(ray);
 		return ray;

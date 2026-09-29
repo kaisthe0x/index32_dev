@@ -3,11 +3,11 @@ using Godot;
 namespace MyGame;
 
 /// <summary>
-/// A collectible Fada Fig dropped by a dying enemy — the run currency (spent later at the Chest). It pops out of the
-/// corpse with a little bounce + tumble (RigidBody physics) and settles on the ground; the player collects it by
-/// physically touching it — the child <c>Pickup</c> Area detects the player's body. There is intentionally no
-/// wide magnet: a FUTURE reward calls <see cref="magnetize"/> to make loose Fada Figs fly to the player like a Ruh soul.
-/// RunManager spawns this scene on enemy death (count = <c>Enemy.fada_fig_drop</c>).
+/// A collectible Fada Fig — the RARE currency (docs/game-loop.md § Economy; spent at the mystery box). A kill drops one
+/// at the enemy's <c>Enemy.fig_chance</c> (10 % default, per-kit override). It pops out of the corpse with a little
+/// bounce + tumble (RigidBody physics) and settles on the ground; the player collects it by physically touching it —
+/// the child <c>Pickup</c> Area detects the player's body. There's no magnet by default — only while the player holds the
+/// Dekken Magnet perk (<c>Player.fig_magnet_range</c> &gt; 0) does a fig in range fly to him (<see cref="magnetize"/>).
 /// </summary>
 public partial class FadaFig : RigidBody2D
 {
@@ -16,6 +16,9 @@ public partial class FadaFig : RigidBody2D
     [Export] public float pop_side { get; set; } = 85.0f;
     [Export] public float life_seconds { get; set; } = 30.0f;   // despawn if never collected (avoids clutter)
     [Export] public float magnet_speed { get; set; } = 540.0f;  // used only once magnetized
+
+    /// <summary>The player whose Magnet perk can pull this fig in (set by RunManager at spawn).</summary>
+    public Player Collector;
 
     private Node2D _magnetTarget;
     private bool _collected;
@@ -40,8 +43,8 @@ public partial class FadaFig : RigidBody2D
             GetTree().CreateTimer(life_seconds).Timeout += () => { if (!_collected) QueueFree(); };
     }
 
-    /// <summary>FUTURE magnet-reward hook: pull this Fada Fig toward <paramref name="target"/> (the player) instead of
-    /// resting on the ground — it then flies in and is collected on contact, exactly like a Ruh soul.</summary>
+    /// <summary>Pull this Fada Fig toward <paramref name="target"/> (the player) instead of resting on the ground — it
+    /// then flies in and is collected on contact.</summary>
     public void magnetize(Node2D target)
     {
         _magnetTarget = target;
@@ -50,6 +53,9 @@ public partial class FadaFig : RigidBody2D
 
     public override void _PhysicsProcess(double delta)
     {
+        if (_magnetTarget == null && Collector != null && IsInstanceValid(Collector) && Collector.fig_magnet_range > 0.0f
+            && GlobalPosition.DistanceTo(Collector.GlobalPosition) <= Collector.fig_magnet_range)
+            magnetize(Collector);
         if (!_collected && _magnetTarget != null && IsInstanceValid(_magnetTarget))
             LinearVelocity = (_magnetTarget.GlobalPosition - GlobalPosition).Normalized() * magnet_speed;
     }

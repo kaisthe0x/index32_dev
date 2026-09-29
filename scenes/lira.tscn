@@ -1,0 +1,15 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" uid="uid://b4hgeapen41gg" path="res://scripts/collectibles/Lira.cs" id="1_lira"]
+[ext_resource type="Texture2D" uid="uid://xitihkgo47j8" path="res://assets/things/lira.png" id="2_tex"]
+
+[node name="Lira" type="Node2D"]
+z_index = 5
+script = ExtResource("1_lira")
+flight_time = 0.45
+arc_height = 40.0
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+texture_filter = 4
+scale = Vector2(0.065, 0.065)
+texture = ExtResource("2_tex")

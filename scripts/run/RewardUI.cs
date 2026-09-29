@@ -7,7 +7,7 @@ namespace MyGame;
 /// <summary>
 /// A pick-a-card popup: RunManager creates one, calls <see cref="Open"/> with a set of cards ({id, name, desc,
 /// optional tier/icon}) + a title, and awaits <c>chosen(id)</c>; the player clicks a card, we un-pause and report
-/// it. Built in code, pauses the game while up. Used by the fada-fig milestone BUFF menu.
+/// it. Built in code, pauses the game while up. Used by the mystery box's BUFF menu.
 /// </summary>
 [GlobalClass]
 public partial class RewardUI : CanvasLayer
