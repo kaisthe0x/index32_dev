@@ -45,7 +45,8 @@ muted hue families**, not from brightness; everything saturated belongs to the a
   surface line + a 1px neon edge in the top ~4–6px so the standing lip glows; body below transitions to fill.
 - **Rows 1–2, cols 0–3 → FILL** (platform body / underground). 8 variants. **Tile seamless all directions.**
   Darkest base, sparse texture (cracks, a dim glint), quiet — it's in shadow below the lip.
-- **Plants sheet** (separate): row 0 cols 0–1 = ground plants, (0,1) = mushroom. 32px decor stamped on surfaces.
+- **Decor sheets** (separate, no collision — e.g. `tileset3`: rocks + plants): 32px pieces drawn sitting on the cell's
+  bottom edge, painted on the layout's `Decor` layer in the cell above the ground.
 - **Trees/props**: standalone PNGs, any size (tall multi-tile), placed behind/on platforms.
 
 ## Background + motion (where "animated / alive" lives — cheap, no collider changes)
@@ -88,7 +89,8 @@ assets/terrain/stage1/terrain_tileset.tres  (the generated TileSet — regen via
 Each layout is a `LevelLayout` scene (`scripts/run/LevelLayout.cs`) containing:
 - a **`Terrain` TileMapLayer** you paint (its solid tiles carry collision — **paint = collision**),
 - a **`PlayerSpawn`** `Marker2D`,
-- optional launch-orb spots in the **`orb`** group, and hand-placed decor (Tree/plant instances).
+- a **`Decor`** TileMapLayer for rocks and plants (no collision),
+- optional launch-orb spots in the **`orb`** group, and hand-placed decor sprites (statue, trees).
 
 **To author:** see [`docs/painting-levels.md`](painting-levels.md). Enemies spawn automatically on the floor the
 player is standing on. Regenerate the TileSet (`tools/gen_terrain_tileset.gd`, editor closed) after adding or editing a

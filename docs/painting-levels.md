@@ -8,7 +8,10 @@ enemies stand on. Tilesets and how to add them: [`assets/terrain/README.md`](../
 `scenes/levels/stage1/stage1_v1.tscn` (more variants: `stage1_v2.tscn`, … — any `stage1_v*.tscn` in the folder joins
 the random pool automatically). Each is a **`LevelLayout`** scene (`scripts/run/LevelLayout.cs`) with:
 - a **`Terrain` TileMapLayer** — its **Tile Set must be `assets/terrain/stage1/terrain_tileset.tres`** (the shared,
-  generated one). Never "New TileSet" in the inspector: an embedded copy is invisible to the generator, so new
+  generated one). The ground and platforms only.
+- a **`Decor` TileMapLayer** (same Tile Set) — decoration sheets (tileset3: rocks, plants) with **no collision**, drawn
+  behind Khalid and enemies. Keep decor here, not on `Terrain`: one cell holds one tile per layer, so a rock painted
+  on `Terrain` would replace whatever was there. Never "New TileSet" in the inspector: an embedded copy is invisible to the generator, so new
   tiles and collision fixes would never reach that level.
 - a **`PlayerSpawn`** `Marker2D` (where Khalid drops in), and optional launch-orb spots in the **`orb`** group,
 - decor sprites (trees, the statue, the skeleton) — no collision.
@@ -20,7 +23,8 @@ tile never strands a spawned enemy.
 
 ## Paint
 
-1. Open the level scene, click the **`Terrain`** node — the **TileMap** panel opens at the bottom.
+1. Open the level scene, click the **`Terrain`** node (ground) or the **`Decor`** node (rocks and plants) — the
+   **TileMap** panel opens at the bottom. For decor, paint in the empty cell **above** the ground so the piece sits on it.
 2. Pick a **source** (tileset1, tileset2, …) in the palette, click a tile, and **left-click / drag** in the viewport.
    **Right-click** erases. Tools: Paint, Line, **Rect** (fastest for ground), Bucket.
 3. Tiles snap to the 32 px grid. **Save**, then play the arena (F5 from the colour screen, or F6 on `arena.tscn`).

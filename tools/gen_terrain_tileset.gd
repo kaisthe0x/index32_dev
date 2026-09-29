@@ -15,7 +15,7 @@ extends SceneTree
 ##
 ## Per-tileset physics (the table below): a sheet is SOLID by default (physics layer 0 → Combat.Layer.World). A sheet
 ## listed in ONE_WAY_SHEETS is jump-through (physics layer 1 → Combat.Layer.Platform, one-way): land on top, jump up
-## through, drop down through. CELL_OVERRIDES sets a single cell's physics against its sheet's: SOLID / ONE_WAY / NONE
+## through, drop down through. A sheet in DECOR_SHEETS has no collision at all (paint it on a layout's Decor layer). CELL_OVERRIDES sets a single cell's physics against its sheet's: SOLID / ONE_WAY / NONE
 ## (NONE = paintable decoration, no collision). COLLISION_FROM makes a decorated VARIANT (moss, drips) collide exactly
 ## like its plain original: its collision is traced from the other cell's pixels, so decoration never becomes physics.
 
@@ -32,6 +32,7 @@ const EDGE_SNAP := 2.0        # traced points this close (px) to a cell edge sna
 # --- per-tileset physics ---------------------------------------------------------------------------------------
 enum Physics { SOLID, ONE_WAY, NONE }
 const ONE_WAY_SHEETS := [2]  # tileset2 = floating brick platforms (jump-through)
+const DECOR_SHEETS := [3]    # tileset3 = rocks + plants (no collision — decoration)
 const CELL_OVERRIDES := {    # tileset2: the support poles (plain + mossy) block, like a wall
 	2: {Vector2i(2, 0): Physics.SOLID, Vector2i(2, 1): Physics.SOLID},
 }
@@ -64,7 +65,8 @@ func _init() -> void:
 		src.texture = tex
 		src.texture_region_size = Vector2i(TILE, TILE)
 		ts.add_source(src, n)
-		var sheet_physics: Physics = Physics.ONE_WAY if n in ONE_WAY_SHEETS else Physics.SOLID
+		var sheet_physics: Physics = Physics.NONE if n in DECOR_SHEETS \
+			else Physics.ONE_WAY if n in ONE_WAY_SHEETS else Physics.SOLID
 		var overrides: Dictionary = CELL_OVERRIDES.get(n, {})
 		var shapes_from: Dictionary = COLLISION_FROM.get(n, {})
 		var tiles := 0; var traced := 0; var overridden := 0; var borrowed := 0
@@ -105,7 +107,7 @@ func _init() -> void:
 						td.set_collision_polygon_one_way(layer, added, true)
 					added += 1
 		print("gen_terrain_tileset: tileset%d -> source %d (%s): %d tiles (%d traced, %d cell overrides, %d borrowed shapes)" %
-			[n, n, "one-way" if sheet_physics == Physics.ONE_WAY else "solid", tiles, traced, overridden, borrowed])
+			[n, n, ["solid", "one-way", "decor"][sheet_physics], tiles, traced, overridden, borrowed])
 
 	var uid := ResourceLoader.get_resource_uid(OUT) # keep the existing UID: levels reference the TileSet by it
 	var err := ResourceSaver.save(ts, OUT)

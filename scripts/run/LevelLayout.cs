@@ -5,7 +5,8 @@ namespace MyGame;
 
 /// <summary>
 /// Root of a hand-painted arena LAYOUT scene (<c>scenes/levels/stageN/stageN_vK.tscn</c>). Holds a painted
-/// <c>TileMapLayer</c> ("Terrain" — its tiles carry collision) plus a <b>PlayerSpawn</b> <c>Marker2D</c>. RunManager
+/// <c>TileMapLayer</c> ("Terrain" — its tiles carry collision), a "Decor" <c>TileMapLayer</c> (rocks and plants, no
+/// collision — this class ignores it), plus a <b>PlayerSpawn</b> <c>Marker2D</c>. RunManager
 /// instantiates ONE random variant per run and reads these.
 ///
 /// <para>AUTHORING (in the editor): paint the <b>Terrain</b> layer with the terrain TileSet and drag the
@@ -82,8 +83,8 @@ public partial class LevelLayout : Node2D
         var slopes = new Dictionary<Vector2I, int>(); // slope cell → the side it rises toward (+1 right, -1 left)
         foreach (Vector2I cell in tm.GetUsedCells())
         {
-            if (tm.GetCellSourceId(cell + Vector2I.Up) != -1)
-                continue; // something sits directly above -> not an exposed top
+            if (HasCollision(tm.GetCellTileData(cell + Vector2I.Up), layers))
+                continue; // something SOLID sits directly above -> not an exposed top (a plant or rock doesn't count)
             TileData td = tm.GetCellTileData(cell);
             if (!HasCollision(td, layers))
                 continue; // decoration — nothing to stand on

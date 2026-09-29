@@ -27,12 +27,15 @@ Each tileset can collide differently — set in the table at the top of `tools/g
 |---|---|
 | *(default)* **solid** | traced collision on the **World** layer — walls, floors, ramps |
 | `ONE_WAY_SHEETS` | **jump-through** on the **Platform** layer: land on top, jump up through from below, **drop down through with S / Down** |
+| `DECOR_SHEETS` | **no collision at all** — rocks, plants, detail. Paint these on a layout's **`Decor`** layer, not `Terrain` |
 | `CELL_OVERRIDES` | one cell's physics against its sheet's: `SOLID`, `ONE_WAY`, or `NONE` (paintable decoration, no collision) |
 | `COLLISION_FROM` | a decorated **variant** (moss, drips) collides exactly like its plain original — its collision is traced from the other cell, so decoration never becomes physics |
 
 Current stage1 sets: **tileset1** = solid ground (block, fill, slope) · **tileset2** = floating brick platforms,
 jump-through, 3×2 cells: row 0 = plain (left end, middle, support pole), row 1 = the same three mossy. Both poles
-(column 2) are overridden to **solid** so they block like a wall; the mossy row borrows row 0's collision.
+(column 2) are overridden to **solid** so they block like a wall; the mossy row borrows row 0's collision ·
+**tileset3** = rocks + plants, decoration only (no collision), each piece drawn sitting on its cell's bottom edge so
+it rests on the ground when painted in the cell above it.
 
 ## Adding or updating a tileset
 
