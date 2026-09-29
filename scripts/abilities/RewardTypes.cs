@@ -22,9 +22,9 @@ public enum Trigger
     None,
     // --- wired: dispatched by Player at the matching moment (override the Passive hook to react) ---
     Setup, Physics, ModifyTuning, OnHitDealt, OnHurt, OnLand, OnParry, OnSpecialCast, OnSpecialStrike,
-    OnDash, OnGroundJump, OnAirJump, OnSlamTrigger, OnSlamLand,
+    OnDash, OnGroundJump, OnAirJump, OnSlamTrigger, OnSlamLand, OnMiss, OnAnimEnd, OnRoundStart,
     // --- reserved: need new detection before they can fire (see docs/rewards-design.md §"load-bearing") ---
-    OnAttackTrigger, OnMiss, OnPerfectDodge, OnAnimEnd, OnSurge, OnLevelStart, OnLevelWindow,
+    OnAttackTrigger, OnPerfectDodge, OnSurge, OnRoundWindow,
 }
 
 /// <summary>Presentation helpers for <see cref="Tier"/> (label + badge colour), per the reward doc.</summary>

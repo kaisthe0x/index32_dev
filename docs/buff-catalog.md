@@ -36,17 +36,17 @@ from the box pool and their buff classes deleted)*
 | **Run Speed** | — | ✓ | +10 … 30 % |
 | **Attack Damage** | — | ✓ | +15 … 65 % (the "+20 % damage" idea lives here, not in the box) |
 
-**Dekken — perks**
+**Dekken — perks** *(built 2026-09-28 — `configs/Dekken.cs`; Wider Pull left the box catalog, its buff class deleted)*
 
 | Perk | From | Built | Duration |
 |---|---|---|---|
-| **Heal** | — | NEW | one use (a block) |
-| **Fast Travel** | — | NEW | one use (teleport to the box) |
-| **Fig Chance** | — | NEW | whole run (+5 % on every enemy); leaves the pool once bought |
-| **Magnet** | — | NEW | rounds (bigger pickup range) |
-| **Shield** | — | NEW | rounds (blocks the first hit of the round) |
-| **Prepared** | Prepared | — | rounds (auto-surge at **round** start — retagged from "stage") |
-| **Wider Pull** | Wider Pull | ✓ | rounds (Come Closer pulls more enemies) |
+| **Heal** | — | ✓ | one use (a block) |
+| **Fast Travel** | — | ✓ | one use (teleport beside the box) |
+| **Fig Chance** | — | ✓ | whole run (+5 % on every enemy); leaves the pool once bought |
+| **Magnet** | — | ✓ | rounds (loose figs within 400 px fly to you) |
+| **Shield** | — | ✓ | rounds (blocks the first hit each round) |
+| **Prepared** | Prepared | ✓ | rounds (your surge fires free at **round** start — for Wara, it arms) |
+| **Wider Pull** | Wider Pull | ✓ | rounds (Come Closer pulls 2 more enemies; only stocked while Come Closer is equipped) |
 
 **Mystery Box — mechanics**
 

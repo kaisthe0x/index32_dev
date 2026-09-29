@@ -50,10 +50,6 @@ public static class BuffIds
     public const string Missfire = "missfire";           // Spear; NEW; reserved OnMiss
     public const string Overcharge = "overcharge";       // Bakshen
 
-    // --- Surge / Special ---
-    public const string Prepared = "prepared";           // all surges
-    public const string WiderPull = "wider_pull";        // Come Closer special
-
     // --- Traps (shared sub-system; a Dash/Jump trap picks a flavour) — NEW (trap entity) ---
     public const string TrapSnare = "trap_snare";
     public const string TrapSap = "trap_sap";

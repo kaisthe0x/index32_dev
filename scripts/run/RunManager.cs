@@ -86,6 +86,9 @@ public partial class RunManager : Node2D
     private LevelLayout _layout;
     private ShotLedger _shots;                   // this run's Needle Point shots (levels, active)
     private NeedlePointStall _needlePoint;       // open only in the break between rounds
+    private PerkLedger _perks;                   // this run's Dekken perks (stock, active, owned)
+    private DekkenStall _dekken;                 // open only in the break between rounds
+    private MysteryBox _box;                     // Fast Travel's destination
 
     private const string StageDir = "res://scenes/levels/stage1/";
     private Vector2 _playerSpawn = Vector2.Zero;
@@ -232,14 +235,19 @@ public partial class RunManager : Node2D
         // One mystery box per arena, on a ground tile a short walk from spawn (the fig sink for powerful buffs), and
         // Needle Point (the stat stall) a short walk the OTHER way, so the two never overlap.
         Vector2 boxPos = PickGroundSurface(_playerSpawn, 120.0f, 320.0f) ?? _playerSpawn + new Vector2(120, 0);
-        var box = new MysteryBox { Position = boxPos };
-        box.won += OpenBoxMenu; // a winning pull opens the 3-choice powerful menu
-        _content.AddChild(box);
+        _box = new MysteryBox { Position = boxPos };
+        _box.won += OpenBoxMenu; // a winning pull opens the 3-choice powerful menu
+        _content.AddChild(_box);
         int awayFromBox = boxPos.X >= _playerSpawn.X ? -1 : 1;
         _shots = new ShotLedger(_player, () => _phase == RoundPhase.Breather);
         Vector2 needlePos = PickGroundSurface(_playerSpawn, 120.0f, 320.0f, awayFromBox) ?? _playerSpawn + new Vector2(120 * awayFromBox, 0);
         _needlePoint = new NeedlePointStall { Position = needlePos, Ledger = _shots };
         _content.AddChild(_needlePoint); // the run starts in a break, so it starts open
+        // Dekken (the perk shop) further out on the box's side.
+        _perks = new PerkLedger(_player, () => _phase == RoundPhase.Breather, FastTravelToBox);
+        Vector2 dekkenPos = PickGroundSurface(_playerSpawn, 360.0f, 640.0f, -awayFromBox) ?? boxPos + new Vector2(-240 * awayFromBox, 0);
+        _dekken = new DekkenStall { Position = dekkenPos, Ledger = _perks };
+        _content.AddChild(_dekken);
 
         if (_player != null)
             PlaceAt(_player, _playerSpawn);
@@ -284,6 +292,8 @@ public partial class RunManager : Node2D
         _killed = 0;
         _phase = RoundPhase.Fighting;
         _needlePoint.SetOpen(false); // the shops close while a round is fought
+        _dekken.SetOpen(false);
+        _player?.notify_round_start(); // round-scoped perks re-arm (Shield) / fire (Prepared)
         _spawnAccum = SpawnInterval(round); // first enemy arrives immediately
         PushRoundHud(); // the HUD plays the ROUND n intro for a new round
         _sfx.play("round_start");
@@ -294,7 +304,9 @@ public partial class RunManager : Node2D
     {
         _phase = RoundPhase.Breather;
         _shots.OnRoundClear(); // every active shot spends a round
+        _perks.OnRoundClear(); // timed perks spend a round; fresh stock for the break
         _needlePoint.SetOpen(true);
+        _dekken.SetOpen(true);
         _breatherLeft = Rounds.BreatherTime;
         PushRoundHud();
     }
@@ -374,6 +386,7 @@ public partial class RunManager : Node2D
     private const float FlyerHeightMax = 210.0f;
     private const float FlyerXSpread = 90.0f;
     private const float GroundProbeDepth = 600.0f; // how far below the player to look for the floor he's over
+    private static readonly Vector2 FastTravelOffset = new(-28, -4); // where Fast Travel drops you, beside the box
 
     /// <summary>Where to drop this enemy relative to the player: flyers overhead (with headroom), stationary far on a
     /// ground tile, grunts near on a ground tile — always at least the min band away. Flyers and grunts arrive BEHIND
@@ -452,6 +465,15 @@ public partial class RunManager : Node2D
         return nearestFair ?? farthest; // band empty → closest tile still ≥min; if even that fails, the farthest we have
     }
 
+    /// <summary>Dekken's Fast Travel: put the player right beside the mystery box.</summary>
+    private void FastTravelToBox()
+    {
+        if (_player == null || _box == null)
+            return;
+        PlaceAt(_player, _box.GlobalPosition + FastTravelOffset);
+        _player.Velocity = Vector2.Zero;
+    }
+
     /// <summary>The ground straight below <paramref name="from"/> (within <see cref="GroundProbeDepth"/>) — so a player
     /// mid-jump still counts as on the floor under him. Over a pit (nothing below), <paramref name="from"/> itself.</summary>
     private Vector2 GroundBelow(Vector2 from)
@@ -515,7 +537,7 @@ public partial class RunManager : Node2D
         // Every kill pays Lira; a per-kit chance also drops ONE fada_fig (the rare currency). None if it fell off-map.
         Vector2 at = enemy.GlobalPosition;
         int lira = enemy.lira_drop;
-        bool fig = GD.Randf() < enemy.fig_chance;
+        bool fig = GD.Randf() < enemy.fig_chance + (_player?.fig_chance_bonus ?? 0.0f); // + the Fig Chance perk
         if (!enemy.fell_off)
             Callable.From(() => SpawnDrops(at, lira, fig)).CallDeferred();
         _offscreen.Remove(enemy);
@@ -585,7 +607,8 @@ public partial class RunManager : Node2D
             }
         if (fig)
         {
-            var fada_fig = _fadaFigScene.Instantiate<Node2D>();
+            var fada_fig = _fadaFigScene.Instantiate<FadaFig>();
+            fada_fig.Collector = _player; // the Magnet perk pulls it in when he's close
             _content.AddChild(fada_fig);
             PlaceAt(fada_fig, at + new Vector2((float)GD.RandRange(-10, 10), -12));
         }

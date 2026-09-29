@@ -65,7 +65,7 @@ tools/                Generator + verification scripts (not shipped)
 | Left mouse | `attack` | The current *attack* — each press advances the combo (or, for a `"flurry"` attack like Khalid's, **hold** to keep punching). **Ground only** by default — an attack whose Action is tagged `"air"` is the exception and can be used mid-air (`Player._air_attack_ok`). *(No shipped attack is currently tagged `"air"`; the tag now lives on the Zahluq **special**.)* |
 | Right mouse | `special` | On the ground: the current *special* (committed full-animation move) — **no Ruh cost, but every special has its own cooldown** (3–12s; shown by the special bar in the HUD gauge). **In the air: performs the ground slam instead** (characters with a `slam` sheet) |
 | Ctrl (RT / R2) | `surge` | Fires the equipped **Surge** — a passive ability (**Aegis** = ~5s invincibility; **Jnoon** = ~5s ×2 damage dealt; **Asra** = ~5s ×2 move speed) applied *without* interrupting your attacking/moving — **except Nem**, a committed sleep that locks you in place and restores one health block over 5s (a hit wakes/cancels it), and **Wara**, which *arms* and waits: the next enemy hit is negated and AoE-stuns everyone near you (2s). **Spends one Ruh charge per use** — Ruh is the only gate, no cooldown. RT on the pad because dash owns LT |
-| E | `interact` | Use the stall you're standing at — the **mystery box** (spend fada figs) or **Needle Point** (the shot menu; E / Esc closes it). Registered in code by `Stall` |
+| E | `interact` | Use the stall you're standing at — the **mystery box** (spend fada figs), **Needle Point** (shots) or **Dekken** (perks); a shop menu closes with E / Esc. Registered in code by `Stall` |
 | Z / X | `debug_damage` / `debug_heal` | Dev only |
 | 0 | `debug_respawn` | Dev only — rebuild the current level fresh |
 
@@ -134,8 +134,9 @@ you, and **each use spends one Ruh charge** — Ruh is the only gate, no cooldow
 *only* from buffs. **Killing an enemy** pays **Lira** (the common currency) and, at a per-enemy chance, a **Fada
 Fig** (the rare one) — see below. **Buffs come from the mystery box** in the arena: stand next to it and press **E**
 to **spend** figs on a gamble — a win opens a **pick-1-of-3 menu** from the POWERFUL pool (above-rare tiers), each
-win making the next rarer. **Lira buys shots at Needle Point** — temporary stat boosts (§ Needle Point shots below);
-the Dekken perk shop is the next build step (`docs/game-loop.md` § Economy). Moves are independent — they **upgrade by layering
+win making the next rarer. **Lira buys shots at Needle Point** (temporary stat boosts) **and perks at Dekken** (utility —
+a heal, a teleport, a shield …); both are open only in the break between rounds (§ Needle Point shots / § Dekken perks
+below, `docs/game-loop.md` § Economy). Moves are independent — they **upgrade by layering
 buffs**, not by turning into a different move (Rope Dart & Redere Frisbee are now standalone swaps, not
 successors). Take 0 HP and the run restarts (a fresh arena; buffs cleared, HP + Ruh refilled). All of this — the
 spawner, the enemy roster, the buff pools, the box, the attack picker — lives in
@@ -938,6 +939,30 @@ level-0 Lira price. Prices/costs are consts there too (`LevelPriceGrowth` ×1.5 
   near spawn on the other side from the box; its `NeedlePointMenu` lists every shot (name in its level colour, effect,
   status, BUY / UPGRADE) and pauses the game. Active shots show in the HUD's top-right list with their rounds left.
 
+#### Dekken perks (`configs/Dekken.cs`)
+
+The **perk shop** (`docs/game-loop.md` § Economy): utility and tactics, bought with Lira. Each break it stocks
+`Dekken.StockSize` (5) perks drawn at random from `Dekken.PERKS` — each a `PerkDef` (`records/perks/`): name, text, a
+`PerkDuration` (`Rounds` / `OneUse` / `Run`), rounds, Lira price, one tuning `Value`, and optionally the special it
+needs equipped. The pool: **Heal** (a block, one use), **Fast Travel** (beside the mystery box, one use), **Fig
+Chance** (+5 % fig odds on every kill, whole run), **Magnet** (figs within 400 px fly to you), **Shield** (blocks the
+first hit each round), **Prepared** (your surge fires free as each round starts — Wara arms), **Wider Pull** (Come
+Closer +2 targets; only stocked with Come Closer). All placeholders.
+
+- **Open only in the break**, like Needle Point (`DekkenStall`, a `Stall`; `RunManager` closes/reopens it with the
+  rounds). A perk bought in the break takes effect **at once**.
+- **The rules** live in `PerkLedger` (`scripts/run/`, one per run, ticked at `ClearRound`): the stock (rerolled every
+  break — never a whole-run perk you own, never one gated to a special you don't have), buying (`Blocked` says why a
+  perk can't be bought: FULL HEALTH / OWNED / ACTIVE), timed perks spending a round per clear, whole-run perks leaving
+  the pool. One-use perks just happen (`Player.heal`, `RunManager.FastTravelToBox`).
+- **The effect** of a lasting perk is a `Perk` (`scripts/abilities/`), a `Passive`: Setup/Teardown set and undo a
+  Player field (`fig_chance_bonus` — added in `RunManager.OnEnemyDied`; `fig_magnet_range` — read by each `FadaFig`,
+  whose `Collector` RunManager sets; `hit_shields` — spent in `Player.OnHurt`; `magnet_target_bonus`), and the new
+  `Passive.OnRoundStart` hook (dispatched by `RunManager.StartRound` → `Player.notify_round_start`) re-arms the Shield
+  and fires Prepared (`Player.surge_free`, no Ruh).
+- **The menu** is `DekkenMenu`, on the same `StallMenu` frame as Needle Point's. Active perks show in the HUD's
+  top-right list (rounds left, or RUN).
+
 #### The tiered buff catalog (`configs/BuffCatalog.cs`)
 
 The **pivot's** buff system (`docs/buff-catalog.md`) is a data registry: `BuffCatalog.FACTORIES` maps a
@@ -957,7 +982,6 @@ factory's arrays; `Family` gives replace-in-place so a higher tier supersedes a 
   Zahluq fires one hitbox per swing so a whiff = one reset. **Parked** with the other move-gated buffs (never
   offered yet — the pools exclude move-gated ids). Note: Zahluq is now a *special*, so a future wiring pass must
   make special whiffs emit `OnMiss` and reset the *special* cooldown (see the class doc-comment).
-- **`WiderPullBuff`** — Setup bumps `Player.magnet_target_bonus` (read by `MagnetField` on spawn) for Come Closer.
 - **`MomentumBuff`** — a consecutive-hit damage ramp: `OnHitDealt` stacks a per-tier multiplier (capped at
   `MaxStacks`, applied via `ModifyTuning`), and `OnAnimEnd` resets it when a full swing/combo recovered having
   connected nothing (per-swing whiff, sidestepping the per-hitbox `OnMiss`). `MaxStacks` is a placeholder — tune at playtest.

@@ -266,6 +266,20 @@ public partial class HUD : CanvasLayer
 		return line;
 	}
 
+	/// <summary>One active Dekken perk in the buff list: its name and how long it has left ("1 ROUND", or "RUN").</summary>
+	private static Control PerkLine(Perk p)
+	{
+		var line = new HBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
+		line.AddThemeConstantOverride("separation", 8);
+		var name = MkLabel(UiStyle.HudHeading);
+		name.Text = p.Def.Name;
+		line.AddChild(name);
+		var left = MkLabel(UiStyle.HudMuted);
+		left.Text = p.Def.Duration == PerkDuration.Run ? "RUN" : p.RoundsLeft == 1 ? "1 ROUND" : $"{p.RoundsLeft} ROUNDS";
+		line.AddChild(left);
+		return line;
+	}
+
 	/// <summary>Rebuild the top-right active-buff list from the player's passives (call on grant / clear).</summary>
 	public void RefreshBuffs(List<Passive> passives)
 	{
@@ -280,6 +294,12 @@ public partial class HUD : CanvasLayer
 			{
 				any = true;
 				_buffPanel.AddChild(ShotLine(s));
+				continue;
+			}
+			if (p is Perk perk)
+			{
+				any = true;
+				_buffPanel.AddChild(PerkLine(perk));
 				continue;
 			}
 			if (p is not Buff b)

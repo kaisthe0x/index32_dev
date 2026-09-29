@@ -160,15 +160,17 @@ time. During a round the stalls show CLOSED. (The mystery box stays open during 
 
 ### Dekken — the perk shop
 
-- **Stock:** **5 random perks, rerolled at the start of every round**; no duplicate in the five.
+- **Stock:** **5 random perks, rerolled every break**; no duplicate in the five. A perk gated to a special (Wider
+  Pull → Come Closer) is only stocked while that special is equipped.
 - **Duration: per perk** — a number of rounds (**1** to start), **one use** (fast travel), or **the whole run**
   (fig chance). Like shots, a perk bought in the break is **active at once** and timed perks count from the next round.
 - **Whole-run perks leave the pool** once bought (they're done for the run and shouldn't take a slot).
 - **Rebuying an active timed perk resets its duration.** Perks are **not upgradeable**.
 - **Pauses the game** (for now — see *Later ideas → the timed break*).
 - Placeholder perks: **Heal** (a block, 20 Lira) · **Fast Travel** (teleport to the box, one use, 20 Lira) ·
-  **Fig Chance** (+5 % fig chance on every enemy, whole run, 40 Lira) · **Magnet** (bigger pickup range, 15 Lira) ·
-  **Shield** (blocks the first hit of the round, 25 Lira).
+  **Fig Chance** (+5 % fig chance on every enemy, whole run, 40 Lira) · **Magnet** (loose figs within 400 px fly to
+  you, 15 Lira) · **Shield** (blocks the first hit each round, 25 Lira) · **Prepared** (surge fires free at round start,
+  25 Lira) · **Wider Pull** (Come Closer +2 targets, 15 Lira).
 
 ### Mystery Box — the permanent build
 
@@ -293,7 +295,7 @@ The existing `Buff : Passive` + `Trigger` + `ModifyTuning` foundation fits. Ever
   **removing** the fig milestone menu + the fig ring.
 - **E2. Needle Point** *(built 2026-09-28)* — the shot catalog, next-round start + half-price buy-now, reset-on-rebuy, fig upgrades with
   the level colours.
-- **E3. Dekken** — 5 rotating perks, per-perk durations, whole-run perks leaving the pool.
+- **E3. Dekken** *(built 2026-09-28)* — 5 rotating perks, per-perk durations, whole-run perks leaving the pool.
 - **E4. Mystery Box rework** — the mechanics pool (single version, reroll duplicates, decline), the teddy bear,
   easy/hard box spots, relocation, Fast Travel.
 - **E5. Layout markers + HUD** — the `Dekken` / `NeedlePoint` markers and box-spot group, the shared interact

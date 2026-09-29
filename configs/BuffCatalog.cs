@@ -58,10 +58,6 @@ public static class BuffCatalog
         [BuffIds.InstantReset] = t => new InstantResetBuff(BuffIds.InstantReset)
             { Tier = t, Family = "instant_reset", AppliesTo = { SpecialIds.Zahluq } },
 
-        // --- per-special (offer-gated): Come Closer Wider Pull (Setup → +N magnet targets) ---
-        [BuffIds.WiderPull] = t => new WiderPullBuff(BuffIds.WiderPull,
-            new[] { 1, 1, 2, 2, 3 }) { Tier = t, Family = "wider_pull", AppliesTo = { SpecialIds.ComeCloser } },
-
         // --- attack ramp: Momentum (OnHitDealt → stacking damage; resets when a full swing/combo whiffs, via OnAnimEnd) ---
         [BuffIds.Momentum] = t => new MomentumBuff(BuffIds.Momentum,
             new[] { 1.15f, 1.25f, 1.40f, 1.60f, 2.00f }) { Tier = t, Family = "momentum", AppliesTo = { "attack" } },
@@ -95,7 +91,6 @@ public static class BuffCatalog
         [BuffIds.SlamWrath] = ("Wrath", "After a slam, your attacks deal bonus damage for a few seconds."),
         [BuffIds.Overcharge] = ("Overcharge", "Landing a Bakshen hit cuts its cooldown."),
         [BuffIds.InstantReset] = ("Instant Reset", "Whiffing Zahluq instantly resets its cooldown."),
-        [BuffIds.WiderPull] = ("Wider Pull", "Come Closer magnetizes additional enemies."),
         [BuffIds.Momentum] = ("Momentum", "Each consecutive hit deals more — until you whiff."),
     };
 

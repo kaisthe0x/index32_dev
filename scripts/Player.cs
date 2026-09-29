@@ -109,6 +109,7 @@ public partial class Player : Combatant
     private const float BaseMaxHealth = HealthBlocks * 2.0f; // 3 blocks × 2 half-blocks = 6
     private const float HitCost = 1.0f;                      // one hit = half a block
     private const float SurgeHealHalfBlocks = 2.0f;          // the Nem surge restores one block
+    private const float ShieldGraceTime = 0.4f;              // i-frames after the Shield perk eats a hit
     private const float HealthWarnHalf = 0.5f;               // "health_half" cue at 1.5 blocks left
     private const float HealthWarnLow = 0.34f;               // "health_low" cue at ~1 block left
 
@@ -124,7 +125,10 @@ public partial class Player : Combatant
     public float special_radius_mult = 1.0f;  // Wide Impact (WIP)
     public float special_invuln_bonus = 0.0f; // Fortitude: extends any surge window
     public float jump_velocity_bonus = 1.0f;  // Jump Height shot: multiplies applied jump velocity (all jumps)
-    public int magnet_target_bonus = 0;        // Wider Pull: extra Come Closer magnet targets
+    public int magnet_target_bonus = 0;        // Wider Pull perk: extra Come Closer magnet targets
+    public float fig_chance_bonus = 0.0f;      // Fig Chance perk: added to every kill's fada_fig drop chance
+    public float fig_magnet_range = 0.0f;      // Magnet perk: loose fada_figs within this (px) fly to you (0 = off)
+    public int hit_shields = 0;                // Shield perk: hits blocked outright before any damage
 
     private const string StartingDashEffect = "dash_default";
     private string _dashEffect = StartingDashEffect;
@@ -894,6 +898,14 @@ public partial class Player : Combatant
             TriggerWara();
             return;
         }
+        if (hit_shields > 0)
+        {
+            hit_shields -= 1;
+            _sfx.play("redere_shield_block");
+            Flash(_sprite);
+            grant_invuln(ShieldGraceTime); // a hit rarely comes alone — don't let the next one land the same instant
+            return;
+        }
         take_damage(hit.Amount);
         if (_dead)
             return;
@@ -997,16 +1009,34 @@ public partial class Player : Combatant
 
     private void TrySurge()
     {
-        if (_dead || _currentSurge?.Surge == null)
-            return;
-        if (_surgeChannel || _surgeArmed)
-            return;
-        if (!Input.IsActionJustPressed("surge"))
+        if (!CanSurge() || !Input.IsActionJustPressed("surge"))
             return;
         var s = _currentSurge.Surge;
         if (ruh < s.cost)
             return;
         ruh -= s.cost;
+        FireSurge(s);
+    }
+
+    private bool CanSurge() => !_dead && _currentSurge?.Surge != null && !_surgeChannel && !_surgeArmed;
+
+    /// <summary>Fire the equipped surge WITHOUT spending Ruh (the Prepared perk, at round start). No-op if one is
+    /// already going.</summary>
+    public void surge_free()
+    {
+        if (CanSurge())
+            FireSurge(_currentSurge.Surge);
+    }
+
+    /// <summary>Tell every passive a round began (RunManager.StartRound) — see <see cref="Passive.OnRoundStart"/>.</summary>
+    public void notify_round_start()
+    {
+        foreach (var p in new List<Passive>(_passives))
+            p.OnRoundStart(this);
+    }
+
+    private void FireSurge(SurgeSpec s)
+    {
         BeginSurge(s);
         Flash(_sprite);
         _sfx.play(Anim(_currentSurge).ToString());
@@ -1238,6 +1268,9 @@ public partial class Player : Combatant
         jump_velocity_bonus = 1.0f;
         _slamSpringBonus = 1.0f;
         magnet_target_bonus = 0;
+        fig_chance_bonus = 0.0f;
+        fig_magnet_range = 0.0f;
+        hit_shields = 0;
         ruh_cap = BaseRuhCap;
         air_jump_bonus = 0;
         max_health = BaseMaxHealth;
