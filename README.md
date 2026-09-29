@@ -2054,7 +2054,17 @@ shared `UiStyle` theme.
 **Draw order — `scripts/ui/UiLayers.cs`.** Every `CanvasLayer` takes its layer from this one table (never a literal),
 so screens can't silently cover each other: `Background` (-100) → `LowHealth` (50) → `Gauge` (60) → `Hud` (100) →
 `Menu` (110, the attack picker + buff cards) → `Pause` (120). Menus sit above the HUD
-so it never hides their content. New settings: add the value to `SaveData`
+so it never hides their content.
+
+**World draw order** has its own table, **`WorldZ`** (`scripts/ui/WorldZ.cs`) — the z_index of everything in the arena,
+lowest first: `Scenery` (-30, the layout's statue / trees) → `Decor` (-20, the rocks + plants tile layer) → `Terrain`
+(-10) → `Stalls` (-5, the box, Needle Point, Dekken, launch orbs) → `Drops` (-1, figs on the ground) → `Actors` (0,
+Khalid + enemies) → `SpawnFx` (4) → `FlyingPickups` (5, Lira + Ruh souls) → `Impacts` (50) → the death cinematic
+(400 / 500). `LevelLayout` sets its `Aesthetic` / `Decor` / `Terrain` nodes from it (a `[Tool]`, so the editor shows the
+same order), and each piece of code that places something in the world sets its own. Effects parented to a body keep
+small **relative** offsets (±1–2: "just behind / in front of me" — a surge orbit's back half, a swing trail), which is
+why `Stalls` sits well below `Actors`: those offsets never sink behind the level. Use the table, never a literal z,
+for anything placed in the world. New settings: add the value to `SaveData`
 (stored by enum NAME, so reordering an enum never remaps a saved choice) and a row to `PauseMenu.Build`.
 
 ### Feedback + the pip art

@@ -14,9 +14,24 @@ namespace MyGame;
 /// around the player on the floor he's standing on (<see cref="SpawnSurfacesNear"/>). Optional launch-orb spots
 /// go in the <b>orb</b> group. WHICH enemies appear is RunManager's spawn pool (kits in <see cref="EnemyKits"/>).</para>
 /// </summary>
-[GlobalClass]
+[GlobalClass, Tool]
 public partial class LevelLayout : Node2D
 {
+    /// <summary>Put the layout's layers at their <see cref="WorldZ"/> — at runtime AND in the editor (this is a [Tool]
+    /// for that only), so what you paint sits in the same order you'll see in the game, whatever the scene file says.</summary>
+    public override void _Ready()
+    {
+        SetZ("Aesthetic", WorldZ.Scenery);
+        SetZ("Decor", WorldZ.Decor);
+        SetZ("Terrain", WorldZ.Terrain);
+    }
+
+    private void SetZ(string child, int z)
+    {
+        if (GetNodeOrNull<Node2D>(child) is Node2D n)
+            n.ZIndex = z;
+    }
+
     /// <summary>World position of the player start.</summary>
     public Vector2 PlayerSpawn() => MarkerPos("PlayerSpawn");
 

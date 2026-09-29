@@ -22,6 +22,8 @@ public abstract partial class ArcFlight : Node2D
     [Export] public Vector2 target_offset { get; set; } = new(0, -18);
     [Export] public float absorb_time { get; set; } = 0.12f;
 
+    public override void _Ready() => ZIndex = WorldZ.FlyingPickups;
+
     /// <summary>Start the flight from where this node is now toward <paramref name="target"/> (the player).</summary>
     protected void Fly(Node2D target)
     {

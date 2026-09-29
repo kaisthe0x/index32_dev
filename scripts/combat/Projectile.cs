@@ -406,7 +406,7 @@ public partial class Projectile : Node2D, ITunable
         if (fx is Node2D n)
         {
             n.GlobalPosition = at;
-            n.ZIndex = 50; // render over the enemy sprite it hit
+            n.ZIndex = WorldZ.Impacts; // render over the enemy sprite it hit
             n.Visible = true;
         }
         float life = 0.5f;

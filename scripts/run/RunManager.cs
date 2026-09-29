@@ -53,8 +53,6 @@ public partial class RunManager : Node2D
     private static readonly Vector2 CamZoomDeath = new(3.0f, 3.0f);
     private static readonly Vector2 CamZoomSpawn = new(2, 2);
     private const float DeathHold = 0.7f;
-    private const int DeathPlayerZ = 500;
-    private const int DeathOverlayZ = 400;
     private const float DeathFadeIn = 0.55f;
     private const float DeathFadeOut = 0.6f;
     private const float DeathFreeze = 0.5f;
@@ -520,6 +518,7 @@ public partial class RunManager : Node2D
     private void SpawnFx(Vector2 pos)
     {
         var fx = _spawnFx.Instantiate<Node2D>();
+        fx.ZIndex = WorldZ.SpawnFx;
         _content.AddChild(fx);
         PlaceAt(fx, pos + SpawnFxOffset);
         _sfx.play_at("enemy_spawn", pos);
@@ -802,7 +801,7 @@ public partial class RunManager : Node2D
         _music.stop();
         if (_player != null)
         {
-            _player.ZIndex = DeathPlayerZ;
+            _player.ZIndex = WorldZ.DeathPlayer;
             _player.ZAsRelative = false;
         }
         if (_deathOverlay != null && IsInstanceValid(_deathOverlay))
@@ -813,7 +812,7 @@ public partial class RunManager : Node2D
             Polygon = new Vector2[] { new(-s, -s), new(s, -s), new(s, s), new(-s, s) },
             Color = Colors.Black,
             Modulate = new Color(1, 1, 1, 0.0f),
-            ZIndex = DeathOverlayZ,
+            ZIndex = WorldZ.DeathOverlay,
             ZAsRelative = false,
         };
         Node host = _camera != null ? _camera : this;
@@ -849,7 +848,7 @@ public partial class RunManager : Node2D
     {
         if (_player != null)
         {
-            _player.ZIndex = 0;
+            _player.ZIndex = WorldZ.Actors;
             _player.ZAsRelative = true;
         }
     }

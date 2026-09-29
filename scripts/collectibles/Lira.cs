@@ -18,6 +18,7 @@ public partial class Lira : ArcFlight
 
     public override void _Ready()
     {
+        base._Ready();
         _glowMaterial ??= new ShaderMaterial { Shader = GD.Load<Shader>("res://vfx/shaders/world/pulse_glow.gdshader") };
         GetNode<Sprite2D>("Sprite2D").Material = _glowMaterial;
     }

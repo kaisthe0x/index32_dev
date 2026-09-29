@@ -28,6 +28,7 @@ public partial class FadaFig : RigidBody2D
 
     public override void _Ready()
     {
+        ZIndex = WorldZ.Drops;
         // Scatter pop: up + a little sideways, with a spin so it tumbles/rolls before settling.
         LinearVelocity = new Vector2(
             (float)GD.RandRange(-pop_side, pop_side),

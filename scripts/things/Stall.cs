@@ -27,6 +27,7 @@ public abstract partial class Stall : Node2D
 
     public override void _Ready()
     {
+        ZIndex = WorldZ.Stalls; // in front of the level, behind anyone standing at it
         EnsureInteractAction();
         Visual = new Node2D();
         AddChild(Visual);

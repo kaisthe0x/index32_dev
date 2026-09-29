@@ -10,7 +10,8 @@ the random pool automatically). Each is a **`LevelLayout`** scene (`scripts/run/
 - a **`Terrain` TileMapLayer** — its **Tile Set must be `assets/terrain/stage1/terrain_tileset.tres`** (the shared,
   generated one). The ground and platforms only.
 - a **`Decor` TileMapLayer** (same Tile Set) — decoration sheets (tileset3: rocks, plants) with **no collision**, drawn
-  behind Khalid and enemies. Keep decor here, not on `Terrain`: one cell holds one tile per layer, so a rock painted
+  behind Khalid, enemies and pickups. Draw order is set by the layout itself (`WorldZ`): props under the `Aesthetic`
+  node at the back, then `Decor`, then `Terrain` — so you don't set z_index on these nodes. Keep decor here, not on `Terrain`: one cell holds one tile per layer, so a rock painted
   on `Terrain` would replace whatever was there. Never "New TileSet" in the inspector: an embedded copy is invisible to the generator, so new
   tiles and collision fixes would never reach that level.
 - a **`PlayerSpawn`** `Marker2D` (where Khalid drops in), and optional launch-orb spots in the **`orb`** group,
