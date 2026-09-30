@@ -15,7 +15,7 @@ implements is [`docs/game-loop.md`](../../docs/game-loop.md) — **endless CoD-Z
 |---|---|
 | `RunManager.cs` (`RunManager`) | The brain + the arena root. Builds ONE arena and runs the **round loop** (a hidden quota per round, trickled in from a mixed roster — proximity-placed around the player, under a concurrent cap — then a breather + ROUND banner), **awards Ruh per damaging hit landed** (via `gain_ruh_on_hit`, skipping a special's own hits — not per kill), **pays Lira on every kill** (coins that fly to the player) **plus a per-kit chance of one Fada Fig**, **spawns a mystery box** (spend figs for a stingy powerful-buff gamble — a win rarely offers a **special-swap** instead) **and Needle Point** (the shot stall, on the other side of the spawn), ticks the run's `ShotLedger` at each round start/clear, and restarts the run on death. Owns the camera/death/spawn flair. |
 | `enemies.gd` (`EnemyKits`) | **The enemy roster** — one named kit per type (combat tuning + which scene), plus a `Tier`. `RunManager.SpawnPool` draws from these. Edit here to change *who* the enemies are. |
-| `ShotLedger.cs` (`ShotLedger`) | **Needle Point's rules** for one run: each shot's upgrade level and which are active (as `Shot` passives). BUY / UPGRADE (break only) + `OnRoundClear`. Data in `configs/NeedlePoint.cs`; see the main README § Needle Point shots. |
+| `ShotLedger.cs` (`ShotLedger`) | **Needle Point's rules** for one run: the ranks owned of each shot (as `Shot` passives). BUY (break only) raises a shot one rank, permanently, at a rising price. Data in `configs/NeedlePoint.cs`; see the main README § Needle Point shots. |
 | `PerkLedger.cs` (`PerkLedger`) | **Dekken's rules** for one run: the break's stock (5 random perks, rerolled every break), active/owned perks (as `Perk` passives), BUY (break only) + `OnRoundClear`. Data in `configs/Dekken.cs`; see the main README § Dekken perks. |
 | `DekkenStall.cs` (`DekkenStall`, in `scripts/things/`) | The perk shop (placeholder amber stall), further out on the box's side. Press **E** at it to open the `DekkenMenu` (`scripts/ui/`). Open only in the break. |
 | `NeedlePointStall.cs` (`NeedlePointStall`, in `scripts/things/`) | The stat stall (placeholder teal cabinet). Press **E** at it to open the `NeedlePointMenu` (`scripts/ui/`) over the run's ledger. |
@@ -110,9 +110,9 @@ Related, but not in this folder:
    default, Kebus 25 %) — **one Fada Fig** that settles until touched. Nothing drops if the enemy fell off the map. A
    quota enemy also frees a cap slot, counts toward the round, and the last one clears it.
 5. **Buffs come from the stalls:**
-   - **Needle Point (Lira, temporary stats), open only in the break:** buy shots (active at once, through the next
-     round) or spend figs to upgrade one's level for the run — `ShotLedger`, ticked at `ClearRound`; `StartRound` /
-     `ClearRound` close and reopen the stall.
+   - **Needle Point (Lira, permanent stats), open only in the break:** each purchase raises a shot one rank for the
+     rest of the run, each rank dearer than the last — `ShotLedger`; `StartRound` / `ClearRound` close and reopen the
+     stall.
    - **Dekken (Lira, utility perks), open only in the break:** 5 random perks per break — a heal, a teleport to the
      box, fig odds, a fig magnet, a shield, a free surge, Wider Pull — `PerkLedger`, ticked + restocked at `ClearRound`.
      `StartRound` fires `Player.notify_round_start` (round-scoped perks re-arm).
@@ -142,8 +142,8 @@ Related, but not in this folder:
 - **Change the box special-swap** → `RunManager` `SpecialOfferChance` (chance a win offers a special instead of a 3rd
   buff) + `BoxSpecialIds` (which specials are box-only; currently `SpecialIds.Zahluq`). `RollBoxSpecial` skips a special
   you already have equipped.
-- **Change the shots** → `configs/NeedlePoint.cs`: each shot's per-level values, rounds and price in `SHOTS`, plus
-  `LevelPriceGrowth`, `UPGRADE_FIGS`, `LEVEL_COLORS`. A new shot = a `ShotIds` id + a `ShotStat` + its
+- **Change the shots** → `configs/NeedlePoint.cs`: each shot's per-rank values and rank-I price in `SHOTS`, plus
+  `PriceGrowth` and `RANK_COLORS`. A new shot = a `ShotIds` id + a `ShotStat` + its
   case in `Shot.Apply`.
 - **Change the perks** → `configs/Dekken.cs`: `StockSize` and each perk's duration, rounds, price and `Value` in
   `PERKS`. A new perk = a `PerkIds` id + its entry + its effect (`Perk` for lasting ones, `PerkLedger.Buy` for one-use).

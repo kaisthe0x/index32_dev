@@ -134,7 +134,7 @@ you, and **each use spends one Ruh charge** — Ruh is the only gate, no cooldow
 *only* from buffs. **Killing an enemy** pays **Lira** (the common currency) and, at a per-enemy chance, a **Fada
 Fig** (the rare one) — see below. **Buffs come from the mystery box** in the arena: stand next to it and press **E**
 to **spend** figs on a gamble — a win opens a **pick-1-of-3 menu** from the POWERFUL pool (above-rare tiers), each
-win making the next rarer. **Lira buys shots at Needle Point** (temporary stat boosts) **and perks at Dekken** (utility —
+win making the next rarer. **Lira buys shots at Needle Point** (permanent stat boosts, rank by rank) **and perks at Dekken** (utility —
 a heal, a teleport, a shield …); both are open only in the break between rounds (§ Needle Point shots / § Dekken perks
 below, `docs/game-loop.md` § Economy). Moves are independent — they **upgrade by layering
 buffs**, not by turning into a different move (Rope Dart & Redere Frisbee are now standalone swaps, not
@@ -916,28 +916,27 @@ the tiered catalog below.
 
 #### Needle Point shots (`configs/NeedlePoint.cs`)
 
-The **stat stall** (`docs/game-loop.md` § Economy): temporary numbers on Khalid's body, bought with Lira. The whole
-catalog is always on sale — **Extra Dash, Extra Jump, Jump Height, Run Speed, Reach, Attack Damage, Slam Damage** — each a `ShotDef` (`records/shots/`) in `NeedlePoint.SHOTS`: which `ShotStat` it changes, its value at
-each **level** (index 0 = grey, then green / blue / purple / gold), how many rounds it lasts (1 each for now) and its
-level-0 Lira price. Prices/costs are consts there too (`LevelPriceGrowth` ×1.5 per level,
-`UPGRADE_FIGS` 3 / 5 / 8 / 12). All placeholders.
+The **stat stall** (`docs/game-loop.md` § Economy): **permanent** numbers on Khalid's body, bought rank by rank with
+Lira. The whole catalog is always on sale — **Extra Dash, Extra Jump, Jump Height, Run Speed, Reach, Attack Damage,
+Slam Damage** — each a `ShotDef` (`records/shots/`) in `NeedlePoint.SHOTS`: which `ShotStat` it changes, its value at
+each **rank** (index 0 = rank I; the array length = the max rank — III for dashes / air jumps, V for the rest), and
+rank I's Lira price (15). Every rank after costs `PriceGrowth` (×1.6) more — 15 / 24 / 38 / 61 / 98. Rank colours
+(grey / green / blue / purple / gold) are `RANK_COLORS`. All placeholders.
 
 - **Open only in the break between rounds** — `RunManager` closes the stall at `StartRound` and reopens it at
-  `ClearRound` (`Stall.SetOpen`: dimmed, "CLOSED" prompt, E ignored). What you buy there is **active at once** and
-  lasts through the next round(s), so there's never a "this round or next?" question.
-- **The rules** live in `ShotLedger` (`scripts/run/`, one per run, owned by `RunManager`, ticked at `ClearRound`):
-  **BUY** (Lira) activates the shot for its full duration; buying it again renews it (refused while already full) —
-  never stacks. **UPGRADE** (figs) raises its level for the run and grants it at the new level the same way. Each
-  round clear spends a round; a shot out of rounds ends.
-- **The effect** is a `Shot` (`scripts/abilities/`), a `Passive` the ledger adds/removes (`Player.add_passive` /
-  `remove_passive`): Setup applies the stat, Teardown undoes it exactly — `add_dash_charges`, `add_air_jumps`,
-  `jump_velocity_bonus`, `scale_run_speed`, `attack_reach_mult`, `damage_mult`,
+  `ClearRound` (`Stall.SetOpen`: dimmed, "CLOSED" prompt, E ignored).
+- **The rules** live in `ShotLedger` (`scripts/run/`, one per run, owned by `RunManager`): **BUY** raises a shot one
+  rank for the rest of the run, at its next price; at the max rank the button reads **MAXED**. Figs play no part.
+- **The effect** is a `Shot` (`scripts/abilities/`), a `Passive` holding the owned rank; buying the next rank swaps it
+  for a stronger copy (`Player.remove_passive` / `add_passive`). Setup applies the stat, Teardown undoes it exactly —
+  `add_dash_charges`, `add_air_jumps`, `jump_velocity_bonus`, `scale_run_speed`, `attack_reach_mult`, `damage_mult`,
   `slam_damage_mult`.
 - **Dash charges:** Khalid holds `1 + dash_bonus` dashes; each spends one, and a spent one refills after the dash
   cooldown, one at a time — so with one charge it plays exactly like the old single cooldown.
 - **The stall** is `NeedlePointStall` (a `Stall` — the shared stand-and-press-E base the mystery box uses too), placed
-  near spawn on the other side from the box; its `NeedlePointMenu` lists every shot (name in its level colour, effect,
-  status, BUY / UPGRADE) and pauses the game. Active shots show in the HUD's top-right list with their rounds left.
+  near spawn on the other side from the box; its `NeedlePointMenu` (on the shared `StallMenu` frame) lists every shot
+  (name + rank in the rank's colour, what you have → what the next rank gives, BUY / MAXED) and pauses the game. Owned
+  shots show in the HUD's top-right list with their rank and value.
 
 #### Dekken perks (`configs/Dekken.cs`)
 

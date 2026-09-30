@@ -23,8 +23,8 @@ the source of the numbers: a shot's **levels** take the five `C / R / H / S / E`
 a box buff starts from its **Hot** value as its single version. "Built" = implemented in `configs/BuffCatalog.cs`
 today.
 
-**Needle Point — shots** *(built 2026-09-28 — `configs/NeedlePoint.cs`; the old buffs listed under "From" are gone
-from the box pool and their buff classes deleted)*
+**Needle Point — shots** *(built 2026-09-28, permanent ranks since 2026-09-29 — `configs/NeedlePoint.cs`; the old buffs
+listed under "From" are gone from the box pool and their buff classes deleted)*
 
 | Shot | From | Built | Note |
 |---|---|---|---|

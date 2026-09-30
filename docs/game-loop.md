@@ -114,13 +114,13 @@ round clears when both are dead. **For now: grunts only.** Kroj stays out of the
 |---|---|---|
 | Drops | **every kill**, in today's fig amounts (Chip 1 · Mid 2 · Strong 3) | a **per-enemy chance** per kill: **10 %** default, **Kebus 25 %** (the hardest grunt); tougher ranks / Wardens tuned later. A hit drops **1** fig |
 | Pickup | flies to Khalid like Ruh (the magnet pickup); its own pickup sfx *(placeholder until the real sound lands)*; art `index32_art/art/things/lira.png` | as today |
-| Spent on | **Needle Point** shots + **Dekken** perks | **Needle Point upgrades** + the **Mystery Box** (+ future altars) |
+| Spent on | **Needle Point** shots + **Dekken** perks | the **Mystery Box** (+ future altars) |
 | HUD | a counter (replaces the fig milestone ring) | a counter |
 
 Neither carries over between runs — carrying currency out would let a player hoard power into the next run.
 
-**The two currencies never compete:** Lira only buys at the stalls, figs only upgrade or gamble. The real choices
-are *inside* each: which shots/perks to rent this round (Lira), and **upgrade a shot vs. spin the box** (figs).
+**The two currencies never compete:** Lira only buys at the stalls, figs only gamble at the box. The real choice is
+inside Lira: **grow a permanent stat** (Needle Point) or **buy for the round ahead** (Dekken).
 
 ### The three stalls differ in KIND, not just duration
 
@@ -143,29 +143,29 @@ time. During a round the stalls show CLOSED. (The mystery box stays open during 
 
 ### Needle Point — the stat shots
 
-- **Stock:** the **whole catalog, always** (small — ~6–8 shots). No rotation, so an upgrade is never wasted.
-- **Duration:** a shot lasts **N rounds**, set per shot (**1 round** for every shot to start), counted from the
-  next round; bought in a break, it's **active at once**.
-- **Rebuying an active shot resets its duration** to full — it never stacks (so a rich player can't prepay rounds).
-  (The earlier half-price "buy now" is gone — break-only buying made it redundant.)
-- **Upgrades (figs):** each shot has a **level** — `0` grey → `1` green → `2` blue → `3` purple → `4` gold → more
-  as needed — up to that shot's own max; the **Upgrade** button disables at max. Upgrading **also grants the shot**
-  (swaps any active copy for the new level, full duration, active at once). The level **lasts the run**; from then on the shot is
-  bought with Lira at its new level.
-- **Prices:** flat per shot; **only an upgrade raises its Lira price**. (Per-purchase price growth is parked —
-  revisit if late rounds feel Lira-rich, since income grows with the quota.)
+**Permanent since 2026-09-29** (re-buying the same stats every break was a chore; permanent power also fits an endless
+run that keeps getting harder).
+
+- **Stock:** the **whole catalog, always** (7 shots). No rotation.
+- **Each purchase = one RANK, for the rest of the run:** rank I (grey) → II (green) → III (blue) → IV (purple) → V
+  (gold), up to that shot's own max (the dash / air-jump shots stop at III). Then the button reads **MAXED**.
+- **Every rank costs more than the last** (placeholders: rank I **15 Lira**, **×1.6** per rank → 15 / 24 / 38 / 61 / 98).
+- **Figs don't touch Needle Point any more** — buying with Lira *is* the upgrade; figs are the box's currency.
 - **Pauses the game** (it's a menu) — for now; see *Later ideas → the timed break*.
-- Placeholders: shot **10 Lira** · each level **+50 %** Lira price · upgrade cost **3 / 5 / 8 / 12 figs** for
-  levels 1–4 · max level **4**.
+- **Watch:** a strong player can max all of Needle Point late in a run — after that, Lira only goes to Dekken. The
+  price curve delays it; if late rounds feel Lira-rich, add sinks.
 
 ### Dekken — the perk shop
 
 - **Stock:** **5 random perks, rerolled every break**; no duplicate in the five. A perk gated to a special (Wider
   Pull → Come Closer) is only stocked while that special is equipped.
 - **Duration: per perk** — a number of rounds (**1** to start), **one use** (fast travel), or **the whole run**
-  (fig chance). Like shots, a perk bought in the break is **active at once** and timed perks count from the next round.
+  (fig chance). A perk bought in the break is **active at once** and timed perks count from the next round. Dekken
+  stays mostly temporary on purpose: permanent power comes from Needle Point + the box; Dekken is for the round ahead
+  (and keeps Lira useful once Needle Point is maxed). If a perk feels like a chore, lengthen it rather than make it
+  permanent.
 - **Whole-run perks leave the pool** once bought (they're done for the run and shouldn't take a slot).
-- **Rebuying an active timed perk resets its duration.** Perks are **not upgradeable**.
+- **Rebuying an active timed perk resets its duration.** Perks have no ranks.
 - **Pauses the game** (for now — see *Later ideas → the timed break*).
 - Placeholder perks: **Heal** (a block, 20 Lira) · **Fast Travel** (teleport to the box, one use, 20 Lira) ·
   **Fig Chance** (+5 % fig chance on every enemy, whole run, 40 Lira) · **Magnet** (loose figs within 400 px fly to
@@ -199,8 +199,9 @@ time. During a round the stalls show CLOSED. (The mystery box stays open during 
 
 ### Later ideas — noted, not in this build
 
-- **The Vial:** Khalid carries **one vial** that can hold a Needle Point shot for later — at Needle Point you either
-  *take it now* or *store it in the vial*, then inject it whenever you choose and refill it with another. Build it
+- **The Vial:** Khalid carries **one vial** that can hold a **Dekken perk** for later — at Dekken you either *use it
+  now* or *store it in the vial*, then trigger it whenever you choose (a mid-round heal, a Shield for a hard round) and
+  refill it with another. (It was first pitched for shots; those are permanent now, so it moved to perks.) Build it
   only if the shop feels too stiff without it. Candidate for a **main-menu unlock** (see § Meta-progression).
 - **Shop relocation** (the CoD teddy bear, but for the stalls).
 - **HP-cost altars** (Risk of Rain blood shrine): pay health for power.
@@ -220,7 +221,8 @@ always reset). Added only if the loop needs more variety; **nothing we build now
 (shot/perk durations are per-buff data precisely so this can raise them later). How they're earned (runs played,
 best round, or a persistent meta-currency) is undecided.
 
-- **Longer shots/perks:** certain Needle Point shots / Dekken perks last **more rounds**, permanently.
+- **Longer perks / deeper shots:** certain Dekken perks last **more rounds**, or Needle Point shots get a higher max
+  rank / a cheaper rank I — permanently.
 - **The Vial** (see § Economy → Later ideas) as an unlockable.
 - **Sigils** — pre-run run-rule modifiers with tradeoffs (the long-standing idea in the glossary).
 
@@ -293,8 +295,8 @@ The existing `Buff : Passive` + `Trigger` + `ModifyTuning` foundation fits. Ever
 
 - **E1. Lira + fig drops** *(built 2026-09-28)* — the Lira pickup (magnet, placeholder sfx, HUD counter), per-kit fig chance, and
   **removing** the fig milestone menu + the fig ring.
-- **E2. Needle Point** *(built 2026-09-28)* — the shot catalog, next-round start + half-price buy-now, reset-on-rebuy, fig upgrades with
-  the level colours.
+- **E2. Needle Point** *(built 2026-09-28; made permanent 2026-09-29)* — the shot catalog, bought rank by rank with
+  Lira at a rising price, permanent for the run, break-only.
 - **E3. Dekken** *(built 2026-09-28)* — 5 rotating perks, per-perk durations, whole-run perks leaving the pool.
 - **E4. Mystery Box rework** — the mechanics pool (single version, reroll duplicates, decline), the teddy bear,
   easy/hard box spots, relocation, Fast Travel.
@@ -329,12 +331,12 @@ The existing `Buff : Passive` + `Trigger` + `ModifyTuning` foundation fits. Ever
 - **Warden** — the elite of the Warden rounds (every 10th; later). Kroj is the first.
 - **Ruh** — the meter (surge).
 - **Lira** — the common currency (every kill): buys shots and perks. **Fada Figs** — the rare currency (a
-  per-enemy chance): upgrades shots, spins the box.
-- **Needle Point** — the stat stall; sells **shots** (numbers, N rounds, upgradeable levels).
+  per-enemy chance): spins the box.
+- **Needle Point** — the stat stall; sells **shots** (permanent numbers, bought rank by rank).
 - **Dekken** — the perk shop; **5 rotating perks** (utility, per-perk duration).
 - **Mystery Box** — spend figs for a permanent build-defining buff; the **teddy bear** relocates it.
-- **Level** — a shot's upgrade step (grey → green → blue → purple → gold → …).
-- **The Vial** — later idea: carry one shot to inject when you choose.
+- **Rank** — a shot's level, one per purchase (grey → green → blue → purple → gold).
+- **The Vial** — later idea: carry one Dekken perk to use when you choose.
 - **Redere Shield** — default Special: a frontal damage-block. **Aegis** — default Surge (5 s invuln, 1 charge).
 - **Sigil** — future pre-run run-rule modifier.
 
@@ -345,7 +347,7 @@ The existing `Buff : Passive` + `Trigger` + `ModifyTuning` foundation fits. Ever
 - `Q(r)`, `C(r)`, spawn interval, breather length — live-tuned.
 - Rank mix curve (when each rank enters, how fast the mix shifts) and per-rank stat multipliers — live-tuned.
 - Round-drop odds + the minimum distance from the player.
-- Every § Economy placeholder (prices, durations, upgrade costs, max levels, box cost, teddy-bear + hard-spot odds,
+- Every § Economy placeholder (prices, price growth, durations, max ranks, box cost, teddy-bear + hard-spot odds,
   the fig-chance perk's step) — live-tuned.
 - Whether enemy rank colours adopt the shot-level ladder (grey/green/blue/purple/gold) for one "strength" colour
   language.

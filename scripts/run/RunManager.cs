@@ -82,7 +82,7 @@ public partial class RunManager : Node2D
     private Sprite2D _bgSky;
     private Vector2 _bgImgSize;
     private LevelLayout _layout;
-    private ShotLedger _shots;                   // this run's Needle Point shots (levels, active)
+    private ShotLedger _shots;                   // this run's Needle Point shots (ranks owned)
     private NeedlePointStall _needlePoint;       // open only in the break between rounds
     private PerkLedger _perks;                   // this run's Dekken perks (stock, active, owned)
     private DekkenStall _dekken;                 // open only in the break between rounds
@@ -301,7 +301,6 @@ public partial class RunManager : Node2D
     private void ClearRound()
     {
         _phase = RoundPhase.Breather;
-        _shots.OnRoundClear(); // every active shot spends a round
         _perks.OnRoundClear(); // timed perks spend a round; fresh stock for the break
         _needlePoint.SetOpen(true);
         _dekken.SetOpen(true);

@@ -3,25 +3,23 @@ using Godot;
 namespace MyGame;
 
 /// <summary>
-/// The Needle Point menu (a <see cref="StallMenu"/>, open in the break between rounds): every shot as a row — its name in
-/// its LEVEL colour, what it does at that level, its status (active + rounds left), and two actions: <b>BUY</b> (Lira —
-/// active now, through the next round; renews an active one) and <b>UPGRADE</b> (figs — +1 level for the run, and
-/// granted now).
+/// The Needle Point menu (a <see cref="StallMenu"/>, open in the break between rounds): every shot as a row — its name +
+/// rank in the rank's colour, what it gives now and what the next rank gives, and <b>BUY</b> (Lira — the next rank, for
+/// the rest of the run; <b>MAXED</b> once there's none).
 /// </summary>
 public partial class NeedlePointMenu : StallMenu
 {
-    private const float NameWidth = 136.0f;
-    private const float EffectWidth = 232.0f;
-    private const float StatusWidth = 152.0f;
-    private const float BuyWidth = 70.0f;
-    private const float UpgradeWidth = 130.0f;
+    private const float NameWidth = 152.0f;
+    private const float NowWidth = 208.0f;
+    private const float NextWidth = 104.0f;
+    private const float BuyWidth = 80.0f;
 
     private ShotLedger _ledger;
 
     public void Open(ShotLedger ledger, Player player)
     {
         _ledger = ledger;
-        OpenFrame(player, "NEEDLE POINT", "Shots are active now and last through the next round · UPGRADE lasts the run");
+        OpenFrame(player, "NEEDLE POINT", "Shots last the whole run · each rank costs more than the last");
     }
 
     protected override void FillRows(VBoxContainer rows)
@@ -33,30 +31,18 @@ public partial class NeedlePointMenu : StallMenu
     private Control Row(ShotDef def)
     {
         string id = def.Id;
-        int level = _ledger.Level(id);
+        int rank = _ledger.Rank(id);
+        bool maxed = _ledger.Maxed(id);
         var (strip, row) = NewRow();
-        var name = Cell($"{def.Name}  {Roman(level + 1)}", NameWidth);
-        name.AddThemeColorOverride("font_color", NeedlePoint.LevelColor(level)); // the level colour is semantic
+        var name = Cell(rank == 0 ? def.Name : $"{def.Name}  {Shot.Roman(rank)}", NameWidth);
+        if (rank > 0)
+            name.AddThemeColorOverride("font_color", NeedlePoint.RankColor(rank)); // the rank colour is semantic
         row.AddChild(name);
-        string rounds = def.Rounds == 1 ? "1 round" : $"{def.Rounds} rounds";
-        row.AddChild(Cell($"{Shot.EffectText(def, level)} · {rounds}", EffectWidth));
-        row.AddChild(Cell(Status(id), StatusWidth, UiStyle.Muted));
-        row.AddChild(ActionButton($"BUY {_ledger.Price(id)}", BuyWidth,
-            _ledger.CanRenew(id) && Player.lira >= _ledger.Price(id), () => _ledger.Buy(id)));
-        bool maxed = _ledger.AtMaxLevel(id);
-        row.AddChild(ActionButton(maxed ? "MAX" : $"UPGRADE {_ledger.UpgradeFigs(id)} FIGS", UpgradeWidth,
-            !maxed && Player.fada_figs >= _ledger.UpgradeFigs(id), () => _ledger.Upgrade(id)));
+        // What you have → what the next rank gives.
+        row.AddChild(Cell(rank == 0 ? "" : Shot.EffectText(def, rank), NowWidth));
+        row.AddChild(Cell(maxed ? "" : $"→ {Shot.FormatValue(def, rank + 1)}", NextWidth, UiStyle.Muted));
+        row.AddChild(ActionButton(maxed ? "MAXED" : $"BUY {_ledger.Price(id)}", BuyWidth,
+            !maxed && Player.lira >= _ledger.Price(id), () => _ledger.Buy(id)));
         return strip;
     }
-
-    /// <summary>What the shot is doing right now, in words.</summary>
-    private string Status(string id)
-    {
-        if (!_ledger.IsActive(id))
-            return "";
-        int left = _ledger.RoundsLeft(id);
-        return left == 1 ? "ACTIVE · 1 ROUND" : $"ACTIVE · {left} ROUNDS";
-    }
-
-    private static string Roman(int n) => n switch { 1 => "I", 2 => "II", 3 => "III", 4 => "IV", 5 => "V", _ => n.ToString() };
 }
