@@ -237,8 +237,6 @@ public partial class Player : Combatant
     [Export] public bool flinch_on_all_damage = true;
 
     private float _specialCd = 0.0f;
-    private float _attackCd = 0.0f;
-    private FloatingHealthBar _cooldownBar = null; // above-head ATTACK cooldown (specials have their own HUD bar)
     private AudioStreamPlayer _runSfx = null;
     private AudioStreamPlayer _slamDownSfx = null;
     private const float RuhFlashRefractory = 0.2f;
@@ -336,7 +334,6 @@ public partial class Player : Combatant
         _bufferedSpecial = false;
         _bufferedAttack = false;
         _flurry = false;
-        _attackCd = 0.0f;
         _dashCd = 0.0f;
         _dashCharges = MaxDashCharges;
         if (!Engine.IsEditorHint())
@@ -641,9 +638,6 @@ public partial class Player : Combatant
     /// <summary>Prime the NEXT ground jump with a height multiplier (Slam Spring) — one-shot, consumed on that jump.</summary>
     public void set_jump_spring(float mult) => _slamSpringBonus = mult;
 
-    /// <summary>Lower the current attack cooldown (Bakshen Overcharge on-hit). Clamped to zero (a huge value = full reset).</summary>
-    public void reduce_attack_cooldown(float seconds) => _attackCd = Mathf.Max(_attackCd - seconds, 0.0f);
-
     /// <summary>Shave <paramref name="seconds"/> off the special's cooldown (clamped at ready).</summary>
     public void reduce_special_cooldown(float seconds) => _specialCd = Mathf.Max(_specialCd - seconds, 0.0f);
 
@@ -689,9 +683,7 @@ public partial class Player : Combatant
     {
         if (_sprite == null)
             return;
-        if (_state == State.ATTACK && _sprite.Frame < _segEnd)
-            _attackCd = 0.0f;
-        else if (_state == State.SPECIAL && _sprite.Frame < SpecialStrikeFrame())
+        if (_state == State.SPECIAL && _sprite.Frame < SpecialStrikeFrame())
             _specialCd = 0.0f;
     }
 
@@ -817,14 +809,6 @@ public partial class Player : Combatant
         _status = new StatusOverlay();
         AddChild(_status);
         _status.Setup(_sprite);
-
-        _cooldownBar = new FloatingHealthBar
-        {
-            FillColor = new Color(1.0f, 0.08f, 0.08f),
-            Position = new Vector2(0, -52),
-            Visible = false,
-        };
-        AddChild(_cooldownBar);
 
         if (!Engine.IsEditorHint())
         {
@@ -1306,8 +1290,6 @@ public partial class Player : Combatant
         _launchCdLeft = Mathf.Max(_launchCdLeft - delta, 0.0f);
         UpdateOrbProximity();
         TrySurge();
-        _attackCd = Mathf.Max(_attackCd - delta, 0.0f);
-        UpdateCooldownBar();
         _ruhFlashCd = Mathf.Max(_ruhFlashCd - delta, 0.0f);
         _armorLeft = Mathf.Max(_armorLeft - delta, 0.0f);
         _iframesLeft = Mathf.Max(_iframesLeft - delta, 0.0f);
@@ -1485,7 +1467,7 @@ public partial class Player : Combatant
                 return;
             }
         }
-        if (Input.IsActionJustPressed("attack") && (IsOnFloor() || AirAttackOk()))
+        if (AttackHeld() && (IsOnFloor() || AirAttackOk()))
         {
             AdvanceCombo();
             return;
@@ -1685,7 +1667,7 @@ public partial class Player : Combatant
                 Enter(State.SLAM);
                 return;
             }
-            if (Input.IsActionJustPressed("attack") && AirAttackOk())
+            if (AttackHeld() && AirAttackOk())
             {
                 AdvanceCombo();
                 return;
@@ -1717,7 +1699,7 @@ public partial class Player : Combatant
             StartSpecial();
             return;
         }
-        if (Input.IsActionJustPressed("attack"))
+        if (AttackHeld())
         {
             AdvanceCombo();
             return;
@@ -1813,7 +1795,9 @@ public partial class Player : Combatant
             StartSpecial();
             return;
         }
-        if (Input.IsActionJustPressed("attack"))
+        // A press chains the next hit; HOLDING chains it too — except after the combo's last hit, which keeps its
+        // recovery beat before holding loops the combo back to its first hit (via IDLE).
+        if (Input.IsActionJustPressed("attack") || (AttackHeld() && _comboStep < AttackHits().Count))
         {
             AdvanceCombo();
             return;
@@ -1828,6 +1812,9 @@ public partial class Player : Combatant
             Enter(State.IDLE);
         }
     }
+
+    /// <summary>The attack button is down — every attack keeps going while it's held (flurries loop, combos chain).</summary>
+    private static bool AttackHeld() => Input.IsActionPressed("attack");
 
     /// <summary>A "held" special (Redere Shield) is up right now — its cooldown waits until it's released.</summary>
     private bool HoldingSpecial() => _state == State.SPECIAL && _currentSpecial != null && HasTag(_currentSpecial, "held");
@@ -1988,9 +1975,6 @@ public partial class Player : Combatant
                 StartFlurry();
             return;
         }
-        if (_currentAttack != null && CooldownOf(_currentAttack) > 0.0f && _attackCd > 0.0f)
-            return;
-
         var hits = AttackHits();
         if (hits.Count == 0)
             return;
@@ -2009,8 +1993,6 @@ public partial class Player : Combatant
         _sprite.SpeedScale = 1.0f;
         _sprite.Play(Anim(_currentAttack));
         _sprite.SetFrameAndProgress(segStart, 0.0f);
-        if (CooldownOf(_currentAttack) > 0.0f)
-            _attackCd = CooldownOf(_currentAttack);
     }
 
     private void StartFlurry()
@@ -2021,28 +2003,6 @@ public partial class Player : Combatant
         Enter(State.ATTACK);
         _sprite.SpeedScale = 1.0f;
         _sprite.Play(Anim(_currentAttack));
-    }
-
-    /// <summary>The above-head bar tracks the ATTACK cooldown only (e.g. Bakshen); specials have their own bar in the
-    /// HUD gauge, so the two never share one.</summary>
-    private void UpdateCooldownBar()
-    {
-        if (_cooldownBar == null)
-            return;
-        float cd = 0.0f, left = 0.0f;
-        if (_currentAttack != null && CooldownOf(_currentAttack) > 0.0f && _attackCd > 0.0f)
-        {
-            cd = CooldownOf(_currentAttack);
-            left = _attackCd;
-        }
-        if (cd <= 0.0f || left <= 0.0f)
-        {
-            if (_cooldownBar.Visible)
-                _cooldownBar.Visible = false;
-            return;
-        }
-        _cooldownBar.Visible = true;
-        _cooldownBar.SetRatio(1.0f - left / cd);
     }
 
     private GArr AttackHits()

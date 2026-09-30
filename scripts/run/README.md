@@ -119,7 +119,7 @@ Related, but not in this folder:
    - **Mystery box (powerful, paid gamble):** one `MysteryBox` per arena; stand next to it + press **E** to spend `Cost`
      figs (`Player.spend_fada_figs`). Some pulls dud (`DudChanceBase`, 20 %); a WIN fires the box's `won` signal →
      `RunManager.OpenBoxMenu` opens a **3-choice `RewardUI`** from `BuffCatalog.PowerfulIds` (above-rare tiers). Each win raises the dud chance. On a win, one of the three cards is **rarely** a **special-swap**
-     instead of a buff (`RollBoxSpecial`, `SpecialOfferChance`, drawn from `BoxSpecialIds` — currently just **Zahluq**);
+     instead of a buff (`RollBoxSpecial`, `SpecialOfferChance`, drawn from `BoxSpecialIds` — **Zahluq** and **Bakshen**);
      picking it **replaces your equipped special** (`OnBuffChosen` → `Player.equip`, keyed by `_menuSpecialId`) rather
      than adding a passive. Picking plays `buff_select`.
 6. **Death** (HP hits 0 — the 6th hit) → `SaveData.ReportRun(_round)` records the round reached (new best →
@@ -140,7 +140,7 @@ Related, but not in this folder:
 - **Change the mystery box** → `MysteryBox` consts: `Cost` (figs per pull, 8 — figs are rare), `DudChanceBase`,
   `DudChanceGrowth` (+per win), `DudChanceCap`. Cards per win: `RunManager.BuffMenuChoices`. Powerful pool = `BuffCatalog.PowerfulIds()`; tier weights = `RollPowerfulTier`.
 - **Change the box special-swap** → `RunManager` `SpecialOfferChance` (chance a win offers a special instead of a 3rd
-  buff) + `BoxSpecialIds` (which specials are box-only; currently `SpecialIds.Zahluq`). `RollBoxSpecial` skips a special
+  buff) + `BoxSpecialIds` (which specials are box-only; currently `SpecialIds.Zahluq` + `SpecialIds.Bakshen`). `RollBoxSpecial` skips a special
   you already have equipped.
 - **Change the shots** → `configs/NeedlePoint.cs`: each shot's per-rank values and rank-I price in `SHOTS`, plus
   `PriceGrowth` and `RANK_COLORS`. A new shot = a `ShotIds` id + a `ShotStat` + its

@@ -8,5 +8,6 @@ public static class SpecialIds
     public const string ComeCloser = "come_closer";
     public const string RedereShield = "redere_shield";
     public const string RedereFrisbee = "redere_frisbee";
-    public const string Zahluq = "zahluq"; // ex-attack, repurposed: a rare special-swap only from the mystery box
+    public const string Zahluq = "zahluq";   // ex-attack, repurposed: a rare special-swap only from the mystery box
+    public const string Bakshen = "bakshen"; // ex-attack (the cooldown-gated one), repurposed the same way
 }

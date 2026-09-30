@@ -50,9 +50,9 @@ public static class BuffCatalog
             new[] { 1.0f, 1.5f, 2.0f, 2.5f, 3.0f })          // window seconds
             { Tier = t, Family = "slam_wrath", AppliesTo = { "attack" } },
 
-        // --- per-attack (offer-gated): Bakshen Overcharge (OnHitDealt → cooldown cut; Epic = full reset) ---
+        // --- per-special (offer-gated): Bakshen Overcharge (its hits cut its cooldown; Epic = full reset) ---
         [BuffIds.Overcharge] = t => new OverchargeBuff(BuffIds.Overcharge,
-            new[] { 0.5f, 1.0f, 1.5f, 2.0f, 9999f }) { Tier = t, Family = "overcharge", AppliesTo = { AttackIds.Bakshen } },
+            new[] { 0.5f, 1.0f, 1.5f, 2.0f, 9999f }) { Tier = t, Family = "overcharge", AppliesTo = { SpecialIds.Bakshen } },
 
         // --- per-attack (offer-gated): Zahluq Instant Reset (OnMiss → full attack-cooldown reset) ---
         [BuffIds.InstantReset] = t => new InstantResetBuff(BuffIds.InstantReset)

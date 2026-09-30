@@ -3,9 +3,9 @@ using Godot;
 namespace MyGame;
 
 /// <summary>
-/// Bakshen Overcharge: each landed hit shaves a per-tier chunk off the attack cooldown (Epic = full reset via a
-/// huge value), so rapid Bakshen chaining ramps damage. Offer-gated to the Bakshen attack (<see cref="Buff.AppliesTo"/>);
-/// the attack is locked for the run, so in practice only Bakshen hits feed it. Built by <see cref="BuffCatalog"/>.
+/// Bakshen Overcharge: each hit the Bakshen SPECIAL lands shaves a per-tier chunk off the special cooldown (Epic = full
+/// reset via a huge value), so rapid Bakshen chaining ramps damage. Offer-gated to the Bakshen special
+/// (<see cref="Buff.AppliesTo"/>); only special hits feed it (an attack's hit doesn't). Built by <see cref="BuffCatalog"/>.
 /// </summary>
 public partial class OverchargeBuff : Buff
 {
@@ -18,6 +18,9 @@ public partial class OverchargeBuff : Buff
         _secs = secs;
     }
 
-    public override void OnHitDealt(Player p, float amount, Node target) =>
-        p.reduce_attack_cooldown(_secs[Mathf.Clamp((int)Tier, 0, _secs.Length - 1)]);
+    public override void OnHitDealt(Player p, float amount, Node target)
+    {
+        if (target is Enemy e && e.last_hit_from_special)
+            p.reduce_special_cooldown(_secs[Mathf.Clamp((int)Tier, 0, _secs.Length - 1)]);
+    }
 }

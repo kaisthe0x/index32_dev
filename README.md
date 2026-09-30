@@ -62,7 +62,7 @@ tools/                Generator + verification scripts (not shipped)
 | S / ↓ | `drop` | Tap to fall through the one-way platform you're on (ground only; a no-op on solid floor). Controller: D-pad down / left-stick down; remappable in the Input Map |
 | Space | `jump` | Press again in the air to **double jump** (`max_air_jumps`) — the air jump re-boosts and spawns the character's jump particles; the ground jump is silent |
 | Shift | `dash` | Uses a **dash charge** — you hold 1 (the **Extra Dash** shot adds more); a spent charge refills after the dash cooldown, one at a time. **Dash into a launch orb** and it magnets you through and flings you up + forward (see Launch orbs) |
-| Left mouse | `attack` | The current *attack* — each press advances the combo (or, for a `"flurry"` attack like Khalid's, **hold** to keep punching). **Ground only** by default — an attack whose Action is tagged `"air"` is the exception and can be used mid-air (`Player._air_attack_ok`). *(No shipped attack is currently tagged `"air"`; the tag now lives on the Zahluq **special**.)* |
+| Left mouse | `attack` | The current *attack* — **hold to keep attacking** (a flurry loops; a combo chains its hits, then loops); a press advances a combo one hit. **Ground only** by default — an attack whose Action is tagged `"air"` is the exception and can be used mid-air (`Player._air_attack_ok`). *(No shipped attack is currently tagged `"air"`; the tag now lives on the Zahluq **special**.)* |
 | Right mouse | `special` | On the ground: the current *special* (committed full-animation move) — **no Ruh cost, but every special has its own cooldown** (3–12s; shown by the special bar in the HUD gauge). **In the air: performs the ground slam instead** (characters with a `slam` sheet) |
 | Ctrl (RT / R2) | `surge` | Fires the equipped **Surge** — a passive ability (**Aegis** = ~5s invincibility; **Jnoon** = ~5s ×2 damage dealt; **Asra** = ~5s ×2 move speed) applied *without* interrupting your attacking/moving — **except Nem**, a committed sleep that locks you in place and restores one health block over 5s (a hit wakes/cancels it), and **Wara**, which *arms* and waits: the next enemy hit is negated and AoE-stuns everyone near you (2s). **Spends one Ruh charge per use** — Ruh is the only gate, no cooldown. RT on the pad because dash owns LT |
 | E | `interact` | Use the stall you're standing at — the **mystery box** (spend fada figs), **Needle Point** (shots) or **Dekken** (perks); a shop menu closes with E / Esc. Registered in code by `Stall` |
@@ -701,28 +701,24 @@ discrete once-a-second bites (`Enemy._reap_tick`) — ticking even while stunned
 normal (Ruh-eligible) kill. Bump `reap` toward `0.15` in `ActionsKhalid.cs` for a deadlier mark. Any
 future move (melee **or** ranged) can carry a `reap` to inflict a DoT.
 
-**Attack cooldown (`Action.style` `COOLDOWN` + `Action.cooldown`).** A heavy one-shot can carry a
-`cooldown` (seconds) in the `Actions` catalog so it can't be spammed — Khalid's `bakshen` uses `3.0`.
-While it recharges,
-`_advance_combo()` swallows the attack press (the swing simply doesn't start), and a small
-gold **fill bar floats over Khalid's head** (`FloatingHealthBar`, the same world-space bar the
-enemies use, tinted for "charge") growing empty→full as `_attack_cd` counts down; it hides once
-ready or for any attack with `cooldown 0`. The timer starts the instant the swing fires and
-resets to 0 on run-start / character swap. The overhead bar is the per-**attack** cooldown ONLY.
+**Hold to attack.** Every attack keeps going while the button is held (`Player.AttackHeld`): a **flurry**
+(`ActionStyle.Flurry` — Ora Ora, Twin Reaper, Rope Dart) loops its animation; a **combo** (`ActionStyle.Standard` —
+Spear, Cherry Shots) chains its hits in turn at their own rhythm, and after the combo's LAST hit keeps its recovery
+beat before holding loops back to the first. A press still works exactly as before. Attacks have **no cooldown** —
+a big hit on a cooldown is a *special* (Bakshen moved there for that reason).
 
 **Special cooldowns.** Every special is unique and strong, so **every special has its own `Cooldown`**
 (`ActionsKhalid.SPECIALS`): Ground Breaker 6s · Frenemy 12s (longer than its 8s charm) · Come Closer 5s ·
-Redere Shield 3s · Redere Frisbee 3s · Zahluq 5s. `Player.StartSpecial` arms `_specialCd` from it; a **held**
+Redere Shield 3s · Redere Frisbee 3s · Zahluq 5s · Bakshen 3s. `Player.StartSpecial` arms `_specialCd` from it; a **held**
 special (Redere Shield) doesn't tick its cooldown while it's up (`HoldingSpecial`) — it starts on release, so
 holding isn't free. The cooldown carries over if you swap specials. It has its **own bar in the HUD gauge**
 (`scripts/ui/SpecialBar.cs`, under the Ruh orbs, fed by `Player.special_ready()` 0..1): always shown, fills as
 it recharges, and when ready it pops, then **pulses and glows** (HDR) until used; becoming ready wakes the gauge.
-So an attack cooldown (Bakshen) and a special cooldown never share a bar. A special pressed mid-attack is only
+A special pressed mid-attack is only
 buffered if it's READY (a buffered special on cooldown used to stall the attack until it recharged), and leaving
 ATTACK by any route (`Player.Enter` to any other state — surge, special, hurt, …) clears the flurry/combo flags
 centrally, so no exit can leave a stale `_flurry` that swallows later attack presses. Buffs can cut it via
-`Player.reduce_special_cooldown(seconds)`. A cooldown attack is effectively a single heavy hit — the gate
-blocks re-entry, so it doesn't chain combo segments.
+`Player.reduce_special_cooldown(seconds)`.
 
 **Dash moves (the `lunge` seam).** **`zahluq`** *bursts the wielder forward* — a heavy hit that slides him
 a long way. It is now a **rare special** (see below), but the dash mechanic is a shared move trait, honoured
@@ -976,8 +972,9 @@ factory's arrays; `Family` gives replace-in-place so a higher tier supersedes a 
 - **`SlamQuakeBuff`** — `OnSlamLand` stuns nearby enemies (`Player.stun_nearby`, the surge stun-sweep pattern).
 - **`SlamWrathBuff`** — `OnSlamLand` opens a timed attack-damage window; self-contained (ticks in `Physics`,
   boosts via `ModifyTuning` gated to `"attack"`).
-- **`OverchargeBuff`** — Bakshen `OnHitDealt` cuts the attack cooldown (`Player.reduce_attack_cooldown`; Epic = full).
-- **`InstantResetBuff`** — Zahluq `OnMiss` fully resets the attack cooldown (`reduce_attack_cooldown`, huge value);
+- **`OverchargeBuff`** — each hit the Bakshen *special* lands cuts the special cooldown (`Player.reduce_special_cooldown`;
+  Epic = full).
+- **`InstantResetBuff`** — Zahluq `OnMiss` fully resets the special cooldown (`reduce_special_cooldown`, huge value);
   Zahluq fires one hitbox per swing so a whiff = one reset. **Parked** with the other move-gated buffs (never
   offered yet — the pools exclude move-gated ids). Note: Zahluq is now a *special*, so a future wiring pass must
   make special whiffs emit `OnMiss` and reset the *special* cooldown (see the class doc-comment).

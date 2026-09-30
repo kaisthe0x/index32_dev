@@ -144,7 +144,12 @@ listed under "From" are gone from the box pool and their buff classes deleted)*
 | **Spear** | Finisher | final combo hit releases a spear projectile (`dmg` scales) | **NEW**; added dmg |
 | | Backstab | hits from behind deal `1.5/2/2.5/3/4×` | conditional but huge |
 | | Missfire | fire a spear per **missed** hit | **NEW**; ⏳ OnMiss |
-| **Bakshen** | Overcharge | on-hit, cooldown `−0.5/1/1.5/2/full` s | more Bakshen = massive dmg |
+
+## Special — Bakshen  (Bakshen moved from attack to special 2026-09-30)
+
+| Special | Buff | Effect & tier | Notes |
+|---|---|---|---|
+| **Bakshen** | Overcharge | each Bakshen hit cuts its cooldown `−0.5/1/1.5/2/full` s | more Bakshen = massive dmg |
 
 ## Surge  (all surges)
 

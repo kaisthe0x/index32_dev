@@ -150,7 +150,6 @@ public partial class AttackSelect : CanvasLayer
     private static string TypeLabel(Action a) => a.Style switch
     {
         ActionStyle.Flurry => "Flurry",
-        ActionStyle.Cooldown => "Charged",
         _ => "Combo",
     };
 

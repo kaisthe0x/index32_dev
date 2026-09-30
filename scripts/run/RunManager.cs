@@ -30,7 +30,7 @@ public partial class RunManager : Node2D
     private const int BuffMenuChoices = 3;     // cards in the mystery box's menu
     // Mystery box can, at EXTREME rarity, offer a special-SWAP in place of a buff (picking it replaces your special).
     private const float SpecialOfferChance = 0.06f;
-    private static readonly string[] BoxSpecialIds = { SpecialIds.Zahluq };
+    private static readonly string[] BoxSpecialIds = { SpecialIds.Zahluq, SpecialIds.Bakshen };
 
     /// <summary>The roster the continuous spawner draws from (uniform random) — a mixed assortment of grunts plus the
     /// flyer (Ein) and the stationary sleeper (Nasen). Wardens (Kroj) are elite/pivot-only, not part of the trickle.</summary>
