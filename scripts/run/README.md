@@ -18,15 +18,17 @@ implements is [`docs/game-loop.md`](../../docs/game-loop.md) — **endless CoD-Z
 | `ShotLedger.cs` (`ShotLedger`) | **Needle Point's rules** for one run: the ranks owned of each shot (as `Shot` passives). BUY (break only) raises a shot one rank, permanently, at a rising price. Data in `configs/NeedlePoint.cs`; see the main README § Needle Point shots. |
 | `PerkLedger.cs` (`PerkLedger`) | **Dekken's rules** for one run: the break's stock (5 random perks, rerolled every break), active/owned perks (as `Perk` passives), BUY (break only) + `OnRoundClear`. Data in `configs/Dekken.cs`; see the main README § Dekken perks. |
 | `DekkenStall.cs` (`DekkenStall`, in `scripts/things/`) | The perk shop (placeholder amber stall), further out on the box's side. Press **E** at it to open the `DekkenMenu` (`scripts/ui/`). Open only in the break. |
-| `NeedlePointStall.cs` (`NeedlePointStall`, in `scripts/things/`) | The stat stall (placeholder teal cabinet). Press **E** at it to open the `NeedlePointMenu` (`scripts/ui/`) over the run's ledger. |
-| `Stall.cs` (`Stall`, in `scripts/things/`) | The shared stand-next-to-it-and-press-**E** base: interact range, the "E" prompt, the key (`interact`, registered in code). The mystery box and Needle Point extend it. |
+| `NeedlePointStall.cs` (`NeedlePointStall`, in `scripts/things/`) | The stat stall — a booth you walk up into (ramped dais collision). Press **E** on its top platform to open the `NeedlePointMenu` (`scripts/ui/`) over the run's ledger. |
+| `Stall.cs` (`Stall`, in `scripts/things/`) | The shared stand-at-it-and-press-**E** base for the stall SCENES (`scenes/things/`): reads the scene's `Visual`, `Interact` (Area2D — where to stand) and `Prompt` (Marker2D) nodes; owns the prompt, the key (`interact`, registered in code), open/closed. The mystery box, Needle Point and Dekken extend it. |
 | `MysteryBox.cs` (`MysteryBox`, in `scripts/things/`) | A code-built placeholder "?" crate (a `Stall`). Press **E** at it to spend `Cost` fada_figs on a gamble: `DudChanceBase` of pulls give nothing, otherwise it fires `won` and RunManager opens the **same 3-choice menu** from the POWERFUL pool (`BuffCatalog.PowerfulIds`, above-rare tiers). Each win raises the dud chance further (per-run). Press E again to pull again. |
 | `RewardUI.cs` (`RewardUI`) | The pick-a-card popup (pauses the game, emits `chosen(id)`) — `Open(cards, title)`. Now drives the mystery box's **buff menu**. |
 | `configs/Rounds.cs` (`Rounds`) | **Round tuning** — quota curve, concurrent cap, spawn interval, breather, when "n LEFT" shows. Pure data. |
 
 **Hand-painted stage layouts** are the active approach: `RunManager` loads a random
 `scenes/levels/stage1/stage1_v*.tscn` (a `LevelLayout`, discovered by the `stage1_v` glob in
-`StageLayoutPaths`) and reads its `PlayerSpawn` marker (+ optional `orb` group). Terrain
+`StageLayoutPaths`) and reads its `PlayerSpawn` marker (+ optional `orb` group, and optional `NeedlePoint` / `Dekken`
+/ and the stall SCENES placed in it — `scenes/things/mystery_box.tscn`, `needle_point.tscn`, `dekken.tscn`, found by
+`LevelLayout.Placed<T>()`; a layout missing one gets it instanced at an automatic spot, `RunManager.PlaceStall`). Terrain
 is a **`TileMapLayer` with per-tile collision**: `tools/gen_terrain_tileset.gd` builds the shared
 `assets/terrain/stage1/terrain_tileset.tres` from every **`tilesetN.png`** in that folder (each its own atlas source,
 id = N), with collision **traced from each tile's pixels** (full tiles = boxes; slopes/cut corners = traced polygons,
@@ -60,7 +62,9 @@ under the player (found by `RunManager.GroundBelow`, a ray down from his
 feet, so a jump doesn't change it), limited to flat runs of at least `MinSpawnFloorTiles` (3) so nothing spawns
 stranded on a lone scattered tile. So an enemy never appears on a platform the player can't reach (or that can't
 reach him). If the player's own region has no such run (perched on a lone tile), the nearest region that does is
-used. The distance bands are tunable consts in `RunManager`; the round curves live in `Rounds`.
+used. And a spot is only used if a grunt standing there would be **clear of solid collision**
+(`RunManager.SpotIsClear` — a `SpawnClearance` box against `Combat.Layer.World`): the tiles know nothing about
+something solid built over them, like Needle Point's dais, so without it an enemy could spawn stuck inside. The distance bands are tunable consts in `RunManager`; the round curves live in `Rounds`.
 
 **Anti-camp cull:** a player could camp somewhere the AI can't reach and stall the round. So `CullOffscreen` tracks each
 living enemy's time OFF-SCREEN (`_offscreen`, using the camera's visible rect grown by `OffscreenMargin`); once one stays

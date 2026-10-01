@@ -1,0 +1,42 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" uid="uid://dhpbqoad02gp7" path="res://scripts/things/NeedlePointStall.cs" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://bywrok653vn6o" path="res://assets/things/needle_point.png" id="2_art"]
+
+[sub_resource type="RectangleShape2D" id="roof_shape"]
+size = Vector2(120, 6)
+
+[sub_resource type="RectangleShape2D" id="interact_shape"]
+size = Vector2(40, 40)
+
+[node name="NeedlePoint" type="Node2D" groups=["stalls"]]
+script = ExtResource("1_script")
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="Art" type="Sprite2D" parent="Visual"]
+texture_filter = 1
+position = Vector2(-64, -192)
+texture = ExtResource("2_art")
+centered = false
+
+[node name="Dais" type="StaticBody2D" parent="."]
+
+[node name="Ramps" type="CollisionPolygon2D" parent="Dais"]
+polygon = PackedVector2Array(-74, 0, -13, -46, 12, -46, 74, 0)
+
+[node name="Roof" type="StaticBody2D" parent="."]
+
+[node name="Shape" type="CollisionShape2D" parent="Roof"]
+position = Vector2(0, -173)
+shape = SubResource("roof_shape")
+one_way_collision = true
+
+[node name="Interact" type="Area2D" parent="."]
+
+[node name="Shape" type="CollisionShape2D" parent="Interact"]
+position = Vector2(0, -66)
+shape = SubResource("interact_shape")
+
+[node name="Prompt" type="Marker2D" parent="."]
+position = Vector2(0, -118)

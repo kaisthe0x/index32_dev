@@ -3,44 +3,54 @@ using Godot;
 namespace MyGame;
 
 /// <summary>
-/// Something in the arena Khalid stands next to and presses <b>E</b> (the <c>interact</c> action) to use — the mystery
-/// box, Needle Point, and the stalls to come. Owns the shared part: an interact range around it, the floating "E"
-/// prompt while he's in it, and the key press; a subclass builds its look (<see cref="BuildVisual"/>) and says what
-/// using it does (<see cref="Interact"/>). A stall can be CLOSED (<see cref="SetOpen"/> — e.g. a shop outside the break):
-/// it dims, the prompt reads "CLOSED", and E does nothing. Built entirely in code.
+/// Something in the arena Khalid stands at and presses <b>E</b> (the <c>interact</c> action) to use — the mystery box,
+/// Needle Point, Dekken. Each is a SCENE (<c>scenes/things/</c>) you place in a layout, built from these children:
+/// <list type="bullet">
+/// <item><c>Visual</c> (Node2D) — its look, bottom-centre on the scene's origin (the ground where it stands).</item>
+/// <item><c>Interact</c> (Area2D + a shape) — where the player has to stand to use it.</item>
+/// <item><c>Prompt</c> (Marker2D) — where the floating "E" / "CLOSED" prompt sits (its top-centre).</item>
+/// </list>
+/// This base owns the shared behaviour: the prompt while the player is in range, the key press, and OPEN / CLOSED
+/// (<see cref="SetOpen"/> — e.g. a shop outside the break: dimmed, "CLOSED", E ignored). A subclass says what using it
+/// does (<see cref="Interact"/>).
 /// </summary>
 public abstract partial class Stall : Node2D
 {
     private const string InteractAction = "interact"; // E (registered in _Ready if the project hasn't)
-    private static readonly Vector2 RangeSize = new(64, 56); // a little reach around the stall
-    private static readonly Vector2 RangeOffset = new(0, -20);
-    private static readonly Vector2 PromptOffset = new(-6, -60);
-    private static readonly Vector2 ClosedPromptOffset = new(-26, -60);
+    private const float PromptWidth = 80.0f;             // the prompt label is centred on the Prompt marker in this width
     private static readonly Color ClosedTint = new(0.45f, 0.45f, 0.5f);
 
     private Player _inRange;   // the player while standing in range (null otherwise)
     private Label _prompt;
     private bool _open = true;
 
-    /// <summary>The stall's look, drawn under this node (its base sits at the node's origin).</summary>
+    /// <summary>The stall's look (the scene's <c>Visual</c> node).</summary>
     protected Node2D Visual { get; private set; }
 
     public override void _Ready()
     {
-        ZIndex = WorldZ.Stalls; // in front of the level, behind anyone standing at it
+        ZIndex = WorldZ.Stalls; // behind the tiles, in front of the scenery (WorldZ)
         EnsureInteractAction();
-        Visual = new Node2D();
-        AddChild(Visual);
-        BuildVisual(Visual);
-        _prompt = new Label { Text = "E", Position = PromptOffset, Visible = false };
+        Visual = GetNode<Node2D>("Visual");
+
+        _prompt = new Label
+        {
+            Text = "E",
+            Position = GetNode<Marker2D>("Prompt").Position - new Vector2(PromptWidth / 2.0f, 0.0f),
+            Size = new Vector2(PromptWidth, 0.0f),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Visible = false,
+        };
         _prompt.AddThemeFontSizeOverride("font_size", 16);
         _prompt.AddThemeColorOverride("font_color", new Color(1, 1, 1));
         _prompt.AddThemeColorOverride("font_outline_color", Colors.Black);
         _prompt.AddThemeConstantOverride("outline_size", 4);
         AddChild(_prompt);
         ApplyOpen();
-        var range = new Area2D { CollisionLayer = 0, CollisionMask = (uint)Combat.Layer.PlayerBody };
-        range.AddChild(new CollisionShape2D { Shape = new RectangleShape2D { Size = RangeSize }, Position = RangeOffset });
+
+        var range = GetNode<Area2D>("Interact");
+        range.CollisionLayer = 0; // layers from Combat (not the scene), so they can't drift
+        range.CollisionMask = (uint)Combat.Layer.PlayerBody;
         range.BodyEntered += body =>
         {
             if (body is not Player p)
@@ -55,7 +65,6 @@ public abstract partial class Stall : Node2D
             _inRange = null;
             _prompt.Visible = false;
         };
-        AddChild(range);
     }
 
     /// <summary>Open or close the stall (closed: dimmed, "CLOSED" prompt, E ignored).</summary>
@@ -70,11 +79,7 @@ public abstract partial class Stall : Node2D
     {
         Visual.Modulate = _open ? Colors.White : ClosedTint;
         _prompt.Text = _open ? "E" : "CLOSED";
-        _prompt.Position = _open ? PromptOffset : ClosedPromptOffset;
     }
-
-    /// <summary>Build this stall's look under <paramref name="visual"/>.</summary>
-    protected abstract void BuildVisual(Node2D visual);
 
     /// <summary>The player pressed E in range.</summary>
     protected abstract void Interact(Player p);

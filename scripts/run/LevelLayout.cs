@@ -17,13 +17,22 @@ namespace MyGame;
 [GlobalClass, Tool]
 public partial class LevelLayout : Node2D
 {
-    /// <summary>Put the layout's layers at their <see cref="WorldZ"/> — at runtime AND in the editor (this is a [Tool]
-    /// for that only), so what you paint sits in the same order you'll see in the game, whatever the scene file says.</summary>
+    /// <summary>Put the layout's layers — and the stalls placed in it — at their <see cref="WorldZ"/>, at runtime AND in
+    /// the editor (this is a [Tool] for that only), so what you paint sits in the same order you'll see in the game,
+    /// whatever the scene file says. Stalls are found by their scenes' <c>stalls</c> group, not their type — in the editor
+    /// their (non-tool) scripts don't run as C# classes. (A stall sets its own z too; that covers one dropped in when a
+    /// layout has none.)</summary>
+    /// <summary>The group every stall scene's root is in (<c>scenes/things/</c>).</summary>
+    private const string StallGroup = "stalls";
+
     public override void _Ready()
     {
         SetZ("Aesthetic", WorldZ.Scenery);
         SetZ("Decor", WorldZ.Decor);
         SetZ("Terrain", WorldZ.Terrain);
+        foreach (Node n in FindChildren("*", "", true, false))
+            if (n.IsInGroup(StallGroup) && n is Node2D stall)
+                stall.ZIndex = WorldZ.Stalls;
     }
 
     private void SetZ(string child, int z)
@@ -34,6 +43,16 @@ public partial class LevelLayout : Node2D
 
     /// <summary>World position of the player start.</summary>
     public Vector2 PlayerSpawn() => MarkerPos("PlayerSpawn");
+
+    /// <summary>The stall of type <typeparamref name="T"/> placed in this layout (its scene dropped in the editor), or null
+    /// if the layout has none.</summary>
+    public T Placed<T>() where T : Stall
+    {
+        foreach (Node n in FindChildren("*", "", true, false))
+            if (n is T stall)
+                return stall;
+        return null;
+    }
 
     /// <summary>Optional launch-orb positions.</summary>
     public List<Vector2> Orbs() => GroupPositions("orb");

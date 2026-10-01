@@ -11,10 +11,15 @@ the random pool automatically). Each is a **`LevelLayout`** scene (`scripts/run/
   generated one). The ground and platforms only.
 - a **`Decor` TileMapLayer** (same Tile Set) — decoration sheets (tileset3: rocks, plants) with **no collision**, drawn
   behind Khalid, enemies and pickups. Draw order is set by the layout itself (`WorldZ`): props under the `Aesthetic`
-  node at the back, then `Decor`, then `Terrain` — so you don't set z_index on these nodes. Keep decor here, not on `Terrain`: one cell holds one tile per layer, so a rock painted
+  node at the back, then the stalls, then `Decor`, then `Terrain` — so you don't set z_index on these nodes. Keep decor here, not on `Terrain`: one cell holds one tile per layer, so a rock painted
   on `Terrain` would replace whatever was there. Never "New TileSet" in the inspector: an embedded copy is invisible to the generator, so new
   tiles and collision fixes would never reach that level.
 - a **`PlayerSpawn`** `Marker2D` (where Khalid drops in), and optional launch-orb spots in the **`orb`** group,
+- the **stalls** — drag `scenes/things/needle_point.tscn`, `dekken.tscn` and `mystery_box.tscn` from the FileSystem dock
+  into the layout (stage1_v1 keeps them under a `Stalls` node). Each scene's origin is its base: put it **on the floor's
+  top edge** (grid snap helps). You see them in the editor exactly as in the game, and Needle Point's collision (`Dais`
+  ramps + flat top, the one-way `Roof`) and every stall's `Interact` area are real nodes you can reshape by dragging
+  their points. A layout missing a stall gets it at an automatic spot near the spawn.
 - decor sprites (trees, the statue, the skeleton) — no collision.
 
 Enemies spawn around the player automatically — no spawn markers needed. They only spawn on the **floor the player

@@ -89,6 +89,10 @@ public partial class RunManager : Node2D
     private MysteryBox _box;                     // Fast Travel's destination
 
     private const string StageDir = "res://scenes/levels/stage1/";
+    // The stall scenes — placed in a layout, or dropped at an automatic spot when a layout has none (PlaceStall).
+    private const string BoxScene = "res://scenes/things/mystery_box.tscn";
+    private const string NeedlePointScene = "res://scenes/things/needle_point.tscn";
+    private const string DekkenScene = "res://scenes/things/dekken.tscn";
     private Vector2 _playerSpawn = Vector2.Zero;
     private bool _deadPrev = false;
     private float _deathHold = 0.0f;
@@ -230,22 +234,21 @@ public partial class RunManager : Node2D
         foreach (var op in _layout?.Orbs() ?? new System.Collections.Generic.List<Vector2>())
             _content.AddChild(new LaunchOrb { Position = op });
 
-        // One mystery box per arena, on a ground tile a short walk from spawn (the fig sink for powerful buffs), and
-        // Needle Point (the stat stall) a short walk the OTHER way, so the two never overlap.
-        Vector2 boxPos = PickGroundSurface(_playerSpawn, 120.0f, 320.0f) ?? _playerSpawn + new Vector2(120, 0);
-        _box = new MysteryBox { Position = boxPos };
+        // The stalls are scenes placed in the layout (LevelLayout.Placed); a layout without one gets it at an automatic
+        // spot: the box a short walk from spawn, Needle Point a short walk the OTHER way, Dekken further out on the box's
+        // side — so they never overlap.
+        _box = _layout?.Placed<MysteryBox>()
+            ?? PlaceStall<MysteryBox>(BoxScene, PickGroundSurface(_playerSpawn, 120.0f, 320.0f) ?? _playerSpawn + new Vector2(120, 0));
         _box.won += OpenBoxMenu; // a winning pull opens the 3-choice powerful menu
-        _content.AddChild(_box);
-        int awayFromBox = boxPos.X >= _playerSpawn.X ? -1 : 1;
+        int awayFromBox = _box.GlobalPosition.X >= _playerSpawn.X ? -1 : 1;
         _shots = new ShotLedger(_player, () => _phase == RoundPhase.Breather);
-        Vector2 needlePos = PickGroundSurface(_playerSpawn, 120.0f, 320.0f, awayFromBox) ?? _playerSpawn + new Vector2(120 * awayFromBox, 0);
-        _needlePoint = new NeedlePointStall { Position = needlePos, Ledger = _shots };
-        _content.AddChild(_needlePoint); // the run starts in a break, so it starts open
-        // Dekken (the perk shop) further out on the box's side.
+        _needlePoint = _layout?.Placed<NeedlePointStall>() ?? PlaceStall<NeedlePointStall>(NeedlePointScene,
+            PickGroundSurface(_playerSpawn, 120.0f, 320.0f, awayFromBox) ?? _playerSpawn + new Vector2(120 * awayFromBox, 0));
+        _needlePoint.Ledger = _shots; // the run starts in a break, so the stalls start open
         _perks = new PerkLedger(_player, () => _phase == RoundPhase.Breather, FastTravelToBox);
-        Vector2 dekkenPos = PickGroundSurface(_playerSpawn, 360.0f, 640.0f, -awayFromBox) ?? boxPos + new Vector2(-240 * awayFromBox, 0);
-        _dekken = new DekkenStall { Position = dekkenPos, Ledger = _perks };
-        _content.AddChild(_dekken);
+        _dekken = _layout?.Placed<DekkenStall>() ?? PlaceStall<DekkenStall>(DekkenScene,
+            PickGroundSurface(_playerSpawn, 360.0f, 640.0f, -awayFromBox) ?? _box.GlobalPosition + new Vector2(-240 * awayFromBox, 0));
+        _dekken.Ledger = _perks;
 
         if (_player != null)
             PlaceAt(_player, _playerSpawn);
@@ -384,6 +387,7 @@ public partial class RunManager : Node2D
     private const float FlyerXSpread = 90.0f;
     private const float GroundProbeDepth = 600.0f; // how far below the player to look for the floor he's over
     private static readonly Vector2 FastTravelOffset = new(-28, -4); // where Fast Travel drops you, beside the box
+    private static readonly Vector2 SpawnClearance = new(24, 40);    // room a spawning ground enemy needs (a bit over a grunt's body)
 
     /// <summary>Where to drop this enemy relative to the player: flyers overhead (with headroom), stationary far on a
     /// ground tile, grunts near on a ground tile — always at least the min band away. Flyers and grunts arrive BEHIND
@@ -429,8 +433,11 @@ public partial class RunManager : Node2D
     private Vector2? PickGroundSurface(Vector2 from, float min, float max, int side = 0)
     {
         float fromX = from.X;
-        var surfaces = _layout?.SpawnSurfacesNear(GroundBelow(from));
-        if (surfaces == null || surfaces.Count == 0)
+        var near = _layout?.SpawnSurfacesNear(GroundBelow(from));
+        if (near == null)
+            return null;
+        var surfaces = near.FindAll(SpotIsClear); // not inside something solid standing on the tiles (a stall's dais)
+        if (surfaces.Count == 0)
             return null;
         if (side != 0)
         {
@@ -462,6 +469,15 @@ public partial class RunManager : Node2D
         return nearestFair ?? farthest; // band empty → closest tile still ≥min; if even that fails, the farthest we have
     }
 
+    /// <summary>Instance the stall scene at <paramref name="scene"/> into the arena at <paramref name="at"/> (its base on the ground).</summary>
+    private T PlaceStall<T>(string scene, Vector2 at) where T : Stall
+    {
+        var stall = GD.Load<PackedScene>(scene).Instantiate<T>();
+        stall.Position = at;
+        _content.AddChild(stall);
+        return stall;
+    }
+
     /// <summary>Dekken's Fast Travel: put the player right beside the mystery box.</summary>
     private void FastTravelToBox()
     {
@@ -469,6 +485,24 @@ public partial class RunManager : Node2D
             return;
         PlaceAt(_player, _box.GlobalPosition + FastTravelOffset);
         _player.Velocity = Vector2.Zero;
+    }
+
+    /// <summary>Whether a body standing on <paramref name="surface"/> would be clear of solid collision — the tiles know
+    /// nothing about a stall's dais (or any solid prop) built over them, so a floor tile under one would otherwise
+    /// spawn an enemy stuck inside it. Checks a <see cref="SpawnClearance"/> box just above the surface against
+    /// <see cref="Combat.Layer.World"/> (one-way platforms don't block).</summary>
+    private bool SpotIsClear(Vector2 surface)
+    {
+        var space = GetWorld2D()?.DirectSpaceState;
+        if (space == null)
+            return true;
+        var q = new PhysicsShapeQueryParameters2D
+        {
+            Shape = new RectangleShape2D { Size = SpawnClearance },
+            Transform = new Transform2D(0.0f, surface - new Vector2(0.0f, SpawnClearance.Y / 2.0f + 2.0f)), // 2 px off the floor
+            CollisionMask = (uint)Combat.Layer.World,
+        };
+        return space.IntersectShape(q, 1).Count == 0;
     }
 
     /// <summary>The ground straight below <paramref name="from"/> (within <see cref="GroundProbeDepth"/>) — so a player

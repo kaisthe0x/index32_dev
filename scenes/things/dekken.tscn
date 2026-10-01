@@ -1,0 +1,36 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" uid="uid://brx5xj4jsk21v" path="res://scripts/things/DekkenStall.cs" id="1_script"]
+
+[sub_resource type="RectangleShape2D" id="interact_shape"]
+size = Vector2(64, 56)
+
+[node name="Dekken" type="Node2D" groups=["stalls"]]
+script = ExtResource("1_script")
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="Counter" type="Polygon2D" parent="Visual"]
+color = Color(0.36, 0.24, 0.16, 1)
+polygon = PackedVector2Array(-18, -20, 18, -20, 18, -2, -18, -2)
+
+[node name="Awning" type="Polygon2D" parent="Visual"]
+color = Color(1.6, 1.05, 0.35, 1)
+polygon = PackedVector2Array(-22, -34, 22, -34, 18, -26, -18, -26)
+
+[node name="PostLeft" type="Polygon2D" parent="Visual"]
+color = Color(1.6, 1.05, 0.35, 1)
+polygon = PackedVector2Array(-16, -26, -14, -26, -14, -20, -16, -20)
+
+[node name="PostRight" type="Polygon2D" parent="Visual"]
+color = Color(1.6, 1.05, 0.35, 1)
+polygon = PackedVector2Array(14, -26, 16, -26, 16, -20, 14, -20)
+
+[node name="Interact" type="Area2D" parent="."]
+
+[node name="Shape" type="CollisionShape2D" parent="Interact"]
+position = Vector2(0, -20)
+shape = SubResource("interact_shape")
+
+[node name="Prompt" type="Marker2D" parent="."]
+position = Vector2(0, -60)

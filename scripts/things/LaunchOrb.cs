@@ -32,7 +32,7 @@ public partial class LaunchOrb : Node2D
 
     public override void _Ready()
     {
-        ZIndex = WorldZ.Stalls; // a thing you use: in front of the level, behind anyone at it
+        ZIndex = WorldZ.Stalls; // a thing you use: behind the tiles, in front of the scenery (WorldZ)
         AddToGroup("orbs");
         _baseY = Position.Y;
         _phase = GlobalPosition.X * 0.05f; // desync neighbouring orbs so a row doesn't bob in lockstep

@@ -3,42 +3,30 @@ using Godot;
 namespace MyGame;
 
 /// <summary>
-/// NEEDLE POINT, the stat stall (placeholder art — a teal cabinet with a syringe), a <see cref="Stall"/>: press E to
-/// open its <see cref="NeedlePointMenu"/> over the run's <see cref="ShotLedger"/> (set by RunManager before it's added).
-/// One per arena, near the spawn. Built entirely in code.
+/// NEEDLE POINT, the stat stall (<c>scenes/things/needle_point.tscn</c>), a <see cref="Stall"/>: a tall booth with a
+/// stepped dais Khalid walks up. The scene carries its collision as editable nodes — <c>Dais</c> (two ramps following
+/// the stairs, ~37° so they're walkable — a body can't climb separate steps — and the flat top) and <c>Roof</c> (a
+/// jump-through platform: land on it from below, drop through with S / Down); this script only sets their physics layers
+/// from <see cref="Combat"/>. The E prompt shows on the dais top, and E opens its <see cref="NeedlePointMenu"/> over the
+/// run's <see cref="ShotLedger"/> (set by RunManager).
 /// </summary>
 public partial class NeedlePointStall : Stall
 {
     public ShotLedger Ledger;
 
-    protected override void BuildVisual(Node2D visual)
+    public override void _Ready()
     {
-        visual.AddChild(new Polygon2D // the cabinet
-        {
-            Polygon = new Vector2[] { new(-16, -34), new(16, -34), new(16, -2), new(-16, -2) },
-            Color = new Color(0.16f, 0.36f, 0.40f),
-        });
-        var glow = new Color(0.55f, 1.6f, 1.5f); // HDR teal so it reads as lit
-        visual.AddChild(new Polygon2D // syringe barrel
-        {
-            Polygon = new Vector2[] { new(-3, -28), new(3, -28), new(3, -12), new(-3, -12) },
-            Color = glow,
-        });
-        visual.AddChild(new Polygon2D // plunger
-        {
-            Polygon = new Vector2[] { new(-6, -31), new(6, -31), new(6, -29), new(-6, -29) },
-            Color = glow,
-        });
-        visual.AddChild(new Polygon2D // needle
-        {
-            Polygon = new Vector2[] { new(-0.5f, -12), new(0.5f, -12), new(0.5f, -6), new(-0.5f, -6) },
-            Color = glow,
-        });
+        base._Ready();
+        var dais = GetNode<StaticBody2D>("Dais");
+        dais.CollisionLayer = (uint)Combat.Layer.World;
+        dais.CollisionMask = 0;
+        var roof = GetNode<StaticBody2D>("Roof");
+        roof.CollisionLayer = (uint)Combat.Layer.Platform; // one-way (set on its shape in the scene) → jump/drop-through
+        roof.CollisionMask = 0;
     }
 
     protected override void Interact(Player p)
     {
-        Pop();
         var menu = new NeedlePointMenu();
         GetTree().Root.AddChild(menu);
         menu.Open(Ledger, p);

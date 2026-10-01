@@ -929,8 +929,12 @@ rank I's Lira price (15). Every rank after costs `PriceGrowth` (×1.6) more — 
   `slam_damage_mult`.
 - **Dash charges:** Khalid holds `1 + dash_bonus` dashes; each spends one, and a spent one refills after the dash
   cooldown, one at a time — so with one charge it plays exactly like the old single cooldown.
-- **The stall** is `NeedlePointStall` (a `Stall` — the shared stand-and-press-E base the mystery box uses too), placed
-  near spawn on the other side from the box; its `NeedlePointMenu` (on the shared `StallMenu` frame) lists every shot
+- **The stall** is `scenes/things/needle_point.tscn` (script `NeedlePointStall`, a `Stall`), placed in the layout: a
+  tall booth (`assets/things/needle_point.png`, master `index32_art/art/stages/stage1/NeedlePoint.aseprite`) with a
+  stepped dais. Its collision is scene nodes you can reshape in the editor — `Dais` (two invisible ~37° ramps following
+  the stairs, since a body can't climb separate steps, and the flat top) and `Roof` (a jump-through platform: one-way,
+  on the Platform layer — the script sets both layers from `Combat`; drop through with S / Down); its `Interact` area
+  sits on the dais top, so the E prompt only shows up there; its `NeedlePointMenu` (on the shared `StallMenu` frame) lists every shot
   (name + rank in the rank's colour, what you have → what the next rank gives, BUY / MAXED) and pauses the game. Owned
   shots show in the HUD's top-right list with their rank and value.
 
@@ -2053,13 +2057,13 @@ so screens can't silently cover each other: `Background` (-100) → `LowHealth` 
 so it never hides their content.
 
 **World draw order** has its own table, **`WorldZ`** (`scripts/ui/WorldZ.cs`) — the z_index of everything in the arena,
-lowest first: `Scenery` (-30, the layout's statue / trees) → `Decor` (-20, the rocks + plants tile layer) → `Terrain`
-(-10) → `Stalls` (-5, the box, Needle Point, Dekken, launch orbs) → `Drops` (-1, figs on the ground) → `Actors` (0,
+lowest first: `Scenery` (-30, the layout's statue / trees) → `Stalls` (-25, the box, Needle Point, Dekken, launch orbs
+— behind the tiles) → `Decor` (-20, the rocks + plants tile layer) → `Terrain` (-10) → `Drops` (-1, figs on the ground) → `Actors` (0,
 Khalid + enemies) → `SpawnFx` (4) → `FlyingPickups` (5, Lira + Ruh souls) → `Impacts` (50) → the death cinematic
 (400 / 500). `LevelLayout` sets its `Aesthetic` / `Decor` / `Terrain` nodes from it (a `[Tool]`, so the editor shows the
 same order), and each piece of code that places something in the world sets its own. Effects parented to a body keep
 small **relative** offsets (±1–2: "just behind / in front of me" — a surge orbit's back half, a swing trail), which is
-why `Stalls` sits well below `Actors`: those offsets never sink behind the level. Use the table, never a literal z,
+why the level's layers all sit well below `Actors`: those offsets never sink behind it. Use the table, never a literal z,
 for anything placed in the world. New settings: add the value to `SaveData`
 (stored by enum NAME, so reordering an enum never remaps a saved choice) and a row to `PauseMenu.Build`.
 

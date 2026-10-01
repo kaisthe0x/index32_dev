@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://b38a7k47n5vsc"
-path="res://.godot/imported/tileset1.png-b7c5b4da583fcf4279fce589f6ab4489.ctex"
+uid="uid://bywrok653vn6o"
+path="res://.godot/imported/needle_point.png-1c35ff823916be6f3e2f44ad8a272da6.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/terrain/stage1/tileset1.png"
-dest_files=["res://.godot/imported/tileset1.png-b7c5b4da583fcf4279fce589f6ab4489.ctex"]
+source_file="res://assets/things/needle_point.png"
+dest_files=["res://.godot/imported/needle_point.png-1c35ff823916be6f3e2f44ad8a272da6.ctex"]
 
 [params]
 

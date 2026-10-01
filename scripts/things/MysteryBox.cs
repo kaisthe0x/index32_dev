@@ -3,12 +3,12 @@ using Godot;
 namespace MyGame;
 
 /// <summary>
-/// A MYSTERY BOX (placeholder art — a purple "?" crate), a <see cref="Stall"/>: stand next to it and press <b>E</b> to
+/// A MYSTERY BOX (<c>scenes/things/mystery_box.tscn</c> — placeholder art: a purple "?" crate), a <see cref="Stall"/>: stand next to it and press <b>E</b> to
 /// spend <see cref="Cost"/> fada_figs for a gamble. It is DELIBERATELY stingy: <see cref="DudChanceBase"/>
 /// of pulls give nothing; on a WIN it fires <see cref="won"/> and RunManager opens a pick-1-of-3 menu of POWERFUL
 /// buffs (a `RewardUI`, above-rare tiers). Every win raises the dud chance further (capped by
 /// <see cref="DudChanceCap"/>), so repeat wins get rarer within a run. One box spawns per arena
-/// (RunManager.BuildArena) — its escalation is that box's. Built entirely in code.
+/// (RunManager.BuildArena) — its escalation is that box's.
 /// </summary>
 public partial class MysteryBox : Stall
 {
@@ -21,22 +21,6 @@ public partial class MysteryBox : Stall
     private const float DudChanceCap = 0.995f;
 
     private float _dudChance = DudChanceBase;
-
-    protected override void BuildVisual(Node2D visual)
-    {
-        var crate = new Polygon2D
-        {
-            Polygon = new Vector2[] { new(-16, -34), new(16, -34), new(16, -2), new(-16, -2) },
-            Color = new Color(0.42f, 0.28f, 0.62f),
-        };
-        visual.AddChild(crate);
-        var q = new Label { Text = "?", Position = new Vector2(-9, -34) };
-        q.AddThemeFontSizeOverride("font_size", 30);
-        q.AddThemeColorOverride("font_color", new Color(1.6f, 1.35f, 0.35f)); // HDR gold so it glints
-        q.AddThemeColorOverride("font_outline_color", Colors.Black);
-        q.AddThemeConstantOverride("outline_size", 4);
-        visual.AddChild(q);
-    }
 
     protected override void Interact(Player p)
     {
