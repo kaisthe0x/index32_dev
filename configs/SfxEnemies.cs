@@ -25,6 +25,7 @@ public static class SfxEnemies
         ["matat.aoe"] = "res://sfx/enemy/matat/attack/aoe.wav",  // PLACEHOLDER — AoE wind-up/roar
         ["tarri.blast"] = "res://sfx/enemy/tarri/attack/blast.wav",  // PLACEHOLDER — blast channel wind-up
         ["breski.melee"] = "res://sfx/enemy/breski/attack/melee.wav",  // PLACEHOLDER — combo wind-up
+        ["ventilator.blast"] = "res://sfx/enemy/ventilator/attack/blast.wav",  // PLACEHOLDER (copy of tarri's) — wind wind-up
         ["ein.kamikaze"] = "res://sfx/enemy/ein/attack/kamikaze.wav",  // ein's arrival blast (self-destruct)
         // --- KROJ (warden). PLACEHOLDER cues (existing wavs) -- swap for bespoke warden sfx. Death is DISTINCT from grunts.
         ["kroj.lunge"] = "res://sfx/enemy/breski/attack/melee.wav",   // PLACEHOLDER -- lunge/body-check
@@ -41,6 +42,7 @@ public static class SfxEnemies
         ["tarri.blast.3"] = "res://sfx/enemy/tarri/attack/blast_3.wav",  // PLACEHOLDER — the blast FIRES (last frame)
         ["breski.melee.4"] = "res://sfx/enemy/breski/attack/melee_4.wav",  // PLACEHOLDER — combo hit 1
         ["breski.melee.9"] = "res://sfx/enemy/breski/attack/melee_9.wav",  // PLACEHOLDER — combo hit 2
+        ["ventilator.blast.5"] = "res://sfx/enemy/ventilator/attack/blast_5.wav",  // PLACEHOLDER (copy of tarri's) — the gust FIRES (last frame)
     };
 
     /// <summary>Per-cue MIX offset in decibels (negative = quieter), on top of the automatic loudness normalization
@@ -62,6 +64,7 @@ public static class SfxEnemies
         ["mazab"] = new Vector2(-0.06f, 0.06f), ["matat"] = new Vector2(-0.06f, 0.06f),
         ["tarri"] = new Vector2(-0.06f, 0.06f), ["breski"] = new Vector2(-0.06f, 0.06f),
         ["nasen"] = new Vector2(-0.06f, 0.06f), ["ein"] = new Vector2(-0.06f, 0.06f),
+        ["ventilator"] = new Vector2(-0.06f, 0.06f),
     };
 
     public static readonly GDict FRAMES = new()
@@ -72,6 +75,7 @@ public static class SfxEnemies
         ["matat"] = new GDict { ["attack_aoe"] = new GDict { [4] = "matat.aoe.4" } },  // AoE erupts (sheet-relative)
         ["tarri"] = new GDict { ["attack_blast"] = new GDict { [3] = "tarri.blast.3" } },  // blast erupts on last frame
         ["breski"] = new GDict { ["attack_melee"] = new GDict { [4] = "breski.melee.4", [9] = "breski.melee.9" } },  // 2-hit combo
+        ["ventilator"] = new GDict { ["attack_blast"] = new GDict { [5] = "ventilator.blast.5" } },  // gust fires on the last frame
         // (ein's arrival blast is a CODE event, not a sprite frame — played from DiverEnemy via "ein.kamikaze".)
     };
 

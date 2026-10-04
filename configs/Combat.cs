@@ -58,6 +58,17 @@ public static class Combat
     /// <summary>Upward pop on a knockback, as a fraction of the horizontal shove, so a hit lifts the victim a little and reads.</summary>
     public const float KnockbackPop = 0.25f;
 
+    // --- GUSTS (Hit.Gust — Ventilator's wind): no damage, a long fling the victim can fight back from ---
+    /// <summary>Upward part of a gust's fling, as a fraction of its horizontal speed — enough to clear the floor and sail.</summary>
+    public const float GustLift = 0.55f;
+    /// <summary>How long a gust carries the player: while airborne in this window his steering is weak
+    /// (<see cref="GustControl"/>) and the air doesn't brake him, so only an air jump / dash back saves him.</summary>
+    public const float GustCarryTime = 0.9f;
+    /// <summary>Fraction of the player's normal air acceleration he can steer with while a gust carries him.</summary>
+    public const float GustControl = 0.2f;
+    /// <summary>A gusted ENEMY (a charmed Ventilator's wind) is held in stun this long so the fling isn't overwritten by its AI.</summary>
+    public const float GustEnemyStagger = 0.5f;
+
     /// <summary>Slope handling shared by EVERY body (player + enemies), so they agree on what's walkable. Terrain tiles
     /// get traced collision (tools/gen_terrain_tileset.gd), so painted ramps are real slopes: a 1:1 (45°) ramp must
     /// count as FLOOR, hence a limit a bit above 45° (Godot's default is exactly 45°, which makes 45° a coin-flip wall).

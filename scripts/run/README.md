@@ -42,8 +42,8 @@ spawns every `SpawnInterval(r)` (shortens per round, floored at `IntervalMin`) a
 `C(r)` (`CapBase`, +1 every `CapGrowthRounds`, max `CapMax`) quota enemies are alive; once `Q(r)` have spawned,
 spawning **stops**, and the round **clears** on the last kill (`OnEnemyDied` → `ClearRound`) → `StartRound(r+1)` at
 once — **no break, no countdown**; the HUD plays the **ROUND n** intro (big at screen centre, then it flies up into the round block). The roster is drawn uniformly from
-`RunManager.SpawnPool` (the grunts + Nasen — Ein is the stand-still kamikaze below; Wardens are for the future Warden rounds). **Only non-optional enemies
-are quota enemies** — the sleeper Nasen (`optional`, as are kamikazes) spawns on its own cap but never counts or blocks a clear.
+`RunManager.SpawnPool` (the grunts + Nasen — Ein is the stand-still kamikaze and Ventilator the edge enemy, below; Wardens are for the future Warden rounds). **Only non-optional enemies
+are quota enemies** — the sleeper Nasen (`optional`, as are kamikazes and the Ventilator) spawns on its own cap but never counts or blocks a clear.
 **Per-type caps:** a kit with a `spawn_cap` (Nasen = 1) can't have more than that many alive at once — `PickSpawnKit`
 only rolls kits under their cap (`LivingOfType` vs `EffectiveCap`), and that cap grows +1 every `KitCapGrowthRounds`.
 Each enemy appears at a **spawn spot** — a `Marker2D` under the layout's `EnemySpawns` node (`LevelLayout.EnemySpawns`).
@@ -74,6 +74,13 @@ wall) and up to `KamikazeHeight` (110 px) above, under any ceiling (`HeadroomAbo
 `KamikazeInterval(r)` (2 s at r5, ×0.95 a round, min 0.75 s) while he stays put, at most `KamikazeMax(r)` alive (5 at
 r5, +1 every 5 rounds, max 8). Moving away resets the clock; Nem's sleep pauses it (`Player.is_channeling_surge`) —
 kamikazes already diving still come.
+
+**The edge enemy** (`TickEdge`): from `Rounds.VentilatorFromRound` (3), a player who stays within `EdgeZone` (300 px)
+of either end of the arena (`LevelLayout.HorizontalSpan`, cached as `_arenaLeft/_arenaRight`) for `EdgeDwell` (1 s)
+gets a **Ventilator** (`EnemyKits.VENTILATOR` — `optional`, not in `SpawnPool`, drops Lira + figs normally) on his
+floor on the INLAND side, 140–260 px away (`EdgeInland` + `PickGroundSurface`; a tile on the outer side is rejected and
+retried next tick). Its wind gust (`Hit.Gust`, no damage) blows him OUTWARD — off the edge unless he air-jumps or
+dashes back. One alive at most; the next waits `VentilatorCooldown` (10 s) after one dies (`OnEnemyDied`).
 
 Related, but not in this folder:
 - **Player HP is SLOT-based** (`scripts/Player.cs`): you have **3 blocks**, measured internally in **half-blocks**

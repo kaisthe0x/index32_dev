@@ -59,6 +59,11 @@ alive at most) — both ramp with the round (interval ×0.95/round to 0.75 s; +1
 **drop nothing** and aren't in the quota; moving resets the clock. **Nem** pauses the clock while he sleeps (one
 already diving still comes).
 
+**The edge enemy (Ventilator):** from round 3, a player who lingers within 300 px of either end of the arena (1 s)
+gets a **Ventilator** spawned inland of him on his floor. Its attack is a **wind gust** that does **no damage** but
+flings him **outward — off the edge** unless he dodges, air-jumps back (within ~0.3 s) or dashes back. One at a time,
+10 s cooldown after it dies. Not in the quota, but drops Lira + figs like any enemy. Tuning in `configs/Rounds.cs`.
+
 ---
 
 ## Scaling — how rounds get harder

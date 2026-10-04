@@ -222,6 +222,9 @@ HIT_FRAMES: dict[tuple[str, str], list[int]] = {
     ("tarri", "attack_blast"): [
         3
     ],  # the stationary forward blast erupts on the LAST frame (he holds+vibrates there)
+    ("ventilator", "attack_blast"): [
+        5
+    ],  # the wind blast erupts on the LAST frame (he holds+vibrates there, like Tarri)
     ("breski", "attack_melee"): [
         4,
         9,

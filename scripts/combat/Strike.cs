@@ -105,6 +105,7 @@ public partial class Strike : Node2D, ITunable
         {
             if (t.Damage.HasValue) Box.damage = t.Damage.Value;
             if (t.Knockback.HasValue) Box.knockback = t.Knockback.Value;
+            if (t.Gust.HasValue) Box.gust = t.Gust.Value;
             if (t.Stun.HasValue) Box.stun = t.Stun.Value;
             if (t.Color.HasValue) Box.status_color = t.Color.Value;
             if (t.Color.HasValue || t.Stun.HasValue)

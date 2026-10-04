@@ -19,6 +19,7 @@ public static class EnemyMarkers
         { EnemyIds.Matat, new Color(1.00f, 0.42f, 0.12f) },   // deep orange-red
         { EnemyIds.Tarri, new Color(1.00f, 0.87f, 0.10f) },   // yellow-gold
         { EnemyIds.Breski, new Color(0.92f, 0.32f, 0.16f) },  // blood-red
+        { EnemyIds.Ventilator, new Color(0.72f, 0.94f, 1.00f) },  // pale wind-cyan
     };
     private static readonly Color Fallback = new(1.0f, 0.30f, 0.30f);
 

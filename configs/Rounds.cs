@@ -72,4 +72,17 @@ public static class Rounds
     public const int KamikazeMaxCap = 8;
     public const float KamikazeDistance = 220.0f;
     public const float KamikazeHeight = 110.0f;
+
+    // --- the EDGE enemy: VENTILATOR -----------------------------------------------------------------------------------
+    // From VentilatorFromRound, a player who stays within EdgeZone px of the arena's left or right end for EdgeDwell s
+    // gets a Ventilator on his floor, on the INLAND side, VentilatorSpawnMin..Max px away — its wind blows him outward.
+    // At most VentilatorMax alive; after one dies the next waits VentilatorCooldown s. Not part of the round (optional),
+    // but it drops Lira + figs like any enemy.
+    public const int VentilatorFromRound = 3;
+    public const float EdgeZone = 300.0f;
+    public const float EdgeDwell = 1.0f;
+    public const int VentilatorMax = 1;
+    public const float VentilatorCooldown = 10.0f;
+    public const float VentilatorSpawnMin = 140.0f;
+    public const float VentilatorSpawnMax = 260.0f;
 }

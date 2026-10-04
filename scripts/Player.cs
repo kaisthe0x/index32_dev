@@ -207,6 +207,7 @@ public partial class Player : Combatant
     private bool _bufferedAttack = false;
     private bool _flurry = false;
     private float _stunLeft = 0.0f;
+    private float _gustLeft = 0.0f; // a gust is carrying him (Combat.GustCarryTime): weak steering, no air brake
     private float _armorLeft = 0.0f;
     private float _holdLeft = 0.0f;
     private BlastStrike _channel = null;
@@ -877,6 +878,11 @@ public partial class Player : Combatant
                 return;
             }
         }
+        if (hit.Gust > 0.0f)
+        {
+            BlownAway(hit);
+            return;
+        }
         if (_surgeArmed && hit.Source is Enemy)
         {
             TriggerWara();
@@ -895,24 +901,7 @@ public partial class Player : Combatant
             return;
         foreach (var p in _passives)
             p.OnHurt(this, hit);
-        if (_state == State.LAUNCH)
-        {
-            _launchOrb = null;
-            _launchCdLeft = LaunchCd;
-        }
-        if (_channel != null && IsInstanceValid(_channel) && _channel.interrupt_on_hurt)
-        {
-            _channel.cancel();
-            _holdLeft = 0.0f;
-            _sprite.Play();
-        }
-        _channel = null;
-        if (_surgeChannel)
-        {
-            EndSurge();
-            if (_state == State.SURGE)
-                Enter(State.IDLE);
-        }
+        BreakOffForHit();
         if (_armorLeft > 0.0f)
             return;
         float stagger = ApplyKnockback(hit, _facing);
@@ -933,6 +922,47 @@ public partial class Player : Combatant
             _status.ShowFor(hit.StatusColor, hit.StatusTime);
         if (hit.VictimVfx != null)
             SpawnVictimVfx(hit.VictimVfx, hit.VictimVfxTime);
+    }
+
+    /// <summary>What any landed hit interrupts: an orb launch, a channelled strike he's holding (if it allows), and a
+    /// channelled surge (Nem's sleep wakes).</summary>
+    private void BreakOffForHit()
+    {
+        if (_state == State.LAUNCH)
+        {
+            _launchOrb = null;
+            _launchCdLeft = LaunchCd;
+        }
+        if (_channel != null && IsInstanceValid(_channel) && _channel.interrupt_on_hurt)
+        {
+            _channel.cancel();
+            _holdLeft = 0.0f;
+            _sprite.Play();
+        }
+        _channel = null;
+        if (_surgeChannel)
+        {
+            EndSurge();
+            if (_state == State.SURGE)
+                Enter(State.IDLE);
+        }
+    }
+
+    /// <summary>A GUST hit (<see cref="Hit.Gust"/>, Ventilator's wind): no damage, no stagger — it breaks off whatever
+    /// he's doing and flings him away from the source. For <see cref="Combat.GustCarryTime"/> his air steering is weak
+    /// and only works against the fling (ProcessNormal); an air jump or a dash BREAKS the carry (full control back) —
+    /// those are how he recovers.</summary>
+    private void BlownAway(Hit hit)
+    {
+        BreakOffForHit();
+        RefundUncommittedCooldown(); // blown out of a wind-up: read state BEFORE we leave ATTACK/SPECIAL
+        _stunLeft = 0.0f;
+        _holdLeft = 0.0f;
+        _bufferedSpecial = false;
+        Velocity = GustVelocity(hit, _facing);
+        _gustLeft = Combat.GustCarryTime;
+        _jumpLaunch = false;
+        Enter(AirborneDefault());
     }
 
     public void apply_lunge(float impulse) => SetVelX(impulse * _facing);
@@ -1314,6 +1344,7 @@ public partial class Player : Combatant
             _apexY = Mathf.Min(_apexY, GlobalPosition.Y);
         }
         _justLanded = onFloor && !_wasOnFloor && _fallPeak >= _landMinFallSpeed;
+        _gustLeft = onFloor && !_wasOnFloor ? 0.0f : Mathf.Max(_gustLeft - delta, 0.0f); // touching down ends a gust
         if (onFloor && !_wasOnFloor && _passives.Count > 0)
         {
             float drop = Mathf.Max(GlobalPosition.Y - _apexY, 0.0f);
@@ -1446,7 +1477,17 @@ public partial class Player : Combatant
             AddVelY(_gravity * gScale * delta);
         }
 
-        if (input != 0.0f)
+        bool gusted = _gustLeft > 0.0f && !IsOnFloor();
+        if (gusted)
+        {
+            // Riding a gust: no air brake, and steering only pushes back AGAINST the fling, weakly — holding the way
+            // he's blown can't slow him to run speed either.
+            if (input != 0.0f)
+                _facing = input > 0.0f ? 1 : -1;
+            if (input != 0.0f && Mathf.Sign(input) != Mathf.Sign(Velocity.X))
+                SetVelX(Mathf.MoveToward(Velocity.X, input * RunSpeed(), _acceleration * Combat.GustControl * delta));
+        }
+        else if (input != 0.0f)
         {
             _facing = input > 0.0f ? 1 : -1;
             SetVelX(Mathf.MoveToward(Velocity.X, input * RunSpeed(), _acceleration * delta));
@@ -1469,7 +1510,7 @@ public partial class Player : Combatant
                 return;
             }
         }
-        if (AttackHeld() && (IsOnFloor() || AirAttackOk()))
+        if (AttackHeld() && !gusted && (IsOnFloor() || AirAttackOk())) // no swinging while blown (it would halt the fling)
         {
             AdvanceCombo();
             return;
@@ -1635,6 +1676,7 @@ public partial class Player : Combatant
 
     private void AirJump()
     {
+        _gustLeft = 0.0f; // an air jump catches him out of a gust — full air control back (a recovery move)
         SetVelY(AppliedJumpVelocity(false));
         _airJumpsUsed += 1;
         _sfx.play("jump");
@@ -2033,6 +2075,7 @@ public partial class Player : Combatant
         switch (state)
         {
             case State.DASH:
+                _gustLeft = 0.0f; // dashing breaks out of a gust (a recovery move)
                 _dashLeft = _dashTime;
                 _dashAnimLeft = Mathf.Max(_dashAnimTime, _dashTime);
                 if (_dashCharges == MaxDashCharges)

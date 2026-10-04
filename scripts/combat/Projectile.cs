@@ -191,6 +191,7 @@ public partial class Projectile : Node2D, ITunable
             return;
         if (t.Damage.HasValue) hb.damage = t.Damage.Value;
         if (t.Knockback.HasValue) hb.knockback = t.Knockback.Value;
+        if (t.Gust.HasValue) hb.gust = t.Gust.Value;
         if (t.Stun.HasValue) hb.stun = t.Stun.Value;
         if (t.Color.HasValue)
         {

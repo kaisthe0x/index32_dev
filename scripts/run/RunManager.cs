@@ -76,6 +76,9 @@ public partial class RunManager : Node2D
     private Vector2 _stillAnchor;      // where the player has been standing still since (stand-still pressure)
     private float _stillTime = 0.0f;   // how long he's stayed within Rounds.StillRadius of it
     private float _kamikazeCd = 0.0f;  // until the next kamikaze may spawn while he stays put
+    private float _arenaLeft, _arenaRight; // the arena's horizontal ends (LevelLayout.HorizontalSpan) — the Ventilator's edges
+    private float _edgeTime = 0.0f;        // how long the player has been within Rounds.EdgeZone of an end
+    private float _ventilatorCd = 0.0f;    // until the next Ventilator may come (starts when one dies)
     private Node2D _content;
     private ColorRect _bg;
     private Sprite2D _bgSky;
@@ -153,6 +156,7 @@ public partial class RunManager : Node2D
         }
         TickRound(delta);
         TickPressure(delta);
+        TickEdge(delta);
         FollowCamera(delta);
     }
 
@@ -194,6 +198,8 @@ public partial class RunManager : Node2D
         _spotOf.Clear();
         _stillTime = 0.0f;
         _kamikazeCd = 0.0f;
+        _edgeTime = 0.0f;
+        _ventilatorCd = 0.0f;
         PushRoundHud();
         if (_content != null && IsInstanceValid(_content))
             _content.QueueFree();
@@ -223,6 +229,7 @@ public partial class RunManager : Node2D
             GD.PushWarning("RunManager: no stage1_v*.tscn layouts under scenes/levels/stage1/ — arena will be empty.");
         }
         _playerSpawn = _layout != null ? _layout.PlayerSpawn() : Vector2.Zero;
+        (_arenaLeft, _arenaRight) = _layout?.HorizontalSpan() ?? (0.0f, 0.0f);
 
         foreach (var op in _layout?.Orbs() ?? new System.Collections.Generic.List<Vector2>())
             _content.AddChild(new LaunchOrb { Position = op });
@@ -462,6 +469,44 @@ public partial class RunManager : Node2D
         SpawnAt(EnemyKits.EIN, KamikazeSpot(at));
     }
 
+    /// <summary>THE EDGE ENEMY: from <see cref="Rounds.VentilatorFromRound"/>, a player who stays within
+    /// <see cref="Rounds.EdgeZone"/> of either end of the arena for <see cref="Rounds.EdgeDwell"/> gets a Ventilator on his
+    /// floor, on the INLAND side (<see cref="EdgeInland"/>), so its wind blows him outward — off the edge unless he air-jumps
+    /// or dashes back. At most <see cref="Rounds.VentilatorMax"/> alive; the next waits <see cref="Rounds.VentilatorCooldown"/>
+    /// after one dies. Leaving the edge resets the dwell.</summary>
+    private void TickEdge(float delta)
+    {
+        _ventilatorCd = Mathf.Max(_ventilatorCd - delta, 0.0f);
+        int inland = _player != null && _round >= Rounds.VentilatorFromRound ? EdgeInland(_player.GlobalPosition.X) : 0;
+        if (inland == 0)
+        {
+            _edgeTime = 0.0f;
+            return;
+        }
+        _edgeTime += delta;
+        if (_edgeTime < Rounds.EdgeDwell || _ventilatorCd > 0.0f || LivingOfType(EnemyIds.Ventilator) >= Rounds.VentilatorMax)
+            return;
+        Vector2 player = _player!.GlobalPosition;
+        // Only a tile actually inland of him — PickGroundSurface falls back to either side when one side has none, and a
+        // Ventilator on the OUTER side would blow him back into the arena. None yet = try again next tick.
+        if (PickGroundSurface(player, Rounds.VentilatorSpawnMin, Rounds.VentilatorSpawnMax, inland) is Vector2 at
+            && Mathf.Sign(at.X - player.X) == inland)
+            SpawnAt(EnemyKits.VENTILATOR, at);
+    }
+
+    /// <summary>+1 if <paramref name="x"/> is within <see cref="Rounds.EdgeZone"/> of the arena's LEFT end (inland is to
+    /// the right), -1 if of its RIGHT end, 0 if it's at neither.</summary>
+    private int EdgeInland(float x)
+    {
+        if (_arenaRight <= _arenaLeft)
+            return 0;
+        if (x - _arenaLeft <= Rounds.EdgeZone)
+            return 1;
+        if (_arenaRight - x <= Rounds.EdgeZone)
+            return -1;
+        return 0;
+    }
+
     private static float KamikazeInterval(int r) => Mathf.Max(Rounds.KamikazeIntervalMin,
         Rounds.KamikazeIntervalBase * Mathf.Pow(Rounds.KamikazeIntervalDecay, r - Rounds.KamikazeFromRound));
 
@@ -649,8 +694,10 @@ public partial class RunManager : Node2D
             Callable.From(() => SpawnDrops(at, lira, fig)).CallDeferred();
         _enemies.Remove(enemy);
         _spotOf.Remove(enemy); // its spot is free again
+        if (enemy.enemy_id == EnemyIds.Ventilator)
+            _ventilatorCd = Rounds.VentilatorCooldown; // the next one waits
         if (enemy.optional)
-            return; // optional enemies (the sleeper, kamikazes) aren't part of the round
+            return; // optional enemies (the sleeper, kamikazes, the Ventilator) aren't part of the round
         _alive -= 1;   // free a slot in the concurrency cap
         _killed += 1;
         if (_round > 0 && _killed >= _quota)

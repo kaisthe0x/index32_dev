@@ -62,6 +62,21 @@ public static class EnemyKits
 		{ "patrol_distance", 70.0 }, { "tier", (int)EnemyTier.Mid },
 	};
 
+	public static readonly GDict VENTILATOR = new()
+	{
+		// The EDGE enemy (RunManager's edge spawn — not in the round's spawn pool): appears on the inland side when the
+		// player is near either end of the arena, and blasts WIND (close_gust) that does no damage but flings him outward
+		// — off the edge unless he air-jumps / dashes back. Optional (not part of the round) but drops Lira + figs as usual.
+		// Like Tarri, the blast fires on the LAST attack frame and he holds + vibrates there (the blast's emit_duration).
+		{ "id", EnemyIds.Ventilator }, { "display_name", "Ventilator" }, { "tier", (int)EnemyTier.Mid }, { "movement", (int)EnemyMovement.Ground }, { "close_type", StrikeType.Blast.Key() },
+		{ "optional", true },
+		{ "max_health", 60.0 }, { "body_size", new Vector2(18, 36) }, { "hurtbox_size", new Vector2(22, 42) },
+		{ "move_speed", 40.0 }, { "patrol_distance", 80.0 },
+		{ "close_range", 150.0 }, { "attack_align_y", 52.0 }, { "attack_cooldown", 2.4 },
+		{ "close_damage", 0.0 }, { "close_knockback", 0.0 }, { "close_stun", 0.0 }, { "close_gust", 540.0 },
+		{ "attack_hitstop", 2.0 }, { "attack_shake", 1.5 },
+	};
+
 	public static readonly GDict MATAT = new()
 	{
 		{ "id", EnemyIds.Matat }, { "display_name", "Matat" }, { "tier", (int)EnemyTier.Strong }, { "movement", (int)EnemyMovement.Ground }, { "close_type", StrikeType.Aoe.Key() }, { "conform_ground", true },

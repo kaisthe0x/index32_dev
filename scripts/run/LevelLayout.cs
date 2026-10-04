@@ -54,6 +54,20 @@ public partial class LevelLayout : Node2D
         return null;
     }
 
+    /// <summary>The arena's horizontal span in world X — the left edge of the leftmost Terrain tile to the right edge of
+    /// the rightmost (its "ends", where the Ventilator comes). (0, 0) if there's no painted Terrain.</summary>
+    public (float Left, float Right) HorizontalSpan()
+    {
+        var tm = GetNodeOrNull<TileMapLayer>("Terrain");
+        if (tm?.TileSet == null)
+            return (0.0f, 0.0f);
+        Rect2I used = tm.GetUsedRect();
+        float half = tm.TileSet.TileSize.X * 0.5f;
+        float left = tm.ToGlobal(tm.MapToLocal(used.Position)).X - half;
+        float right = tm.ToGlobal(tm.MapToLocal(used.End - Vector2I.One)).X + half;
+        return (left, right);
+    }
+
     /// <summary>Optional launch-orb positions.</summary>
     public List<Vector2> Orbs() => GroupPositions("orb");
 

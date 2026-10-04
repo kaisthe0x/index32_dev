@@ -386,6 +386,7 @@ with wind-up / in-between frames between the hits:
 | mazab (enemy) | `attack_delayed_projectile` | `[5]` — the lobbed bomb leaves his hand here |
 | tarri (enemy) | `attack_blast` | `[3]` — the stationary blast erupts on the last frame |
 | breski (enemy) | `attack_melee` | `[4, 9]` — a 2-hit melee combo: jab, then a heavier follow-up |
+| ventilator (enemy) | `attack_blast` | `[5]` — the wind gust erupts on the last frame (he holds+vibrates there, like Tarri) |
 
 Specials list a strike frame the same way (keyed by the special's animation);
 without one the special lands on its middle frame.
@@ -1367,6 +1368,21 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
   holds his ground **and facing** (early-returns before the face/pursue logic), so a player who dashes
   behind him can't yank him around to chase while his blast is still firing the other way. `_active_channel`
   goes invalid the instant the Strike frees, releasing him exactly when the blast is gone.
+- **Wind gust — a hit that FLINGS instead of hurting (Ventilator).** A strike whose tuning carries a **`Gust`**
+  (`SegmentData.Gust` → `Hitbox.gust` → `Hit.Gust`, px/s; an enemy kit sets it with **`close_gust`**) does **no damage
+  and no stagger**. On Khalid (`Player.BlownAway`) it breaks off what he's doing (`BreakOffForHit` — the same interrupt a
+  real hit uses: orb launch, held channel, Nem's sleep), then flings him **away from the source and up**
+  (`Combatant.GustVelocity`: `Gust` horizontally, `Gust × Combat.GustLift` (0.55) up) into the air state. For
+  `Combat.GustCarryTime` (0.9 s) the gust **carries** him: no air brake, steering only pushes back *against* the fling at
+  `Combat.GustControl` (20%), and no swinging (it would halt the fling). An **air jump or a dash breaks the carry**
+  (full control back) — those are the recoveries; landing ends it too. Shields that block a hit (Redere from the front,
+  i-frames, a dash) block a gust. An enemy caught by one (a charmed Ventilator) is flung and held in stun
+  (`Combat.GustEnemyStagger`) instead of damaged. **Ventilator** is the user: a red creature riding a whirlwind
+  (kit `EnemyKits.VENTILATOR`, `close_type = "blast"`, `close_gust` 540 — tuned so an air jump within ~0.3 s or any
+  dash back saves you, and doing nothing doesn't). Like Tarri, the wind fires on his **last attack frame (5)** and he
+  holds + vibrates there for the blast's `emit_duration` (0.6 s); VFX `vfx/enemy/ventilator/attack/ventilator_blast.tscn`
+  (a `BlastStrike`: pale-cyan gust/streak/swirl emitters + a 150×40 forward hitbox), SFX `ventilator.blast` (wind-up) +
+  `ventilator.blast.5` (fires) — **PLACEHOLDERS** (copies of Tarri's) in `sfx/enemy/ventilator/attack/`.
 - **Multi-hit melee combo (per-hit VFX + SFX).** A close attack (e.g. `attack_melee`) with **several `HIT_FRAMES`** fires one
   strike **per hit frame** — each an independent self-contained Strike scene, so a combo's swings can look
   and sound different. **Breski** is the worked example: a blood-red bruiser whose `attack_melee` hits on frames
@@ -1851,6 +1867,12 @@ the build basics:
   (`HeadroomAbove`), then one every `KamikazeInterval(r)` (2 s at r5, ×0.95/round, min 0.75 s) while he stays put,
   `KamikazeMax(r)` alive at most (5 at r5, +1 every 5 rounds, max 8). The clock pauses while he's in Nem's sleep
   (`Player.is_channeling_surge`); kamikazes already diving still come.
+- **The edge enemy (Ventilator)** — `TickEdge`: from `Rounds.VentilatorFromRound` (3), staying within `EdgeZone`
+  (300 px) of either END of the arena (`LevelLayout.HorizontalSpan` — the leftmost/rightmost Terrain tile edges) for
+  `EdgeDwell` (1 s) spawns a Ventilator (`EnemyKits.VENTILATOR` — `optional`, NOT in `SpawnPool`, but drops Lira + figs
+  like any Mid enemy) on the player's floor on the **INLAND** side (`EdgeInland`; `PickGroundSurface` 140–260 px, a
+  result on the outer side is rejected), so its wind blows him outward. At most `VentilatorMax` (1) alive; the next
+  waits `VentilatorCooldown` (10 s) after one dies.
 - **Per-type caps** — a kit's `spawn_cap` (e.g. Nasen = 1) limits how many of that type are alive at once; `PickSpawnKit`
   only rolls kits under their cap, and the cap grows +1 every `Rounds.KitCapGrowthRounds` rounds. No `spawn_cap` = unlimited.
 - **Player fall-death** — once Khalid's Y passes `RunManager.DeathY`, `Player.fall_to_death()` kills him outright
@@ -2113,7 +2135,7 @@ any that land **outside the view** it draws a **chevron clamped to an inset scre
 point at the enemy. On-screen enemies get nothing (you can already see them). Each arrow is:
 - **tinted per enemy** so you can tell which is where — `EnemyMarkers.color_for(enemy_id)`
   (`configs/EnemyMarkers.cs`: kebus gold, baghel purple, nasen blue, mazab crimson, ein orange, matat
-  orange-red, tarri yellow-gold, breski blood-red; tune
+  orange-red, tarri yellow-gold, breski blood-red, ventilator pale wind-cyan; tune
   there), and
 - **faded + shrunk by world distance** from the camera centre (`FADE_START`/`FADE_END`), so a nearby
   off-screen enemy reads bold and a distant one is small/faint.

@@ -6,7 +6,7 @@ using GArray = Godot.Collections.Array;
 namespace MyGame;
 
 /// <summary>
-/// Reusable ground enemy — the config-driven "standard type" (kebus/baghel/mazab/matat/tarri/breski are all
+/// Reusable ground enemy — the config-driven "standard type" (kebus/baghel/mazab/matat/tarri/breski/ventilator are all
 /// this + a kit). Patrols, aggros/pursues, and attacks (melee when close, ranged otherwise; melee/blast/aoe/
 /// projectile/lob selected by config). Carries its own sprite, hurtbox, contact box, floating health bar, and
 /// status overlays. C# port of <c>scripts/enemies/enemy.gd</c>; behaviour archetypes subclass it (SleeperEnemy,
@@ -63,6 +63,7 @@ public partial class Enemy : Combatant
 	[Export] public float close_damage { get; set; } = 12.0f;
 	[Export] public float far_damage { get; set; } = 8.0f;
 	[Export] public float close_knockback { get; set; } = 90.0f;
+	[Export] public float close_gust { get; set; }  // > 0 = the close attack is a GUST (Hit.Gust): no damage, flings the player
 	[Export] public float close_stun { get; set; }
 	[Export] public float far_knockback { get; set; }
 	[Export] public float far_stun { get; set; }
@@ -793,6 +794,7 @@ public partial class Enemy : Combatant
 			{
 				Damage = close_damage,
 				Knockback = close_knockback,
+				Gust = close_gust,
 				Stun = close_stun,
 			}, false, VfxPos(key));
 			if (conform_ground && node != null)
@@ -976,6 +978,15 @@ public partial class Enemy : Combatant
 	{
 		if (State == EState.Dead)
 			return;
+		if (hit.Gust > 0.0f)
+		{
+			// A GUST (a charmed Ventilator's wind): no damage — just flung, and held in stun so the AI doesn't cancel it.
+			Velocity = GustVelocity(hit, Facing);
+			StunLeft = Mathf.Max(StunLeft, Combat.GustEnemyStagger);
+			SetState(EState.Stun);
+			CancelChannel();
+			return;
+		}
 		last_hit_from_special = hit.from_special;
 		float before = Health;
 		Health = Mathf.Max(Health - hit.amount, 0.0f);

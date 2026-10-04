@@ -19,6 +19,7 @@ public partial class Hitbox : Area2D
 {
     [Export] public float damage { get; set; } = 10.0f;
     [Export] public float knockback { get; set; }
+    [Export] public float gust { get; set; }
     [Export] public float stun { get; set; }
     [Export] public Color status_color { get; set; } = new(0, 0, 0, 0);
     [Export] public float status_time { get; set; }
@@ -114,6 +115,7 @@ public partial class Hitbox : Area2D
         {
             Amount = damage,
             Knockback = knockback,
+            Gust = gust,
             Stun = stun,
             StatusColor = status_color,
             // Default the status window to the stun duration.

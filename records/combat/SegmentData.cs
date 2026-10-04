@@ -14,6 +14,8 @@ public sealed class SegmentData
 {
     public float? Damage;
     public float? Knockback;
+    /// <summary>A GUST (px/s): blows the victim away from the source instead of hurting it — see <c>Hit.Gust</c>.</summary>
+    public float? Gust;
     public float? Stun;
     /// <summary>Half-extents of the hitbox rect (overrides the scene's).</summary>
     public Vector2? Extents;
