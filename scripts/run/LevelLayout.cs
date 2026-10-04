@@ -10,21 +10,21 @@ namespace MyGame;
 /// instantiates ONE random variant per run and reads these.
 ///
 /// <para>AUTHORING (in the editor): paint the <b>Terrain</b> layer with the terrain TileSet and drag the
-/// <b>PlayerSpawn</b> marker where you want it. Enemy spawn positions aren't authored — RunManager proximity-spawns
-/// around the player on the floor he's standing on (<see cref="SpawnSurfacesNear"/>). Optional launch-orb spots
-/// go in the <b>orb</b> group. WHICH enemies appear is RunManager's spawn pool (kits in <see cref="EnemyKits"/>).</para>
+/// <b>PlayerSpawn</b> marker where you want it. Enemy spawn spots are the <c>Marker2D</c>s under the <b>EnemySpawns</b>
+/// node (<see cref="EnemySpawns"/>) — spread them around the arena, since the player has to go find what spawns there.
+/// From a later round some grunts also spawn near the player, on the floor he's standing on (<see cref="SpawnSurfacesNear"/>).
+/// The three stall scenes (<c>scenes/things/</c>) are required. Optional launch-orb spots go in the <b>orb</b> group.
+/// WHICH enemies appear is RunManager's spawn pool (kits in <see cref="EnemyKits"/>).</para>
 /// </summary>
 [GlobalClass, Tool]
 public partial class LevelLayout : Node2D
 {
+    private const string StallGroup = "stalls"; // the group every stall scene's root is in (scenes/things/)
+
     /// <summary>Put the layout's layers — and the stalls placed in it — at their <see cref="WorldZ"/>, at runtime AND in
     /// the editor (this is a [Tool] for that only), so what you paint sits in the same order you'll see in the game,
     /// whatever the scene file says. Stalls are found by their scenes' <c>stalls</c> group, not their type — in the editor
-    /// their (non-tool) scripts don't run as C# classes. (A stall sets its own z too; that covers one dropped in when a
-    /// layout has none.)</summary>
-    /// <summary>The group every stall scene's root is in (<c>scenes/things/</c>).</summary>
-    private const string StallGroup = "stalls";
-
+    /// their (non-tool) scripts don't run as C# classes.</summary>
     public override void _Ready()
     {
         SetZ("Aesthetic", WorldZ.Scenery);
@@ -57,6 +57,18 @@ public partial class LevelLayout : Node2D
     /// <summary>Optional launch-orb positions.</summary>
     public List<Vector2> Orbs() => GroupPositions("orb");
 
+    /// <summary>Where enemies spawn: the <c>Marker2D</c> children of the <b>EnemySpawns</b> node, each on the ground
+    /// (or in the air for a flyer) where an enemy appears and patrols. Empty if the layout has none.</summary>
+    public List<Vector2> EnemySpawns()
+    {
+        var spots = new List<Vector2>();
+        if (GetNodeOrNull<Node>("EnemySpawns") is Node holder)
+            foreach (Node n in holder.GetChildren())
+                if (n is Marker2D m)
+                    spots.Add(m.GlobalPosition);
+        return spots;
+    }
+
     /// <summary>A spawn tile must sit in a flat run of at least this many walkable tiles — a lone scattered tile (or a
     /// 2-tile ledge) would strand a grunt with nowhere to walk.</summary>
     private const int MinSpawnFloorTiles = 3;
@@ -69,7 +81,7 @@ public partial class LevelLayout : Node2D
     private readonly Dictionary<int, List<Vector2>> _spawnable = new();             // region → its spawn-worthy tops
     private bool _groundBuilt;
 
-    /// <summary>Where a ground/stationary enemy may spawn so it can actually reach the player: the tops of the FLOOR
+    /// <summary>Where a NEAR-PLAYER grunt may spawn so it can actually reach the player: the tops of the FLOOR
     /// region nearest <paramref name="groundPoint"/> (the ground under the player), limited to flat runs of at least
     /// <see cref="MinSpawnFloorTiles"/> tiles. If that region has no such run (the player is perched on a lone tile or
     /// short ledge), the region of the nearest spawn-worthy top instead. World positions on the tile tops; empty only if

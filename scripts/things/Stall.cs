@@ -8,21 +8,18 @@ namespace MyGame;
 /// <list type="bullet">
 /// <item><c>Visual</c> (Node2D) — its look, bottom-centre on the scene's origin (the ground where it stands).</item>
 /// <item><c>Interact</c> (Area2D + a shape) — where the player has to stand to use it.</item>
-/// <item><c>Prompt</c> (Marker2D) — where the floating "E" / "CLOSED" prompt sits (its top-centre).</item>
+/// <item><c>Prompt</c> (Marker2D) — where the floating "E" prompt sits (its top-centre).</item>
 /// </list>
-/// This base owns the shared behaviour: the prompt while the player is in range, the key press, and OPEN / CLOSED
-/// (<see cref="SetOpen"/> — e.g. a shop outside the break: dimmed, "CLOSED", E ignored). A subclass says what using it
-/// does (<see cref="Interact"/>).
+/// This base owns the shared behaviour: the prompt while the player is in range and the key press. A subclass says what
+/// using it does (<see cref="Interact"/>).
 /// </summary>
 public abstract partial class Stall : Node2D
 {
     private const string InteractAction = "interact"; // E (registered in _Ready if the project hasn't)
     private const float PromptWidth = 80.0f;             // the prompt label is centred on the Prompt marker in this width
-    private static readonly Color ClosedTint = new(0.45f, 0.45f, 0.5f);
 
     private Player _inRange;   // the player while standing in range (null otherwise)
     private Label _prompt;
-    private bool _open = true;
 
     /// <summary>The stall's look (the scene's <c>Visual</c> node).</summary>
     protected Node2D Visual { get; private set; }
@@ -46,7 +43,6 @@ public abstract partial class Stall : Node2D
         _prompt.AddThemeColorOverride("font_outline_color", Colors.Black);
         _prompt.AddThemeConstantOverride("outline_size", 4);
         AddChild(_prompt);
-        ApplyOpen();
 
         var range = GetNode<Area2D>("Interact");
         range.CollisionLayer = 0; // layers from Combat (not the scene), so they can't drift
@@ -67,20 +63,6 @@ public abstract partial class Stall : Node2D
         };
     }
 
-    /// <summary>Open or close the stall (closed: dimmed, "CLOSED" prompt, E ignored).</summary>
-    public void SetOpen(bool open)
-    {
-        _open = open;
-        if (IsNodeReady())
-            ApplyOpen();
-    }
-
-    private void ApplyOpen()
-    {
-        Visual.Modulate = _open ? Colors.White : ClosedTint;
-        _prompt.Text = _open ? "E" : "CLOSED";
-    }
-
     /// <summary>The player pressed E in range.</summary>
     protected abstract void Interact(Player p);
 
@@ -96,7 +78,7 @@ public abstract partial class Stall : Node2D
 
     public override void _UnhandledInput(InputEvent @event)
     {
-        if (_open && _inRange != null && @event.IsActionPressed(InteractAction))
+        if (_inRange != null && @event.IsActionPressed(InteractAction))
         {
             Interact(_inRange);
             GetViewport().SetInputAsHandled();

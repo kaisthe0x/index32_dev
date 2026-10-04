@@ -15,17 +15,21 @@ the random pool automatically). Each is a **`LevelLayout`** scene (`scripts/run/
   on `Terrain` would replace whatever was there. Never "New TileSet" in the inspector: an embedded copy is invisible to the generator, so new
   tiles and collision fixes would never reach that level.
 - a **`PlayerSpawn`** `Marker2D` (where Khalid drops in), and optional launch-orb spots in the **`orb`** group,
+- an **`EnemySpawns`** node whose `Marker2D` children are the enemy spawn spots (required — no markers, no enemies),
 - the **stalls** — drag `scenes/things/needle_point.tscn`, `dekken.tscn` and `mystery_box.tscn` from the FileSystem dock
   into the layout (stage1_v1 keeps them under a `Stalls` node). Each scene's origin is its base: put it **on the floor's
   top edge** (grid snap helps). You see them in the editor exactly as in the game, and Needle Point's collision (`Dais`
   ramps + flat top, the one-way `Roof`) and every stall's `Interact` area are real nodes you can reshape by dragging
-  their points. A layout missing a stall gets it at an automatic spot near the spawn.
+  their points. All three are required (a missing one logs an error).
 - decor sprites (trees, the statue, the skeleton) — no collision.
 
-Enemies spawn around the player automatically — no spawn markers needed. They only spawn on the **floor the player
-is standing on**: walkable tops count as one floor where their surfaces actually meet — side by side, or along a
-ramp — so a platform you can't walk to (a block step up, or slopes laid as a sawtooth) never gets spawns. Only tiles in a flat run of 3+ count, so a lone scattered
-tile never strands a spawned enemy.
+**Enemy spawn spots:** each `Marker2D` under `EnemySpawns` is where an enemy appears and then patrols, so put it
+**on a floor's top edge** (a few px above is fine — it drops onto it) with some walkable room either side, and
+**spread them across the whole arena**: each spot holds ONE enemy at a time (so the spot count caps how many can be
+out before round 10, when some start spawning near the player), new enemies take the free spot farthest from the
+occupied ones, never one within 320 px of the player — and the player has to go find them. Keep them clear of the stalls (not inside Needle Point's dais) and off lone tiles. Add,
+move or delete markers freely — the spawner reads whatever is there. (stage1_v1 has 12: five on the main floor,
+three on the right-hand ledges, four on platforms.)
 
 ## Paint
 

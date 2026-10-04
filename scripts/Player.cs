@@ -1136,6 +1136,8 @@ public partial class Player : Combatant
     }
 
     public bool is_dead() => _dead;
+    /// <summary>In a channelled surge (Nem's sleep) — the stand-still kamikaze clock pauses for it.</summary>
+    public bool is_channeling_surge() => _surgeChannel;
     public bool death_complete() => _dead && _deathFinished;
 
     public void release_death()

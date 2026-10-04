@@ -3,7 +3,7 @@ using Godot;
 namespace MyGame;
 
 /// <summary>
-/// The Dekken menu (a <see cref="StallMenu"/>, open in the break between rounds): this break's stock of perks as rows —
+/// The Dekken menu (a <see cref="StallMenu"/>): this round's stock of perks as rows —
 /// name, what it does + how long it lasts, its status (active / owned / why it can't be bought), and <b>BUY</b> (Lira —
 /// takes effect at once).
 /// </summary>
@@ -20,7 +20,7 @@ public partial class DekkenMenu : StallMenu
     public void Open(PerkLedger ledger, Player player)
     {
         _ledger = ledger;
-        OpenFrame(player, "DEKKEN", "Perks take effect now · new stock every break");
+        OpenFrame(player, "DEKKEN", "Perks take effect now · new stock every round");
     }
 
     protected override void FillRows(VBoxContainer rows)
@@ -47,7 +47,7 @@ public partial class DekkenMenu : StallMenu
     {
         PerkDuration.OneUse => "now",
         PerkDuration.Run => "whole run",
-        _ => def.Rounds == 1 ? "1 round" : $"{def.Rounds} rounds",
+        _ => def.Rounds switch { 1 => "this round", 2 => "this + next", _ => $"this + {def.Rounds - 1} more" },
     };
 
     /// <summary>The perk's state in words: why it can't be bought, else how long it has left if it's running.</summary>

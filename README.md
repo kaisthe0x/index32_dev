@@ -64,7 +64,7 @@ tools/                Generator + verification scripts (not shipped)
 | Shift | `dash` | Uses a **dash charge** — you hold 1 (the **Extra Dash** shot adds more); a spent charge refills after the dash cooldown, one at a time. **Dash into a launch orb** and it magnets you through and flings you up + forward (see Launch orbs) |
 | Left mouse | `attack` | The current *attack* — **hold to keep attacking** (a flurry loops; a combo chains its hits, then loops); a press advances a combo one hit. **Ground only** by default — an attack whose Action is tagged `"air"` is the exception and can be used mid-air (`Player._air_attack_ok`). *(No shipped attack is currently tagged `"air"`; the tag now lives on the Zahluq **special**.)* |
 | Right mouse | `special` | On the ground: the current *special* (committed full-animation move) — **no Ruh cost, but every special has its own cooldown** (3–12s; shown by the special bar in the HUD gauge). **In the air: performs the ground slam instead** (characters with a `slam` sheet) |
-| Ctrl (RT / R2) | `surge` | Fires the equipped **Surge** — a passive ability (**Aegis** = ~5s invincibility; **Jnoon** = ~5s ×2 damage dealt; **Asra** = ~5s ×2 move speed) applied *without* interrupting your attacking/moving — **except Nem**, a committed sleep that locks you in place and restores one health block over 5s (a hit wakes/cancels it), and **Wara**, which *arms* and waits: the next enemy hit is negated and AoE-stuns everyone near you (2s). **Spends one Ruh charge per use** — Ruh is the only gate, no cooldown. RT on the pad because dash owns LT |
+| Ctrl (RT / R2) | `surge` | Fires the equipped **Surge** — a passive ability (**Aegis** = ~5s invincibility; **Jnoon** = ~5s ×2 damage dealt; **Asra** = ~5s ×2 move speed) applied *without* interrupting your attacking/moving — **except Nem**, a committed sleep that locks you in place and restores one health block over 5s (a hit wakes/cancels it; the kamikaze stand-still clock pauses while he sleeps), and **Wara**, which *arms* and waits: the next enemy hit is negated and AoE-stuns everyone near you (2s). **Spends one Ruh charge per use** — Ruh is the only gate, no cooldown. RT on the pad because dash owns LT |
 | E | `interact` | Use the stall you're standing at — the **mystery box** (spend fada figs), **Needle Point** (shots) or **Dekken** (perks); a shop menu closes with E / Esc. Registered in code by `Stall` |
 | Z / X | `debug_damage` / `debug_heal` | Dev only |
 | 0 | `debug_respawn` | Dev only — rebuild the current level fresh |
@@ -125,7 +125,9 @@ you **pick an attack** (locked for the run) from an **inventory-style grid of we
 click an icon to see its name + stats (type/damage/knockback/stun/reach/cooldown/style, from the `Action`'s `Hit`
 data) + description in the details pane, then Confirm. You drop into
 a low, mostly-horizontal arena and fight **endless rounds**: each sends a hidden quota of enemies (a mixed roster,
-proximity-spawned near you — behind you, so you have to turn — capped so it never floods), clears when they're all dead, and the next is bigger. You **start each
+appearing at spawn spots around the arena where they patrol until they spot you — you go find them; the last few
+hunt you down — capped so it never floods; from round 10 some also spawn right behind you; from round 5, standing still
+for 2 s draws kamikazes), clears when they're all dead, and the next is bigger. You **start each
 run with 3 Ruh charges** — the surge meter, shown in charges (100 each), no decay — and refill it by
 **landing hits** (~5 hits = 1 charge; kills don't count, and a special's own hits don't self-pay).
 **Specials cost no Ruh but each has its own cooldown** (shown by the special bar in the HUD). Ruh instead fuels the **Aegis
@@ -135,8 +137,8 @@ you, and **each use spends one Ruh charge** — Ruh is the only gate, no cooldow
 Fig** (the rare one) — see below. **Buffs come from the mystery box** in the arena: stand next to it and press **E**
 to **spend** figs on a gamble — a win opens a **pick-1-of-3 menu** from the POWERFUL pool (above-rare tiers), each
 win making the next rarer. **Lira buys shots at Needle Point** (permanent stat boosts, rank by rank) **and perks at Dekken** (utility —
-a heal, a teleport, a shield …); both are open only in the break between rounds (§ Needle Point shots / § Dekken perks
-below, `docs/game-loop.md` § Economy). Moves are independent — they **upgrade by layering
+a heal, a teleport, a shield …); every stall is open all the time — rounds run back to back with no break
+(§ Needle Point shots / § Dekken perks below, `docs/game-loop.md` § Economy). Moves are independent — they **upgrade by layering
 buffs**, not by turning into a different move (Rope Dart & Redere Frisbee are now standalone swaps, not
 successors). Take 0 HP and the run restarts (a fresh arena; buffs cleared, HP + Ruh refilled). All of this — the
 spawner, the enemy roster, the buff pools, the box, the attack picker — lives in
@@ -564,7 +566,7 @@ in the `ActionsKhalid.SURGES` catalog (`DEFAULT_SURGE = "aegis"`). Two ship:
 
 - **Nem** (`nem`) — a committed **sleep/heal CHANNEL** (not a passive buff, `channel: true`): Khalid locks
   in place, the flex plays to its **second-to-last frame** (head down, asleep) and **pauses** there, then
-  he **restores one health BLOCK over 5s** (slot health — `heal_frac > 0` just flags that the surge heals;
+  he **restores one health BLOCK over 5s** (the stand-still kamikaze clock pauses during it — `Player.is_channeling_surge`) (slot health — `heal_frac > 0` just flags that the surge heals;
   the amount is a fixed block, `SurgeHealHalfBlocks`). Capped at max. A **hit from an enemy wakes him** — the
   channel cancels and he keeps whatever he'd gained. Driven in `_process_surge` (`_surge_channel` / `_surge_asleep`): the wind-up watches
   `_sprite.frame` for the sleep frame, pauses playback + starts the window; `_on_hurt` cancels it.
@@ -916,11 +918,10 @@ The **stat stall** (`docs/game-loop.md` § Economy): **permanent** numbers on Kh
 Lira. The whole catalog is always on sale — **Extra Dash, Extra Jump, Jump Height, Run Speed, Reach, Attack Damage,
 Slam Damage** — each a `ShotDef` (`records/shots/`) in `NeedlePoint.SHOTS`: which `ShotStat` it changes, its value at
 each **rank** (index 0 = rank I; the array length = the max rank — III for dashes / air jumps, V for the rest), and
-rank I's Lira price (15). Every rank after costs `PriceGrowth` (×1.6) more — 15 / 24 / 38 / 61 / 98. Rank colours
+rank I's Lira price — **priced by worth**: Jump Height / Run Speed 15, Extra Jump 25, Extra Dash / Reach / Slam Damage
+30, Attack Damage 60. Every rank after costs `PriceGrowth` (×1.6) more — Attack Damage 60 / 96 / 154 / 246 / 393. Rank colours
 (grey / green / blue / purple / gold) are `RANK_COLORS`. All placeholders.
 
-- **Open only in the break between rounds** — `RunManager` closes the stall at `StartRound` and reopens it at
-  `ClearRound` (`Stall.SetOpen`: dimmed, "CLOSED" prompt, E ignored).
 - **The rules** live in `ShotLedger` (`scripts/run/`, one per run, owned by `RunManager`): **BUY** raises a shot one
   rank for the rest of the run, at its next price; at the max rank the button reads **MAXED**. Figs play no part.
 - **The effect** is a `Shot` (`scripts/abilities/`), a `Passive` holding the owned rank; buying the next rank swaps it
@@ -948,10 +949,10 @@ Chance** (+5 % fig odds on every kill, whole run), **Magnet** (figs within 400 p
 first hit each round), **Prepared** (your surge fires free as each round starts — Wara arms), **Wider Pull** (Come
 Closer +2 targets; only stocked with Come Closer). All placeholders.
 
-- **Open only in the break**, like Needle Point (`DekkenStall`, a `Stall`; `RunManager` closes/reopens it with the
-  rounds). A perk bought in the break takes effect **at once**.
+- **Always open** (`DekkenStall`, a `Stall`). A perk takes effect **at once**; a timed perk's 2 rounds are the one
+  it's bought in and the next.
 - **The rules** live in `PerkLedger` (`scripts/run/`, one per run, ticked at `ClearRound`): the stock (rerolled every
-  break — never a whole-run perk you own, never one gated to a special you don't have), buying (`Blocked` says why a
+  round — never a whole-run perk you own, never one gated to a special you don't have), buying (`Blocked` says why a
   perk can't be bought: FULL HEALTH / OWNED / ACTIVE), timed perks spending a round per clear, whole-run perks leaving
   the pool. One-use perks just happen (`Player.heal`, `RunManager.FastTravelToBox`).
 - **The effect** of a lasting perk is a `Perk` (`scripts/abilities/`), a `Passive`: Setup/Teardown set and undo a
@@ -1415,7 +1416,8 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
   `FloorSnapLength=16` + `FloorConstantSpeed` so they glide up/down slopes without
   floating off descents or crawling up climbs.
 - **`aggro`** (default **on** — enemies are hunters): it *chases* the player up to
-  `aggro_range` (900 px; the **give-up leash**: get farther and it drops back to patrol), instead of only
+  `aggro_range` (320 px, real distance — it patrols its spawn spot until you come that close; get farther and it
+  drops back to patrol; a straggler told to `hunt()` ignores the range and chases 1.6× faster), instead of only
   fighting whoever wanders into its line. It chases to its **attack reach** — a *far-attack* mob closes
   only to **firing range** (`far_range`) and holds (it won't run its bow into your face), a
   *close-only* mob closes to `close_range` and swings. It's a per-instance export, so set it **false**
@@ -1823,16 +1825,32 @@ through projectiles and attacks unharmed.
 the build basics:
 
 - **Terrain** — a hand-painted `TileMapLayer` with per-tile collision, loaded from a random `stage1_v*.tscn`
-  layout (see the run README + `docs/painting-levels.md`). Its exposed ground tops feed proximity spawning.
+  layout (see the run README + `docs/painting-levels.md`). The layout must place the three stall scenes and an
+  `EnemySpawns` node of `Marker2D` spawn spots (`LevelLayout.EnemySpawns`).
 - **Enemies** — each round (`TickRound`) trickles its hidden quota in, one **kit** at a time picked at random from
   `RunManager.SpawnPool`, under the round's concurrent cap; spawning stops once the quota has spawned and the round
   clears on the last kill (only non-optional enemies count). A **kit** (`EnemyKits.KEBUS`, …) is either an `id` (built
   from the generic `enemy.tscn` with that `enemy_id`) or a `scene` (a custom enemy — `sleeper_enemy.tscn`,
   `diver_enemy.tscn`), plus any Enemy `@export` overrides. `RunManager.SpawnEnemy` applies them; the enemy's
   `died` signal frees a cap slot and drops Lira (+ a chance of a Fada Fig) — buffs come from the mystery box, not kills.
-- **Anti-camp cull** — `RunManager.CullOffscreen` silently frees any enemy that stays OFF-SCREEN for
-  `OffscreenDespawnTime` (8s) — no death VFX/sfx/figs, and not a kill: it releases its cap slot and returns to the
-  round's unspawned quota, so a camper the AI can't reach still gets fresh enemies spawned near them.
+- **Spawn spots** — `RunManager.PickSpawnSpot` picks a FREE `EnemySpawns` marker (one enemy per spot; `_spotOf`
+  frees it on death), spreading them over the map: the free spot farthest from the ones already held, among those at
+  least `Rounds.SpawnMinDistance` (320 px) from the player. All spots held = the spawn waits. `SpawnAt` puffs, spawns,
+  wires `died`/`damaged` and counts it toward the quota unless the kit is `optional`. The enemy patrols around its
+  spot until the player is within its `aggro_range` (320 px, real distance).
+- **Near-player spawns** — from `Rounds.NearSpawnFromRound` (10), `NearShare(r)` of the grunts (20%, +10%/round, max
+  70%; never a stationary kit) spawn on the player's floor, behind him, `NearSpawnMin..Max` (100–240 px) away
+  (`NearPlayerSpot` → `PickGroundSurface`, using `LevelLayout.SpawnSurfacesNear`'s floor regions and `SpotIsClear`);
+  from then on, all spots held also falls back to a near spawn instead of waiting.
+- **Stragglers** — `UpdateStragglers`: once the quota has fully spawned and ≤ `Rounds.StragglerCount` (3) are left,
+  each calls `Enemy.hunt(Rounds.StragglerSpeedMult)` and chases the player anywhere (no leash) at **1.6×** its move
+  speed, its walk animation sped up to match.
+- **Stand-still kamikazes** — `TickPressure`: from `Rounds.KamikazeFromRound` (5), staying within `StillRadius` (50 px)
+  for `StillTime` (2 s) spawns an Ein (`EnemyKits.EIN` — `optional`, no Lira, no figs; not in `SpawnPool`)
+  `KamikazeDistance` to a random side (the other side if that's inside a wall) and up to `KamikazeHeight` above
+  (`HeadroomAbove`), then one every `KamikazeInterval(r)` (2 s at r5, ×0.95/round, min 0.75 s) while he stays put,
+  `KamikazeMax(r)` alive at most (5 at r5, +1 every 5 rounds, max 8). The clock pauses while he's in Nem's sleep
+  (`Player.is_channeling_surge`); kamikazes already diving still come.
 - **Per-type caps** — a kit's `spawn_cap` (e.g. Nasen = 1) limits how many of that type are alive at once; `PickSpawnKit`
   only rolls kits under their cap, and the cap grows +1 every `Rounds.KitCapGrowthRounds` rounds. No `spawn_cap` = unlimited.
 - **Player fall-death** — once Khalid's Y passes `RunManager.DeathY`, `Player.fall_to_death()` kills him outright
@@ -1962,7 +1980,7 @@ instead of a fixed fps that desyncs the moment speed changes. `run_anim_speed`
 
 `scenes/hud.tscn` + `scripts/HUD.cs` — health + Ruh in a **gauge** (bottom-centre, or following
 Khalid — a player setting), the **Esc pause menu**, the **Lira + fig counters** (top-left), a top-centre **round block**
-(`ROUND n` in the scanline font, `n LEFT` once few remain, `NEXT ROUND IN n` counting down each breather, `BEST m`;
+(`ROUND n` in the scanline font, `n LEFT` once few remain, `BEST m`;
 pushed by RunManager via `HUD.SetRound`, placed by the `RoundBlockAnchor` / `RoundBlockOffset` consts in `HUD.cs`; each
 new round's number first appears big and glowing at screen centre, then flies up and shrinks into place —
 `HUD.PlayRoundIntro`, timing `IntroFadeIn` / `IntroHold` / `IntroFly`), the top-right

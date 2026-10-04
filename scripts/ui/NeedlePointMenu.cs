@@ -3,7 +3,7 @@ using Godot;
 namespace MyGame;
 
 /// <summary>
-/// The Needle Point menu (a <see cref="StallMenu"/>, open in the break between rounds): every shot as a row — its name +
+/// The Needle Point menu (a <see cref="StallMenu"/>): every shot as a row — its name +
 /// rank in the rank's colour, what it gives now and what the next rank gives, and <b>BUY</b> (Lira — the next rank, for
 /// the rest of the run; <b>MAXED</b> once there's none).
 /// </summary>

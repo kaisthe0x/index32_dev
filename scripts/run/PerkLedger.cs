@@ -4,36 +4,31 @@ using System.Collections.Generic;
 namespace MyGame;
 
 /// <summary>
-/// A run's Dekken state + rules (docs/game-loop.md § Economy): this break's STOCK (<see cref="Dekken.StockSize"/> random
-/// perks, rerolled every break), the timed / whole-run perks ACTIVE on Khalid (as <see cref="Perk"/> passives), and the
+/// A run's Dekken state + rules (docs/game-loop.md § Economy): the current STOCK (<see cref="Dekken.StockSize"/> random
+/// perks, rerolled every round), the timed / whole-run perks ACTIVE on Khalid (as <see cref="Perk"/> passives), and the
 /// whole-run perks already OWNED (they leave the pool). RunManager owns one per run and calls <see cref="OnRoundClear"/>;
 /// the stall's menu calls <see cref="Buy"/>.
 ///
-/// <para>Open only in the BREAK between rounds (<see cref="Open"/>). A perk bought in the break takes effect at once:
-/// a one-use perk happens (a heal, a teleport); a timed one lasts through the next <see cref="PerkDef.Rounds"/> rounds
-/// (buying it again renews it — never stacks); a whole-run one lasts the run and leaves the pool.</para>
+/// <para>Always open. A perk takes effect at once: a one-use perk happens (a heal, a teleport); a timed one lasts the
+/// current round + <see cref="PerkDef.Rounds"/> − 1 more (buying it again renews it — never stacks); a whole-run one
+/// lasts the run and leaves the pool.</para>
 /// </summary>
 public sealed class PerkLedger
 {
     private readonly Player _player;
-    private readonly Func<bool> _inBreak;             // is it the break between rounds right now?
     private readonly System.Action _fastTravel;              // teleport the player to the mystery box
     private readonly List<string> _stock = new();
     private readonly Dictionary<string, Perk> _active = new();
     private readonly HashSet<string> _owned = new();  // whole-run perks already bought
 
-    public PerkLedger(Player player, Func<bool> inBreak, System.Action fastTravel)
+    public PerkLedger(Player player, System.Action fastTravel)
     {
         _player = player;
-        _inBreak = inBreak;
         _fastTravel = fastTravel;
         RollStock();
     }
 
-    /// <summary>Whether Dekken is open (the break between rounds).</summary>
-    public bool Open => _inBreak();
-
-    /// <summary>This break's perks, in shop order.</summary>
+    /// <summary>This round's perks, in shop order.</summary>
     public IReadOnlyList<string> Stock => _stock;
 
     public bool IsActive(string id) => _active.ContainsKey(id);
@@ -53,11 +48,11 @@ public sealed class PerkLedger
         };
     }
 
-    /// <summary>Buy <paramref name="id"/> — its effect happens / starts at once. False if the shop is closed, the perk
-    /// isn't stocked, buying it would do nothing (<see cref="Blocked"/>), or it's unaffordable.</summary>
+    /// <summary>Buy <paramref name="id"/> — its effect happens / starts at once. False if the perk isn't stocked, buying
+    /// it would do nothing (<see cref="Blocked"/>), or it's unaffordable.</summary>
     public bool Buy(string id)
     {
-        if (!Open || !_stock.Contains(id) || Blocked(id) != "" || !_player.spend_lira(Price(id)))
+        if (!_stock.Contains(id) || Blocked(id) != "" || !_player.spend_lira(Price(id)))
             return false;
         var def = Dekken.Get(id);
         switch (def.Duration)
@@ -80,7 +75,7 @@ public sealed class PerkLedger
     }
 
     /// <summary>A round was cleared: timed perks spend a round (those out of rounds end), and the stock rerolls for the
-    /// new break.</summary>
+    /// next round.</summary>
     public void OnRoundClear()
     {
         foreach (var (id, perk) in new List<KeyValuePair<string, Perk>>(_active))
@@ -103,7 +98,7 @@ public sealed class PerkLedger
         _player.add_passive(perk);
     }
 
-    /// <summary>Draw this break's stock: up to <see cref="Dekken.StockSize"/> distinct eligible perks — not a whole-run
+    /// <summary>Draw a round's stock: up to <see cref="Dekken.StockSize"/> distinct eligible perks — not a whole-run
     /// perk already owned, and not one gated to a special the player hasn't equipped.</summary>
     private void RollStock()
     {

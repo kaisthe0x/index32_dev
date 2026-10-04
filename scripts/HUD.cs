@@ -53,7 +53,6 @@ public partial class HUD : CanvasLayer
 	private CurrencyCounter _figCounter;
 	private Label _roundLabel;
 	private Label _leftLabel;   // "n LEFT" — shown only once few quota enemies remain
-	private Label _nextLabel;   // "NEXT ROUND IN n" — shown only during a breather
 	private Label _bestLabel;
 	private int _shownRound = 0; // the round whose intro has played (a higher one plays the intro again)
 	private Label _roundIntro;   // the big "ROUND n" flying from screen centre into _roundLabel (only while animating)
@@ -143,7 +142,7 @@ public partial class HUD : CanvasLayer
 		_figCounter = new CurrencyCounter("res://assets/things/fada_fig.png");
 		currencies.AddChild(_figCounter);
 
-		// Round block (placed by RoundBlockAnchor/Offset): ROUND n / n LEFT (late in a round) or NEXT ROUND IN n (breather)
+		// Round block (placed by RoundBlockAnchor/Offset): ROUND n / n LEFT (late in a round)
 		// / BEST n. Grows both ways from its anchor, so it stays centred on it.
 		var roundBox = new VBoxContainer
 		{
@@ -162,9 +161,8 @@ public partial class HUD : CanvasLayer
 		_root.AddChild(roundBox);
 		_roundLabel = MkLabel(UiStyle.HudTitle);
 		_leftLabel = MkLabel(UiStyle.HudHeading);
-		_nextLabel = MkLabel(UiStyle.HudHeading);
 		_bestLabel = MkLabel(UiStyle.HudMuted);
-		foreach (var l in new[] { _roundLabel, _leftLabel, _nextLabel, _bestLabel })
+		foreach (var l in new[] { _roundLabel, _leftLabel, _bestLabel })
 		{
 			l.HorizontalAlignment = HorizontalAlignment.Center;
 			roundBox.AddChild(l);
@@ -328,9 +326,8 @@ public partial class HUD : CanvasLayer
 	}
 
 	/// <summary>Show round <paramref name="round"/> (0 = before round 1: blank), <paramref name="left"/> quota enemies
-	/// remaining (0 = hidden — RunManager only passes it once few remain), the breather <paramref name="countdown"/> in
-	/// whole seconds until the next round (0 = hidden — mid-round), and the <paramref name="best"/> round record.</summary>
-	public void SetRound(int round, int left, int countdown, int best)
+	/// remaining (0 = hidden — RunManager only passes it once few remain), and the <paramref name="best"/> round record.</summary>
+	public void SetRound(int round, int left, int best)
 	{
 		if (_roundLabel == null)
 			return;
@@ -340,8 +337,6 @@ public partial class HUD : CanvasLayer
 		_shownRound = round; // a new run resets to 0, so round 1 plays again
 		_leftLabel.Text = $"{left} LEFT";
 		_leftLabel.Visible = left > 0;
-		_nextLabel.Text = $"NEXT ROUND IN {countdown}";
-		_nextLabel.Visible = countdown > 0;
 		_bestLabel.Text = best > 0 ? $"BEST {best}" : "";
 	}
 

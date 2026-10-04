@@ -13,22 +13,22 @@ implements is [`docs/game-loop.md`](../../docs/game-loop.md) — **endless CoD-Z
 
 | File | What it is |
 |---|---|
-| `RunManager.cs` (`RunManager`) | The brain + the arena root. Builds ONE arena and runs the **round loop** (a hidden quota per round, trickled in from a mixed roster — proximity-placed around the player, under a concurrent cap — then a breather + ROUND banner), **awards Ruh per damaging hit landed** (via `gain_ruh_on_hit`, skipping a special's own hits — not per kill), **pays Lira on every kill** (coins that fly to the player) **plus a per-kit chance of one Fada Fig**, **spawns a mystery box** (spend figs for a stingy powerful-buff gamble — a win rarely offers a **special-swap** instead) **and Needle Point** (the shot stall, on the other side of the spawn), ticks the run's `ShotLedger` at each round start/clear, and restarts the run on death. Owns the camera/death/spawn flair. |
+| `RunManager.cs` (`RunManager`) | The brain + the arena root. Builds ONE arena and runs the **round loop** (a hidden quota per round, trickled in from a mixed roster at the layout's spawn spots, under a concurrent cap; the last few hunt the player, and from round 5 standing still draws kamikazes — then straight into the next round with a ROUND banner — no break), **awards Ruh per damaging hit landed** (via `gain_ruh_on_hit`, skipping a special's own hits — not per kill), **pays Lira on every kill** (coins that fly to the player) **plus a per-kit chance of one Fada Fig**, **spawns a mystery box** (spend figs for a stingy powerful-buff gamble — a win rarely offers a **special-swap** instead) **and the stalls** (Needle Point, Dekken — placed in the layout), ticks the run's `PerkLedger` at each round clear, and restarts the run on death. Owns the camera/death/spawn flair. |
 | `enemies.gd` (`EnemyKits`) | **The enemy roster** — one named kit per type (combat tuning + which scene), plus a `Tier`. `RunManager.SpawnPool` draws from these. Edit here to change *who* the enemies are. |
 | `ShotLedger.cs` (`ShotLedger`) | **Needle Point's rules** for one run: the ranks owned of each shot (as `Shot` passives). BUY (break only) raises a shot one rank, permanently, at a rising price. Data in `configs/NeedlePoint.cs`; see the main README § Needle Point shots. |
-| `PerkLedger.cs` (`PerkLedger`) | **Dekken's rules** for one run: the break's stock (5 random perks, rerolled every break), active/owned perks (as `Perk` passives), BUY (break only) + `OnRoundClear`. Data in `configs/Dekken.cs`; see the main README § Dekken perks. |
-| `DekkenStall.cs` (`DekkenStall`, in `scripts/things/`) | The perk shop (placeholder amber stall), further out on the box's side. Press **E** at it to open the `DekkenMenu` (`scripts/ui/`). Open only in the break. |
+| `PerkLedger.cs` (`PerkLedger`) | **Dekken's rules** for one run: the round's stock (5 random perks, rerolled every round), active/owned perks (as `Perk` passives), BUY (break only) + `OnRoundClear`. Data in `configs/Dekken.cs`; see the main README § Dekken perks. |
+| `DekkenStall.cs` (`DekkenStall`, in `scripts/things/`) | The perk shop (placeholder amber stall), placed in the layout. Press **E** at it to open the `DekkenMenu` (`scripts/ui/`). |
 | `NeedlePointStall.cs` (`NeedlePointStall`, in `scripts/things/`) | The stat stall — a booth you walk up into (ramped dais collision). Press **E** on its top platform to open the `NeedlePointMenu` (`scripts/ui/`) over the run's ledger. |
-| `Stall.cs` (`Stall`, in `scripts/things/`) | The shared stand-at-it-and-press-**E** base for the stall SCENES (`scenes/things/`): reads the scene's `Visual`, `Interact` (Area2D — where to stand) and `Prompt` (Marker2D) nodes; owns the prompt, the key (`interact`, registered in code), open/closed. The mystery box, Needle Point and Dekken extend it. |
+| `Stall.cs` (`Stall`, in `scripts/things/`) | The shared stand-at-it-and-press-**E** base for the stall SCENES (`scenes/things/`): reads the scene's `Visual`, `Interact` (Area2D — where to stand) and `Prompt` (Marker2D) nodes; owns the prompt and the key (`interact`, registered in code). The mystery box, Needle Point and Dekken extend it. |
 | `MysteryBox.cs` (`MysteryBox`, in `scripts/things/`) | A code-built placeholder "?" crate (a `Stall`). Press **E** at it to spend `Cost` fada_figs on a gamble: `DudChanceBase` of pulls give nothing, otherwise it fires `won` and RunManager opens the **same 3-choice menu** from the POWERFUL pool (`BuffCatalog.PowerfulIds`, above-rare tiers). Each win raises the dud chance further (per-run). Press E again to pull again. |
 | `RewardUI.cs` (`RewardUI`) | The pick-a-card popup (pauses the game, emits `chosen(id)`) — `Open(cards, title)`. Now drives the mystery box's **buff menu**. |
-| `configs/Rounds.cs` (`Rounds`) | **Round tuning** — quota curve, concurrent cap, spawn interval, breather, when "n LEFT" shows. Pure data. |
+| `configs/Rounds.cs` (`Rounds`) | **Round tuning** — quota curve, concurrent cap, spawn interval, spawn-spot distance, stragglers, stand-still kamikazes, when "n LEFT" shows. Pure data. |
 
 **Hand-painted stage layouts** are the active approach: `RunManager` loads a random
 `scenes/levels/stage1/stage1_v*.tscn` (a `LevelLayout`, discovered by the `stage1_v` glob in
-`StageLayoutPaths`) and reads its `PlayerSpawn` marker (+ optional `orb` group, and optional `NeedlePoint` / `Dekken`
-/ and the stall SCENES placed in it — `scenes/things/mystery_box.tscn`, `needle_point.tscn`, `dekken.tscn`, found by
-`LevelLayout.Placed<T>()`; a layout missing one gets it instanced at an automatic spot, `RunManager.PlaceStall`). Terrain
+`StageLayoutPaths`) and reads its `PlayerSpawn` marker, its `EnemySpawns` markers, the optional `orb` group, and the three REQUIRED stall
+SCENES placed in it — `scenes/things/mystery_box.tscn`, `needle_point.tscn`, `dekken.tscn`, found by
+`LevelLayout.Placed<T>()` (a missing one logs an error). Terrain
 is a **`TileMapLayer` with per-tile collision**: `tools/gen_terrain_tileset.gd` builds the shared
 `assets/terrain/stage1/terrain_tileset.tres` from every **`tilesetN.png`** in that folder (each its own atlas source,
 id = N), with collision **traced from each tile's pixels** (full tiles = boxes; slopes/cut corners = traced polygons,
@@ -36,40 +36,44 @@ snapped flush to the cell edges). So paint = collision, and painted ramps are wa
 re-run the generator (editor closed), then paint in-editor. See [`assets/terrain/README.md`](../../assets/terrain/README.md)
 + [`docs/painting-levels.md`](../../docs/painting-levels.md).
 
-**Enemy spawning is ROUND-driven + PROXIMITY-based** (`TickRound`, tuning in `configs/Rounds.cs`). Round `r` has a
-hidden **quota** `Q(r) = QuotaBase + QuotaLinear·r + QuotaQuad·r²` (16, 21, 27, … 87 at r10). While `Fighting`, one enemy
+**Enemy spawning is ROUND-driven, at the layout's SPAWN SPOTS** (`TickRound`, tuning in `configs/Rounds.cs`). Round `r` has a
+hidden **quota** `Q(r) = QuotaBase + QuotaLinear·r + QuotaQuad·r²` (6, 10, 15, … 63 at r10 — a slow start). One enemy
 spawns every `SpawnInterval(r)` (shortens per round, floored at `IntervalMin`) as long as fewer than the concurrent cap
 `C(r)` (`CapBase`, +1 every `CapGrowthRounds`, max `CapMax`) quota enemies are alive; once `Q(r)` have spawned,
-spawning **stops**, and the round **clears** on the last kill (`OnEnemyDied` → `ClearRound`) → a `BreatherTime` pause
-(`RoundPhase.Breather`) → `StartRound(r+1)`; the HUD plays the **ROUND n** intro (big at screen centre, then it flies up into the round block). The roster is drawn uniformly from
-`RunManager.SpawnPool` (the grunts + Ein + Nasen; Wardens are for the future Warden rounds). **Only non-optional enemies
-are quota enemies** — the sleeper Nasen (`optional`) spawns on its own cap but never counts or blocks a clear.
+spawning **stops**, and the round **clears** on the last kill (`OnEnemyDied` → `ClearRound`) → `StartRound(r+1)` at
+once — **no break, no countdown**; the HUD plays the **ROUND n** intro (big at screen centre, then it flies up into the round block). The roster is drawn uniformly from
+`RunManager.SpawnPool` (the grunts + Nasen — Ein is the stand-still kamikaze below; Wardens are for the future Warden rounds). **Only non-optional enemies
+are quota enemies** — the sleeper Nasen (`optional`, as are kamikazes) spawns on its own cap but never counts or blocks a clear.
 **Per-type caps:** a kit with a `spawn_cap` (Nasen = 1) can't have more than that many alive at once — `PickSpawnKit`
 only rolls kits under their cap (`LivingOfType` vs `EffectiveCap`), and that cap grows +1 every `KitCapGrowthRounds`.
-Each enemy is placed by
-`SpawnPosition(kit)` relative to the player: **flyers** (`air`) overhead within `FlyerHeight*`/`FlyerXSpread`
-(headroom-checked so they don't spawn inside a ceiling); **stationary** (`movement == Stationary`, e.g. Nasen)
-far off on a ground tile (`StationarySpawn*`); **grunts** near on a ground tile but within a fair band
-(`GroundSpawnMin..Max`) — a **min distance so an enemy never spawns on top of the player**. **Grunts and flyers
-arrive BEHIND Khalid** (opposite `Player.facing`), so a new enemy never lands in the swing he's already making and
-he has to turn and move; if there's no ground tile behind him in the band (back to the arena edge or a pit),
-`PickGroundSurface` falls back to either side. Nasen (stationary, far) ignores facing. **Ground spawns stay on
-the player's floor.** `LevelLayout` splits the Terrain's exposed tops (a collidable cell with an empty cell above) into
-connected **floor regions** — tops join only where their surfaces actually meet: flat tiles side by side, a ramp
-and the floors at its two ends (`LevelLayout.Linked`; a ramp is a tile whose collision has a diagonal edge of half a
-tile or more). A block step, or slopes laid as a sawtooth, splits regions. `SpawnSurfacesNear` returns the region
-under the player (found by `RunManager.GroundBelow`, a ray down from his
-feet, so a jump doesn't change it), limited to flat runs of at least `MinSpawnFloorTiles` (3) so nothing spawns
-stranded on a lone scattered tile. So an enemy never appears on a platform the player can't reach (or that can't
-reach him). If the player's own region has no such run (perched on a lone tile), the nearest region that does is
-used. And a spot is only used if a grunt standing there would be **clear of solid collision**
-(`RunManager.SpotIsClear` — a `SpawnClearance` box against `Combat.Layer.World`): the tiles know nothing about
-something solid built over them, like Needle Point's dais, so without it an enemy could spawn stuck inside. The distance bands are tunable consts in `RunManager`; the round curves live in `Rounds`.
+Each enemy appears at a **spawn spot** — a `Marker2D` under the layout's `EnemySpawns` node (`LevelLayout.EnemySpawns`).
+**One enemy per spot** (`_spotOf`, freed on death), spread over the map: `PickSpawnSpot` takes the free spot farthest
+from the spots already held, among those at least `Rounds.SpawnMinDistance` (320 px) from the player (so nothing lands
+on top of him); with every spot held the spawn waits (`SpawnOne` returns false, `TickRound` retries). `SpawnAt` puffs, spawns, wires `died`/`damaged`, tracks it in `_enemies`
+and counts it toward the quota unless the kit is `optional`. The enemy **patrols** around its spot until the player
+comes within its `aggro_range` (320 px), so the player has to go **find** enemies (the off-screen arrows help).
+A layout with no markers logs an error and spawns nothing.
 
-**Anti-camp cull:** a player could camp somewhere the AI can't reach and stall the round. So `CullOffscreen` tracks each
-living enemy's time OFF-SCREEN (`_offscreen`, using the camera's visible rect grown by `OffscreenMargin`); once one stays
-off-camera for `OffscreenDespawnTime` (8s) it's **silently freed** (no death VFX/sfx/figs) — **not a kill**: its cap slot
-is released AND it goes back into the round's unspawned quota (`_spawned--`), so a fresh one spawns near the player.
+**Near-player spawns** (from `Rounds.NearSpawnFromRound`, 10): `NearShare(r)` of the grunts — 20% at r10, +10% a round,
+max 70%; never a stationary kit — spawn on the player's floor, BEHIND him (opposite `Player.facing`),
+`NearSpawnMin..NearSpawnMax` (100–240 px) away: `NearPlayerSpot` → `PickGroundSurface`. That only uses the floor the
+player stands on: `LevelLayout` splits the Terrain's exposed tops into connected **floor regions** (tops join where
+their surfaces meet — side by side, or along a ramp, `LevelLayout.Linked`; a block step or a sawtooth splits them),
+`SpawnSurfacesNear` returns the region under him (`GroundBelow`, a ray down, so a jump doesn't change it) limited to
+flat runs of `MinSpawnFloorTiles` (3)+, and `SpotIsClear` drops tiles under something solid (Needle Point's dais).
+From round 10, all spots held also falls back to a near spawn instead of waiting.
+
+**Stragglers:** once the quota has fully spawned and ≤ `Rounds.StragglerCount` (3) remain, `UpdateStragglers` calls
+`Enemy.hunt(Rounds.StragglerSpeedMult)` on each — they chase the player anywhere, no leash, **1.6× faster** (walk
+animation sped up to match) — so a round never stalls on one he can't find.
+
+**Stand-still kamikazes** (`TickPressure`): from `Rounds.KamikazeFromRound` (5), a player who stays within
+`StillRadius` (50 px) for `StillTime` (2 s) gets an **Ein** (`EnemyKits.EIN` — `optional`, no Lira, no figs; NOT in
+`SpawnPool`) `KamikazeDistance` (220 px) to a random side (`KamikazeSpot` — the other side if that one is inside a
+wall) and up to `KamikazeHeight` (110 px) above, under any ceiling (`HeadroomAbove`); then another every
+`KamikazeInterval(r)` (2 s at r5, ×0.95 a round, min 0.75 s) while he stays put, at most `KamikazeMax(r)` alive (5 at
+r5, +1 every 5 rounds, max 8). Moving away resets the clock; Nem's sleep pauses it (`Player.is_channeling_surge`) —
+kamikazes already diving still come.
 
 Related, but not in this folder:
 - **Player HP is SLOT-based** (`scripts/Player.cs`): you have **3 blocks**, measured internally in **half-blocks**
@@ -96,17 +100,13 @@ Related, but not in this folder:
 ## The loop (endless arena)
 
 1. `RunManager.BuildArena()` sets the `bg` tint (`Terrain.BackgroundTint`), loads a random
-   `stage1_v*.tscn` layout, places the player at its `PlayerSpawn`, and resets the round state to a full
-   `BreatherTime` countdown before **round 1** (it ticks once play starts — after the attack pick + spawn). The stage
+   `stage1_v*.tscn` layout, places the player at its `PlayerSpawn`, and resets the round state; **round 1** starts on the
+   first tick of play (after the attack pick + spawn). The stage
    music (`Music.play_stage`) starts as the arena loads (the colour-scheme screen before it is silent).
-2. **Rounds** (see *Enemy spawning* above): quota trickle under the cap → spawning stops → last kill clears →
-   breather → next round. RunManager pushes `HUD.SetRound(round, left, countdown, best)` on every change — and
-   once per whole second of a breather — so the HUD shows `ROUND n`, `n LEFT` once `Rounds.ShowLeftAt` or fewer
-   remain, `NEXT ROUND IN n` during the breather between rounds, and `BEST n`.
-   **Round sounds** (`SfxWorld`, files in `sfx/world/round/`): as the breather counter hits each of
-   `Rounds.CountdownSfxFrom` (4) … 1, RunManager plays `round_countdown` (`countdown.wav`, the same tick for every
-   number), and `round_start` (`round_start.wav`) plays as each round begins, with the ROUND n label. A missing
-   file just warns once + stays silent.
+2. **Rounds** (see *Enemy spawning* above): quota trickle under the cap → spawning stops → last kill clears → the
+   next round starts at once. RunManager pushes `HUD.SetRound(round, left, best)` on every change, so the HUD shows
+   `ROUND n`, `n LEFT` once `Rounds.ShowLeftAt` or fewer remain, and `BEST n`. **Round sound** (`SfxWorld`,
+   `sfx/world/round/round_start.wav`): `round_start` plays as each round begins, with the ROUND n label.
 3. **Hitting** an enemy → `damaged` → `gain_ruh_on_hit()` charges the surge meter (a special's own hits are
    skipped). Specials cost no Ruh (cooldown-gated); a **surge** fires only when you have the Ruh → `_try_surge()` spends its `cost`.
 4. **Killing** an enemy → `died` → `OnEnemyDied` → `SpawnDrops` (deferred — death fires mid physics-flush):
@@ -114,11 +114,10 @@ Related, but not in this folder:
    default, Kebus 25 %) — **one Fada Fig** that settles until touched. Nothing drops if the enemy fell off the map. A
    quota enemy also frees a cap slot, counts toward the round, and the last one clears it.
 5. **Buffs come from the stalls:**
-   - **Needle Point (Lira, permanent stats), open only in the break:** each purchase raises a shot one rank for the
-     rest of the run, each rank dearer than the last — `ShotLedger`; `StartRound` / `ClearRound` close and reopen the
-     stall.
-   - **Dekken (Lira, utility perks), open only in the break:** 5 random perks per break — a heal, a teleport to the
-     box, fig odds, a fig magnet, a shield, a free surge, Wider Pull — `PerkLedger`, ticked + restocked at `ClearRound`.
+   - **Needle Point (Lira, permanent stats), always open:** each purchase raises a shot one rank for the rest of the
+     run, each rank dearer than the last — `ShotLedger`.
+   - **Dekken (Lira, utility perks), always open:** 5 random perks per round — a heal, a teleport to the box, fig odds,
+     a fig magnet, a shield, a free surge, Wider Pull — `PerkLedger`, ticked + restocked at `ClearRound`.
      `StartRound` fires `Player.notify_round_start` (round-scoped perks re-arm).
    - **Mystery box (powerful, paid gamble):** one `MysteryBox` per arena; stand next to it + press **E** to spend `Cost`
      figs (`Player.spend_fada_figs`). Some pulls dud (`DudChanceBase`, 20 %); a WIN fires the box's `won` signal →
@@ -133,7 +132,7 @@ Related, but not in this folder:
 ## Tuning cheatsheet
 
 - **Change the round curve** → `configs/Rounds.cs`: `Quota*` (enemies per round), `Cap*` (concurrent alive),
-  `Interval*` (seconds between spawns), `BreatherTime`, `ShowLeftAt`. `RunManager.SpawnPool` is the
+  `Interval*` (seconds between spawns), `ShowLeftAt`. `RunManager.SpawnPool` is the
   roster drawn from. Anti-camp: `OffscreenDespawnTime` (how long off-screen before an enemy is silently culled) /
   `OffscreenMargin`.
 - **Cap a specific enemy type** → add `{ "spawn_cap", N }` to its kit in `EnemyKits` (e.g. Nasen = 1). The cap grows

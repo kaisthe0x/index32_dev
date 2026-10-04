@@ -21,8 +21,8 @@ reference).
 
 Khalid fights in one arena through **endless, numbered rounds**. Each round has a **hidden kill quota**: enemies
 trickle in (never more than a concurrent cap alive at once) until the quota has spawned, then spawning stops;
-the round **clears** when every one of them is dead. A short **breather**, a **ROUND n** banner, and the next,
-bigger round begins. As rounds climb, enemies come **faster and in greater numbers**, and increasingly arrive at a
+the round **clears** when every one of them is dead — and the next, bigger round starts **at once** (a **ROUND n**
+banner, no break: the player never gets a breather; changed 2026-10-03). As rounds climb, enemies come **faster and in greater numbers**, and increasingly arrive at a
 higher **rank** — recoloured to the rank's colour — hitting harder and soaking more. There is no end: the run is a
 score chase, **highest round reached** is the record, and **permadeath** ends it.
 
@@ -33,18 +33,31 @@ score chase, **highest round reached** is the record, and **permadeath** ends it
 1. **Quota** `Q(r)` — how many enemies round `r` sends. Hidden from the player (like CoD). Starting shape:
    `Q(r) = a + b·r + c·r²` (roughly quadratic, like CoD's count curve).
 2. **Trickle** — spawn one at a time on an interval, up to the concurrent cap `C(r)` (grows slowly with `r`).
-   Spawning around the player, from the grunt roster; per-kit `spawn_cap`s still apply.
+   Each one appears at a **spawn spot** the layout places (`EnemySpawns` markers) — **one enemy per spot**, spread
+   over the map (the free spot farthest from the held ones, at least `SpawnMinDistance` 320 px from the player) — and
+   **patrols** there until it notices him (320 px); the player has to go **find** them, helped by the off-screen
+   arrows. **From round 10**, a growing share of grunts (20%, +10%/round, max 70%) instead spawns **right behind the
+   player** on his floor (100–240 px), as the pressure ramps up. From the grunt roster; per-kit `spawn_cap`s still apply. The curve **starts slow**
+   (round 1: 6 enemies, 3 alive at once, one every 1.5 s) and climbs every round (`configs/Rounds.cs`).
 3. **Spawning stops** once `Q(r)` enemies have been spawned.
 4. **Clear** — the round ends when all `Q(r)` are dead (kills == quota **and** none left alive).
-5. **Breather** (~8 s) — no spawns; the **ROUND n+1** banner; then round `n+1` starts. The natural moment to
-   shop: Needle Point shots and Dekken perks bought now start with round `n+1` (§ Economy).
+5. **Next round, immediately** — the **ROUND n+1** banner and round `n+1` begins. **No break, no countdown**
+   (changed 2026-10-03; the earlier ~8 s breather is gone). The stalls are open all the time, so shopping happens
+   between fights, wherever the player makes room for it.
 
-**What counts:** only **quota** enemies. Optional enemies (the stationary sleeper Nasen) are **not** in the quota
-and don't block a clear. An enemy **despawned** by the anti-camp rule (off-screen too long) is **not a kill** —
-it goes back into the round's unspawned pool so a fresh one spawns near the player.
+**What counts:** only **quota** enemies. Optional enemies (the stationary sleeper Nasen, the kamikazes below) are
+**not** in the quota and don't block a clear.
 
-**Stragglers** (CoD's "last zombie"): once only a few quota enemies remain, they **hunt** the player (no idle
-patrol, no give-up leash), and the anti-camp despawn/respawn keeps a stuck one from stalling the round.
+**Stragglers** (CoD's "last zombie"): once the whole quota has spawned and only `StragglerCount` (3) or fewer
+remain, they **hunt** the player wherever he is (no patrol, no give-up leash, **1.6× faster** — `StragglerSpeedMult`) — so a round never stalls on one he
+can't find.
+
+**Stand-still pressure (kamikazes):** from round `KamikazeFromRound` (5), a player who stays within `StillRadius`
+(50 px) of one spot for `StillTime` (2 s) gets a **kamikaze** (Ein) `KamikazeDistance` (220 px) to one side and up
+to `KamikazeHeight` (110 px) above — far enough to react — then another every 2 s while he stays put (5
+alive at most) — both ramp with the round (interval ×0.95/round to 0.75 s; +1 max every 5 rounds to 8). Kamikazes
+**drop nothing** and aren't in the quota; moving resets the clock. **Nem** pauses the clock while he sleeps (one
+already diving still comes).
 
 ---
 
@@ -136,10 +149,8 @@ A stat boost changes a number Khalid already has; a perk changes *how* something
 box's pull is that **its mechanics can't be bought anywhere else**. (A second dash = Needle Point; a dash that
 leaves a vortex = the box.) A flat "+20 % damage forever" is a number → it's a Needle Point shot, not a box buff.
 
-**Both stalls are open only in the BREAK between rounds (changed 2026-09-28).** One rule, no "this round or the
-next?": what you buy in a break is **active immediately** — so an Extra Jump bought now can carry you up to the box
-during the same break — and lasts through the next round(s). The break becomes the shopping phase instead of dead
-time. During a round the stalls show CLOSED. (The mystery box stays open during rounds — the risky real-time gamble.)
+**All three stalls are open all the time** (changed 2026-10-03 — there are no breaks any more; between 2026-09-28 and
+then they were break-only). What you buy is **active at once**.
 
 ### Needle Point — the stat shots
 
@@ -149,24 +160,29 @@ run that keeps getting harder).
 - **Stock:** the **whole catalog, always** (7 shots). No rotation.
 - **Each purchase = one RANK, for the rest of the run:** rank I (grey) → II (green) → III (blue) → IV (purple) → V
   (gold), up to that shot's own max (the dash / air-jump shots stop at III). Then the button reads **MAXED**.
-- **Every rank costs more than the last** (placeholders: rank I **15 Lira**, **×1.6** per rank → 15 / 24 / 38 / 61 / 98).
+- **Every rank costs more than the last**, ×1.6 per rank, from a **per-shot rank-I price** (2026-10-03 — priced by
+  worth: mobility cheap, damage an investment): Jump Height / Run Speed **15**, Extra Jump **25**, Extra Dash / Reach /
+  Slam Damage **30**, Attack Damage **60** (→ 96 / 154 / 246 / 393, ~950 to max). For scale, the round curve pays
+  ~140 Lira by the end of round 5, ~560 by round 10. Placeholders.
 - **Figs don't touch Needle Point any more** — buying with Lira *is* the upgrade; figs are the box's currency.
-- **Pauses the game** (it's a menu) — for now; see *Later ideas → the timed break*.
+- **Pauses the game** (it's a menu).
 - **Watch:** a strong player can max all of Needle Point late in a run — after that, Lira only goes to Dekken. The
   price curve delays it; if late rounds feel Lira-rich, add sinks.
 
 ### Dekken — the perk shop
 
-- **Stock:** **5 random perks, rerolled every break**; no duplicate in the five. A perk gated to a special (Wider
+- **Stock:** **5 random perks, rerolled every round**; no duplicate in the five. A perk gated to a special (Wider
   Pull → Come Closer) is only stocked while that special is equipped.
-- **Duration: per perk** — a number of rounds (**1** to start), **one use** (fast travel), or **the whole run**
-  (fig chance). A perk bought in the break is **active at once** and timed perks count from the next round. Dekken
+- **Duration: per perk** — a number of rounds, **one use** (fast travel), or **the whole run** (fig chance). A perk is
+  **active at once**; a timed perk's rounds COUNT the one it's bought in, so the timed perks are **2 rounds = this one
+  and the next** (bought mid-round, 1 could end seconds later, and Prepared — which fires at a round's start — would
+  never fire). Dekken
   stays mostly temporary on purpose: permanent power comes from Needle Point + the box; Dekken is for the round ahead
   (and keeps Lira useful once Needle Point is maxed). If a perk feels like a chore, lengthen it rather than make it
   permanent.
 - **Whole-run perks leave the pool** once bought (they're done for the run and shouldn't take a slot).
 - **Rebuying an active timed perk resets its duration.** Perks have no ranks.
-- **Pauses the game** (for now — see *Later ideas → the timed break*).
+- **Pauses the game.**
 - Placeholder perks: **Heal** (a block, 20 Lira) · **Fast Travel** (teleport to the box, one use, 20 Lira) ·
   **Fig Chance** (+5 % fig chance on every enemy, whole run, 40 Lira) · **Magnet** (loose figs within 400 px fly to
   you, 15 Lira) · **Shield** (blocks the first hit each round, 25 Lira) · **Prepared** (surge fires free at round start,
@@ -206,11 +222,8 @@ run that keeps getting harder).
 - **Shop relocation** (the CoD teddy bear, but for the stalls).
 - **HP-cost altars** (Risk of Rain blood shrine): pay health for power.
 - **Per-purchase price growth** for shots (see Prices).
-- **The timed break (agreed 2026-09-28, build later):** the stall menus **stop pausing** — the player has to get
-  everything from both stalls within the break itself. The break starts long (**~15 s or more**) and **shrinks every
-  ~2 rounds**, down to **4 s**, so shopping becomes a skill that tightens with the run. A player who's done early
-  gets a small prompt — **"Hold E to start the next round"** (hold, on the interact key, so nobody skips by accident)
-  — instead of waiting out the clock. The schedule (start, step, every-N-rounds, floor) goes in `configs/Rounds.cs`.
+- ~~**The timed break**~~ (a shrinking break with "hold E to start the next round") — **superseded 2026-10-03**: the
+  owner chose no breaks at all.
 
 ---
 
@@ -235,6 +248,29 @@ best round, or a persistent meta-currency) is undecided.
 - The enemy count is otherwise hidden, like CoD.
 
 ---
+
+## Loadouts — attack + special + surge chosen together (agreed 2026-10-01, not built)
+
+A run starts by picking ONE of five fixed **loadouts** (replacing the attack-only picker); a player can't mix pieces
+freely — swapping one mid-run takes a special item found during the run (today: the mystery box's special-swap). The
+five use every attack, every regular special and every surge exactly once:
+
+| Loadout | Attack | Special | Surge | Plays as |
+|---|---|---|---|---|
+| **Brawler** | Ora Ora | Come Closer | Jnoon | pull a crowd in, double damage, punch through it |
+| **Reaper** | Twin Reaper | Redere Frisbee | Asra | mark with the DoT, knock enemies off, kite at double speed |
+| **Lancer** | Spear | Redere Shield | Wara | block + parry, punish with the thrust combo; Wara turns the unblocked hit into a stun |
+| **Gunner** | Cherry Shots | Bakshen | Aegis | ranged by default; anything that gets close eats a Bakshen (Aegis covers its wind-up) |
+| **Warden** | Rope Dart | Ground Breaker | Nem | area control — the AoE stun is what makes Nem's 5 s heal safe |
+
+**Rare specials** (box special-swaps, not in any loadout): **Zahluq** and **Frenemy** (once reworked — below).
+Bakshen leaves the box pool, since it starts in Gunner. Open: the default loadout (Brawler suggested), and whether
+items can also swap an attack or a surge.
+
+**Frenemy needs a rework** (noted 2026-10-01): charming one slow grunt for 8 s on a 12 s cooldown adds very little.
+It stays in the code as-is until the owner picks a replacement. Candidates: **Puppet Bomb** (the charmed enemy sprints
+into the nearest group and explodes), **Discord** (everyone in range fights each other for a few seconds), **Hex**
+(+50 % damage taken), **Fear** (enemies in range flee).
 
 ## Failure
 
@@ -283,9 +319,8 @@ The existing `Buff : Passive` + `Trigger` + `ModifyTuning` foundation fits. Ever
 
 ## Build order
 
-1. **Rounds** — the quota/cap/stop/clear/breather state machine in `RunManager`, anti-camp despawn returning to the
-   pool, the ROUND banner, HUD `ROUND n` + `n LEFT`, record = highest round.
-2. **Stragglers** — last-few enemies hunt the player.
+1. **Rounds** — the quota/cap/stop/clear state machine in `RunManager` (no breather since 2026-10-03), the ROUND banner, HUD `ROUND n` + `n LEFT`, record = highest round.
+2. **Stragglers** — last-few enemies hunt the player. ✅ (2026-10-03, with spawn spots + stand-still kamikazes)
 3. **Ranks** — `EnemyRank`, the rank mix by round, per-rank stats (health / damage taken / half-blocks per hit),
    the accent-recolour shader.
 4. **Round drops** — the pickup class family: Max Health (rare) + Max Ruh.
@@ -296,12 +331,14 @@ The existing `Buff : Passive` + `Trigger` + `ModifyTuning` foundation fits. Ever
 - **E1. Lira + fig drops** *(built 2026-09-28)* — the Lira pickup (magnet, placeholder sfx, HUD counter), per-kit fig chance, and
   **removing** the fig milestone menu + the fig ring.
 - **E2. Needle Point** *(built 2026-09-28; made permanent 2026-09-29)* — the shot catalog, bought rank by rank with
-  Lira at a rising price, permanent for the run, break-only.
+  Lira at a rising price, permanent for the run (always open since 2026-10-03).
 - **E3. Dekken** *(built 2026-09-28)* — 5 rotating perks, per-perk durations, whole-run perks leaving the pool.
 - **E4. Mystery Box rework** — the mechanics pool (single version, reroll duplicates, decline), the teddy bear,
   easy/hard box spots, relocation, Fast Travel.
-- **E5. Layout markers + HUD** — the `Dekken` / `NeedlePoint` markers and box-spot group, the shared interact
-  prompt, active-buff icons with rounds remaining, the box pointer.
+- **E5. Layout + HUD** — *partly built 2026-09-30:* the stalls are scenes placed in the layout (`scenes/things/`,
+  found by `LevelLayout.Placed<T>()`) and share one interact prompt. Left: the box-spot group (with E4), the HUD's
+  active-buff icons, the box pointer.
+- **L1. Loadouts** — the run-start loadout picker (§ Loadouts) replacing the attack-only picker.
 
 ---
 
@@ -324,7 +361,7 @@ The existing `Buff : Passive` + `Trigger` + `ModifyTuning` foundation fits. Ever
 
 ## Naming glossary
 
-- **Round** — one numbered wave of the endless loop: a hidden quota, a trickle, a clear, a breather.
+- **Round** — one numbered wave of the endless loop: a hidden quota, a trickle, a clear — then straight into the next.
 - **Quota** — the round's hidden enemy count `Q(r)`. **Cap** — max quota enemies alive at once `C(r)`.
 - **Rank** — an enemy's per-spawn strength level (Common → Epic), shown by its recoloured accent.
 - **Round drop** — a floating power-up (Max Health, Max Ruh) that lasts the round.
@@ -344,7 +381,7 @@ The existing `Buff : Passive` + `Trigger` + `ModifyTuning` foundation fits. Ever
 
 ## Open questions
 
-- `Q(r)`, `C(r)`, spawn interval, breather length — live-tuned.
+- `Q(r)`, `C(r)`, spawn interval — live-tuned.
 - Rank mix curve (when each rank enters, how fast the mix shifts) and per-rank stat multipliers — live-tuned.
 - Round-drop odds + the minimum distance from the player.
 - Every § Economy placeholder (prices, price growth, durations, max ranks, box cost, teddy-bear + hard-spot odds,

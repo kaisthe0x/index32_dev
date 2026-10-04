@@ -54,7 +54,10 @@ public static class EnemyKits
 
 	public static readonly GDict EIN = new()
 	{
+		// The stand-still KAMIKAZE (RunManager's pressure spawn — not in the round's spawn pool): optional (not part of the
+		// round), drops nothing (no farming by standing still), and notices from far enough to dive at once.
 		{ "scene", "res://scenes/diver_enemy.tscn" }, { "id", EnemyIds.Ein }, { "display_name", "Ein" }, { "max_health", 28.0 }, { "air", true }, { "movement", (int)EnemyMovement.Flying }, { "close_type", StrikeType.Kamikaze.Key() },
+		{ "optional", true }, { "lira_drop", 0 }, { "fig_chance", 0.0 }, { "detect_range", 320.0 },
 		{ "body_size", new Vector2(22, 22) }, { "hurtbox_size", new Vector2(26, 26) }, { "move_speed", 34.0 },
 		{ "patrol_distance", 70.0 }, { "tier", (int)EnemyTier.Mid },
 	};

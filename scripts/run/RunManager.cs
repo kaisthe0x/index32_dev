@@ -7,8 +7,10 @@ namespace MyGame;
 /// <summary>
 /// The run driver + the <c>arena.tscn</c> root. Builds ONE arena and runs the endless ROUND
 /// loop (<c>docs/game-loop.md</c>, tuning in <see cref="Rounds"/>): each round trickles a hidden QUOTA of enemies in from
-/// a mixed roster, proximity-placed around the player, up to a concurrent cap; spawning stops once the quota has
-/// spawned; the round clears when they're all dead; a breather + ROUND banner, then the next. Banks Ruh on hits, drops
+/// a mixed roster at the layout's spawn spots (where they patrol until they notice him), up to a concurrent cap;
+/// spawning stops once the quota has spawned, and the last few STRAGGLERS hunt him down; the round clears when they're
+/// all dead, and the next starts at once (a ROUND banner, no break). From a set round, standing still draws KAMIKAZES
+/// (Ein — no drops, not in the quota) so he can't camp. Banks Ruh on hits, drops
 /// Lira on every kill (+ a per-kit chance of a Fada Fig), spawns a mystery box (spend figs for a stingy powerful-buff
 /// gamble), and restarts the run on death. Owns the player spawn, camera follow, and death/spawn flair. C# port of <c>run_manager.gd</c>.
 ///
@@ -23,21 +25,17 @@ public partial class RunManager : Node2D
     private const float DeathY = 320.0f;   // falling below this world Y kills the player
     private const string StartCharacter = "khalid";
 
-    // Anti-camp: an enemy that stays OFF-SCREEN this long (e.g. can't path to a camping player) is silently freed,
-    // freeing its cap slot so a fresh one can spawn near the player. Margin grows the on-screen rect a little.
-    private const float OffscreenDespawnTime = 8.0f;
-    private const float OffscreenMargin = 96.0f;
     private const int BuffMenuChoices = 3;     // cards in the mystery box's menu
     // Mystery box can, at EXTREME rarity, offer a special-SWAP in place of a buff (picking it replaces your special).
     private const float SpecialOfferChance = 0.06f;
     private static readonly string[] BoxSpecialIds = { SpecialIds.Zahluq, SpecialIds.Bakshen };
 
     /// <summary>The roster the continuous spawner draws from (uniform random) — a mixed assortment of grunts plus the
-    /// flyer (Ein) and the stationary sleeper (Nasen). Wardens (Kroj) are elite/pivot-only, not part of the trickle.</summary>
+    /// stationary sleeper (Nasen). Wardens (Kroj) are elite/pivot-only, not part of the trickle.</summary>
     private static readonly GDict[] SpawnPool =
     {
         EnemyKits.KEBUS, EnemyKits.BAGHEL, EnemyKits.MAZAB, EnemyKits.MATAT,
-        EnemyKits.TARRI, EnemyKits.BRESKI, EnemyKits.EIN, EnemyKits.NASEN,
+        EnemyKits.TARRI, EnemyKits.BRESKI, EnemyKits.NASEN, // Ein isn't here: it's the stand-still kamikaze (TickPressure)
     };
 
     // Camera follow: a CRITICALLY DAMPED SPRING (SmoothDamp) toward Khalid — it has velocity, so after a sudden jump
@@ -64,35 +62,29 @@ public partial class RunManager : Node2D
     private Camera2D _camera;
 
     // --- round state (see Rounds) — only NON-optional enemies are "quota" enemies ---
-    private RoundPhase _phase = RoundPhase.Breather;
-    private int _round = 0;            // the current round (0 = before round 1)
+    private int _round = 0;            // the current round (0 = before round 1 — it starts on the first tick of play)
     private int _quota = 0;            // this round's hidden enemy count
-    private int _spawned = 0;          // quota enemies spawned so far this round (an anti-camp despawn gives one back)
+    private int _spawned = 0;          // quota enemies spawned so far this round
     private int _killed = 0;           // quota enemies killed this round
     private int _alive = 0;            // living quota enemies (the concurrent cap looks at this)
     private float _spawnAccum = 0.0f;  // seconds accrued toward the next spawn
-    private float _breatherLeft = 0.0f; // seconds until the next round starts (Breather phase)
-    private int _countdownShown = 0;    // the whole-second breather countdown last pushed to the HUD
     private bool _menuOpen = false;               // a buff menu is up (game paused) — don't stack another
     private readonly System.Collections.Generic.Dictionary<string, Buff> _menuBuffs = new(); // id → the exact offered buff (tiered)
     private string _menuSpecialId = "";           // the special-swap offered in the current menu, if any (else "")
-    private readonly System.Collections.Generic.Dictionary<Enemy, float> _offscreen = new(); // living enemy → seconds off-screen (anti-camp cull)
+    private readonly System.Collections.Generic.HashSet<Enemy> _enemies = new(); // every living spawned enemy (quota + optional)
+    private readonly System.Collections.Generic.Dictionary<Enemy, Vector2> _spotOf = new(); // spot-spawned enemy → the EnemySpawns spot it holds
+    private Vector2 _stillAnchor;      // where the player has been standing still since (stand-still pressure)
+    private float _stillTime = 0.0f;   // how long he's stayed within Rounds.StillRadius of it
+    private float _kamikazeCd = 0.0f;  // until the next kamikaze may spawn while he stays put
     private Node2D _content;
     private ColorRect _bg;
     private Sprite2D _bgSky;
     private Vector2 _bgImgSize;
     private LevelLayout _layout;
-    private ShotLedger _shots;                   // this run's Needle Point shots (ranks owned)
-    private NeedlePointStall _needlePoint;       // open only in the break between rounds
     private PerkLedger _perks;                   // this run's Dekken perks (stock, active, owned)
-    private DekkenStall _dekken;                 // open only in the break between rounds
     private MysteryBox _box;                     // Fast Travel's destination
 
     private const string StageDir = "res://scenes/levels/stage1/";
-    // The stall scenes — placed in a layout, or dropped at an automatic spot when a layout has none (PlaceStall).
-    private const string BoxScene = "res://scenes/things/mystery_box.tscn";
-    private const string NeedlePointScene = "res://scenes/things/needle_point.tscn";
-    private const string DekkenScene = "res://scenes/things/dekken.tscn";
     private Vector2 _playerSpawn = Vector2.Zero;
     private bool _deadPrev = false;
     private float _deathHold = 0.0f;
@@ -160,8 +152,8 @@ public partial class RunManager : Node2D
             ZoomTo(CamZoomNormal, 0.4f);
         }
         TickRound(delta);
+        TickPressure(delta);
         FollowCamera(delta);
-        CullOffscreen(delta); // free enemies stuck off-screen (anti-camp), using the just-moved camera
     }
 
     // --- arena building -------------------------------------------------------
@@ -191,16 +183,17 @@ public partial class RunManager : Node2D
     private void BuildArena()
     {
         _music.play_stage("stage1"); // the stage music starts as the arena loads (the colour-scheme screen stays silent)
-        _phase = RoundPhase.Breather;
-        _breatherLeft = Rounds.BreatherTime; // round 1 gets the full countdown too (it ticks once play starts: after the attack pick + spawn)
-        _round = 0;
+        _round = 0; // round 1 starts on the first tick of play (after the attack pick + spawn)
         _quota = 0;
         _spawned = 0;
         _killed = 0;
         _alive = 0;
         _spawnAccum = 0.0f;
         _menuOpen = false;
-        _offscreen.Clear(); // old enemies free with _content
+        _enemies.Clear(); // old enemies free with _content
+        _spotOf.Clear();
+        _stillTime = 0.0f;
+        _kamikazeCd = 0.0f;
         PushRoundHud();
         if (_content != null && IsInstanceValid(_content))
             _content.QueueFree();
@@ -234,21 +227,21 @@ public partial class RunManager : Node2D
         foreach (var op in _layout?.Orbs() ?? new System.Collections.Generic.List<Vector2>())
             _content.AddChild(new LaunchOrb { Position = op });
 
-        // The stalls are scenes placed in the layout (LevelLayout.Placed); a layout without one gets it at an automatic
-        // spot: the box a short walk from spawn, Needle Point a short walk the OTHER way, Dekken further out on the box's
-        // side — so they never overlap.
-        _box = _layout?.Placed<MysteryBox>()
-            ?? PlaceStall<MysteryBox>(BoxScene, PickGroundSurface(_playerSpawn, 120.0f, 320.0f) ?? _playerSpawn + new Vector2(120, 0));
-        _box.won += OpenBoxMenu; // a winning pull opens the 3-choice powerful menu
-        int awayFromBox = _box.GlobalPosition.X >= _playerSpawn.X ? -1 : 1;
-        _shots = new ShotLedger(_player, () => _phase == RoundPhase.Breather);
-        _needlePoint = _layout?.Placed<NeedlePointStall>() ?? PlaceStall<NeedlePointStall>(NeedlePointScene,
-            PickGroundSurface(_playerSpawn, 120.0f, 320.0f, awayFromBox) ?? _playerSpawn + new Vector2(120 * awayFromBox, 0));
-        _needlePoint.Ledger = _shots; // the run starts in a break, so the stalls start open
-        _perks = new PerkLedger(_player, () => _phase == RoundPhase.Breather, FastTravelToBox);
-        _dekken = _layout?.Placed<DekkenStall>() ?? PlaceStall<DekkenStall>(DekkenScene,
-            PickGroundSurface(_playerSpawn, 360.0f, 640.0f, -awayFromBox) ?? _box.GlobalPosition + new Vector2(-240 * awayFromBox, 0));
-        _dekken.Ledger = _perks;
+        // The stalls are scenes the layout places (LevelLayout.Placed) — all three are required.
+        _box = _layout?.Placed<MysteryBox>();
+        var needlePoint = _layout?.Placed<NeedlePointStall>();
+        var dekken = _layout?.Placed<DekkenStall>();
+        if (_box == null || needlePoint == null || dekken == null)
+            GD.PushError("RunManager: the layout must place all three stall scenes (scenes/things/: mystery_box, needle_point, dekken).");
+        if (_box != null)
+            _box.won += OpenBoxMenu; // a winning pull opens the 3-choice powerful menu
+        if (needlePoint != null)
+            needlePoint.Ledger = new ShotLedger(_player); // this run's Needle Point ranks
+        _perks = new PerkLedger(_player, FastTravelToBox);
+        if (dekken != null)
+            dekken.Ledger = _perks;
+        if (_layout != null && _layout.EnemySpawns().Count == 0)
+            GD.PushError("RunManager: the layout has no EnemySpawns markers — no enemies can spawn.");
 
         if (_player != null)
             PlaceAt(_player, _playerSpawn);
@@ -256,21 +249,14 @@ public partial class RunManager : Node2D
 
     // --- rounds ---------------------------------------------------------------
 
-    /// <summary>Advance the round loop: count down a breather into the next round, or trickle quota enemies in (one
-    /// per interval, under the concurrent cap) until the quota has spawned. The CLEAR is detected on the last kill
-    /// (<see cref="OnEnemyDied"/>).</summary>
+    /// <summary>Advance the round loop: start round 1 on the first tick of play, then trickle quota enemies in (one per
+    /// interval, under the concurrent cap) until the quota has spawned. The CLEAR is detected on the last kill
+    /// (<see cref="OnEnemyDied"/>), and the next round starts right then — there's no break.</summary>
     private void TickRound(float delta)
     {
-        if (_phase == RoundPhase.Breather)
+        if (_round == 0)
         {
-            if ((_breatherLeft -= delta) <= 0.0f)
-                StartRound(_round + 1);
-            else if (Mathf.CeilToInt(_breatherLeft) != _countdownShown)
-            {
-                PushRoundHud(); // tick the HUD countdown once per whole second
-                if (_countdownShown <= Rounds.CountdownSfxFrom)
-                    _sfx.play("round_countdown"); // the last few seconds tick audibly
-            }
+            StartRound(1);
             return;
         }
         if (_spawned >= _quota)
@@ -281,8 +267,8 @@ public partial class RunManager : Node2D
         var kit = PickSpawnKit(); // a random kit under its per-type cap (or null if every kit is at cap)
         if (kit == null)
             return; // every kit is at its per-type cap — try again next tick
-        _spawnAccum = 0.0f;
-        SpawnOne(kit);
+        if (SpawnOne(kit))
+            _spawnAccum = 0.0f; // else nowhere to put it yet (every spot held) — try again next tick
     }
 
     private void StartRound(int round)
@@ -291,24 +277,18 @@ public partial class RunManager : Node2D
         _quota = Quota(round);
         _spawned = 0;
         _killed = 0;
-        _phase = RoundPhase.Fighting;
-        _needlePoint.SetOpen(false); // the shops close while a round is fought
-        _dekken.SetOpen(false);
         _player?.notify_round_start(); // round-scoped perks re-arm (Shield) / fire (Prepared)
         _spawnAccum = SpawnInterval(round); // first enemy arrives immediately
         PushRoundHud(); // the HUD plays the ROUND n intro for a new round
         _sfx.play("round_start");
     }
 
-    /// <summary>The last quota enemy of the round died: start the breather toward the next round.</summary>
+    /// <summary>The last quota enemy of the round died: timed perks spend a round, Dekken restocks, and the next round
+    /// starts at once — the player never gets a break.</summary>
     private void ClearRound()
     {
-        _phase = RoundPhase.Breather;
-        _perks.OnRoundClear(); // timed perks spend a round; fresh stock for the break
-        _needlePoint.SetOpen(true);
-        _dekken.SetOpen(true);
-        _breatherLeft = Rounds.BreatherTime;
-        PushRoundHud();
+        _perks.OnRoundClear();
+        StartRound(_round + 1);
     }
 
     private static int Quota(int r) =>
@@ -320,14 +300,12 @@ public partial class RunManager : Node2D
     private static float SpawnInterval(int r) =>
         Mathf.Max(Rounds.IntervalMin, Rounds.IntervalBase * Mathf.Pow(Rounds.IntervalDecay, r - 1));
 
-    /// <summary>Push the round state to the HUD: the round number, how many quota enemies remain (revealed only once
-    /// few remain, mid-round), and — during a breather — the whole seconds until the next round.</summary>
+    /// <summary>Push the round state to the HUD: the round number and how many quota enemies remain (revealed only
+    /// once few remain).</summary>
     private void PushRoundHud()
     {
-        bool fighting = _phase == RoundPhase.Fighting;
-        int left = fighting ? _quota - _killed : 0;
-        _countdownShown = fighting ? 0 : Mathf.CeilToInt(_breatherLeft);
-        GetNodeOrNull<HUD>("/root/HUD")?.SetRound(_round, left <= Rounds.ShowLeftAt ? left : 0, _countdownShown, SaveData.RoundsRecord());
+        int left = _quota - _killed;
+        GetNodeOrNull<HUD>("/root/HUD")?.SetRound(_round, left <= Rounds.ShowLeftAt ? left : 0, SaveData.RoundsRecord());
     }
 
     /// <summary>A random kit from the pool that is UNDER its per-type concurrent cap (uncapped kits always qualify);
@@ -350,77 +328,191 @@ public partial class RunManager : Node2D
     private int LivingOfType(string id)
     {
         int n = 0;
-        foreach (Enemy e in _offscreen.Keys)
+        foreach (Enemy e in _enemies)
             if (IsInstanceValid(e) && e.enemy_id == id)
                 n += 1;
         return n;
     }
 
-    /// <summary>Spawn ONE enemy from a kit: proximity-place it (near/overhead/far by type, never on the player), puff +
-    /// wire its died/damaged signals, and (unless optional) count it toward the round quota + the concurrent cap.</summary>
-    private void SpawnOne(GDict kit)
+    /// <summary>Spawn ONE enemy from a kit: at a free spawn spot (<see cref="PickSpawnSpot"/>), where it patrols until it
+    /// notices the player — or, from <see cref="Rounds.NearSpawnFromRound"/>, for <see cref="NearShare"/> of the grunts
+    /// (and whenever every spot is held), near the player (<see cref="NearPlayerSpot"/>). False if there's nowhere to put
+    /// it yet.</summary>
+    private bool SpawnOne(GDict kit)
     {
-        Vector2 pos = SpawnPosition(kit, _playerSpawn);
-        SpawnFx(pos);
-        var enemy = SpawnEnemy(kit, pos);
+        bool stationary = kit.ContainsKey("movement") && kit["movement"].AsInt32() == (int)EnemyMovement.Stationary;
+        bool nearAllowed = !stationary && _round >= Rounds.NearSpawnFromRound; // a stationary kit always uses a spot
+        bool near = nearAllowed && GD.Randf() < NearShare(_round);
+        Vector2? at = near ? NearPlayerSpot() : null;
+        Vector2? spot = at == null ? PickSpawnSpot() : null;
+        at ??= spot ?? (nearAllowed && !near ? NearPlayerSpot() : null);
+        if (at is not Vector2 pos)
+            return false;
+        var enemy = SpawnAt(kit, pos);
+        if (enemy != null && spot != null)
+            _spotOf[enemy] = pos;
+        return enemy != null;
+    }
+
+    private static float NearShare(int r) =>
+        Mathf.Min(Rounds.NearShareMax, Rounds.NearShareBase + Rounds.NearShareStep * (r - Rounds.NearSpawnFromRound));
+
+    /// <summary>Put an enemy from <paramref name="kit"/> at <paramref name="at"/>: puff, wire its died/damaged signals, track
+    /// it, and (unless optional) count it toward the round quota + the concurrent cap.</summary>
+    private Enemy SpawnAt(GDict kit, Vector2 at)
+    {
+        SpawnFx(at);
+        var enemy = SpawnEnemy(kit, at);
         if (enemy == null)
-            return;
+            return null;
         var e = enemy; // stable capture for the bound handlers
         enemy.Connect(Enemy.SignalName.died, Callable.From(() => OnEnemyDied(e)));
         enemy.Connect(Enemy.SignalName.damaged, Callable.From((float amount, Node source) => OnEnemyDamaged(amount, source, e)));
-        _offscreen[enemy] = 0.0f; // start its anti-camp off-screen timer
+        _enemies.Add(enemy);
         if (!enemy.optional)
         {
             _spawned += 1;
             _alive += 1;
+            UpdateStragglers();
         }
+        return enemy;
     }
 
-    // Proximity-spawn tuning (px). Ground grunts appear within a fair band — far enough that the player can react,
-    // never on top of him; stationary enemies (Nasen) much farther; flyers (Ein) overhead with dodge room.
-    private const float GroundSpawnMin = 100.0f;
-    private const float GroundSpawnMax = 240.0f;
-    private const float StationarySpawnMin = 500.0f;
-    private const float StationarySpawnMax = 920.0f;
-    private const float FlyerHeightMin = 130.0f;
-    private const float FlyerHeightMax = 210.0f;
-    private const float FlyerXSpread = 90.0f;
-    private const float GroundProbeDepth = 600.0f; // how far below the player to look for the floor he's over
+    /// <summary>A FREE EnemySpawns spot (no living enemy holds it), spreading the enemies over the map: the one farthest
+    /// from the spots already held (a random one if none are), among those at least <see cref="Rounds.SpawnMinDistance"/>
+    /// from the player — or, if every free spot is closer than that, the free one farthest from him. Null if every spot
+    /// is held (or the layout has none).</summary>
+    private Vector2? PickSpawnSpot()
+    {
+        var spots = _layout?.EnemySpawns();
+        if (spots == null)
+            return null;
+        var held = new System.Collections.Generic.List<Vector2>(_spotOf.Values);
+        var free = spots.FindAll(s => !held.Contains(s));
+        if (free.Count == 0)
+            return null;
+        Vector2 player = _player?.GlobalPosition ?? _playerSpawn;
+        var fair = free.FindAll(s => s.DistanceTo(player) >= Rounds.SpawnMinDistance);
+        if (fair.Count == 0)
+            return MaxBy(free, s => s.DistanceTo(player));
+        if (held.Count == 0)
+            return fair[(int)(GD.Randi() % (uint)fair.Count)];
+        return MaxBy(fair, s =>
+        {
+            float nearest = float.MaxValue;
+            foreach (Vector2 h in held)
+                nearest = Mathf.Min(nearest, s.DistanceTo(h));
+            return nearest;
+        });
+    }
+
+    private static Vector2 MaxBy(System.Collections.Generic.List<Vector2> points, System.Func<Vector2, float> score)
+    {
+        Vector2 best = points[0];
+        foreach (Vector2 p in points)
+            if (score(p) > score(best))
+                best = p;
+        return best;
+    }
+
+    /// <summary>A NEAR-PLAYER spawn: a tile on the floor he's standing on, <see cref="Rounds.NearSpawnMin"/>..
+    /// <see cref="Rounds.NearSpawnMax"/> px away and BEHIND him (opposite his facing) so it doesn't land in the swing he's
+    /// already making — he has to turn. Null only if the layout has no walkable run.</summary>
+    private Vector2? NearPlayerSpot()
+    {
+        if (_player == null)
+            return null;
+        return PickGroundSurface(_player.GlobalPosition, Rounds.NearSpawnMin, Rounds.NearSpawnMax, -_player.facing);
+    }
+
+    /// <summary>STRAGGLERS: once the round has fully spawned and only <see cref="Rounds.StragglerCount"/> or fewer quota
+    /// enemies are left, they all hunt the player — so a round never stalls on one he can't find.</summary>
+    private void UpdateStragglers()
+    {
+        if (_spawned < _quota || _quota - _killed > Rounds.StragglerCount)
+            return;
+        foreach (Enemy e in _enemies)
+            if (IsInstanceValid(e) && !e.optional)
+                e.hunt(Rounds.StragglerSpeedMult);
+    }
+
+    /// <summary>STAND-STILL PRESSURE: from <see cref="Rounds.KamikazeFromRound"/>, a player who stays within
+    /// <see cref="Rounds.StillRadius"/> for <see cref="Rounds.StillTime"/> gets a kamikaze (Ein) near him, then another
+    /// every <see cref="Rounds.KamikazeInterval"/> while he stays put (at most <see cref="Rounds.KamikazeMax"/> alive).
+    /// Moving away resets it. Only runs during normal play (not paused, not dead, not spawning).</summary>
+    private void TickPressure(float delta)
+    {
+        if (_player == null)
+            return;
+        Vector2 at = _player.GlobalPosition;
+        if (_round < Rounds.KamikazeFromRound || at.DistanceTo(_stillAnchor) > Rounds.StillRadius)
+        {
+            _stillAnchor = at;
+            _stillTime = 0.0f;
+            _kamikazeCd = 0.0f;
+            return;
+        }
+        if (_player.is_channeling_surge())
+            return; // Nem's sleep pauses the clock (ones already diving still come)
+        _stillTime += delta;
+        _kamikazeCd -= delta;
+        if (_stillTime < Rounds.StillTime || _kamikazeCd > 0.0f || LivingOfType(EnemyIds.Ein) >= KamikazeMax(_round))
+            return;
+        _kamikazeCd = KamikazeInterval(_round);
+        SpawnAt(EnemyKits.EIN, KamikazeSpot(at));
+    }
+
+    private static float KamikazeInterval(int r) => Mathf.Max(Rounds.KamikazeIntervalMin,
+        Rounds.KamikazeIntervalBase * Mathf.Pow(Rounds.KamikazeIntervalDecay, r - Rounds.KamikazeFromRound));
+
+    private static int KamikazeMax(int r) => Mathf.Min(Rounds.KamikazeMaxCap,
+        Rounds.KamikazeMaxBase + (r - Rounds.KamikazeFromRound) / Rounds.KamikazeMaxGrowthRounds);
+
+    /// <summary>Where a kamikaze appears: <see cref="Rounds.KamikazeDistance"/> to a random side of the player (the other
+    /// side if that one is inside a wall) and up to <see cref="Rounds.KamikazeHeight"/> above, under any ceiling — far
+    /// enough that he has time to react.</summary>
+    private Vector2 KamikazeSpot(Vector2 player)
+    {
+        int side = GD.Randf() < 0.5f ? -1 : 1;
+        float up = Mathf.Min(Rounds.KamikazeHeight, HeadroomAbove(player));
+        Vector2 spot = player + new Vector2(side * Rounds.KamikazeDistance, -up);
+        return InsideWall(spot) ? player + new Vector2(-side * Rounds.KamikazeDistance, -up) : spot;
+    }
+
+    private bool InsideWall(Vector2 point)
+    {
+        var space = GetWorld2D()?.DirectSpaceState;
+        if (space == null)
+            return false;
+        var q = new PhysicsPointQueryParameters2D { Position = point, CollisionMask = (uint)Combat.Layer.World };
+        return space.IntersectPoint(q, 1).Count > 0;
+    }
+
     private static readonly Vector2 FastTravelOffset = new(-28, -4); // where Fast Travel drops you, beside the box
+    private const float GroundProbeDepth = 600.0f; // how far below the player to look for the floor he's over
     private static readonly Vector2 SpawnClearance = new(24, 40);    // room a spawning ground enemy needs (a bit over a grunt's body)
 
-    /// <summary>Where to drop this enemy relative to the player: flyers overhead (with headroom), stationary far on a
-    /// ground tile, grunts near on a ground tile — always at least the min band away. Flyers and grunts arrive BEHIND
-    /// Khalid (opposite his facing), so a new enemy never lands in the swing he's already making — he has to turn and
-    /// move. <paramref name="fallback"/> is the authored spec position, used only if the layout has no usable ground.</summary>
-    private Vector2 SpawnPosition(GDict kit, Vector2 fallback)
-    {
-        Vector2 player = _player?.GlobalPosition ?? Vector2.Zero;
-        int behind = -(_player?.facing ?? 1);
-        if (kit.ContainsKey("air") && kit["air"].AsBool())
-        {
-            float x = player.X + behind * (float)GD.RandRange(0.0f, FlyerXSpread);
-            float up = (float)GD.RandRange(FlyerHeightMin, Mathf.Max(FlyerHeightMin, HeadroomAbove(player)));
-            return new Vector2(x, player.Y - up);
-        }
-        bool stationary = kit.ContainsKey("movement") && kit["movement"].AsInt32() == (int)EnemyMovement.Stationary;
-        float min = stationary ? StationarySpawnMin : GroundSpawnMin;
-        float max = stationary ? StationarySpawnMax : GroundSpawnMax;
-        return PickGroundSurface(player, min, max, stationary ? 0 : behind) ?? fallback;
-    }
-
-    /// <summary>Clear vertical space above <paramref name="from"/> up to <see cref="FlyerHeightMax"/> — so a flyer isn't
-    /// spawned inside a ceiling. Returns how high it can safely sit.</summary>
+    /// <summary>Clear vertical space above <paramref name="from"/> up to <see cref="Rounds.KamikazeHeight"/> — so a
+    /// kamikaze isn't spawned inside a ceiling. Returns how high it can safely sit.</summary>
     private float HeadroomAbove(Vector2 from)
     {
         var space = GetWorld2D()?.DirectSpaceState;
         if (space == null)
-            return FlyerHeightMax;
-        var q = PhysicsRayQueryParameters2D.Create(from, from + new Vector2(0.0f, -(FlyerHeightMax + 16.0f)), (uint)Combat.Layer.World);
+            return Rounds.KamikazeHeight;
+        var q = PhysicsRayQueryParameters2D.Create(from, from + new Vector2(0.0f, -(Rounds.KamikazeHeight + 16.0f)), (uint)Combat.Layer.World);
         var hit = space.IntersectRay(q);
         if (hit.Count == 0)
-            return FlyerHeightMax;
-        return Mathf.Clamp(from.Y - hit["position"].As<Vector2>().Y - 14.0f, FlyerHeightMin * 0.5f, FlyerHeightMax);
+            return Rounds.KamikazeHeight;
+        return Mathf.Max(from.Y - hit["position"].As<Vector2>().Y - 14.0f, 0.0f);
+    }
+
+    /// <summary>Dekken's Fast Travel: put the player right beside the mystery box.</summary>
+    private void FastTravelToBox()
+    {
+        if (_player == null || _box == null)
+            return;
+        PlaceAt(_player, _box.GlobalPosition + FastTravelOffset);
+        _player.Velocity = Vector2.Zero;
     }
 
     /// <summary>A random spawn tile ON THE FLOOR <paramref name="from"/> stands on (<see cref="LevelLayout.SpawnSurfacesNear"/>,
@@ -467,24 +559,6 @@ public partial class RunManager : Node2D
         if (band.Count > 0)
             return band[(int)(GD.Randi() % (uint)band.Count)];
         return nearestFair ?? farthest; // band empty → closest tile still ≥min; if even that fails, the farthest we have
-    }
-
-    /// <summary>Instance the stall scene at <paramref name="scene"/> into the arena at <paramref name="at"/> (its base on the ground).</summary>
-    private T PlaceStall<T>(string scene, Vector2 at) where T : Stall
-    {
-        var stall = GD.Load<PackedScene>(scene).Instantiate<T>();
-        stall.Position = at;
-        _content.AddChild(stall);
-        return stall;
-    }
-
-    /// <summary>Dekken's Fast Travel: put the player right beside the mystery box.</summary>
-    private void FastTravelToBox()
-    {
-        if (_player == null || _box == null)
-            return;
-        PlaceAt(_player, _box.GlobalPosition + FastTravelOffset);
-        _player.Velocity = Vector2.Zero;
     }
 
     /// <summary>Whether a body standing on <paramref name="surface"/> would be clear of solid collision — the tiles know
@@ -569,60 +643,23 @@ public partial class RunManager : Node2D
         // Every kill pays Lira; a per-kit chance also drops ONE fada_fig (the rare currency). None if it fell off-map.
         Vector2 at = enemy.GlobalPosition;
         int lira = enemy.lira_drop;
-        bool fig = GD.Randf() < enemy.fig_chance + (_player?.fig_chance_bonus ?? 0.0f); // + the Fig Chance perk
+        // + the Fig Chance perk — but an enemy that never drops figs (a kamikaze) doesn't start to with it.
+        bool fig = enemy.fig_chance > 0.0f && GD.Randf() < enemy.fig_chance + (_player?.fig_chance_bonus ?? 0.0f);
         if (!enemy.fell_off)
             Callable.From(() => SpawnDrops(at, lira, fig)).CallDeferred();
-        _offscreen.Remove(enemy);
+        _enemies.Remove(enemy);
+        _spotOf.Remove(enemy); // its spot is free again
         if (enemy.optional)
-            return; // optional enemies (the sleeper) aren't part of the round
+            return; // optional enemies (the sleeper, kamikazes) aren't part of the round
         _alive -= 1;   // free a slot in the concurrency cap
         _killed += 1;
-        if (_phase == RoundPhase.Fighting && _killed >= _quota)
+        if (_round > 0 && _killed >= _quota)
             ClearRound();
         else
+        {
+            UpdateStragglers();
             PushRoundHud();
-    }
-
-    /// <summary>Anti-camp: free any tracked enemy that's stayed OFF-SCREEN for <see cref="OffscreenDespawnTime"/> (it
-    /// likely can't path to a camping player). Silent — no death VFX/sfx/figs, and NOT a kill — it frees its cap slot
-    /// and goes back into the round's unspawned quota, so a fresh enemy spawns near the player. Runs only during normal play (paused/dead/spawning all early-return above).</summary>
-    private void CullOffscreen(float delta)
-    {
-        if (_camera == null || _offscreen.Count == 0)
-            return;
-        Vector2 half = GetViewport().GetVisibleRect().Size / _camera.Zoom * 0.5f;
-        Rect2 view = new Rect2(_camera.GlobalPosition - half, half * 2.0f).Grow(OffscreenMargin);
-        System.Collections.Generic.List<Enemy> cull = null;
-        foreach (Enemy e in new System.Collections.Generic.List<Enemy>(_offscreen.Keys))
-        {
-            if (!IsInstanceValid(e))
-            {
-                _offscreen.Remove(e);
-                continue;
-            }
-            if (view.HasPoint(e.GlobalPosition))
-                _offscreen[e] = 0.0f;
-            else if ((_offscreen[e] += delta) >= OffscreenDespawnTime)
-                (cull ??= new()).Add(e);
         }
-        if (cull != null)
-            foreach (Enemy e in cull)
-                DespawnEnemy(e);
-    }
-
-    /// <summary>Silently remove <paramref name="e"/> (no death signal/VFX/figs): free its concurrency-cap slot and return
-    /// it to the round's unspawned quota (a despawn is not a kill).</summary>
-    private void DespawnEnemy(Enemy e)
-    {
-        _offscreen.Remove(e);
-        if (!IsInstanceValid(e))
-            return;
-        if (!e.optional)
-        {
-            _alive -= 1;
-            _spawned -= 1;
-        }
-        e.QueueFree();
     }
 
     /// <summary>A corpse's drops: <paramref name="lira"/> coins that fly straight to the player (banked on arrival), and

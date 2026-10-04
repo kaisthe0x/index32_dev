@@ -59,6 +59,7 @@ texture = ExtResource("7_8tbje")
 [node name="Stalls" type="Node2D" parent="." unique_id=950329766]
 
 [node name="MysteryBox" parent="Stalls" unique_id=157659758 instance=ExtResource("8_box")]
+visible = false
 z_index = -25
 position = Vector2(-80, 0)
 
@@ -67,5 +68,44 @@ z_index = -25
 position = Vector2(1122, 0)
 
 [node name="Dekken" parent="Stalls" unique_id=156608229 instance=ExtResource("10_dekken")]
+visible = false
 z_index = -25
 position = Vector2(176, 0)
+
+[node name="EnemySpawns" type="Node2D" parent="." unique_id=992789100]
+
+[node name="Floor1" type="Marker2D" parent="EnemySpawns" unique_id=1891761568]
+position = Vector2(-760, -4)
+
+[node name="Floor2" type="Marker2D" parent="EnemySpawns" unique_id=635356510]
+position = Vector2(480, -4)
+
+[node name="Floor3" type="Marker2D" parent="EnemySpawns" unique_id=1194148556]
+position = Vector2(820, -4)
+
+[node name="Floor4" type="Marker2D" parent="EnemySpawns" unique_id=1800798020]
+position = Vector2(1500, -4)
+
+[node name="Floor5" type="Marker2D" parent="EnemySpawns" unique_id=284638371]
+position = Vector2(1950, -4)
+
+[node name="LedgeLow" type="Marker2D" parent="EnemySpawns" unique_id=1307083930]
+position = Vector2(2336, -36)
+
+[node name="LedgeMid" type="Marker2D" parent="EnemySpawns" unique_id=580337990]
+position = Vector2(2496, -68)
+
+[node name="LedgeHigh" type="Marker2D" parent="EnemySpawns" unique_id=493675707]
+position = Vector2(2752, -164)
+
+[node name="PlatformLeft" type="Marker2D" parent="EnemySpawns" unique_id=675098406]
+position = Vector2(48, -164)
+
+[node name="PlatformMid" type="Marker2D" parent="EnemySpawns" unique_id=587853520]
+position = Vector2(352, -228)
+
+[node name="PlatformHigh" type="Marker2D" parent="EnemySpawns" unique_id=971445371]
+position = Vector2(816, -356)
+
+[node name="PlatformRight" type="Marker2D" parent="EnemySpawns" unique_id=262411355]
+position = Vector2(1872, -292)

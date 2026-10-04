@@ -87,7 +87,8 @@ public partial class Enemy : Combatant
 
 	[ExportGroup("Behaviour")]
 	[Export] public bool aggro { get; set; } = true;
-	[Export] public float aggro_range { get; set; } = 900.0f; // how far away an enemy notices + chases the player (px)
+	[Export] public float aggro_range { get; set; } = 320.0f; // how near (real distance, px) the player has to be for an
+	                                                          // enemy to notice + chase him; otherwise it patrols its spawn spot
 	[Export] public float alert_duration { get; set; } = 5.0f;
 	[Export] public bool friendly_fire { get; set; }
 	/// <summary>World Y past which an enemy has fallen off into the void below the platforms → it dies (see _PhysicsProcess).
@@ -131,6 +132,8 @@ public partial class Enemy : Combatant
 	private bool _idleBack;
 	protected bool Engaged;
 	private float _alertLeft;
+	private bool _hunting; // a STRAGGLER: chases the player wherever he is (see hunt)
+	private float _huntSpeedMult = 1.0f; // a straggler's chase-speed multiplier (its walk animation speeds up to match)
 	private float _hitstopLeft, _hitstopDur;
 	protected bool Impacted;
 
@@ -463,7 +466,8 @@ public partial class Enemy : Combatant
 				}
 			}
 			int dir = Mathf.Sign(toPlayer);
-			bool pursue = _alertLeft > 0.0f || (aggro && dist <= aggro_range);
+			bool pursue = _hunting || _alertLeft > 0.0f
+				|| (aggro && GlobalPosition.DistanceTo(player.GlobalPosition) <= aggro_range);
 			bool hold = aligned && dist <= far_range;
 			bool closeIn = pursue || (hold && HasClose && !HasFar);
 			float reach = (HasFar ? far_range : close_range) - 4.0f;
@@ -472,7 +476,7 @@ public partial class Enemy : Combatant
 				Engaged = true;
 				if (closeIn && dist > reach && FloorAhead(dir))
 				{
-					Velocity = new Vector2(dir * move_speed, Velocity.Y);
+					Velocity = new Vector2(dir * move_speed * _huntSpeedMult, Velocity.Y);
 					Face(dir);
 					SetState(EState.Patrol);
 				}
@@ -1151,6 +1155,17 @@ public partial class Enemy : Combatant
 
 	public void apply_hit(Hit hit) => Hurt?.take_hit(hit);
 
+	/// <summary>Make this enemy a STRAGGLER: from now on it chases the player wherever he is, ignoring
+	/// <see cref="aggro_range"/>, at <paramref name="speedMult"/> × its move speed (RunManager calls it on a round's last
+	/// few, so the round can't stall on one he can't find).</summary>
+	public void hunt(float speedMult)
+	{
+		_hunting = true;
+		_huntSpeedMult = speedMult;
+		if (State == EState.Patrol)
+			PlayWalk(); // already walking — pick up the faster pace now
+	}
+
 	protected void Face(int dir)
 	{
 		if (dir == 0)
@@ -1174,10 +1189,14 @@ public partial class Enemy : Combatant
 				Sprite.Pause();
 				break;
 			case EState.Patrol:
-				Play(HasWalk ? "walk" : "idle");
+				PlayWalk();
 				break;
 		}
 	}
+
+	/// <summary>The walk (or idle, if it has none) — sped up by <see cref="_huntSpeedMult"/> for a straggler so its feet
+	/// keep pace with its chase.</summary>
+	private void PlayWalk() => Sprite.Play(HasWalk ? "walk" : "idle", _huntSpeedMult);
 
 	protected void Play(StringName anim)
 	{

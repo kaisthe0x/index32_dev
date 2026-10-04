@@ -18,9 +18,7 @@ public static class SfxWorld
 																   // (positional, via Sfx.make_loop_2d in LaunchOrb); launch_orb_use = the one-shot when Khalid uses it.
 		["launch_orb"] = "res://sfx/things/traversal/launch_orb/launch_orb.wav", // PLACEHOLDER — looping emitter hum
 		["launch_orb_use"] = "res://sfx/things/traversal/launch_orb/launch_orb_use.wav", // PLACEHOLDER — on use
-		// Rounds (RunManager). round_countdown plays on each of the breather counter's last seconds
-		// (Rounds.CountdownSfxFrom … 1); round_start plays as a round begins (the "ROUND n" label pops).
-		["round_countdown"] = "res://sfx/world/round/countdown.wav",
+		// Rounds (RunManager): round_start plays as each round begins (the "ROUND n" label pops).
 		["round_start"] = "res://sfx/world/round/round_start.wav",
 	};
 
