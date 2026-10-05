@@ -117,11 +117,9 @@ public partial class Player : Combatant
     public float run_mult = 1.0f;
     public int air_jump_bonus = 0;
     public int dash_bonus = 0;                // extra dash CHARGES on top of the one you always have
-    public float damage_taken_mult = 1.0f;   // Thick Hide
     public float slam_damage_mult = 1.0f;    // Slam Damage shot
     public float attack_reach_mult = 1.0f;   // Long Arm
     public int attack_projectile_bonus = 0;  // Split Shot (WIP)
-    public bool impervious_until_hit = false; // Last Stand (WIP)
     public float special_radius_mult = 1.0f;  // Wide Impact (WIP)
     public float special_invuln_bonus = 0.0f; // Fortitude: extends any surge window
     public float jump_velocity_bonus = 1.0f;  // Jump Height shot: multiplies applied jump velocity (all jumps)
@@ -1271,11 +1269,9 @@ public partial class Player : Combatant
         damage_mult = 1.0f;
         run_mult = 1.0f;
         dash_bonus = 0;
-        damage_taken_mult = 1.0f;
         slam_damage_mult = 1.0f;
         attack_reach_mult = 1.0f;
         attack_projectile_bonus = 0;
-        impervious_until_hit = false;
         special_radius_mult = 1.0f;
         _dashEffect = StartingDashEffect;
         special_invuln_bonus = 0.0f;

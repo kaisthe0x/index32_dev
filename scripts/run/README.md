@@ -86,7 +86,7 @@ Related, but not in this folder:
 - **Player HP is SLOT-based** (`scripts/Player.cs`): you have **3 blocks**, measured internally in **half-blocks**
   (`BaseMaxHealth` = 6). **Every hit costs a flat half-block regardless of its damage** (`take_damage` ignores the
   amount — so 6 hits kill), and there's no player damage number. Damage-*reduction* is therefore inert (Jnoon's
-  mitigation is parked; the parked reward `Thick Hide` still sets `damage_taken_mult` but nothing reads it). Healing
+  mitigation is parked). Healing
   is in half-blocks: the **Nem surge restores one block**, and the **Bloodrush/Skim** buffs give a *chance*
   per hit to restore a half-block (`LifestealBuff`). The HUD shows 3 block cells (half-block resolution).
 - **Ruh** is the other pool — the **surge meter**, in

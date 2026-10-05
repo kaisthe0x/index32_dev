@@ -334,7 +334,7 @@ harnesses (GDScript, per the carve-out).
     reference before deleting. Build + boot clean after.
   - [x] **MIGRATION COMPLETE.** Every gameplay/runtime script is C#. The ONLY `.gd` left in the project are intentional
     build/QA tools run via `--script` (they stay GDScript, and mirror any C# config they need via a local `const` —
-    see the tools finding above): `vfx/script/build_particles.gd`, `tools/{capture_shots,verify_frames,gen_effect_frames}.gd`.
+    see the tools finding above): `vfx/script/build_particles.gd`, `tools/{capture_shots,verify_frames}.gd` (`gen_effect_frames.gd` was removed 2026-10-04 — no effect strips left to slice).
     No C# `GD.Load<GDScript>` config/logic bridges remain (only the Sfx/Music/HUD **autoload** `GetNode` lookups, which
     are typed C#→C# now). Optional follow-up: a final snake→PascalCase polish of the public surfaces that were kept
     snake_case only for the migration (now every caller is C#).

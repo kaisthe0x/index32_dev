@@ -46,7 +46,7 @@ resources/enemies/    GENERATED enemy SpriteFrames -- do not hand-edit
 scenes/               player, level, hud
 scripts/              player, hud
 scripts/run/          the roguelite run: arena, round loop + spawner, Ruh, the stalls' ledgers (shots / perks / box), attack picker (see scripts/run/README.md)
-scripts/abilities/    Passive/Buff base (C#) + the buff classes + the Trigger enum (RewardTypes.cs)
+scripts/abilities/    Passive/Buff base (C#) + the buff classes (their Trigger enum: enums/abilities/Trigger.cs)
 scripts/combat/       Hurtbox, hitbox, Combatant base, health bar, floating text, status overlay — all C# now (constants -> configs/Combat.cs)
 scripts/enemies/      Enemy base + projectile
 sprites/characters/   Source pixel-art sheets, one folder per character
@@ -1047,7 +1047,8 @@ tint. `Player.cs`'s `_apply_character()` looks for `res://resources/<char>_tint.
 after loading the SpriteFrames and, if present, assigns it as `sprite.material`
 (else clears it) — so it's pure convention, no per-character code.
 
-Khalid has one: `vfx/shaders/sprite_tint.gdshader` + `resources/khalid_tint.tres`.
+The shader for it is `vfx/shaders/sprite_tint.gdshader` (Khalid's own `khalid_tint.tres` was removed — he wears the
+palette LUT instead, so nothing loaded it; a future character adds its own `<char>_tint.tres`).
 It has **five independent colour-keyed channels**, so each only touches the part you
 mean, and channels 2–5 are **off by default** (their `*_amount = 0`):
 
@@ -1135,7 +1136,7 @@ the part to black (the nearest-shade anchor keeps the shift small).
 > loads `level.tscn`. In `Player.cs`, `_apply_character()` builds Khalid's body material from
 > `PaletteConfig.MakeMaterial()` (the SAME builder the preview uses, so run == preview), and
 > the Ruh-absorb hair flare now drives the LUT's `hair_surge` uniform. The old tint shader
-> (`khalid_tint.tres`) is retained only as a legacy path for non-Khalid characters.
+> (`sprite_tint.gdshader`, via a `<char>_tint.tres`) is retained only as a legacy path for non-Khalid characters.
 >
 > **Scheme slots (saved across sessions).** The selector is **Default + up to `SaveData.MAX_SCHEMES`
 > (5) slots**, plus an **active** index, persisted to `user://save.cfg` (`[colors]` section, alongside
