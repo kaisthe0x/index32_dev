@@ -3,7 +3,7 @@ using Godot;
 namespace MyGame;
 
 /// <summary>
-/// DEKKEN, the perk shop (<c>scenes/things/dekken.tscn</c> — placeholder art: an amber market stall with an awning), a
+/// DEKKEN, the perk shop (<c>scenes/things/dekken.tscn</c> — a triangular vending machine full of vials, <c>assets/things/dekken.png</c>), a
 /// <see cref="Stall"/>: press E to open its <see cref="DekkenMenu"/> over the run's <see cref="PerkLedger"/> (set by
 /// RunManager). One per arena.
 /// </summary>

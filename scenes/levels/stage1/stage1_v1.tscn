@@ -59,7 +59,6 @@ texture = ExtResource("7_8tbje")
 [node name="Stalls" type="Node2D" parent="." unique_id=950329766]
 
 [node name="MysteryBox" parent="Stalls" unique_id=157659758 instance=ExtResource("8_box")]
-visible = false
 z_index = -25
 position = Vector2(-80, 0)
 
@@ -68,9 +67,8 @@ z_index = -25
 position = Vector2(1122, 0)
 
 [node name="Dekken" parent="Stalls" unique_id=156608229 instance=ExtResource("10_dekken")]
-visible = false
 z_index = -25
-position = Vector2(176, 0)
+position = Vector2(-263, -991)
 
 [node name="EnemySpawns" type="Node2D" parent="." unique_id=992789100]
 
@@ -107,6 +105,8 @@ position = Vector2(352, -228)
 [node name="PlatformHigh" type="Marker2D" parent="EnemySpawns" unique_id=971445371]
 position = Vector2(816, -356)
 
+[node name="PlatformRight" type="Marker2D" parent="EnemySpawns" unique_id=262411355]
+position = Vector2(1872, -292)
 
 [node name="BoxSpots" type="Node2D" parent="." unique_id=893790440]
 
@@ -131,5 +131,3 @@ position = Vector2(688, -832)
 
 [node name="HighLeft" type="Marker2D" parent="BoxSpots/Hard" unique_id=1904458866]
 position = Vector2(256, -896)
-[node name="PlatformRight" type="Marker2D" parent="EnemySpawns" unique_id=262411355]
-position = Vector2(1872, -292)
