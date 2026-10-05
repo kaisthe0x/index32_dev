@@ -36,7 +36,7 @@ listed under "From" are gone from the box pool and their buff classes deleted)*
 | **Run Speed** | — | ✓ | +10 … 30 % |
 | **Attack Damage** | — | ✓ | +15 … 65 % (the "+20 % damage" idea lives here, not in the box) |
 
-**Dekken — perks** *(built 2026-09-28 — `configs/Dekken.cs`; Wider Pull left the box catalog, its buff class deleted)*
+**Dekken — perks, sold as vials** *(built 2026-09-28; drink-now-or-keep, 2 carry slots, one of a kind, since 2026-10-04 — `configs/Dekken.cs`; Wider Pull left the box catalog, its buff class deleted)*
 
 | Perk | From | Built | Duration |
 |---|---|---|---|

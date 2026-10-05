@@ -65,6 +65,8 @@ tools/                Generator + verification scripts (not shipped)
 | Left mouse | `attack` | The current *attack* — **hold to keep attacking** (a flurry loops; a combo chains its hits, then loops); a press advances a combo one hit. **Ground only** by default — an attack whose Action is tagged `"air"` is the exception and can be used mid-air (`Player._air_attack_ok`). *(No shipped attack is currently tagged `"air"`; the tag now lives on the Zahluq **special**.)* |
 | Right mouse | `special` | On the ground: the current *special* (committed full-animation move) — **no Ruh cost, but every special has its own cooldown** (3–12s; shown by the special bar in the HUD gauge). **In the air: performs the ground slam instead** (characters with a `slam` sheet) |
 | Ctrl (RT / R2) | `surge` | Fires the equipped **Surge** — a passive ability (**Aegis** = ~5s invincibility; **Jnoon** = ~5s ×2 damage dealt; **Asra** = ~5s ×2 move speed) applied *without* interrupting your attacking/moving — **except Nem**, a committed sleep that locks you in place and restores one health block over 5s (a hit wakes/cancels it; the kamikaze stand-still clock pauses while he sleeps), and **Wara**, which *arms* and waits: the next enemy hit is negated and AoE-stuns everyone near you (2s). **Spends one Ruh charge per use** — Ruh is the only gate, no cooldown. RT on the pad because dash owns LT |
+| Q (RB) | `vial_drink` | Drink the selected carried **Dekken vial** — instant, mid-fight. If it would do nothing right now (Heal at full health) it stays in your pocket. Registered in code by `RunManager` |
+| Tab (LB) | `vial_cycle` | Select the next carried vial (the HUD frames the selected one) |
 | E | `interact` | Use the stall you're standing at — the **mystery box** (spend fada figs), **Needle Point** (shots) or **Dekken** (perks); a shop menu closes with E / Esc. Registered in code by `Stall` |
 | Z / X | `debug_damage` / `debug_heal` | Dev only |
 | 0 | `debug_respawn` | Dev only — rebuild the current level fresh |
@@ -939,7 +941,7 @@ rank I's Lira price — **priced by worth**: Jump Height / Run Speed 15, Extra J
 
 #### Dekken perks (`configs/Dekken.cs`)
 
-The **perk shop** (`docs/game-loop.md` § Economy): utility and tactics, bought with Lira. Each break it stocks
+The **perk shop** (`docs/game-loop.md` § Economy): utility and tactics, bought with Lira. Each round it stocks
 `Dekken.StockSize` (5) perks drawn at random from `Dekken.PERKS` — each a `PerkDef` (`records/perks/`): name, text, a
 `PerkDuration` (`Rounds` / `OneUse` / `Run`), rounds, Lira price, one tuning `Value`, and optionally the special it
 needs equipped. The pool: **Heal** (a block, one use), **Fast Travel** (beside the mystery box, one use), **Fig
@@ -947,18 +949,26 @@ Chance** (+5 % fig odds on every kill, whole run), **Magnet** (figs within 400 p
 first hit each round), **Prepared** (your surge fires free as each round starts — Wara arms), **Wider Pull** (Come
 Closer +2 targets; only stocked with Come Closer). All placeholders.
 
-- **Always open** (`DekkenStall`, a `Stall`). A perk takes effect **at once**; a timed perk's 2 rounds are the one
-  it's bought in and the next.
+- **Always open** (`DekkenStall`, a `Stall`). Perks are sold as **VIALS**, bought one of two ways: **DRINK** — it
+  takes effect at once — or **KEEP** — it goes in a carry slot (`Dekken.CarrySlots` = 2, **never two of a kind**) and
+  is drunk later with **Q**, instantly (**Tab** picks which). A whole-run perk (Fig Chance) is drink-only. A timed
+  perk's 2 rounds are the one it's **drunk** in and the next.
 - **The rules** live in `PerkLedger` (`scripts/run/`, one per run, ticked at `ClearRound`): the stock (rerolled every
-  round — never a whole-run perk you own, never one gated to a special you don't have), buying (`Blocked` says why a
-  perk can't be bought: FULL HEALTH / OWNED / ACTIVE), timed perks spending a round per clear, whole-run perks leaving
-  the pool. One-use perks just happen (`Player.heal`, `RunManager.FastTravelToBox`).
+  round — never a whole-run perk you own, never one gated to a special you don't have), `BuyDrink` / `BuyKeep`
+  (`Blocked` says why a vial can't be DRUNK now: FULL HEALTH / OWNED / ACTIVE; `KeepBlocked` why it can't be KEPT:
+  DRINK ONLY / HELD / POCKETS FULL), the carried vials (`Held`, `Selected`, `CycleHeld`, `DrinkHeld` — a vial that
+  would do nothing stays in the pocket), timed perks spending a round per clear, whole-run perks leaving the pool.
+  One-use perks just happen (`Player.heal`, `RunManager.FastTravelToBox`). `RunManager` owns the two keys
+  (`EnsureVialActions`, `DrinkVial`) and pushes the carried vials to the HUD (`PushVialHud` → `HUD.SetVials`: two
+  framed slots under the currency counters, the selected one in the accent colour — PLACEHOLDER text until the vial
+  icons exist).
 - **The effect** of a lasting perk is a `Perk` (`scripts/abilities/`), a `Passive`: Setup/Teardown set and undo a
   Player field (`fig_chance_bonus` — added in `RunManager.OnEnemyDied`; `fig_magnet_range` — read by each `FadaFig`,
   whose `Collector` RunManager sets; `hit_shields` — spent in `Player.OnHurt`; `magnet_target_bonus`), and the new
   `Passive.OnRoundStart` hook (dispatched by `RunManager.StartRound` → `Player.notify_round_start`) re-arms the Shield
   and fires Prepared (`Player.surge_free`, no Ruh).
-- **The menu** is `DekkenMenu`, on the same `StallMenu` frame as Needle Point's. Active perks show in the HUD's
+- **The menu** is `DekkenMenu`, on the same `StallMenu` frame as Needle Point's — each row has a DRINK and a KEEP
+  button. Active perks show in the HUD's
   top-right list (rounds left, or RUN).
 
 #### The mystery box (`MysteryBox` · `BoxLedger` · `configs/BoxRules.cs` · `configs/BuffCatalog.cs`)

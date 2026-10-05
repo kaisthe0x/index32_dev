@@ -95,6 +95,7 @@ public partial class RunManager : Node2D
 
     public override void _Ready()
     {
+        EnsureVialActions();
         _player = GetNodeOrNull<Player>(player_path);
         _camera = GetNodeOrNull<Camera2D>("Camera2D");
         _music = GetNode<Music>("/root/Music");
@@ -239,7 +240,7 @@ public partial class RunManager : Node2D
         }
         if (needlePoint != null)
             needlePoint.Ledger = new ShotLedger(_player); // this run's Needle Point ranks
-        _perks = new PerkLedger(_player, FastTravelToBox);
+        _perks = new PerkLedger(_player, FastTravelToBox, PushVialHud);
         if (dekken != null)
             dekken.Ledger = _perks;
         if (_layout != null && _layout.EnemySpawns().Count == 0)
@@ -1022,10 +1023,63 @@ public partial class RunManager : Node2D
             _player.take_damage(12.0f);
         else if (@event.IsActionPressed("debug_heal"))
             _player.ruh += _player.RUH_PER_BLOCK;
+        else if (@event.IsActionPressed(VialDrinkAction))
+            DrinkVial();
+        else if (@event.IsActionPressed(VialCycleAction))
+            _perks?.CycleHeld();
         else if (@event is InputEventKey k && k.Pressed && !k.Echo && k.Keycode == Key.B)
             _player.debug_grant_next_buff();   // DEBUG: cycle-grant catalog buffs
         else if (@event is InputEventKey k2 && k2.Pressed && !k2.Echo && k2.Keycode == Key.N)
             _player.debug_clear_buffs();
+    }
+
+    // --- Dekken vials (carried perks) -----------------------------------------
+
+    private const string VialDrinkAction = "vial_drink"; // Q / RB — drink the selected carried vial
+    private const string VialCycleAction = "vial_cycle"; // Tab / LB — select the next carried vial
+    private static readonly Vector2 VialTextOffset = new(0, -52);
+    private static readonly Color VialDrunkColor = new(1.0f, 0.78f, 0.25f);
+    private static readonly Color VialBlockedColor = new(0.72f, 0.72f, 0.78f);
+
+    /// <summary>Register the vial actions (physical keys = layout-independent, + the pad bumpers) if the project doesn't
+    /// define them — like the stalls' <c>interact</c>, so they work without a project.godot edit.</summary>
+    private static void EnsureVialActions()
+    {
+        AddAction(VialDrinkAction, Key.Q, JoyButton.RightShoulder);
+        AddAction(VialCycleAction, Key.Tab, JoyButton.LeftShoulder);
+    }
+
+    private static void AddAction(string action, Key key, JoyButton button)
+    {
+        if (InputMap.HasAction(action))
+            return;
+        InputMap.AddAction(action);
+        InputMap.ActionAddEvent(action, new InputEventKey { PhysicalKeycode = key });
+        InputMap.ActionAddEvent(action, new InputEventJoypadButton { ButtonIndex = button });
+    }
+
+    /// <summary>Drink the selected carried vial (instant) and say so over Khalid — its name, or why it didn't go down
+    /// (e.g. FULL HEALTH: the vial stays in the pocket).</summary>
+    private void DrinkVial()
+    {
+        if (_perks == null || _player.is_dead())
+            return;
+        var (text, drunk) = _perks.DrinkHeld();
+        if (text == "")
+            return;
+        FloatingText.Emit(FloatingTextType.Damage, _player, VialTextOffset, text, 0.0f, drunk ? VialDrunkColor : VialBlockedColor);
+        if (drunk)
+            _sfx.play("buff_select"); // PLACEHOLDER cue
+    }
+
+    /// <summary>Show <paramref name="ledger"/>'s carried vials in the HUD (it calls this whenever they change — and once
+    /// when a run's ledger is created, which clears the last run's).</summary>
+    private void PushVialHud(PerkLedger ledger)
+    {
+        var names = new System.Collections.Generic.List<string>();
+        foreach (string id in ledger.Held)
+            names.Add(Dekken.Get(id).Name);
+        GetNodeOrNull<HUD>("/root/HUD")?.SetVials(names, ledger.Selected);
     }
 
     // --- small helpers --------------------------------------------------------

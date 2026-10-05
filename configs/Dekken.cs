@@ -7,15 +7,20 @@ namespace MyGame;
 /// DEKKEN — the perk shop's catalog (docs/game-loop.md § Economy). Pure data; the rules live in <see cref="PerkLedger"/>,
 /// the timed/whole-run effects in <see cref="Perk"/>. Every number here is a PLACEHOLDER to tune in play.
 ///
-/// <para>Perks are UTILITY / TACTICS (not stats — those are Needle Point shots): each round, Dekken stocks
-/// <see cref="StockSize"/> of these at random; a perk is active the moment it's bought. A timed perk's rounds COUNT
-/// the one it's bought in — so 2 = "this round and the next" (bought mid-round, 1 could end seconds later, and
-/// Prepared — which fires at a round's start — would never fire).</para>
+/// <para>Perks are UTILITY / TACTICS (not stats — those are Needle Point shots), sold as VIALS: each round, Dekken
+/// stocks <see cref="StockSize"/> of these at random. A vial is either DRUNK at the machine (its perk happens / starts
+/// at once) or KEPT — carried, up to <see cref="CarrySlots"/> at a time and never two of the same — and drunk later
+/// with one key press, instantly. A whole-run perk can only be drunk at the machine (there's nothing to save it for).
+/// A timed perk's rounds start when it's DRUNK and count that round — so 2 = "this round and the next" (drunk
+/// mid-round, 1 could end seconds later, and Prepared — which fires at a round's start — would never fire).</para>
 /// </summary>
 public static class Dekken
 {
     /// <summary>How many perks the shop offers each round.</summary>
     public const int StockSize = 5;
+
+    /// <summary>How many vials the player can carry (one of each kind at most).</summary>
+    public const int CarrySlots = 2;
 
     /// <summary>The perk pool. <c>Value</c> per perk: Heal = half-blocks restored; Fig Chance = added drop chance;
     /// Magnet = pull radius (px); Shield = hits blocked per round; Wider Pull = extra Come Closer targets.</summary>

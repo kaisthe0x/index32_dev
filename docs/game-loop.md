@@ -187,6 +187,11 @@ run that keeps getting harder).
   permanent.
 - **Whole-run perks leave the pool** once bought (they're done for the run and shouldn't take a slot).
 - **Rebuying an active timed perk resets its duration.** Perks have no ranks.
+- **Vials — drink now or keep (2026-10-04):** every perk is sold as a vial. **DRINK** it at the machine (effect at
+  once) or **KEEP** it: the player carries up to **2** vials, **never two of the same kind**, and drinks one later
+  with a single key press — **instant**, mid-fight (Q drinks, Tab picks). A timed perk's rounds start when it's
+  drunk. Whole-run perks are drink-only. *Planned:* Dekken's items become upgradeable across runs with experience
+  points; the vials glow in Khalid's hair colour (and follow a recolour); the stall becomes a vending machine.
 - **Pauses the game.**
 - Placeholder perks: **Heal** (a block, 20 Lira) · **Fast Travel** (teleport to the box, one use, 20 Lira) ·
   **Fig Chance** (+5 % fig chance on every enemy, whole run, 40 Lira) · **Magnet** (loose figs within 400 px fly to

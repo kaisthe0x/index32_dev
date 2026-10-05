@@ -51,6 +51,7 @@ public partial class HUD : CanvasLayer
 	private Color _ruhFill;
 	private CurrencyCounter _liraCounter;
 	private CurrencyCounter _figCounter;
+	private HBoxContainer _vialRow;   // the carried Dekken vials (SetVials)
 	private Label _roundLabel;
 	private Label _leftLabel;   // "n LEFT" — shown only once few quota enemies remain
 	private Label _bestLabel;
@@ -141,6 +142,9 @@ public partial class HUD : CanvasLayer
 		currencies.AddChild(_liraCounter);
 		_figCounter = new CurrencyCounter("res://assets/things/fada_fig.png");
 		currencies.AddChild(_figCounter);
+		_vialRow = new HBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
+		_vialRow.AddThemeConstantOverride("separation", 4);
+		currencies.AddChild(_vialRow);
 
 		// Round block (placed by RoundBlockAnchor/Offset): ROUND n / n LEFT (late in a round)
 		// / BEST n. Grows both ways from its anchor, so it stays centred on it.
@@ -392,6 +396,28 @@ public partial class HUD : CanvasLayer
 
 	/// <summary>Show the fada_fig balance (pushed by <c>Player</c>).</summary>
 	public void SetFadaFigs(int count) => _figCounter?.SetCount(count);
+
+	/// <summary>Show the carried Dekken vials under the currency counters: one framed slot per carry slot — a held vial's
+	/// name, the <paramref name="selected"/> one (what the drink key drinks) framed in the accent colour, an empty slot
+	/// dim. PLACEHOLDER look (text) until the vial icons exist.</summary>
+	public void SetVials(IReadOnlyList<string> names, int selected)
+	{
+		if (_vialRow == null)
+			return;
+		foreach (Node child in _vialRow.GetChildren())
+			child.QueueFree();
+		for (int i = 0; i < Dekken.CarrySlots; i++)
+		{
+			bool held = i < names.Count;
+			bool isSelected = held && i == selected;
+			var slot = new PanelContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
+			slot.AddThemeStyleboxOverride("panel", UiStyle.Box(UiStyle.RaisedBg, isSelected ? UiStyle.Accent : UiStyle.FrameDim, isSelected ? 2 : 1));
+			var label = MkLabel(held ? UiStyle.HudHeading : UiStyle.HudMuted);
+			label.Text = held ? $" {names[i]} " : " — ";
+			slot.AddChild(label);
+			_vialRow.AddChild(slot);
+		}
+	}
 
 	// --- health stars + Ruh orbs (the gauge) ----------------------------------
 

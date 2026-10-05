@@ -124,7 +124,8 @@ Related, but not in this folder:
    - **Needle Point (Lira, permanent stats), always open:** each purchase raises a shot one rank for the rest of the
      run, each rank dearer than the last — `ShotLedger`.
    - **Dekken (Lira, utility perks), always open:** 5 random perks per round — a heal, a teleport to the box, fig odds,
-     a fig magnet, a shield, a free surge, Wider Pull — `PerkLedger`, ticked + restocked at `ClearRound`.
+     a fig magnet, a shield, a free surge, Wider Pull — sold as VIALS: drink at the machine, or keep (2 slots, one
+     of a kind) and drink later with Q (Tab picks) — `PerkLedger`, ticked + restocked at `ClearRound`.
      `StartRound` fires `Player.notify_round_start` (round-scoped perks re-arm).
    - **Mystery box (figs, permanent mechanics), real time:** one `MysteryBox` per arena, on one of the layout's box
      spots. **E** spends `BoxRules.Cost` figs → it spins (`SpinTime`) → the result hangs over it (`OfferTime`): **E**
@@ -152,7 +153,7 @@ Related, but not in this folder:
 - **Change the shots** → `configs/NeedlePoint.cs`: each shot's per-rank values and rank-I price in `SHOTS`, plus
   `PriceGrowth` and `RANK_COLORS`. A new shot = a `ShotIds` id + a `ShotStat` + its
   case in `Shot.Apply`.
-- **Change the perks** → `configs/Dekken.cs`: `StockSize` and each perk's duration, rounds, price and `Value` in
+- **Change the perks** → `configs/Dekken.cs`: `StockSize`, `CarrySlots` (vials carried) and each perk's duration, rounds, price and `Value` in
   `PERKS`. A new perk = a `PerkIds` id + its entry + its effect (`Perk` for lasting ones, `PerkLedger.Buy` for one-use).
 - **Which buffs the box offers** → `BuffCatalog.FACTORIES` (each with its one value) minus `Parked`, minus what the
   player holds (`BuffCatalog.Pool`); a new buff = a `BuffIds` id + a factory + its `INFO` line.
