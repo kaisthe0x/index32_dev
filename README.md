@@ -45,8 +45,8 @@ resources/characters/ GENERATED SpriteFrames -- do not hand-edit
 resources/enemies/    GENERATED enemy SpriteFrames -- do not hand-edit
 scenes/               player, level, hud
 scripts/              player, hud
-scripts/run/          the roguelite run: arena, round loop + spawner, Ruh, buff menu + mystery box, attack picker (see scripts/run/README.md)
-scripts/abilities/    Passive/Buff base (C#) + the buff classes + tier/trigger types (RewardTypes.cs)
+scripts/run/          the roguelite run: arena, round loop + spawner, Ruh, the stalls' ledgers (shots / perks / box), attack picker (see scripts/run/README.md)
+scripts/abilities/    Passive/Buff base (C#) + the buff classes + the Trigger enum (RewardTypes.cs)
 scripts/combat/       Hurtbox, hitbox, Combatant base, health bar, floating text, status overlay — all C# now (constants -> configs/Combat.cs)
 scripts/enemies/      Enemy base + projectile
 sprites/characters/   Source pixel-art sheets, one folder per character
@@ -73,7 +73,7 @@ Bound to **physical** keycodes, so they stay in the same place on AZERTY/Dvorak.
 Rebind under `Project > Project Settings > Input Map`.
 
 **Mouse cursor auto-hides during play** (`Input.MouseMode`): `RunManager` hides it on entering the arena; the
-pick-a-card menus (`RewardUI` / `AttackSelect`) re-show it while open and re-hide on pick; the pre-game
+menus (`AttackSelect`, the stall menus) re-show it while open and re-hide on pick; the pre-game
 `PalettePreview` keeps it visible. LMB/RMB still fire attack/special while hidden — only the pointer is invisible,
 and it reappears the moment you move off the game window.
 
@@ -143,7 +143,7 @@ buffs**, not by turning into a different move (Rope Dart & Redere Frisbee are no
 successors). Take 0 HP and the run restarts (a fresh arena; buffs cleared, HP + Ruh refilled). All of this — the
 spawner, the enemy roster, the buff pools, the box, the attack picker — lives in
 [`scripts/run/`](scripts/run/README.md) (`RunManager` is `arena.tscn`'s root; `EnemyKits` is the roster, `MysteryBox`
-+ `BuffCatalog` the powerful gamble, `RewardUI` the buff menu). The `.tscn` stays minimal because the editor
++ `BoxLedger` + `BuffCatalog` the fig gamble for permanent buffs). The `.tscn` stays minimal because the editor
 clobbers it, so the level content is built in code from that data. The **look** of the terrain itself is the
 hand-painted `TileMapLayer` in each stage layout (see the run README); the old procedural tileset/plant/tree
 "skin" is **retired**, and `configs/Terrain.cs` now only holds the backdrop config.
@@ -901,17 +901,14 @@ A **`Buff` IS a `Passive`** (so it grants, dispatches, and tears down through th
   (`"attack"`/`"special"`, matched on `Action.category`), a tag (matched on `Action.tags`), or `"*"`.
   Empty = all. One field expresses both a **tailor-made per-move** buff and a **general** (category-wide)
   one. Gate a `ModifyTuning` override with `AppliesToAction(action)`; behavioural hooks (`OnParry`, …)
-  already self-scope to their fire site, so `AppliesTo` there is for reward gating / display.
-- **`Family`** — a **replace-in-place** group: granting a buff whose `Family` is already held tears down
-  the old one first (in `add_passive`), so a higher **tier** *supersedes* its predecessor rather than
-  stacking. The doc's rule: same buff, different tier → replace (by family); a *different* buff → stacks.
-- **`Tier`** — the doc's rarity ladder, `Common → Rare → Hot → Sensational → Epic` (`RewardTypes.cs`),
-  carrying the badge colour (none/blue/orange/purple/red); the concrete buff reads its own `Tier` to scale
-  its magnitude (and can add effects per tier, e.g. +bounces).
+  already self-scope to their fire site, so `AppliesTo` there is for offer gating / display.
+
+Box buffs have a **single version** (no tiers) and never repeat — the box only offers what the player doesn't hold
+(`BuffCatalog.Pool`), so there's no replace-in-place rule.
 
 Two ways a buff acts (either/both): **numbers** — override `ModifyTuning` to change a move's tuning dict
 (folded in last inside `resolve_tuning`); **behaviour** — override an event hook. The buffs themselves are
-the tiered catalog below.
+the box catalog below.
 
 #### Needle Point shots (`configs/NeedlePoint.cs`)
 
@@ -964,27 +961,44 @@ Closer +2 targets; only stocked with Come Closer). All placeholders.
 - **The menu** is `DekkenMenu`, on the same `StallMenu` frame as Needle Point's. Active perks show in the HUD's
   top-right list (rounds left, or RUN).
 
-#### The tiered buff catalog (`configs/BuffCatalog.cs`)
+#### The mystery box (`MysteryBox` · `BoxLedger` · `configs/BoxRules.cs` · `configs/BuffCatalog.cs`)
 
-The **pivot's** buff system (`docs/buff-catalog.md`) is a data registry: `BuffCatalog.FACTORIES` maps a
-`BuffIds.*` id → a `Func<Tier, Buff>` that builds the buff at a granted tier (per-tier magnitudes live in the
-factory's arrays; `Family` gives replace-in-place so a higher tier supersedes a lower). Most entries reuse a
-**generic buff class** rather than a bespoke one:
+The box sells **permanent, build-defining mechanics** for **figs** — in **real time**, the game never pauses
+(docs/game-loop.md § Economy). Stand at it and press **E**:
 
-- **`LifestealBuff`** — heals a per-tier fraction of damage dealt, via `OnHitDealt` (Bloodrush, Skim).
-- **`InvulnBuff`** — grants an i-frame window on its bound `Trigger` (Dash/Jump/Slam/Hit immunity, plus
-  **Follow-through** on `OnAnimEnd`), via `Player.grant_invuln`.
-- **`SlamSpringBuff`** — `OnSlamLand` primes the next ground jump's height (`Player.set_jump_spring`, one-shot).
-- **`SlamQuakeBuff`** — `OnSlamLand` stuns nearby enemies (`Player.stun_nearby`, the surge stun-sweep pattern).
-- **`SlamWrathBuff`** — `OnSlamLand` opens a timed attack-damage window; self-contained (ticks in `Physics`,
+1. **Spin** — `BoxLedger.Spin` charges `BoxRules.Cost` (8 figs) and rolls the result; names flicker over the box for
+   `SpinTime` (2.5 s). No figs → "NEED 8"; nothing left to give → "EMPTY" (no charge).
+2. **Offer** — the result (name + one-line description) hangs over the box for `OfferTime` (8 s, blinking in the last
+   quarter). **E takes it** (`BoxLedger.Take`: a buff → `add_passive`; a special → `equip`). Leave it and it's gone —
+   that's the **decline**; the figs stay spent.
+3. **Teddy bear** (`TeddyChance`, 1 in 8, only if the layout has another spot) — instead of an offer: the figs are
+   **refunded** and the box **relocates** to another box spot — a **hard** one `HardSpotChance` (40 %) of the time —
+   fading out and in, under a **beam of light** until the player reaches it. Dekken's Fast Travel goes wherever it is.
+
+**What it gives:** one buff from `BuffCatalog.Pool(player)` — every implemented, un-parked buff he **doesn't hold yet**
+(so no duplicates; a buff tied to one move, like Overcharge → Bakshen, only while that move is equipped) — or, at
+`SpecialChance` (6 %), a **special-swap** from `BoxRules.SPECIALS` (Zahluq, Bakshen; never the equipped one).
+
+**Box spots** are the layout's `BoxSpots/Easy` and `BoxSpots/Hard` markers (`LevelLayout.BoxSpots`); `MysteryBox.Setup`
+puts the box on a random easy one at run start. SFX cues `box_spin` / `box_result` / `box_teddy` / `buff_select` are
+PLACEHOLDERS (`SfxWorld`).
+
+**The catalog** (`docs/buff-catalog.md`) is a data registry: `BuffCatalog.FACTORIES` maps a `BuffIds.*` id → a
+`Func<Buff>` that builds the buff with its **one value** (the old five-tier arrays collapsed to their Hot value);
+`INFO` holds its name + description. Most entries reuse a **generic buff class** rather than a bespoke one:
+
+- **`LifestealBuff`** — each landed hit has a chance to restore half a block, via `OnHitDealt` (Bloodrush 8 %, Skim 3 %).
+- **`InvulnBuff`** — grants an i-frame window on its bound `Trigger` (Dash 1.5 s / Jump 1 s / Slam 2 s / Hit 0.4 s
+  immunity, plus **Follow-through** 1.5 s on `OnAnimEnd`), via `Player.grant_invuln`.
+- **`SlamSpringBuff`** — `OnSlamLand` primes the next ground jump's height ×1.7 (`Player.set_jump_spring`, one-shot).
+- **`SlamQuakeBuff`** — `OnSlamLand` stuns nearby enemies 2 s (`Player.stun_nearby`, the surge stun-sweep pattern).
+- **`SlamWrathBuff`** — `OnSlamLand` opens a 2 s ×1.7 attack-damage window; self-contained (ticks in `Physics`,
   boosts via `ModifyTuning` gated to `"attack"`).
-- **`OverchargeBuff`** — each hit the Bakshen *special* lands cuts the special cooldown (`Player.reduce_special_cooldown`;
-  Epic = full).
-- **`InstantResetBuff`** — Zahluq `OnMiss` fully resets the special cooldown (`reduce_special_cooldown`, huge value);
-  Zahluq fires one hitbox per swing so a whiff = one reset. **Parked** with the other move-gated buffs (never
-  offered yet — the pools exclude move-gated ids). Note: Zahluq is now a *special*, so a future wiring pass must
-  make special whiffs emit `OnMiss` and reset the *special* cooldown (see the class doc-comment).
-- **`MomentumBuff`** — a consecutive-hit damage ramp: `OnHitDealt` stacks a per-tier multiplier (capped at
+- **`OverchargeBuff`** — each hit the Bakshen *special* lands cuts the special cooldown 1.5 s
+  (`Player.reduce_special_cooldown`); only offered while Bakshen is equipped.
+- **`InstantResetBuff`** — Zahluq `OnMiss` fully resets the special cooldown. **Parked** (`BuffCatalog.Parked` keeps it
+  out of the pool): special-box whiffs don't emit `OnMiss` yet, so it would never fire (see the class doc-comment).
+- **`MomentumBuff`** — a consecutive-hit damage ramp: `OnHitDealt` stacks a ×1.4 multiplier (capped at
   `MaxStacks`, applied via `ModifyTuning`), and `OnAnimEnd` resets it when a full swing/combo recovered having
   connected nothing (per-swing whiff, sidestepping the per-hitbox `OnMiss`). `MaxStacks` is a placeholder — tune at playtest.
 
@@ -2068,7 +2082,7 @@ scales cleanly at any resolution.
 - **`UiStyle.Theme`** — a `Theme` built in code: default font/size, `Label` colours, `PanelContainer`
   frame, `HSeparator` rule, and `Button` states (hover/pressed/focus light the border electric blue).
   Controls under a `CanvasLayer` don't inherit the window's theme, so each menu **root** sets
-  `Theme = UiStyle.Theme` (HUD `_root`, `PauseMenu`, `AttackSelect`, `RewardUI`, `PalettePreview`).
+  `Theme = UiStyle.Theme` (HUD `_root`, `PauseMenu`, `AttackSelect`, `PalettePreview`).
 - **Named styles** are theme type variations — set `ThemeTypeVariation`, don't add per-node overrides:
   `UiStyle.Title` (16px, scanline font, accent), `UiStyle.Heading` (frame colour), `UiStyle.Muted`
   (captions), `UiStyle.PrimaryButton` (the one call-to-action per screen), `UiStyle.RowPanel` (list-row
@@ -2080,7 +2094,7 @@ scales cleanly at any resolution.
   (e.g. `▶ ► ■ ★`) — check coverage before adding a new glyph to UI text.
 - **`UiStyle.Install()`** (called first thing in the HUD autoload) makes Sixtyfour the global
   **fallback font**, so un-themed text (enemy name tags, world prompts) matches too.
-- **Semantic colours stay semantic:** buff tier colours (`Tiers.ColorOf`), damage numbers, and the
+- **Semantic colours stay semantic:** Needle Point rank colours, damage numbers, and the
   mystery box's gold glint are left as-is; only UI chrome uses the palette.
 
 ### Pause menu (`scripts/ui/PauseMenu.cs`)

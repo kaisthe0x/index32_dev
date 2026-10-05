@@ -3,7 +3,7 @@ using Godot;
 namespace MyGame;
 
 /// <summary>
-/// Momentum: a consecutive-hit damage ramp — each landed hit multiplies the equipped ATTACK's damage by a per-tier
+/// Momentum: a consecutive-hit damage ramp — each landed hit multiplies the equipped ATTACK's damage by a
 /// factor (stacking, capped by <see cref="MaxStacks"/>), and the ramp RESETS when a full swing/combo recovers to
 /// neutral having connected nothing. Self-contained: it reads the existing <see cref="OnHitDealt"/> and the
 /// <see cref="OnAnimEnd"/> hook (fired only when a swing/combo ends without chaining), so no Player API is needed.
@@ -12,19 +12,18 @@ namespace MyGame;
 /// per hit-frame): <see cref="_hitThisSwing"/> is set by any OnHitDealt and cleared at each OnAnimEnd; a swing that
 /// ends with it still false is a genuine whiff → the ramp drops to 1.0. Consecutive connecting swings keep the ramp.</para>
 ///
-/// <para>The doc gives only the per-hit factor; <see cref="MaxStacks"/> is a placeholder cap so Epic (×2/hit) can't
-/// compound unbounded — tune during playtest. Built by <see cref="BuffCatalog"/>.</para>
+/// <para><see cref="MaxStacks"/> is a placeholder cap so the ramp can't compound unbounded — tune during playtest. Built by <see cref="BuffCatalog"/>.</para>
 /// </summary>
 public partial class MomentumBuff : Buff
 {
     /// <summary>How many consecutive hits the ramp counts before it stops growing (placeholder — tune at playtest).</summary>
     private const int MaxStacks = 5;
 
-    private readonly float[] _factor;  // per-tier per-hit multiplier, indexed Common..Epic
+    private readonly float _factor;  // per-hit multiplier
     private int _stacks = 0;
     private bool _hitThisSwing = false;
 
-    public MomentumBuff(string id, float[] factor)
+    public MomentumBuff(string id, float factor)
     {
         Id = id;
         Trigger = Trigger.OnHitDealt;
@@ -48,10 +47,7 @@ public partial class MomentumBuff : Buff
     public override SegmentData ModifyTuning(Player p, Action action, int seg, SegmentData t)
     {
         if (_stacks > 0 && AppliesToAction(action) && t.Damage.HasValue)
-        {
-            float f = _factor[Mathf.Clamp((int)Tier, 0, _factor.Length - 1)];
-            t.Damage = t.Damage.Value * Mathf.Pow(f, _stacks);
-        }
+            t.Damage = t.Damage.Value * Mathf.Pow(_factor, _stacks);
         return t;
     }
 }

@@ -107,5 +107,29 @@ position = Vector2(352, -228)
 [node name="PlatformHigh" type="Marker2D" parent="EnemySpawns" unique_id=971445371]
 position = Vector2(816, -356)
 
+
+[node name="BoxSpots" type="Node2D" parent="." unique_id=893790440]
+
+[node name="Easy" type="Node2D" parent="BoxSpots" unique_id=1473635347]
+
+[node name="Start" type="Marker2D" parent="BoxSpots/Easy" unique_id=136388405]
+position = Vector2(-80, 0)
+
+[node name="FloorMid" type="Marker2D" parent="BoxSpots/Easy" unique_id=392887063]
+position = Vector2(660, 0)
+
+[node name="FloorRight" type="Marker2D" parent="BoxSpots/Easy" unique_id=1315766451]
+position = Vector2(1350, 0)
+
+[node name="FloorFar" type="Marker2D" parent="BoxSpots/Easy" unique_id=1860443352]
+position = Vector2(1700, 0)
+
+[node name="Hard" type="Node2D" parent="BoxSpots" unique_id=1272059113]
+
+[node name="HighMid" type="Marker2D" parent="BoxSpots/Hard" unique_id=1050057967]
+position = Vector2(688, -832)
+
+[node name="HighLeft" type="Marker2D" parent="BoxSpots/Hard" unique_id=1904458866]
+position = Vector2(256, -896)
 [node name="PlatformRight" type="Marker2D" parent="EnemySpawns" unique_id=262411355]
 position = Vector2(1872, -292)

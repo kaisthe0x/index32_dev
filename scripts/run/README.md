@@ -20,8 +20,8 @@ implements is [`docs/game-loop.md`](../../docs/game-loop.md) — **endless CoD-Z
 | `DekkenStall.cs` (`DekkenStall`, in `scripts/things/`) | The perk shop (placeholder amber stall), placed in the layout. Press **E** at it to open the `DekkenMenu` (`scripts/ui/`). |
 | `NeedlePointStall.cs` (`NeedlePointStall`, in `scripts/things/`) | The stat stall — a booth you walk up into (ramped dais collision). Press **E** on its top platform to open the `NeedlePointMenu` (`scripts/ui/`) over the run's ledger. |
 | `Stall.cs` (`Stall`, in `scripts/things/`) | The shared stand-at-it-and-press-**E** base for the stall SCENES (`scenes/things/`): reads the scene's `Visual`, `Interact` (Area2D — where to stand) and `Prompt` (Marker2D) nodes; owns the prompt and the key (`interact`, registered in code). The mystery box, Needle Point and Dekken extend it. |
-| `MysteryBox.cs` (`MysteryBox`, in `scripts/things/`) | A code-built placeholder "?" crate (a `Stall`). Press **E** at it to spend `Cost` fada_figs on a gamble: `DudChanceBase` of pulls give nothing, otherwise it fires `won` and RunManager opens the **same 3-choice menu** from the POWERFUL pool (`BuffCatalog.PowerfulIds`, above-rare tiers). Each win raises the dud chance further (per-run). Press E again to pull again. |
-| `RewardUI.cs` (`RewardUI`) | The pick-a-card popup (pauses the game, emits `chosen(id)`) — `Open(cards, title)`. Now drives the mystery box's **buff menu**. |
+| `MysteryBox.cs` (`MysteryBox`, in `scripts/things/`) | The box itself (a `Stall`; placeholder "?" crate): the REAL-TIME spin → offer → take/decline flow, the teddy bear, and relocating between the layout's box spots under a beam. |
+| `BoxLedger.cs` (`BoxLedger`) | The run's box rules: charges a spin, rolls it (`BoxRoll` — a buff the player doesn't hold, a rare special-swap, or the teddy bear), grants what's taken, refunds a teddy. Numbers in `configs/BoxRules.cs`; what it can give in `configs/BuffCatalog.cs`. |
 | `configs/Rounds.cs` (`Rounds`) | **Round tuning** — quota curve, concurrent cap, spawn interval, spawn-spot distance, stragglers, stand-still kamikazes, when "n LEFT" shows. Pure data. |
 
 **Hand-painted stage layouts** are the active approach: `RunManager` loads a random
@@ -87,7 +87,7 @@ Related, but not in this folder:
   (`BaseMaxHealth` = 6). **Every hit costs a flat half-block regardless of its damage** (`take_damage` ignores the
   amount — so 6 hits kill), and there's no player damage number. Damage-*reduction* is therefore inert (Jnoon's
   mitigation is parked; the parked reward `Thick Hide` still sets `damage_taken_mult` but nothing reads it). Healing
-  is in half-blocks: the **Nem surge restores one block**, and the **Bloodrush/Skim** buffs give a per-tier *chance*
+  is in half-blocks: the **Nem surge restores one block**, and the **Bloodrush/Skim** buffs give a *chance*
   per hit to restore a half-block (`LifestealBuff`). The HUD shows 3 block cells (half-block resolution).
 - **Ruh** is the other pool — the **surge meter**, in
   charges/blocks of `RUH_PER_BLOCK` (100), capped by `ruh_cap`. You **start a run with 3 charges**
@@ -126,12 +126,11 @@ Related, but not in this folder:
    - **Dekken (Lira, utility perks), always open:** 5 random perks per round — a heal, a teleport to the box, fig odds,
      a fig magnet, a shield, a free surge, Wider Pull — `PerkLedger`, ticked + restocked at `ClearRound`.
      `StartRound` fires `Player.notify_round_start` (round-scoped perks re-arm).
-   - **Mystery box (powerful, paid gamble):** one `MysteryBox` per arena; stand next to it + press **E** to spend `Cost`
-     figs (`Player.spend_fada_figs`). Some pulls dud (`DudChanceBase`, 20 %); a WIN fires the box's `won` signal →
-     `RunManager.OpenBoxMenu` opens a **3-choice `RewardUI`** from `BuffCatalog.PowerfulIds` (above-rare tiers). Each win raises the dud chance. On a win, one of the three cards is **rarely** a **special-swap**
-     instead of a buff (`RollBoxSpecial`, `SpecialOfferChance`, drawn from `BoxSpecialIds` — **Zahluq** and **Bakshen**);
-     picking it **replaces your equipped special** (`OnBuffChosen` → `Player.equip`, keyed by `_menuSpecialId`) rather
-     than adding a passive. Picking plays `buff_select`.
+   - **Mystery box (figs, permanent mechanics), real time:** one `MysteryBox` per arena, on one of the layout's box
+     spots. **E** spends `BoxRules.Cost` figs → it spins (`SpinTime`) → the result hangs over it (`OfferTime`): **E**
+     takes it, leaving it declines (figs spent). The result is a buff the player doesn't hold (`BuffCatalog.Pool`),
+     rarely a **special-swap** (`SpecialChance`, `BoxRules.SPECIALS`), or the **teddy bear** (`TeddyChance`): figs
+     refunded, the box relocates (a hard spot `HardSpotChance` of the time) under a beam. `BoxLedger` holds the rules.
 6. **Death** (HP hits 0 — the 6th hit) → `SaveData.ReportRun(_round)` records the round reached (new best →
    `rounds_record`), then the whole run restarts via `Player.begin_run` (buffs cleared, a full 3 blocks of HP / a
    full 3-charge Ruh meter) + a fresh `BuildArena()`; the run-start `AttackSelect` re-opens.
@@ -147,18 +146,16 @@ Related, but not in this folder:
 - **Change the drops** → Lira per kill: `RunManager.LiraForTier` (by advisory tier) or a kit's `lira_drop`; fig
   odds: a kit's `fig_chance` (default `Enemy.fig_chance` = 0.1). Pickup cues `lira_collect` / `fada_fig_collect` in
   `SfxWorld` (PLACEHOLDERS). The ROUND n intro's timing is `IntroFadeIn` / `IntroHold` / `IntroFly` in `HUD.cs`.
-- **Change the mystery box** → `MysteryBox` consts: `Cost` (figs per pull, 8 — figs are rare), `DudChanceBase`,
-  `DudChanceGrowth` (+per win), `DudChanceCap`. Cards per win: `RunManager.BuffMenuChoices`. Powerful pool = `BuffCatalog.PowerfulIds()`; tier weights = `RollPowerfulTier`.
-- **Change the box special-swap** → `RunManager` `SpecialOfferChance` (chance a win offers a special instead of a 3rd
-  buff) + `BoxSpecialIds` (which specials are box-only; currently `SpecialIds.Zahluq` + `SpecialIds.Bakshen`). `RollBoxSpecial` skips a special
-  you already have equipped.
+- **Change the mystery box** → `configs/BoxRules.cs`: `Cost`, `SpinTime`, `OfferTime`, `TeddyChance`, `HardSpotChance`,
+  `SpecialChance`, `SPECIALS` (the box-only specials). Where it can stand: the layout's `BoxSpots/Easy` + `BoxSpots/Hard`
+  markers. Its look: `scenes/things/mystery_box.tscn`.
 - **Change the shots** → `configs/NeedlePoint.cs`: each shot's per-rank values and rank-I price in `SHOTS`, plus
   `PriceGrowth` and `RANK_COLORS`. A new shot = a `ShotIds` id + a `ShotStat` + its
   case in `Shot.Apply`.
 - **Change the perks** → `configs/Dekken.cs`: `StockSize` and each perk's duration, rounds, price and `Value` in
   `PERKS`. A new perk = a `PerkIds` id + its entry + its effect (`Perk` for lasting ones, `PerkLedger.Buy` for one-use).
-- **Which buffs the box offers** → `BuffCatalog.PowerfulIds()` (every general buff; move-gated buffs are excluded by
-  the `General()` filter).
+- **Which buffs the box offers** → `BuffCatalog.FACTORIES` (each with its one value) minus `Parked`, minus what the
+  player holds (`BuffCatalog.Pool`); a new buff = a `BuffIds` id + a factory + its `INFO` line.
 - **Change an enemy's stats** → its kit in `enemies.gd` (combat).
 - **Change the Ruh / surge economy** → `Player.RUH_PER_HIT` (fill rate per hit), `RUH_PER_BLOCK`
   (charge size), `BASE_RUH_CAP` (starting charges), and the Aegis surge's `cost` / `duration` in

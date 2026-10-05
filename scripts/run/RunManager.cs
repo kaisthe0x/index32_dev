@@ -1,6 +1,5 @@
 using Godot;
 using GDict = Godot.Collections.Dictionary;
-using GArr = Godot.Collections.Array;
 
 namespace MyGame;
 
@@ -25,10 +24,6 @@ public partial class RunManager : Node2D
     private const float DeathY = 320.0f;   // falling below this world Y kills the player
     private const string StartCharacter = "khalid";
 
-    private const int BuffMenuChoices = 3;     // cards in the mystery box's menu
-    // Mystery box can, at EXTREME rarity, offer a special-SWAP in place of a buff (picking it replaces your special).
-    private const float SpecialOfferChance = 0.06f;
-    private static readonly string[] BoxSpecialIds = { SpecialIds.Zahluq, SpecialIds.Bakshen };
 
     /// <summary>The roster the continuous spawner draws from (uniform random) — a mixed assortment of grunts plus the
     /// stationary sleeper (Nasen). Wardens (Kroj) are elite/pivot-only, not part of the trickle.</summary>
@@ -68,9 +63,6 @@ public partial class RunManager : Node2D
     private int _killed = 0;           // quota enemies killed this round
     private int _alive = 0;            // living quota enemies (the concurrent cap looks at this)
     private float _spawnAccum = 0.0f;  // seconds accrued toward the next spawn
-    private bool _menuOpen = false;               // a buff menu is up (game paused) — don't stack another
-    private readonly System.Collections.Generic.Dictionary<string, Buff> _menuBuffs = new(); // id → the exact offered buff (tiered)
-    private string _menuSpecialId = "";           // the special-swap offered in the current menu, if any (else "")
     private readonly System.Collections.Generic.HashSet<Enemy> _enemies = new(); // every living spawned enemy (quota + optional)
     private readonly System.Collections.Generic.Dictionary<Enemy, Vector2> _spotOf = new(); // spot-spawned enemy → the EnemySpawns spot it holds
     private Vector2 _stillAnchor;      // where the player has been standing still since (stand-still pressure)
@@ -193,7 +185,6 @@ public partial class RunManager : Node2D
         _killed = 0;
         _alive = 0;
         _spawnAccum = 0.0f;
-        _menuOpen = false;
         _enemies.Clear(); // old enemies free with _content
         _spotOf.Clear();
         _stillTime = 0.0f;
@@ -241,7 +232,11 @@ public partial class RunManager : Node2D
         if (_box == null || needlePoint == null || dekken == null)
             GD.PushError("RunManager: the layout must place all three stall scenes (scenes/things/: mystery_box, needle_point, dekken).");
         if (_box != null)
-            _box.won += OpenBoxMenu; // a winning pull opens the 3-choice powerful menu
+        {
+            if (_layout.BoxSpots(hard: false).Count == 0)
+                GD.PushError("RunManager: the layout has no easy box spot (BoxSpots/Easy markers) — the box stays where it was placed and can't relocate.");
+            _box.Setup(new BoxLedger(_player), _layout.BoxSpots(hard: false), _layout.BoxSpots(hard: true));
+        }
         if (needlePoint != null)
             needlePoint.Ledger = new ShotLedger(_player); // this run's Needle Point ranks
         _perks = new PerkLedger(_player, FastTravelToBox);
@@ -780,94 +775,6 @@ public partial class RunManager : Node2D
     }
 
     private void OnAttackChosen(string id) => _player.equip(LoadoutCategory.Attack, id);
-
-    // --- mystery box buff menu -------------------------------------------------
-
-    /// <summary>The mystery box's payoff (a non-dud pull): roll BuffMenuChoices distinct buffs from the POWERFUL pool at
-    /// above-rare tiers → a 3-card `RewardUI`; picking grants the exact tiered buff shown. Pauses the game.</summary>
-    private void OpenBoxMenu()
-    {
-        if (_menuOpen || _player == null)
-            return;
-        _menuOpen = true;
-        _menuBuffs.Clear();
-        _menuSpecialId = "";
-        int buffCount = BuffMenuChoices;
-        var cards = new GArr();
-        // Rare: the box may offer a special-SWAP in place of one buff (picking it replaces the player's special).
-        string special = RollBoxSpecial();
-        if (special != "")
-        {
-            buffCount -= 1;
-            _menuSpecialId = special;
-            var sp = Actions.GetAction(_player.character, "specials", special);
-            cards.Add(new GDict { { "id", special }, { "name", sp?.Name ?? special },
-                { "desc", $"SPECIAL — replaces your current special. {sp?.Description}" }, { "tier", (int)Tier.Epic } });
-        }
-        foreach (string id in PickDistinct(BuffCatalog.PowerfulIds(), buffCount))
-        {
-            Tier tier = RollPowerfulTier();
-            Buff buff = BuffCatalog.Make(id, tier);
-            if (buff == null)
-                continue;
-            _menuBuffs[id] = buff;
-            cards.Add(new GDict { { "id", id }, { "name", buff.Name }, { "desc", buff.Description }, { "tier", (int)tier } });
-        }
-        var ui = new RewardUI();
-        AddChild(ui);
-        ui.chosen += OnBuffChosen;
-        ui.Open(cards, "MYSTERY BOX");
-    }
-
-    /// <summary>Whether the box offers a special-swap this pull, and which id (empty = none). EXTREME-luck rarity;
-    /// never offers a special the player already has equipped.</summary>
-    private string RollBoxSpecial()
-    {
-        if (BoxSpecialIds.Length == 0 || _player == null || GD.Randf() >= SpecialOfferChance)
-            return "";
-        string current = _player.loadout_id(LoadoutCategory.Special);
-        var pool = new System.Collections.Generic.List<string>();
-        foreach (string s in BoxSpecialIds)
-            if (s != current)
-                pool.Add(s);
-        return pool.Count == 0 ? "" : pool[(int)(GD.Randi() % (uint)pool.Count)];
-    }
-
-    private void OnBuffChosen(string id)
-    {
-        _menuOpen = false;
-        if (_player != null)
-        {
-            if (id == _menuSpecialId && id != "")
-                _player.equip(LoadoutCategory.Special, id); // special-swap from the box
-            else if (_menuBuffs.TryGetValue(id, out var buff))
-                _player.add_passive(buff);
-        }
-        _menuBuffs.Clear();
-        _menuSpecialId = "";
-        _sfx.play("buff_select"); // PLACEHOLDER cue
-    }
-
-    /// <summary>Powerful (mystery-box) tiers — above rare: mostly Hot, some Sensational, rarely Epic.</summary>
-    private static Tier RollPowerfulTier()
-    {
-        float r = GD.Randf();
-        return r < 0.6f ? Tier.Hot : r < 0.9f ? Tier.Sensational : Tier.Epic;
-    }
-
-    /// <summary>Up to <paramref name="n"/> distinct ids from <paramref name="pool"/> (Fisher–Yates on a copy).</summary>
-    private static System.Collections.Generic.List<string> PickDistinct(string[] pool, int n)
-    {
-        var copy = new System.Collections.Generic.List<string>(pool);
-        var outL = new System.Collections.Generic.List<string>();
-        for (int i = 0; i < n && copy.Count > 0; i++)
-        {
-            int j = (int)(GD.Randi() % (uint)copy.Count);
-            outL.Add(copy[j]);
-            copy.RemoveAt(j);
-        }
-        return outL;
-    }
 
     // --- death / spawn / camera flair -----------------------------------------
 

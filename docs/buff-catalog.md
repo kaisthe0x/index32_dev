@@ -20,7 +20,7 @@ The economy in `game-loop.md` § Economy sorts every buff into **one** stall by 
 body → **Needle Point** (shots, N rounds, upgradeable levels) · **utility / tactics** → **Dekken** (perks, per-perk
 duration) · **new mechanics** → **Mystery Box** (permanent, single version). The tier tables further down stay as
 the source of the numbers: a shot's **levels** take the five `C / R / H / S / E` values (level 0 = C … level 4 = E);
-a box buff starts from its **Hot** value as its single version. "Built" = implemented in `configs/BuffCatalog.cs`
+a box buff uses its **Hot** value as its single version (built 2026-10-04 — `BuffCatalog` factories carry one value; the `Tier` type is gone). "Built" = implemented in `configs/BuffCatalog.cs`
 today.
 
 **Needle Point — shots** *(built 2026-09-28, permanent ranks since 2026-09-29 — `configs/NeedlePoint.cs`; the old buffs

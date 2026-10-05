@@ -297,8 +297,7 @@ public partial class HUD : CanvasLayer
 				continue;
 			any = true;
 			var name = MkLabel(UiStyle.HudHeading);
-			name.AddThemeColorOverride("font_color", Tiers.ColorOf(b.Tier)); // tier colour is semantic, not UI chrome
-			name.Text = b.Name != "" ? $"{b.Name} [{Tiers.Label(b.Tier)}]" : b.Id;
+			name.Text = b.Name != "" ? b.Name : b.Id;
 			_buffPanel.AddChild(name);
 
 			var desc = MkLabel(UiStyle.HudMuted);

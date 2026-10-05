@@ -16,6 +16,10 @@ the random pool automatically). Each is a **`LevelLayout`** scene (`scripts/run/
   tiles and collision fixes would never reach that level.
 - a **`PlayerSpawn`** `Marker2D` (where Khalid drops in), and optional launch-orb spots in the **`orb`** group,
 - an **`EnemySpawns`** node whose `Marker2D` children are the enemy spawn spots (required — no markers, no enemies),
+- a **`BoxSpots`** node with two children, **`Easy`** and **`Hard`**, each holding `Marker2D`s — where the mystery box
+  can stand. It starts on a random **Easy** one (at least one is required) and a teddy bear moves it to another; put
+  **Hard** ones where reaching them takes mobility (a high platform). Each marker sits **on the floor's top edge**
+  (the box's base). The `MysteryBox` scene you placed is moved onto a spot at run start,
 - the **stalls** — drag `scenes/things/needle_point.tscn`, `dekken.tscn` and `mystery_box.tscn` from the FileSystem dock
   into the layout (stage1_v1 keeps them under a `Stalls` node). Each scene's origin is its base: put it **on the floor's
   top edge** (grid snap helps). You see them in the editor exactly as in the game, and Needle Point's collision (`Dais`

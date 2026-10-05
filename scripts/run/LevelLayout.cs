@@ -54,6 +54,19 @@ public partial class LevelLayout : Node2D
         return null;
     }
 
+    /// <summary>Where the mystery box can stand: the <c>Marker2D</c> children of <b>BoxSpots/Easy</b> (reachable on
+    /// foot — it starts on one of these) or, with <paramref name="hard"/>, of <b>BoxSpots/Hard</b> (needs mobility — a
+    /// teddy bear can send it there). Empty if the layout has none.</summary>
+    public List<Vector2> BoxSpots(bool hard)
+    {
+        var spots = new List<Vector2>();
+        if (GetNodeOrNull<Node>(hard ? "BoxSpots/Hard" : "BoxSpots/Easy") is Node holder)
+            foreach (Node n in holder.GetChildren())
+                if (n is Marker2D m)
+                    spots.Add(m.GlobalPosition);
+        return spots;
+    }
+
     /// <summary>The arena's horizontal span in world X — the left edge of the leftmost Terrain tile to the right edge of
     /// the rightmost (its "ends", where the Ventilator comes). (0, 0) if there's no painted Terrain.</summary>
     public (float Left, float Right) HorizontalSpan()

@@ -338,11 +338,12 @@ The existing `Buff : Passive` + `Trigger` + `ModifyTuning` foundation fits. Ever
 - **E2. Needle Point** *(built 2026-09-28; made permanent 2026-09-29)* — the shot catalog, bought rank by rank with
   Lira at a rising price, permanent for the run (always open since 2026-10-03).
 - **E3. Dekken** *(built 2026-09-28)* — 5 rotating perks, per-perk durations, whole-run perks leaving the pool.
-- **E4. Mystery Box rework** — the mechanics pool (single version, reroll duplicates, decline), the teddy bear,
-  easy/hard box spots, relocation, Fast Travel.
+- **E4. Mystery Box rework** *(built 2026-10-04)* — real-time spin → offer → take/decline; the mechanics pool
+  (single version, never a duplicate), the rare special-swap, the teddy bear (refund + relocation under a beam),
+  easy/hard box spots (`BoxSpots/Easy|Hard` markers), Fast Travel follows it. `MysteryBox` + `BoxLedger` +
+  `configs/BoxRules.cs`; tiers (`Tier`, `Family`) and the paused 3-card `RewardUI` are gone.
 - **E5. Layout + HUD** — *partly built 2026-09-30:* the stalls are scenes placed in the layout (`scenes/things/`,
-  found by `LevelLayout.Placed<T>()`) and share one interact prompt. Left: the box-spot group (with E4), the HUD's
-  active-buff icons, the box pointer.
+  found by `LevelLayout.Placed<T>()`) and share one interact prompt. Left: the HUD's active-buff icons, the box pointer.
 - **L1. Loadouts** — the run-start loadout picker (§ Loadouts) replacing the attack-only picker.
 
 ---

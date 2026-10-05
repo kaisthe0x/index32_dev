@@ -440,18 +440,17 @@ public partial class Player : Combatant
     /// <summary>A character's intrinsic ability, or null. Khalid ships without one. (Add a case when a character gets a C# CharacterAbility.)</summary>
     private static Passive CharacterAbilityFor(string character) => null;
 
+    /// <summary>Whether a passive with this id is on him (a box buff he already holds).</summary>
+    public bool has_passive(string id)
+    {
+        foreach (var p in _passives)
+            if (p.Id == id)
+                return true;
+        return false;
+    }
+
     public void add_passive(Passive p)
     {
-        // REPLACE-IN-PLACE: a Buff with a non-empty family supersedes any held buff of the same family.
-        if (p is Buff b && b.Family != "")
-        {
-            foreach (var existing in new List<Passive>(_passives))
-                if (existing is Buff eb && eb.Family == b.Family)
-                {
-                    existing.Teardown(this);
-                    _passives.Remove(existing);
-                }
-        }
         _passives.Add(p);
         p.Setup(this);
         RefreshBuffHud();
@@ -691,18 +690,18 @@ public partial class Player : Combatant
     // --- DEBUG: playtest the buff catalog (triggered from RunManager's input; REMOVE before release) -------
     private int _debugBuffIdx = 0;
 
-    /// <summary>DEBUG: grant the next wired catalog buff (at Hot), cycling through the whole set.</summary>
+    /// <summary>DEBUG: grant the next wired catalog buff, cycling through the whole set.</summary>
     public void debug_grant_next_buff()
     {
         var ids = new List<string>(BuffCatalog.FACTORIES.Keys);
         if (ids.Count == 0)
             return;
         string id = ids[_debugBuffIdx++ % ids.Count];
-        var buff = BuffCatalog.Make(id, Tier.Hot);
+        var buff = BuffCatalog.Make(id);
         if (buff != null)
         {
             add_passive(buff);
-            GD.Print($"[DEBUG] granted buff: {id} (Hot)");
+            GD.Print($"[DEBUG] granted buff: {id}");
         }
     }
 
