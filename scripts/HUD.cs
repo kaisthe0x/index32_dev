@@ -5,7 +5,7 @@ namespace MyGame;
 /// <summary>
 /// The player HUD. Health stars + Ruh orbs + the special's cooldown bar sit in the <see cref="_gauge"/> — fixed at bottom-centre, or following under
 /// Khalid's feet, per the player's <see cref="GaugePlacement"/> setting (dim at rest, bright on any change or at low
-/// HP). Also: the fada_fig ring (next-buff progress + spendable count, top-left), the ROUND / n LEFT / BEST block (top
+/// HP). Also: the Lira + Fada Fig counters (top-left), the ROUND / n LEFT / BEST block (top
 /// centre, pushed by RunManager), the active-buff
 /// list, off-screen enemy arrows, the low-HP effect, and the Esc <see cref="PauseMenu"/> (where that setting lives).
 /// An autoload, so it exists in every scene; binds to whatever <see cref="Player"/> enters the tree and hides when
@@ -49,18 +49,17 @@ public partial class HUD : CanvasLayer
 	private readonly List<float> _orbLevels = new();
 	private SpecialBar _specialBar;   // the special's cooldown, under the Ruh orbs (always shown; pulses when ready)
 	private Color _ruhFill;
-	private FigRing _figRing;
-	private Label _figLabel;
-	private int _figCount = 0;
+	private CurrencyCounter _liraCounter;
+	private CurrencyCounter _figCounter;
+	private HBoxContainer _vialRow;   // the carried Dekken vials (SetVials)
 	private Label _roundLabel;
 	private Label _leftLabel;   // "n LEFT" — shown only once few quota enemies remain
-	private Label _nextLabel;   // "NEXT ROUND IN n" — shown only during a breather
 	private Label _bestLabel;
 	private int _shownRound = 0; // the round whose intro has played (a higher one plays the intro again)
 	private Label _roundIntro;   // the big "ROUND n" flying from screen centre into _roundLabel (only while animating)
 	private VBoxContainer _buffPanel;
 
-	private static readonly Vector2 FigRowPos = new(16, 14);
+	private static readonly Vector2 CurrencyPos = new(16, 14);
 	// Round block placement: RoundBlockAnchor is the screen point (as fractions of width/height) the block's TOP-CENTRE
 	// sits on — (0.5, 0) = top-centre, (0.5, 0.5) = dead centre, (0.5, 0.85) = low centre — and RoundBlockOffset nudges
 	// it from there in pixels (+x right, +y down).
@@ -77,8 +76,8 @@ public partial class HUD : CanvasLayer
 	// orbs' rounded bottoms sit almost flush on the flat bar — this evens the two gaps out to the eye.
 	private const int SpecialBarTopGap = 2;
 	private const float GaugeScreenY = 0.9f;   // Screen placement: gauge top, as a fraction of screen height
-	// Screen placement: pips are pixel art, so scale them by the normal camera zoom (RunManager.CamZoomNormal) — one pip
-	// pixel is then the same size on screen as one sprite pixel. (FollowKhalid is in world units, so it matches natively.)
+	// Screen placement: a fixed, readable pixel scale for the pips — screen UI, independent of the camera zoom.
+	// (FollowKhalid is in world units instead, so it scales with the camera zoom along with the sprites.)
 	private const float GaugePixelScale = 1.5f;
 	private const float GaugeFeetGap = 3.0f;   // FollowKhalid: world px below Khalid's origin (his feet)
 	private const float GaugeIdleAlpha = 0.6f;
@@ -136,16 +135,18 @@ public partial class HUD : CanvasLayer
 		_gaugeLayer.AddChild(_gaugeAnchor);
 		ApplyGaugePlacement(SaveData.GetGaugePlacement());
 
-		var figRow = new HBoxContainer { Position = FigRowPos, MouseFilter = Control.MouseFilterEnum.Ignore };
-		figRow.AddThemeConstantOverride("separation", 6);
-		_root.AddChild(figRow);
-		_figRing = new FigRing();
-		figRow.AddChild(_figRing);
-		_figLabel = MkLabel(UiStyle.HudValue);
-		_figLabel.Text = "0";
-		figRow.AddChild(_figLabel);
+		var currencies = new VBoxContainer { Position = CurrencyPos, MouseFilter = Control.MouseFilterEnum.Ignore };
+		currencies.AddThemeConstantOverride("separation", 4);
+		_root.AddChild(currencies);
+		_liraCounter = new CurrencyCounter("res://assets/things/lira.png");
+		currencies.AddChild(_liraCounter);
+		_figCounter = new CurrencyCounter("res://assets/things/fada_fig.png");
+		currencies.AddChild(_figCounter);
+		_vialRow = new HBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
+		_vialRow.AddThemeConstantOverride("separation", 4);
+		currencies.AddChild(_vialRow);
 
-		// Round block (placed by RoundBlockAnchor/Offset): ROUND n / n LEFT (late in a round) or NEXT ROUND IN n (breather)
+		// Round block (placed by RoundBlockAnchor/Offset): ROUND n / n LEFT (late in a round)
 		// / BEST n. Grows both ways from its anchor, so it stays centred on it.
 		var roundBox = new VBoxContainer
 		{
@@ -164,9 +165,8 @@ public partial class HUD : CanvasLayer
 		_root.AddChild(roundBox);
 		_roundLabel = MkLabel(UiStyle.HudTitle);
 		_leftLabel = MkLabel(UiStyle.HudHeading);
-		_nextLabel = MkLabel(UiStyle.HudHeading);
 		_bestLabel = MkLabel(UiStyle.HudMuted);
-		foreach (var l in new[] { _roundLabel, _leftLabel, _nextLabel, _bestLabel })
+		foreach (var l in new[] { _roundLabel, _leftLabel, _bestLabel })
 		{
 			l.HorizontalAlignment = HorizontalAlignment.Center;
 			roundBox.AddChild(l);
@@ -252,6 +252,29 @@ public partial class HUD : CanvasLayer
 	private static Label MkLabel(string style) =>
 		new() { ThemeTypeVariation = style, MouseFilter = Control.MouseFilterEnum.Ignore, VerticalAlignment = VerticalAlignment.Center };
 
+	/// <summary>One owned Needle Point shot in the buff list: its name + rank in the rank's colour, and what it gives.</summary>
+	private static Control ShotLine(Shot s)
+	{
+		var name = MkLabel(UiStyle.HudHeading);
+		name.AddThemeColorOverride("font_color", NeedlePoint.RankColor(s.Rank));
+		name.Text = $"{s.Def.Name} {Shot.Roman(s.Rank)} · {Shot.FormatValue(s.Def, s.Rank)}";
+		return name;
+	}
+
+	/// <summary>One active Dekken perk in the buff list: its name and how long it has left ("1 ROUND", or "RUN").</summary>
+	private static Control PerkLine(Perk p)
+	{
+		var line = new HBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
+		line.AddThemeConstantOverride("separation", 8);
+		var name = MkLabel(UiStyle.HudHeading);
+		name.Text = p.Def.Name;
+		line.AddChild(name);
+		var left = MkLabel(UiStyle.HudMuted);
+		left.Text = p.Def.Duration == PerkDuration.Run ? "RUN" : p.RoundsLeft == 1 ? "1 ROUND" : $"{p.RoundsLeft} ROUNDS";
+		line.AddChild(left);
+		return line;
+	}
+
 	/// <summary>Rebuild the top-right active-buff list from the player's passives (call on grant / clear).</summary>
 	public void RefreshBuffs(List<Passive> passives)
 	{
@@ -262,12 +285,23 @@ public partial class HUD : CanvasLayer
 		bool any = false;
 		foreach (Passive p in passives)
 		{
+			if (p is Shot s)
+			{
+				any = true;
+				_buffPanel.AddChild(ShotLine(s));
+				continue;
+			}
+			if (p is Perk perk)
+			{
+				any = true;
+				_buffPanel.AddChild(PerkLine(perk));
+				continue;
+			}
 			if (p is not Buff b)
 				continue;
 			any = true;
 			var name = MkLabel(UiStyle.HudHeading);
-			name.AddThemeColorOverride("font_color", Tiers.ColorOf(b.Tier)); // tier colour is semantic, not UI chrome
-			name.Text = b.Name != "" ? $"{b.Name} [{Tiers.Label(b.Tier)}]" : b.Id;
+			name.Text = b.Name != "" ? b.Name : b.Id;
 			_buffPanel.AddChild(name);
 
 			var desc = MkLabel(UiStyle.HudMuted);
@@ -294,12 +328,9 @@ public partial class HUD : CanvasLayer
 		_lowHpLayer.AddChild(rect);
 	}
 
-	// --- fada_figs ------------------------------------------------------------
-
 	/// <summary>Show round <paramref name="round"/> (0 = before round 1: blank), <paramref name="left"/> quota enemies
-	/// remaining (0 = hidden — RunManager only passes it once few remain), the breather <paramref name="countdown"/> in
-	/// whole seconds until the next round (0 = hidden — mid-round), and the <paramref name="best"/> round record.</summary>
-	public void SetRound(int round, int left, int countdown, int best)
+	/// remaining (0 = hidden — RunManager only passes it once few remain), and the <paramref name="best"/> round record.</summary>
+	public void SetRound(int round, int left, int best)
 	{
 		if (_roundLabel == null)
 			return;
@@ -309,8 +340,6 @@ public partial class HUD : CanvasLayer
 		_shownRound = round; // a new run resets to 0, so round 1 plays again
 		_leftLabel.Text = $"{left} LEFT";
 		_leftLabel.Visible = left > 0;
-		_nextLabel.Text = $"NEXT ROUND IN {countdown}";
-		_nextLabel.Visible = countdown > 0;
 		_bestLabel.Text = best > 0 ? $"BEST {best}" : "";
 	}
 
@@ -360,22 +389,34 @@ public partial class HUD : CanvasLayer
 		}));
 	}
 
-	/// <summary>Set the spendable fada_fig balance shown beside the ring (pushed by <c>Player</c>); the ring pops on a gain.</summary>
-	public void SetFadaFigs(int count)
-	{
-		if (_figLabel == null)
-			return;
-		if (count > _figCount)
-			HudFx.Pop(_figRing);
-		_figCount = count;
-		_figLabel.Text = count.ToString();
-	}
+	// --- currencies -------------------------------------------------------------
 
-	/// <summary>Fill the fig ring to <paramref name="have"/> of <paramref name="need"/> figs toward the next buff
-	/// milestone (pushed by RunManager).</summary>
-	public void SetBuffProgress(int have, int need)
+	/// <summary>Show the Lira balance (pushed by <c>Player</c>).</summary>
+	public void SetLira(int count) => _liraCounter?.SetCount(count);
+
+	/// <summary>Show the fada_fig balance (pushed by <c>Player</c>).</summary>
+	public void SetFadaFigs(int count) => _figCounter?.SetCount(count);
+
+	/// <summary>Show the carried Dekken vials under the currency counters: one framed slot per carry slot — a held vial's
+	/// name, the <paramref name="selected"/> one (what the drink key drinks) framed in the accent colour, an empty slot
+	/// dim. PLACEHOLDER look (text) until the vial icons exist.</summary>
+	public void SetVials(IReadOnlyList<string> names, int selected)
 	{
-		_figRing?.SetProgress((float)have / Mathf.Max(need, 1));
+		if (_vialRow == null)
+			return;
+		foreach (Node child in _vialRow.GetChildren())
+			child.QueueFree();
+		for (int i = 0; i < Dekken.CarrySlots; i++)
+		{
+			bool held = i < names.Count;
+			bool isSelected = held && i == selected;
+			var slot = new PanelContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
+			slot.AddThemeStyleboxOverride("panel", UiStyle.Box(UiStyle.RaisedBg, isSelected ? UiStyle.Accent : UiStyle.FrameDim, isSelected ? 2 : 1));
+			var label = MkLabel(held ? UiStyle.HudHeading : UiStyle.HudMuted);
+			label.Text = held ? $" {names[i]} " : " — ";
+			slot.AddChild(label);
+			_vialRow.AddChild(slot);
+		}
 	}
 
 	// --- health stars + Ruh orbs (the gauge) ----------------------------------

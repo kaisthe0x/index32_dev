@@ -4,8 +4,9 @@ namespace MyGame;
 
 /// <summary>
 /// The one primitive the ground-conforming (<see cref="GroundContour"/>) and ground-following (a Projectile riding
-/// the terrain) features both build on: cast a short vertical ray and report the <see cref="Combat.Layer.World"/>
-/// surface at an x — its point and normal. One source of truth for "where is the ground here?".
+/// the terrain) features both build on: cast a short vertical ray and report the ground surface at an x — its point
+/// and normal. "Ground" is <see cref="Combat.GroundMask"/> (solid terrain AND one-way platforms), the same footing
+/// bodies stand on, so a slam on a platform lands its shockwave. One source of truth for "where is the ground here?".
 /// </summary>
 public static class GroundProbe
 {
@@ -19,7 +20,7 @@ public static class GroundProbe
         if (space == null)
             return false;
         var q = PhysicsRayQueryParameters2D.Create(
-            new Vector2(x, aroundY - reach), new Vector2(x, aroundY + reach), (uint)Combat.Layer.World);
+            new Vector2(x, aroundY - reach), new Vector2(x, aroundY + reach), Combat.GroundMask);
         var hit = space.IntersectRay(q);
         if (hit.Count == 0)
             return false;

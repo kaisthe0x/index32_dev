@@ -14,6 +14,9 @@ public partial class Hit : RefCounted
     public float Amount { get; set; }
     /// <summary>px/s shove away from the source (0 = none).</summary>
     public float Knockback { get; set; }
+    /// <summary>A GUST (px/s, 0 = none): the hit does NO damage and no stagger — it flings the victim away from the
+    /// source (and up, <see cref="Combat.GustLift"/>), and the player keeps control to recover (Ventilator's wind).</summary>
+    public float Gust { get; set; }
     /// <summary>Seconds frozen / staggered (0 = none).</summary>
     public float Stun { get; set; }
     /// <summary>Who dealt it (for knockback direction).</summary>

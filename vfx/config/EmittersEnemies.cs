@@ -40,6 +40,11 @@ public static class EmittersEnemies
             ["blast"] = new GDict { ["scene"] = S("res://vfx/enemy/tarri/attack/tarri_blast.tscn"), ["pos"] = new Vector2(15, -17) },
             ["walk_trail"] = new GDict { ["scene"] = S("res://vfx/enemy/tarri/walk/tarri_walk_trail.tscn"), ["pos"] = new Vector2(0, -6) },
         },
+        // --- blast, WIND (a stationary forward gust that flings instead of hurting — Hit.Gust). Same channel as Tarri's.
+        ["ventilator"] = new GDict
+        {
+            ["blast"] = new GDict { ["scene"] = S("res://vfx/enemy/ventilator/attack/ventilator_blast.tscn"), ["pos"] = new Vector2(10, -20) },
+        },
         // --- melee (a 2-hit COMBO — each hit its own Strike scene, keyed by the SHEET FRAME: melee_4 jab, melee_9 follow-up.
         ["breski"] = new GDict
         {

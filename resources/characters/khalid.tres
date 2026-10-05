@@ -69,6 +69,22 @@ region = Rect2(768, 0, 128, 80)
 atlas = ExtResource("12_attack_cherry_shots")
 region = Rect2(896, 0, 128, 80)
 
+[sub_resource type="AtlasTexture" id="attack_ora_ora_1"]
+atlas = ExtResource("14_attack_ora_ora")
+region = Rect2(128, 0, 128, 80)
+
+[sub_resource type="AtlasTexture" id="attack_ora_ora_2"]
+atlas = ExtResource("14_attack_ora_ora")
+region = Rect2(256, 0, 128, 80)
+
+[sub_resource type="AtlasTexture" id="attack_ora_ora_3"]
+atlas = ExtResource("14_attack_ora_ora")
+region = Rect2(384, 0, 128, 80)
+
+[sub_resource type="AtlasTexture" id="attack_ora_ora_4"]
+atlas = ExtResource("14_attack_ora_ora")
+region = Rect2(512, 0, 128, 80)
+
 [sub_resource type="AtlasTexture" id="attack_rope_dart_1"]
 atlas = ExtResource("13_attack_rope_dart")
 region = Rect2(128, 0, 128, 80)
@@ -136,22 +152,6 @@ region = Rect2(2048, 0, 128, 80)
 [sub_resource type="AtlasTexture" id="attack_rope_dart_17"]
 atlas = ExtResource("13_attack_rope_dart")
 region = Rect2(2176, 0, 128, 80)
-
-[sub_resource type="AtlasTexture" id="attack_ora_ora_1"]
-atlas = ExtResource("14_attack_ora_ora")
-region = Rect2(128, 0, 128, 80)
-
-[sub_resource type="AtlasTexture" id="attack_ora_ora_2"]
-atlas = ExtResource("14_attack_ora_ora")
-region = Rect2(256, 0, 128, 80)
-
-[sub_resource type="AtlasTexture" id="attack_ora_ora_3"]
-atlas = ExtResource("14_attack_ora_ora")
-region = Rect2(384, 0, 128, 80)
-
-[sub_resource type="AtlasTexture" id="attack_ora_ora_4"]
-atlas = ExtResource("14_attack_ora_ora")
-region = Rect2(512, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_spear_1"]
 atlas = ExtResource("15_attack_spear")
@@ -744,6 +744,23 @@ animations = [{
 "speed": 12.0
 }, {
 "frames": [{
+"duration": 1.0,
+"texture": SubResource("attack_ora_ora_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("attack_ora_ora_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("attack_ora_ora_3")
+}, {
+"duration": 1.0,
+"texture": SubResource("attack_ora_ora_4")
+}],
+"loop": 1,
+"name": &"attack_ora_ora",
+"speed": 18.0
+}, {
+"frames": [{
 "duration": 0.5,
 "texture": SubResource("attack_rope_dart_1")
 }, {
@@ -798,23 +815,6 @@ animations = [{
 "loop": 1,
 "name": &"attack_rope_dart",
 "speed": 20.0
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("attack_ora_ora_1")
-}, {
-"duration": 1.0,
-"texture": SubResource("attack_ora_ora_2")
-}, {
-"duration": 1.0,
-"texture": SubResource("attack_ora_ora_3")
-}, {
-"duration": 1.0,
-"texture": SubResource("attack_ora_ora_4")
-}],
-"loop": 1,
-"name": &"attack_ora_ora",
-"speed": 18.0
 }, {
 "frames": [{
 "duration": 0.25,
@@ -1367,8 +1367,8 @@ metadata/hit_frames = {
 metadata/sheet_start = {
 "attack_bakshen": 1,
 "attack_cherry_shots": 1,
-"attack_rope_dart": 1,
 "attack_ora_ora": 1,
+"attack_rope_dart": 1,
 "attack_spear": 1,
 "attack_twin_reaper": 1,
 "attack_zahluq": 1,

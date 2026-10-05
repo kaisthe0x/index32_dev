@@ -17,7 +17,6 @@ public partial class LaunchOrb : Node2D
     private const float BobSpeed = 2.2f;
     private const float ShineNear = 1.4f;
     private const float ShineTween = 0.14f;
-    private const float HumVolumeDb = -8.0f;
 
     /// <summary>The SET launch this orb gives (px/s): a strong UP + a good FORWARD. The Player reads these on capture.</summary>
     [Export] public float launch_up { get; set; } = 950.0f;
@@ -33,6 +32,7 @@ public partial class LaunchOrb : Node2D
 
     public override void _Ready()
     {
+        ZIndex = WorldZ.Stalls; // a thing you use: behind the tiles, in front of the scenery (WorldZ)
         AddToGroup("orbs");
         _baseY = Position.Y;
         _phase = GlobalPosition.X * 0.05f; // desync neighbouring orbs so a row doesn't bob in lockstep
@@ -47,7 +47,6 @@ public partial class LaunchOrb : Node2D
         _hum = GetNode<Sfx>("/root/Sfx").make_loop_2d("launch_orb");
         if (_hum != null)
         {
-            _hum.VolumeDb = HumVolumeDb;
             AddChild(_hum);
             _hum.Play();
         }

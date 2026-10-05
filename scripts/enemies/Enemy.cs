@@ -6,7 +6,7 @@ using GArray = Godot.Collections.Array;
 namespace MyGame;
 
 /// <summary>
-/// Reusable ground enemy — the config-driven "standard type" (kebus/baghel/mazab/matat/tarri/breski are all
+/// Reusable ground enemy — the config-driven "standard type" (kebus/baghel/mazab/matat/tarri/breski/ventilator are all
 /// this + a kit). Patrols, aggros/pursues, and attacks (melee when close, ranged otherwise; melee/blast/aoe/
 /// projectile/lob selected by config). Carries its own sprite, hurtbox, contact box, floating health bar, and
 /// status overlays. C# port of <c>scripts/enemies/enemy.gd</c>; behaviour archetypes subclass it (SleeperEnemy,
@@ -41,9 +41,12 @@ public partial class Enemy : Combatant
 	[Export] public Vector2 body_size { get; set; } = new(18, 30);
 	[Export] public Vector2 hurtbox_size { get; set; } = new(20, 34);
 
+	[ExportGroup("Drops")]
+	[Export] public int lira_drop { get; set; } = 1;          // Lira coins on death (RunManager defaults it by tier)
+	[Export] public float fig_chance { get; set; } = 0.1f;    // chance a kill also drops ONE fada_fig (per-kit override)
+
 	[ExportGroup("Patrol")]
 	[Export] public float move_speed { get; set; } = 40.0f;
-	[Export] public int fada_fig_drop { get; set; } = 1;   // fada_figs dropped on death (RunManager defaults it by tier)
 	[Export] public float patrol_distance { get; set; } = 90.0f;
 	[Export] public float idle_time_min { get; set; } = 2.0f;
 	[Export] public float idle_time_max { get; set; } = 3.0f;
@@ -60,6 +63,7 @@ public partial class Enemy : Combatant
 	[Export] public float close_damage { get; set; } = 12.0f;
 	[Export] public float far_damage { get; set; } = 8.0f;
 	[Export] public float close_knockback { get; set; } = 90.0f;
+	[Export] public float close_gust { get; set; }  // > 0 = the close attack is a GUST (Hit.Gust): no damage, flings the player
 	[Export] public float close_stun { get; set; }
 	[Export] public float far_knockback { get; set; }
 	[Export] public float far_stun { get; set; }
@@ -84,7 +88,8 @@ public partial class Enemy : Combatant
 
 	[ExportGroup("Behaviour")]
 	[Export] public bool aggro { get; set; } = true;
-	[Export] public float aggro_range { get; set; } = 480.0f;
+	[Export] public float aggro_range { get; set; } = 320.0f; // how near (real distance, px) the player has to be for an
+	                                                          // enemy to notice + chase him; otherwise it patrols its spawn spot
 	[Export] public float alert_duration { get; set; } = 5.0f;
 	[Export] public bool friendly_fire { get; set; }
 	/// <summary>World Y past which an enemy has fallen off into the void below the platforms → it dies (see _PhysicsProcess).
@@ -128,6 +133,8 @@ public partial class Enemy : Combatant
 	private bool _idleBack;
 	protected bool Engaged;
 	private float _alertLeft;
+	private bool _hunting; // a STRAGGLER: chases the player wherever he is (see hunt)
+	private float _huntSpeedMult = 1.0f; // a straggler's chase-speed multiplier (its walk animation speeds up to match)
 	private float _hitstopLeft, _hitstopDur;
 	protected bool Impacted;
 
@@ -147,13 +154,9 @@ public partial class Enemy : Combatant
 	{
 		AddToGroup("enemies");
 		CollisionLayer = (uint)Combat.Layer.EnemyBody;
-		CollisionMask = (uint)Combat.Layer.World;
+		CollisionMask = Combat.GroundMask;
 
-		// Slope-friendly floor handling: snap keeps them glued to the ground going DOWN a slope (no float/bounce);
-		// constant speed stops them slowing to a crawl going UP one. Default snap (1px) detaches on any descent.
-		UpDirection = Vector2.Up;
-		FloorSnapLength = 16.0f;
-		FloorConstantSpeed = true;
+		Combat.ApplyFloorHandling(this); // shared slope handling (walkable angle, snap, constant speed)
 
 		BuildSprite();
 		BuildBody();
@@ -267,7 +270,7 @@ public partial class Enemy : Combatant
 			Position = new Vector2(x, -14),
 			TargetPosition = new Vector2(0, 42),
 			HitFromInside = true,
-			CollisionMask = (uint)Combat.Layer.World,
+			CollisionMask = Combat.GroundMask, // platforms count as footing too
 		};
 		AddChild(ray);
 		return ray;
@@ -464,7 +467,8 @@ public partial class Enemy : Combatant
 				}
 			}
 			int dir = Mathf.Sign(toPlayer);
-			bool pursue = _alertLeft > 0.0f || (aggro && dist <= aggro_range);
+			bool pursue = _hunting || _alertLeft > 0.0f
+				|| (aggro && GlobalPosition.DistanceTo(player.GlobalPosition) <= aggro_range);
 			bool hold = aligned && dist <= far_range;
 			bool closeIn = pursue || (hold && HasClose && !HasFar);
 			float reach = (HasFar ? far_range : close_range) - 4.0f;
@@ -473,7 +477,7 @@ public partial class Enemy : Combatant
 				Engaged = true;
 				if (closeIn && dist > reach && FloorAhead(dir))
 				{
-					Velocity = new Vector2(dir * move_speed, Velocity.Y);
+					Velocity = new Vector2(dir * move_speed * _huntSpeedMult, Velocity.Y);
 					Face(dir);
 					SetState(EState.Patrol);
 				}
@@ -790,6 +794,7 @@ public partial class Enemy : Combatant
 			{
 				Damage = close_damage,
 				Knockback = close_knockback,
+				Gust = close_gust,
 				Stun = close_stun,
 			}, false, VfxPos(key));
 			if (conform_ground && node != null)
@@ -973,6 +978,15 @@ public partial class Enemy : Combatant
 	{
 		if (State == EState.Dead)
 			return;
+		if (hit.Gust > 0.0f)
+		{
+			// A GUST (a charmed Ventilator's wind): no damage — just flung, and held in stun so the AI doesn't cancel it.
+			Velocity = GustVelocity(hit, Facing);
+			StunLeft = Mathf.Max(StunLeft, Combat.GustEnemyStagger);
+			SetState(EState.Stun);
+			CancelChannel();
+			return;
+		}
 		last_hit_from_special = hit.from_special;
 		float before = Health;
 		Health = Mathf.Max(Health - hit.amount, 0.0f);
@@ -1152,6 +1166,17 @@ public partial class Enemy : Combatant
 
 	public void apply_hit(Hit hit) => Hurt?.take_hit(hit);
 
+	/// <summary>Make this enemy a STRAGGLER: from now on it chases the player wherever he is, ignoring
+	/// <see cref="aggro_range"/>, at <paramref name="speedMult"/> × its move speed (RunManager calls it on a round's last
+	/// few, so the round can't stall on one he can't find).</summary>
+	public void hunt(float speedMult)
+	{
+		_hunting = true;
+		_huntSpeedMult = speedMult;
+		if (State == EState.Patrol)
+			PlayWalk(); // already walking — pick up the faster pace now
+	}
+
 	protected void Face(int dir)
 	{
 		if (dir == 0)
@@ -1175,10 +1200,14 @@ public partial class Enemy : Combatant
 				Sprite.Pause();
 				break;
 			case EState.Patrol:
-				Play(HasWalk ? "walk" : "idle");
+				PlayWalk();
 				break;
 		}
 	}
+
+	/// <summary>The walk (or idle, if it has none) — sped up by <see cref="_huntSpeedMult"/> for a straggler so its feet
+	/// keep pace with its chase.</summary>
+	private void PlayWalk() => Sprite.Play(HasWalk ? "walk" : "idle", _huntSpeedMult);
 
 	protected void Play(StringName anim)
 	{

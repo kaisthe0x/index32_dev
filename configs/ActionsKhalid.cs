@@ -36,15 +36,6 @@ public static class ActionsKhalid
 				new SegmentData { Damage = 10, Knockback = 0 },
 				new SegmentData { Damage = 12, Knockback = 50, Stun = 0.1f }),
 		},
-		[AttackIds.Bakshen] = new Action
-		{
-			Name = "Bakshen",
-			Description = "One massive charged slash — slow to wind up, devastating on hit.",
-			Icon = "res://assets/icons/attacks/bakshen.png",
-			Style = ActionStyle.Cooldown,
-			Cooldown = 3.0f,
-			Hit = new HitData(StrikeType.Melee, new SegmentData { Damage = 80, Knockback = 0, Stun = 0.0f }),
-		},
 		[AttackIds.CherryShots] = new Action
 		{
 			Name = "Cherry Shots",
@@ -106,7 +97,7 @@ public static class ActionsKhalid
 		},
 		[SpecialIds.ComeCloser] = new Action { Name = "Come Closer", Icon = Ember, Tags = ["control"], Cooldown = 5.0f },
 		// Held: its cooldown starts when the shield is RELEASED (Player.HoldingSpecial), so holding it isn't free.
-		[SpecialIds.RedereShield] = new Action { Name = "Redere Shield", Icon = Shield, Tags = ["shield", "held"], Cooldown = 3.0f },
+		[SpecialIds.RedereShield] = new Action { Name = "Redere Shield", Icon = Shield, Tags = ["shield", "held"], Cooldown = 0.5f },
 		[SpecialIds.RedereFrisbee] = new Action
 		{
 			Name = "Redere Frisbee",
@@ -114,6 +105,17 @@ public static class ActionsKhalid
 			Tags = ["shield"],
 			Hit = new HitData(StrikeType.Projectile, new SegmentData { Damage = 7, Knockback = 120 }),
 			Cooldown = 3.0f,
+		},
+		// Bakshen — ex-attack (it was the only cooldown-gated attack; a big hit on a cooldown IS a special). A rare
+		// special-swap from the mystery box. AnimationOverride reuses its "attack_bakshen" sprite/vfx/sfx.
+		[SpecialIds.Bakshen] = new Action
+		{
+			Name = "Bakshen",
+			Description = "One massive charged slash — slow to wind up, devastating on hit.",
+			Icon = "res://assets/icons/attacks/bakshen.png",
+			AnimationOverride = "attack_bakshen",
+			Cooldown = 3.0f,
+			Hit = new HitData(StrikeType.Melee, new SegmentData { Damage = 120, Knockback = 0, Stun = 0.0f }),
 		},
 		// Zahluq — ex-attack, now a RARE special only obtainable from the mystery box (replaces your special).
 		// AnimationOverride reuses its existing "attack_zahluq" sprite/vfx/sfx (assets keep the attack_ prefix).
@@ -189,9 +191,9 @@ public static class ActionsKhalid
 		[MovementIds.Slam] = new() { [MovementIds.StandardSlam] = new Action { Name = "Standard Slam", Icon = Blast1, Move = new Locomotion() } },
 	};
 
-	public const string DEFAULT_ATTACK = AttackIds.Bakshen;
-	public const string DEFAULT_SPECIAL = SpecialIds.ComeCloser;
-	public const string DEFAULT_SURGE = SurgeIds.Wara;
+	public const string DEFAULT_ATTACK = AttackIds.OraOra;
+	public const string DEFAULT_SPECIAL = SpecialIds.RedereFrisbee;
+	public const string DEFAULT_SURGE = SurgeIds.Aegis;
 	public static readonly Dictionary<string, string> DEFAULT_MOVEMENTS = new()
 	{
 		[MovementIds.Run] = MovementIds.StandardStride,

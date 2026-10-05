@@ -4,7 +4,7 @@ using GDict = Godot.Collections.Dictionary;
 namespace MyGame;
 
 /// <summary>
-/// The enemy roster — one named kit per enemy TYPE, referenced by the level/wave tables in <see cref="Levels"/>.
+/// The enemy roster — one named kit per enemy TYPE, drawn from by RunManager's spawn pool.
 /// A kit is a spawn spec: an `id` (built from scenes/enemy.tscn) or a custom `scene`, plus Enemy @export overrides
 /// (combat tuning), applied by RunManager via <c>enemy.Set(key, value)</c> — so a kit stays a by-name override BAG
 /// (its keys mirror Enemy's [Export] names), not a fixed record. A few keys are ADVISORY metadata RunManager reads
@@ -23,6 +23,7 @@ public static class EnemyKits
 		// attack_align_y is wide so he'll engage you a level up/down.
 		{ "far_aim_cap", 45.0 }, { "attack_align_y", 120.0 }, { "far_hitbox_extents", new Vector2(7, 10) },
 		{ "projectile_speed", 200.0 },
+		{ "fig_chance", 0.25 }, // the hardest grunt — better fig odds than the 10 % default
 	};
 
 	public static readonly GDict BAGHEL = new()
@@ -53,9 +54,27 @@ public static class EnemyKits
 
 	public static readonly GDict EIN = new()
 	{
+		// The stand-still KAMIKAZE (RunManager's pressure spawn — not in the round's spawn pool): optional (not part of the
+		// round), drops nothing (no farming by standing still), and notices from far enough to dive at once.
 		{ "scene", "res://scenes/diver_enemy.tscn" }, { "id", EnemyIds.Ein }, { "display_name", "Ein" }, { "max_health", 28.0 }, { "air", true }, { "movement", (int)EnemyMovement.Flying }, { "close_type", StrikeType.Kamikaze.Key() },
+		{ "optional", true }, { "lira_drop", 0 }, { "fig_chance", 0.0 }, { "detect_range", 320.0 },
 		{ "body_size", new Vector2(22, 22) }, { "hurtbox_size", new Vector2(26, 26) }, { "move_speed", 34.0 },
 		{ "patrol_distance", 70.0 }, { "tier", (int)EnemyTier.Mid },
+	};
+
+	public static readonly GDict VENTILATOR = new()
+	{
+		// The EDGE enemy (RunManager's edge spawn — not in the round's spawn pool): appears on the inland side when the
+		// player is near either end of the arena, and blasts WIND (close_gust) that does no damage but flings him outward
+		// — off the edge unless he air-jumps / dashes back. Optional (not part of the round) but drops Lira + figs as usual.
+		// Like Tarri, the blast fires on the LAST attack frame and he holds + vibrates there (the blast's emit_duration).
+		{ "id", EnemyIds.Ventilator }, { "display_name", "Ventilator" }, { "tier", (int)EnemyTier.Mid }, { "movement", (int)EnemyMovement.Ground }, { "close_type", StrikeType.Blast.Key() },
+		{ "optional", true },
+		{ "max_health", 60.0 }, { "body_size", new Vector2(18, 36) }, { "hurtbox_size", new Vector2(22, 42) },
+		{ "move_speed", 40.0 }, { "patrol_distance", 80.0 },
+		{ "close_range", 150.0 }, { "attack_align_y", 52.0 }, { "attack_cooldown", 2.4 },
+		{ "close_damage", 0.0 }, { "close_knockback", 0.0 }, { "close_stun", 0.0 }, { "close_gust", 540.0 },
+		{ "attack_hitstop", 2.0 }, { "attack_shake", 1.5 },
 	};
 
 	public static readonly GDict MATAT = new()
@@ -96,7 +115,7 @@ public static class EnemyKits
 		{ "scene", "res://scenes/warden.tscn" }, { "id", EnemyIds.Kroj }, { "display_name", "Kroj" },
 		{ "movement", (int)EnemyMovement.Ground }, { "tier", (int)EnemyTier.Strong },
 		{ "max_health", 300.0 }, { "body_size", new Vector2(28, 44) }, { "hurtbox_size", new Vector2(34, 52) },
-		{ "move_speed", 55.0 }, { "aggro", true }, { "aggro_range", 640.0 }, { "fada_fig_drop", 12 },
+		{ "move_speed", 55.0 }, { "aggro", true }, { "aggro_range", 640.0 }, { "lira_drop", 12 },
         // Attack = a LUNGE (close_type=lunge): he closes and body-checks; close_lunge is the forward impulse.
         { "close_type", StrikeType.Lunge.Key() }, { "close_range", 130.0 }, { "close_lunge", 460.0 },
 		{ "close_damage", 22.0 }, { "close_knockback", 190.0 }, { "close_stun", 0.3 },

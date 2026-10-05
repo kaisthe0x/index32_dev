@@ -1,0 +1,35 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" uid="uid://0g0uq3kv85tp" path="res://scripts/things/MysteryBox.cs" id="1_script"]
+
+[sub_resource type="RectangleShape2D" id="interact_shape"]
+size = Vector2(64, 56)
+
+[node name="MysteryBox" type="Node2D" groups=["stalls"]]
+script = ExtResource("1_script")
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="Crate" type="Polygon2D" parent="Visual"]
+color = Color(0.42, 0.28, 0.62, 1)
+polygon = PackedVector2Array(-16, -34, 16, -34, 16, -2, -16, -2)
+
+[node name="Mark" type="Label" parent="Visual"]
+offset_left = -9.0
+offset_top = -34.0
+offset_right = 9.0
+offset_bottom = -2.0
+theme_override_colors/font_color = Color(1.6, 1.35, 0.35, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 30
+text = "?"
+
+[node name="Interact" type="Area2D" parent="."]
+
+[node name="Shape" type="CollisionShape2D" parent="Interact"]
+position = Vector2(0, -20)
+shape = SubResource("interact_shape")
+
+[node name="Prompt" type="Marker2D" parent="."]
+position = Vector2(0, -60)

@@ -8,7 +8,7 @@ namespace MyGame;
 /// (world point + surface normal) that follows the ground — plus the operations that reshape an AoE's particle
 /// emission and hitbox to hug it. This is what makes a slam / shockwave curve with a slope instead of firing flat.
 ///
-/// <para>Built by walking downward physics rays across a width (so it's robust to ANY <see cref="Combat.Layer.World"/>
+/// <para>Built by walking downward physics rays across a width (so it's robust to ANY <see cref="Combat.GroundMask"/>
 /// collision — tiles, slopes, gaps — not just axis-aligned boxes), stepping outward from the impact and stopping at
 /// the first gap on each side, giving ONE contiguous band centred on the hit (a shockwave doesn't leap a pit).</para>
 ///

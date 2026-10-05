@@ -6,6 +6,9 @@
 __pycache__/
 *.pyc
 
+# Stray npm folder (nothing here uses npm)
+node_modules/
+
 # Local dev tools venv (see scripts/setup-dev.sh)
 .devtools/
 

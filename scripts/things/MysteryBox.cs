@@ -1,130 +1,218 @@
 using Godot;
+using System.Collections.Generic;
 
 namespace MyGame;
 
 /// <summary>
-/// A MYSTERY BOX (placeholder art — a purple "?" crate): stand next to it and press <b>E</b> (the <c>interact</c>
-/// action) to spend <see cref="Cost"/> fada_figs for a gamble. It is DELIBERATELY stingy: <see cref="DudChanceBase"/>
-/// of pulls give nothing; on a WIN it fires <see cref="won"/> and RunManager opens a pick-1-of-3 menu of POWERFUL
-/// buffs (same UI as the milestone menu, above-rare tiers). Every win raises the dud chance further (capped by
-/// <see cref="DudChanceCap"/>), so repeat wins get rarer within a run. One box spawns per arena
-/// (RunManager.BuildArena) — its escalation is that box's. Built entirely in code.
+/// The MYSTERY BOX (<c>scenes/things/mystery_box.tscn</c> — placeholder art: a purple "?" crate), a <see cref="Stall"/>:
+/// stand at it and press <b>E</b> to spend figs on a SPIN (rules + numbers: <see cref="BoxRules"/>, run state:
+/// <see cref="BoxLedger"/>). It all happens in REAL TIME — the game never pauses:
+/// <list type="number">
+/// <item><b>Spin</b> — names flicker over the box for <see cref="BoxRules.SpinTime"/>.</item>
+/// <item><b>Offer</b> — the result hangs over the box for <see cref="BoxRules.OfferTime"/>; press <b>E</b> to take it,
+///   or leave it and it's gone (the figs are spent either way).</item>
+/// <item><b>Teddy bear</b> — instead of an offer: the figs come back and the box RELOCATES to another of the layout's
+///   box spots (a hard one <see cref="BoxRules.HardSpotChance"/> of the time), under a beam until the player reaches it.</item>
+/// </list>
+/// RunManager calls <see cref="Setup"/> once per run with the ledger + the layout's spots; the box starts on an easy one.
 /// </summary>
-public partial class MysteryBox : Node2D
+public partial class MysteryBox : Stall
 {
-    /// <summary>A pull beat the dud roll — RunManager opens the 3-choice powerful buff menu.</summary>
-    [Signal] public delegate void wonEventHandler();
+    private enum Phase { Idle, Spinning, Offering, Leaving }
 
-    private const string InteractAction = "interact"; // E (registered in _Ready if the project hasn't)
-    private const int Cost = 25;                 // fada_figs spent per pull
-    private const float DudChanceBase = 0.2f;    // chance a pull gives nothing (tune here)
-    private const float DudChanceGrowth = 0.01f; // + per win, so wins get rarer
-    private const float DudChanceCap = 0.995f;
+    private const float FlickerInterval = 0.08f;  // how fast names change during the spin
+    private const float LeaveTime = 1.2f;         // the teddy bear shows this long before the box moves
+    private const float FadeTime = 0.3f;          // the box fading out / in around a move
+    private const float TextWidth = 260.0f;
+    private static readonly Vector2 NoticeOffset = new(0, -40);
+    private static readonly Color NoticeColor = new(0.72f, 0.72f, 0.78f);
+    private static readonly Color TeddyColor = new(1.0f, 0.55f, 0.65f);
+    private static readonly Color OfferColor = new(1.6f, 1.35f, 0.35f);   // HDR gold, like the "?" on the crate
+    private static readonly Color BeamColor = new(1.4f, 1.15f, 0.4f, 0.55f);
+    private const float BeamWidth = 14.0f;
+    private const float BeamHeight = 900.0f;
 
-    private float _dudChance = DudChanceBase;
-    private Player _inRange;   // the player while standing in the box's interact range (null otherwise)
-    private Node2D _visual;
-    private Label _prompt;
+    private BoxLedger _ledger;
+    private List<Vector2> _easy = new(), _hard = new();
+    private Phase _phase = Phase.Idle;
+    private float _left;        // time left in the current phase
+    private float _flicker;     // until the next name change while spinning
+    private BoxRoll _roll;      // the spin in progress / on offer
+    private List<string> _spinNames = new();
+    private Label _title, _detail;
+    private Polygon2D _beam;
+    private Sfx _sfx;
 
     public override void _Ready()
     {
-        EnsureInteractAction();
-
-        _visual = new Node2D();
-        AddChild(_visual);
-        var crate = new Polygon2D
+        base._Ready();
+        _sfx = GetNodeOrNull<Sfx>("/root/Sfx");
+        Vector2 prompt = GetNode<Marker2D>("Prompt").Position;
+        _title = MakeText(prompt + new Vector2(0, -34), 16, OfferColor);
+        _detail = MakeText(prompt + new Vector2(0, -14), 8, Colors.White);
+        // The relocation beam: a tall column of light over the box, fading out toward the top.
+        _beam = new Polygon2D
         {
-            Polygon = new Vector2[] { new(-16, -34), new(16, -34), new(16, -2), new(-16, -2) },
-            Color = new Color(0.42f, 0.28f, 0.62f),
+            Polygon = new[] { new Vector2(-BeamWidth, 0), new Vector2(BeamWidth, 0), new Vector2(BeamWidth, -BeamHeight), new Vector2(-BeamWidth, -BeamHeight) },
+            VertexColors = new[] { BeamColor, BeamColor, new Color(BeamColor, 0.0f), new Color(BeamColor, 0.0f) },
+            Visible = false,
+            ShowBehindParent = true,
         };
-        _visual.AddChild(crate);
-        var q = new Label { Text = "?", Position = new Vector2(-9, -34) };
-        q.AddThemeFontSizeOverride("font_size", 30);
-        q.AddThemeColorOverride("font_color", new Color(1.6f, 1.35f, 0.35f)); // HDR gold so it glints
-        q.AddThemeColorOverride("font_outline_color", Colors.Black);
-        q.AddThemeConstantOverride("outline_size", 4);
-        _visual.AddChild(q);
-
-        _prompt = new Label { Text = "E", Position = new Vector2(-6, -60), Visible = false };
-        _prompt.AddThemeFontSizeOverride("font_size", 16);
-        _prompt.AddThemeColorOverride("font_color", new Color(1, 1, 1));
-        _prompt.AddThemeColorOverride("font_outline_color", Colors.Black);
-        _prompt.AddThemeConstantOverride("outline_size", 4);
-        AddChild(_prompt);
-
-        var range = new Area2D { CollisionLayer = 0, CollisionMask = (uint)Combat.Layer.PlayerBody };
-        range.AddChild(new CollisionShape2D
-        {
-            Shape = new RectangleShape2D { Size = new Vector2(64, 56) }, // a little reach around the crate
-            Position = new Vector2(0, -20),
-        });
-        range.BodyEntered += OnBodyEntered;
-        range.BodyExited += OnBodyExited;
-        AddChild(range);
+        AddChild(_beam);
     }
 
-    /// <summary>Register the <c>interact</c> action (physical E) if the project doesn't already define it — so the box
-    /// works without a project.godot edit. Physical keycode = layout-independent, matching the other actions.</summary>
-    private static void EnsureInteractAction()
+    /// <summary>Hand the box this run's ledger and the layout's box spots, and put it on a random EASY one.</summary>
+    public void Setup(BoxLedger ledger, List<Vector2> easy, List<Vector2> hard)
     {
-        if (InputMap.HasAction(InteractAction))
+        _ledger = ledger;
+        _easy = easy;
+        _hard = hard;
+        if (_easy.Count > 0)
+            GlobalPosition = _easy[(int)(GD.Randi() % (uint)_easy.Count)];
+    }
+
+    protected override void Interact(Player p)
+    {
+        if (_ledger == null)
             return;
-        InputMap.AddAction(InteractAction);
-        InputMap.ActionAddEvent(InteractAction, new InputEventKey { PhysicalKeycode = Key.E });
-    }
-
-    public override void _UnhandledInput(InputEvent @event)
-    {
-        if (_inRange != null && @event.IsActionPressed(InteractAction))
+        if (_phase == Phase.Offering)
         {
-            Pull(_inRange);
-            GetViewport().SetInputAsHandled();
-        }
-    }
-
-    private void OnBodyEntered(Node body)
-    {
-        if (body is Player p)
-        {
-            _inRange = p;
-            _prompt.Visible = true;
-        }
-    }
-
-    private void OnBodyExited(Node body)
-    {
-        if (body == _inRange)
-        {
-            _inRange = null;
-            _prompt.Visible = false;
-        }
-    }
-
-    private void Pull(Player p)
-    {
-        var sfx = GetNodeOrNull<Sfx>("/root/Sfx");
-        if (!p.spend_fada_figs(Cost))
-        {
-            FloatingText.Emit(FloatingTextType.Damage, this, new Vector2(0, -40), $"NEED {Cost}", 0.0f, new Color(0.72f, 0.72f, 0.78f));
+            _ledger.Take(_roll);
+            _sfx?.play_at("buff_select", GlobalPosition); // PLACEHOLDER cue
+            FloatingText.Emit(FloatingTextType.Damage, this, NoticeOffset, _roll.Name, 0.0f, OfferColor);
+            Pop();
+            EndOffer();
             return;
         }
+        if (_phase != Phase.Idle)
+            return; // mid-spin / leaving — nothing to press yet
+        string blocked = _ledger.Blocked();
+        if (blocked != "")
+        {
+            FloatingText.Emit(FloatingTextType.Damage, this, NoticeOffset, blocked, 0.0f, NoticeColor);
+            return;
+        }
+        _spinNames = _ledger.SpinNames(); // before the spin, so the figs it costs don't change the pool
+        _roll = _ledger.Spin(OtherSpots().Count > 0);
+        if (_roll == null)
+            return;
         Pop();
-        if (GD.Randf() < _dudChance)
-        {
-            FloatingText.Emit(FloatingTextType.Damage, this, new Vector2(0, -40), "…nothing", 0.0f, new Color(0.6f, 0.6f, 0.66f));
-            sfx?.play_at("fada_fig_collect", GlobalPosition); // PLACEHOLDER sfx
-            return;
-        }
-        // Win: hand off to RunManager to open the 3-choice POWERFUL buff menu.
-        sfx?.play_at("fada_fig_collect", GlobalPosition); // PLACEHOLDER sfx
-        _dudChance = Mathf.Min(DudChanceCap, _dudChance + DudChanceGrowth); // each win makes the next pull rarer
-        EmitSignal(SignalName.won);
+        _sfx?.play_at("box_spin", GlobalPosition);
+        _phase = Phase.Spinning;
+        _left = BoxRules.SpinTime;
+        _flicker = 0.0f;
+        _detail.Text = "";
+        _title.Visible = _detail.Visible = true;
     }
 
-    private void Pop()
+    public override void _Process(double delta)
     {
-        _visual.Scale = new Vector2(1.25f, 1.25f);
-        CreateTween().TweenProperty(_visual, "scale", Vector2.One, 0.22f)
-            .SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
+        if (_phase == Phase.Idle)
+            return;
+        float d = (float)delta;
+        _left -= d;
+        if (_phase == Phase.Spinning)
+        {
+            _flicker -= d;
+            if (_flicker <= 0.0f)
+            {
+                _flicker = FlickerInterval;
+                _title.Text = _spinNames[(int)(GD.Randi() % (uint)_spinNames.Count)];
+            }
+            if (_left <= 0.0f)
+                Reveal();
+        }
+        else if (_phase == Phase.Offering)
+        {
+            // The last quarter of the offer blinks — it's about to go.
+            _title.Visible = _left > BoxRules.OfferTime * 0.25f || Mathf.PosMod(_left, 0.3f) < 0.15f;
+            if (_left <= 0.0f)
+                EndOffer(); // not taken: declined, the figs stay spent
+        }
+        else if (_phase == Phase.Leaving && _left <= 0.0f)
+        {
+            Relocate();
+        }
+    }
+
+    /// <summary>The spin ends: a teddy bear refunds + sends the box away; anything else goes on offer.</summary>
+    private void Reveal()
+    {
+        _title.Text = _roll.Name;
+        _detail.Text = _roll.Description;
+        Pop();
+        if (_roll.Outcome == BoxOutcome.Teddy)
+        {
+            _title.AddThemeColorOverride("font_color", TeddyColor);
+            _ledger.Refund();
+            _sfx?.play_at("box_teddy", GlobalPosition);
+            _phase = Phase.Leaving;
+            _left = LeaveTime;
+            return;
+        }
+        _sfx?.play_at("box_result", GlobalPosition);
+        _phase = Phase.Offering;
+        _left = BoxRules.OfferTime;
+    }
+
+    private void EndOffer()
+    {
+        _phase = Phase.Idle;
+        _roll = null;
+        _title.Visible = _detail.Visible = false;
+    }
+
+    /// <summary>Move to another box spot — a hard one <see cref="BoxRules.HardSpotChance"/> of the time (when there is
+    /// one that isn't where it stands), else an easy one — fading out and back in, with the beam on until the player
+    /// arrives.</summary>
+    private void Relocate()
+    {
+        _phase = Phase.Idle;
+        _roll = null;
+        _title.Visible = _detail.Visible = false;
+        _title.AddThemeColorOverride("font_color", OfferColor);
+        var hard = Others(_hard);
+        var easy = Others(_easy);
+        var pool = hard.Count > 0 && (easy.Count == 0 || GD.Randf() < BoxRules.HardSpotChance) ? hard : easy;
+        Vector2 to = pool[(int)(GD.Randi() % (uint)pool.Count)];
+        var tween = CreateTween();
+        tween.TweenProperty(this, "modulate:a", 0.0f, FadeTime);
+        tween.TweenCallback(Callable.From(() =>
+        {
+            GlobalPosition = to;
+            _beam.Visible = true;
+        }));
+        tween.TweenProperty(this, "modulate:a", 1.0f, FadeTime);
+    }
+
+    protected override void PlayerArrived() => _beam.Visible = false; // found it
+
+    /// <summary>The box spots it isn't standing on (where a teddy bear could send it).</summary>
+    private List<Vector2> OtherSpots()
+    {
+        var all = Others(_easy);
+        all.AddRange(Others(_hard));
+        return all;
+    }
+
+    private List<Vector2> Others(List<Vector2> spots) => spots.FindAll(s => !s.IsEqualApprox(GlobalPosition));
+
+    /// <summary>A centred, outlined line of text over the box (hidden until a spin).</summary>
+    private Label MakeText(Vector2 at, int size, Color color)
+    {
+        var label = new Label
+        {
+            Position = at - new Vector2(TextWidth / 2.0f, 0.0f),
+            Size = new Vector2(TextWidth, 0.0f),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            Visible = false,
+        };
+        label.AddThemeFontSizeOverride("font_size", size);
+        label.AddThemeColorOverride("font_color", color);
+        label.AddThemeColorOverride("font_outline_color", Colors.Black);
+        label.AddThemeConstantOverride("outline_size", 4);
+        AddChild(label);
+        return label;
     }
 }

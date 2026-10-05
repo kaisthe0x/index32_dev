@@ -7,7 +7,7 @@ namespace MyGame;
 /// </summary>
 public enum EnemyMovement
 {
-    Ground,      // walks toward the player to chase (the default cohort: Kebus, Baghel, Mazab, Matat, Tarri, Breski)
+    Ground,      // walks toward the player to chase (the default cohort: Kebus, Baghel, Mazab, Matat, Tarri, Breski, Ventilator)
     Flying,      // airborne, ignores gravity/platforms (Ein — the DiverEnemy)
     Stationary,  // holds position, never moves (Nasen — the SleeperEnemy: dormant until triggered, then hits in place)
 }

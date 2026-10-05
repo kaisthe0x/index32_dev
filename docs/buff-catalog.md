@@ -1,6 +1,6 @@
 # Buff catalog — tiered, from `rewards-design.md`
 
-**STATUS: proposed tiers for red-pen.** This turns the `rewards-design.md` wishlist into a structured, tiered
+**STATUS: sorted into the three stalls (see "The three pools" below); the tier tables are the source of the numbers.** This turns the `rewards-design.md` wishlist into a structured, tiered
 catalog + a new **Seal** category, ready to become code against the buff-system spec in `game-loop.md`
 (§ Buff system). **Tiers and numbers are my proposal — adjust freely.**
 
@@ -11,6 +11,60 @@ catalog + a new **Seal** category, ready to become code against the buff-system 
 > **Note:** an earlier draft carried a `greedWeight` per buff (to scale a hidden boss). **Greed and the boss are
 > retired** — Wardens grow on a pure time + Seal-brake curve, nothing buff-side feeds them — so there is **no
 > greed column** here. If you see one anywhere, it's stale.
+
+---
+
+## The three pools (2026-09-28 — supersedes tiers + source-driven persistence below)
+
+The economy in `game-loop.md` § Economy sorts every buff into **one** stall by **kind**: **numbers** on Khalid's
+body → **Needle Point** (shots, N rounds, upgradeable levels) · **utility / tactics** → **Dekken** (perks, per-perk
+duration) · **new mechanics** → **Mystery Box** (permanent, single version). The tier tables further down stay as
+the source of the numbers: a shot's **levels** take the five `C / R / H / S / E` values (level 0 = C … level 4 = E);
+a box buff uses its **Hot** value as its single version (built 2026-10-04 — `BuffCatalog` factories carry one value; the `Tier` type is gone). "Built" = implemented in `configs/BuffCatalog.cs`
+today.
+
+**Needle Point — shots** *(built 2026-09-28, permanent ranks since 2026-09-29 — `configs/NeedlePoint.cs`; the old buffs
+listed under "From" are gone from the box pool and their buff classes deleted)*
+
+| Shot | From | Built | Note |
+|---|---|---|---|
+| **Extra Dash** | Chain Dash | ✓ | +1 / 2 / 3 dash **charges** (a new charge model); the "unlimited for 2 s" rider is a mechanic → dropped |
+| **Extra Jump** | Extra Air Jump | ✓ | +1 / 2 / 3 air jumps |
+| **Jump Height** | High Jump | ✓ | +15 … 80 % |
+| **Reach** | Long Reach | ✓ | +25 … 150 % |
+| **Slam Damage** | Slam Force | ✓ | +20 … 100 % |
+| **Run Speed** | — | ✓ | +10 … 30 % |
+| **Attack Damage** | — | ✓ | +15 … 65 % (the "+20 % damage" idea lives here, not in the box) |
+
+**Dekken — perks, sold as vials** *(built 2026-09-28; drink-now-or-keep, 2 carry slots, one of a kind, since 2026-10-04 — `configs/Dekken.cs`; Wider Pull left the box catalog, its buff class deleted)*
+
+| Perk | From | Built | Duration |
+|---|---|---|---|
+| **Heal** | — | ✓ | one use (a block) |
+| **Fast Travel** | — | ✓ | one use (teleport beside the box) |
+| **Fig Chance** | — | ✓ | whole run (+5 % on every enemy); leaves the pool once bought |
+| **Magnet** | — | ✓ | rounds (loose figs within 400 px fly to you) |
+| **Shield** | — | ✓ | rounds (blocks the first hit each round) |
+| **Prepared** | Prepared | ✓ | rounds (your surge fires free at **round** start — for Wara, it arms) |
+| **Wider Pull** | Wider Pull | ✓ | rounds (Come Closer pulls 2 more enemies; only stocked while Come Closer is equipped) |
+
+**Mystery Box — mechanics**
+
+- **Built:** Dash Immunity · Jump Immunity · Slam Immunity · Hit Guard · Follow-through · Slam Quake ·
+  Slam Spring · Slam Wrath · Momentum · Bloodrush · Skim · Instant Reset · Overcharge.
+- **Planned (NEW / ⏳ below):** Dash Damage · Dash Leech · Dash Stun · Dash Trap · Jump Trap (+ the four trap
+  flavours) · Perfect Dodge Haste / Fury / Aegis · Peak Slam · Slam Volley · Slam Feast · Opening Fury (retagged to
+  the first seconds of a **round**) · Ledge Save · Barrage · Air Wall · Spear Finisher · Backstab · Missfire ·
+  Discord (parked).
+- **Special-swap** (e.g. into Zahluq) stays an extreme-rarity box outcome.
+
+**For review (placement calls I made):**
+- **Wider Pull → Dekken:** it's a number, but on a *special*, not Khalid's body — Needle Point is body stats, so it
+  reads as a tactical perk. Alternatively it could stay a box buff.
+- **Prepared → Dekken:** a round-start surge is preparation. It could equally be a box mechanic.
+- **Slam Damage → Needle Point:** a pure number, but only matters if you slam — keep, or fold into Attack Damage.
+- **All five invuln procs → the box.** They're the strongest defensive mechanics; if the box pool feels
+  defense-heavy, one could move.
 
 ---
 
@@ -90,7 +144,12 @@ catalog + a new **Seal** category, ready to become code against the buff-system 
 | **Spear** | Finisher | final combo hit releases a spear projectile (`dmg` scales) | **NEW**; added dmg |
 | | Backstab | hits from behind deal `1.5/2/2.5/3/4×` | conditional but huge |
 | | Missfire | fire a spear per **missed** hit | **NEW**; ⏳ OnMiss |
-| **Bakshen** | Overcharge | on-hit, cooldown `−0.5/1/1.5/2/full` s | more Bakshen = massive dmg |
+
+## Special — Bakshen  (Bakshen moved from attack to special 2026-09-30)
+
+| Special | Buff | Effect & tier | Notes |
+|---|---|---|---|
+| **Bakshen** | Overcharge | each Bakshen hit cuts its cooldown `−0.5/1/1.5/2/full` s | more Bakshen = massive dmg |
 
 ## Surge  (all surges)
 

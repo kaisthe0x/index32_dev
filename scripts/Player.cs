@@ -109,23 +109,25 @@ public partial class Player : Combatant
     private const float BaseMaxHealth = HealthBlocks * 2.0f; // 3 blocks × 2 half-blocks = 6
     private const float HitCost = 1.0f;                      // one hit = half a block
     private const float SurgeHealHalfBlocks = 2.0f;          // the Nem surge restores one block
+    private const float ShieldGraceTime = 0.4f;              // i-frames after the Shield perk eats a hit
     private const float HealthWarnHalf = 0.5f;               // "health_half" cue at 1.5 blocks left
     private const float HealthWarnLow = 0.34f;               // "health_low" cue at ~1 block left
 
     public float damage_mult = 1.0f;
     public float run_mult = 1.0f;
     public int air_jump_bonus = 0;
-    public float damage_taken_mult = 1.0f;   // Thick Hide
-    public float slam_damage_mult = 1.0f;    // Meteor
+    public int dash_bonus = 0;                // extra dash CHARGES on top of the one you always have
+    public float slam_damage_mult = 1.0f;    // Slam Damage shot
     public float attack_reach_mult = 1.0f;   // Long Arm
     public int attack_projectile_bonus = 0;  // Split Shot (WIP)
-    public bool impervious_until_hit = false; // Last Stand (WIP)
     public float special_radius_mult = 1.0f;  // Wide Impact (WIP)
     public float special_invuln_bonus = 0.0f; // Fortitude: extends any surge window
-    public float jump_velocity_bonus = 1.0f;  // High Jump: multiplies applied jump velocity (all jumps)
-    public int magnet_target_bonus = 0;        // Wider Pull: extra Come Closer magnet targets
+    public float jump_velocity_bonus = 1.0f;  // Jump Height shot: multiplies applied jump velocity (all jumps)
+    public int magnet_target_bonus = 0;        // Wider Pull perk: extra Come Closer magnet targets
+    public float fig_chance_bonus = 0.0f;      // Fig Chance perk: added to every kill's fada_fig drop chance
+    public float fig_magnet_range = 0.0f;      // Magnet perk: loose fada_figs within this (px) fly to you (0 = off)
+    public int hit_shields = 0;                // Shield perk: hits blocked outright before any damage
 
-    private readonly List<string> _rewardsTaken = new();
     private const string StartingDashEffect = "dash_default";
     private string _dashEffect = StartingDashEffect;
 
@@ -176,7 +178,8 @@ public partial class Player : Combatant
     private SegmentData _activeHit = new();
     private float _dashLeft = 0.0f;
     private float _dashAnimLeft = 0.0f;
-    private float _dashCd = 0.0f;
+    private float _dashCd = 0.0f;         // time until the next dash charge refills (runs while below max)
+    private int _dashCharges = 1;
     private bool _dashCustom = false;
     private bool _blinkDash = false;
     private bool _blinkPhaseWalls = false;
@@ -202,6 +205,7 @@ public partial class Player : Combatant
     private bool _bufferedAttack = false;
     private bool _flurry = false;
     private float _stunLeft = 0.0f;
+    private float _gustLeft = 0.0f; // a gust is carrying him (Combat.GustCarryTime): weak steering, no air brake
     private float _armorLeft = 0.0f;
     private float _holdLeft = 0.0f;
     private BlastStrike _channel = null;
@@ -232,8 +236,6 @@ public partial class Player : Combatant
     [Export] public bool flinch_on_all_damage = true;
 
     private float _specialCd = 0.0f;
-    private float _attackCd = 0.0f;
-    private FloatingHealthBar _cooldownBar = null; // above-head ATTACK cooldown (specials have their own HUD bar)
     private AudioStreamPlayer _runSfx = null;
     private AudioStreamPlayer _slamDownSfx = null;
     private const float RuhFlashRefractory = 0.2f;
@@ -257,6 +259,7 @@ public partial class Player : Combatant
     public override void _Ready()
     {
         _sprite = GetNode<AnimatedSprite2D>("AnimatedSprite2D");
+        Combat.ApplyFloorHandling(this); // shared slope handling — walk up painted ramps, stay glued going down
 
         health = max_health;
         ApplyCharacter();
@@ -330,7 +333,8 @@ public partial class Player : Combatant
         _bufferedSpecial = false;
         _bufferedAttack = false;
         _flurry = false;
-        _attackCd = 0.0f;
+        _dashCd = 0.0f;
+        _dashCharges = MaxDashCharges;
         if (!Engine.IsEditorHint())
             _state = State.IDLE;
         sprite.SpeedScale = 1.0f;
@@ -434,48 +438,58 @@ public partial class Player : Combatant
     /// <summary>A character's intrinsic ability, or null. Khalid ships without one. (Add a case when a character gets a C# CharacterAbility.)</summary>
     private static Passive CharacterAbilityFor(string character) => null;
 
+    /// <summary>Whether a passive with this id is on him (a box buff he already holds).</summary>
+    public bool has_passive(string id)
+    {
+        foreach (var p in _passives)
+            if (p.Id == id)
+                return true;
+        return false;
+    }
+
     public void add_passive(Passive p)
     {
-        // REPLACE-IN-PLACE: a Buff with a non-empty family supersedes any held buff of the same family.
-        if (p is Buff b && b.Family != "")
-        {
-            foreach (var existing in new List<Passive>(_passives))
-                if (existing is Buff eb && eb.Family == b.Family)
-                {
-                    existing.Teardown(this);
-                    _passives.Remove(existing);
-                }
-        }
         _passives.Add(p);
         p.Setup(this);
         RefreshBuffHud();
     }
 
+    /// <summary>Remove one held passive, undoing its changes (a Needle Point shot running out). No-op if not held.</summary>
+    public void remove_passive(Passive p)
+    {
+        if (!_passives.Remove(p))
+            return;
+        p.Teardown(this);
+        RefreshBuffHud();
+    }
+
+    /// <summary>Re-push the active-buff list to the HUD (a shot's rounds-left changed without the list changing).</summary>
+    public void refresh_buff_hud() => RefreshBuffHud();
+
     /// <summary>Push the current buff loadout to the HUD's active-buff list (autoload).</summary>
     private void RefreshBuffHud() => GetNodeOrNull<HUD>("/root/HUD")?.RefreshBuffs(_passives);
 
-    /// <summary>Emitted whenever fada_figs are collected — carries the current spendable balance + the run's LIFETIME
-    /// total collected. RunManager listens to fire the milestone buff-menu off the lifetime total.</summary>
-    [Signal] public delegate void fada_collectedEventHandler(int balance, int lifetime);
+    /// <summary>Lira banked this run — the common currency (docs/game-loop.md § Economy). Reset by <see cref="begin_run"/>.</summary>
+    public int lira { get; private set; } = 0;
 
-    /// <summary>FadaFigs banked this run — the SPENDABLE balance (mystery box spends it). Reset by <see cref="begin_run"/>.</summary>
+    /// <summary>Collect <paramref name="n"/> Lira (a <see cref="Lira"/> coin reached the player) — bank it + update the HUD.</summary>
+    public void collect_lira(int n)
+    {
+        lira += n;
+        GetNodeOrNull<HUD>("/root/HUD")?.SetLira(lira);
+    }
+
+    /// <summary>FadaFigs banked this run — the rare currency (the mystery box spends it). Reset by <see cref="begin_run"/>.</summary>
     public int fada_figs { get; private set; } = 0;
-
-    /// <summary>Total fada_figs collected this run (monotonic — the box's spending never lowers it). Drives the free
-    /// milestone buff-menu, so spending at the box doesn't cost menu progress. Reset by <see cref="begin_run"/>.</summary>
-    public int fada_lifetime { get; private set; } = 0;
 
     /// <summary>Collect <paramref name="n"/> fada_fig(s) (a FadaFig touched the player) — bank them + update the HUD.</summary>
     public void collect_fada_fig(int n = 1)
     {
         fada_figs += n;
-        fada_lifetime += n;
         GetNodeOrNull<HUD>("/root/HUD")?.SetFadaFigs(fada_figs);
-        EmitSignal(SignalName.fada_collected, fada_figs, fada_lifetime);
     }
 
-    /// <summary>Try to spend <paramref name="cost"/> fada_figs (the mystery box). True + deducts if affordable; else false.
-    /// Only the spendable balance moves — <see cref="fada_lifetime"/> (menu progress) is untouched.</summary>
+    /// <summary>Try to spend <paramref name="cost"/> fada_figs (the mystery box). True + deducts if affordable; else false.</summary>
     public bool spend_fada_figs(int cost)
     {
         if (cost <= 0 || fada_figs < cost)
@@ -504,27 +518,6 @@ public partial class Player : Combatant
     {
         foreach (var p in _passives)
             p.OnAnimEnd(this);
-    }
-
-    public void record_reward(string id) => _rewardsTaken.Add(id);
-
-    public GArr rewards_taken()
-    {
-        var arr = new GArr();
-        foreach (var id in _rewardsTaken)
-            arr.Add(id);
-        return arr;
-    }
-
-    /// <summary>Advance the run one LEVEL: tick down every level-scoped buff's lifetime and tear out any that expired (doc: temporary buffs). Call from RunManager on level advance.</summary>
-    public void advance_level()
-    {
-        foreach (var existing in new List<Passive>(_passives))
-            if (existing is Buff b && b.TickLevelAndExpired())
-            {
-                existing.Teardown(this);
-                _passives.Remove(existing);
-            }
     }
 
     public int get_state() => (int)_state;
@@ -637,14 +630,11 @@ public partial class Player : Combatant
     /// <summary>Grant a generic invulnerability window (the immunity buffs: dash/jump/slam/on-hit). Refreshes to the longer.</summary>
     public void grant_invuln(float seconds) => _iframesLeft = Mathf.Max(_iframesLeft, seconds);
 
-    /// <summary>Add air jumps for the run (ExtraAirJump buff) — bumps the bonus AND the live max. Undo with n &lt; 0.</summary>
+    /// <summary>Add air jumps (the Extra Jump shot) — bumps the bonus AND the live max. Undo with n &lt; 0.</summary>
     public void add_air_jumps(int n) { air_jump_bonus += n; _maxAirJumps += n; }
 
     /// <summary>Prime the NEXT ground jump with a height multiplier (Slam Spring) — one-shot, consumed on that jump.</summary>
     public void set_jump_spring(float mult) => _slamSpringBonus = mult;
-
-    /// <summary>Lower the current attack cooldown (Bakshen Overcharge on-hit). Clamped to zero (a huge value = full reset).</summary>
-    public void reduce_attack_cooldown(float seconds) => _attackCd = Mathf.Max(_attackCd - seconds, 0.0f);
 
     /// <summary>Shave <paramref name="seconds"/> off the special's cooldown (clamped at ready).</summary>
     public void reduce_special_cooldown(float seconds) => _specialCd = Mathf.Max(_specialCd - seconds, 0.0f);
@@ -656,8 +646,32 @@ public partial class Player : Combatant
         return cd > 0.0f ? 1.0f - _specialCd / cd : 1.0f;
     }
 
-    /// <summary>Zero the dash cooldown so the follow-up dash is free (Chain Dash on-dash).</summary>
-    public void reset_dash_cooldown() => _dashCd = 0.0f;
+    /// <summary>How many dashes are banked now vs. the most you can hold (1 + <see cref="dash_bonus"/>).</summary>
+    private int MaxDashCharges => 1 + dash_bonus;
+
+    /// <summary>Add dash charges (the +Dash shot) — raises the max AND hands the new charges over now. Undo with n &lt; 0.</summary>
+    public void add_dash_charges(int n)
+    {
+        dash_bonus += n;
+        _dashCharges = Mathf.Clamp(_dashCharges + n, 0, MaxDashCharges);
+    }
+
+    /// <summary>Scale run speed (the Run Speed shot) — the live speed as well as the multiplier the next equip reads.</summary>
+    public void scale_run_speed(float f)
+    {
+        run_mult *= f;
+        _runSpeedV *= f;
+    }
+
+    /// <summary>Try to spend <paramref name="cost"/> Lira (the stalls). True + deducts if affordable; else false.</summary>
+    public bool spend_lira(int cost)
+    {
+        if (cost < 0 || lira < cost)
+            return false;
+        lira -= cost;
+        GetNodeOrNull<HUD>("/root/HUD")?.SetLira(lira);
+        return true;
+    }
 
     /// <summary>Global cooldown fairness: an action whose windup is interrupted by a stagger BEFORE its hit came out
     /// never actually fired, so it shouldn't burn its cooldown. An ATTACK still short of its hit frame
@@ -667,27 +681,25 @@ public partial class Player : Combatant
     {
         if (_sprite == null)
             return;
-        if (_state == State.ATTACK && _sprite.Frame < _segEnd)
-            _attackCd = 0.0f;
-        else if (_state == State.SPECIAL && _sprite.Frame < SpecialStrikeFrame())
+        if (_state == State.SPECIAL && _sprite.Frame < SpecialStrikeFrame())
             _specialCd = 0.0f;
     }
 
     // --- DEBUG: playtest the buff catalog (triggered from RunManager's input; REMOVE before release) -------
     private int _debugBuffIdx = 0;
 
-    /// <summary>DEBUG: grant the next wired catalog buff (at Hot), cycling through the whole set.</summary>
+    /// <summary>DEBUG: grant the next wired catalog buff, cycling through the whole set.</summary>
     public void debug_grant_next_buff()
     {
         var ids = new List<string>(BuffCatalog.FACTORIES.Keys);
         if (ids.Count == 0)
             return;
         string id = ids[_debugBuffIdx++ % ids.Count];
-        var buff = BuffCatalog.Make(id, Tier.Hot);
+        var buff = BuffCatalog.Make(id);
         if (buff != null)
         {
             add_passive(buff);
-            GD.Print($"[DEBUG] granted buff: {id} (Hot)");
+            GD.Print($"[DEBUG] granted buff: {id}");
         }
     }
 
@@ -722,7 +734,7 @@ public partial class Player : Combatant
         }
     }
 
-    /// <summary>The jump velocity to apply, folding in High Jump (all jumps) and, for a GROUND jump, a one-shot Slam Spring (consumed here).</summary>
+    /// <summary>The jump velocity to apply, folding in the Jump Height shot (all jumps) and, for a GROUND jump, a one-shot Slam Spring (consumed here).</summary>
     private float AppliedJumpVelocity(bool ground)
     {
         float v = _jumpVelocity * jump_velocity_bonus;
@@ -785,7 +797,7 @@ public partial class Player : Combatant
     {
         AddToGroup("player");
         CollisionLayer = (uint)Combat.Layer.PlayerBody;
-        CollisionMask = (uint)Combat.Layer.World;
+        CollisionMask = Combat.GroundMask;
 
         _hurtbox = new Hurtbox { CollisionLayer = (uint)Combat.Layer.PlayerHurt, CollisionMask = 0 };
         _hurtbox.AddChild(MakeBox(new Vector2(16, 30), new Vector2(0, -15)));
@@ -795,14 +807,6 @@ public partial class Player : Combatant
         _status = new StatusOverlay();
         AddChild(_status);
         _status.Setup(_sprite);
-
-        _cooldownBar = new FloatingHealthBar
-        {
-            FillColor = new Color(1.0f, 0.08f, 0.08f),
-            Position = new Vector2(0, -52),
-            Visible = false,
-        };
-        AddChild(_cooldownBar);
 
         if (!Engine.IsEditorHint())
         {
@@ -871,9 +875,22 @@ public partial class Player : Combatant
                 return;
             }
         }
+        if (hit.Gust > 0.0f)
+        {
+            BlownAway(hit);
+            return;
+        }
         if (_surgeArmed && hit.Source is Enemy)
         {
             TriggerWara();
+            return;
+        }
+        if (hit_shields > 0)
+        {
+            hit_shields -= 1;
+            _sfx.play("redere_shield_block");
+            Flash(_sprite);
+            grant_invuln(ShieldGraceTime); // a hit rarely comes alone — don't let the next one land the same instant
             return;
         }
         take_damage(hit.Amount);
@@ -881,24 +898,7 @@ public partial class Player : Combatant
             return;
         foreach (var p in _passives)
             p.OnHurt(this, hit);
-        if (_state == State.LAUNCH)
-        {
-            _launchOrb = null;
-            _launchCdLeft = LaunchCd;
-        }
-        if (_channel != null && IsInstanceValid(_channel) && _channel.interrupt_on_hurt)
-        {
-            _channel.cancel();
-            _holdLeft = 0.0f;
-            _sprite.Play();
-        }
-        _channel = null;
-        if (_surgeChannel)
-        {
-            EndSurge();
-            if (_state == State.SURGE)
-                Enter(State.IDLE);
-        }
+        BreakOffForHit();
         if (_armorLeft > 0.0f)
             return;
         float stagger = ApplyKnockback(hit, _facing);
@@ -919,6 +919,47 @@ public partial class Player : Combatant
             _status.ShowFor(hit.StatusColor, hit.StatusTime);
         if (hit.VictimVfx != null)
             SpawnVictimVfx(hit.VictimVfx, hit.VictimVfxTime);
+    }
+
+    /// <summary>What any landed hit interrupts: an orb launch, a channelled strike he's holding (if it allows), and a
+    /// channelled surge (Nem's sleep wakes).</summary>
+    private void BreakOffForHit()
+    {
+        if (_state == State.LAUNCH)
+        {
+            _launchOrb = null;
+            _launchCdLeft = LaunchCd;
+        }
+        if (_channel != null && IsInstanceValid(_channel) && _channel.interrupt_on_hurt)
+        {
+            _channel.cancel();
+            _holdLeft = 0.0f;
+            _sprite.Play();
+        }
+        _channel = null;
+        if (_surgeChannel)
+        {
+            EndSurge();
+            if (_state == State.SURGE)
+                Enter(State.IDLE);
+        }
+    }
+
+    /// <summary>A GUST hit (<see cref="Hit.Gust"/>, Ventilator's wind): no damage, no stagger — it breaks off whatever
+    /// he's doing and flings him away from the source. For <see cref="Combat.GustCarryTime"/> his air steering is weak
+    /// and only works against the fling (ProcessNormal); an air jump or a dash BREAKS the carry (full control back) —
+    /// those are how he recovers.</summary>
+    private void BlownAway(Hit hit)
+    {
+        BreakOffForHit();
+        RefundUncommittedCooldown(); // blown out of a wind-up: read state BEFORE we leave ATTACK/SPECIAL
+        _stunLeft = 0.0f;
+        _holdLeft = 0.0f;
+        _bufferedSpecial = false;
+        Velocity = GustVelocity(hit, _facing);
+        _gustLeft = Combat.GustCarryTime;
+        _jumpLaunch = false;
+        Enter(AirborneDefault());
     }
 
     public void apply_lunge(float impulse) => SetVelX(impulse * _facing);
@@ -979,16 +1020,34 @@ public partial class Player : Combatant
 
     private void TrySurge()
     {
-        if (_dead || _currentSurge?.Surge == null)
-            return;
-        if (_surgeChannel || _surgeArmed)
-            return;
-        if (!Input.IsActionJustPressed("surge"))
+        if (!CanSurge() || !Input.IsActionJustPressed("surge"))
             return;
         var s = _currentSurge.Surge;
         if (ruh < s.cost)
             return;
         ruh -= s.cost;
+        FireSurge(s);
+    }
+
+    private bool CanSurge() => !_dead && _currentSurge?.Surge != null && !_surgeChannel && !_surgeArmed;
+
+    /// <summary>Fire the equipped surge WITHOUT spending Ruh (the Prepared perk, at round start). No-op if one is
+    /// already going.</summary>
+    public void surge_free()
+    {
+        if (CanSurge())
+            FireSurge(_currentSurge.Surge);
+    }
+
+    /// <summary>Tell every passive a round began (RunManager.StartRound) — see <see cref="Passive.OnRoundStart"/>.</summary>
+    public void notify_round_start()
+    {
+        foreach (var p in new List<Passive>(_passives))
+            p.OnRoundStart(this);
+    }
+
+    private void FireSurge(SurgeSpec s)
+    {
         BeginSurge(s);
         Flash(_sprite);
         _sfx.play(Anim(_currentSurge).ToString());
@@ -1104,6 +1163,8 @@ public partial class Player : Combatant
     }
 
     public bool is_dead() => _dead;
+    /// <summary>In a channelled surge (Nem's sleep) — the stand-still kamikaze clock pauses for it.</summary>
+    public bool is_channeling_surge() => _surgeChannel;
     public bool death_complete() => _dead && _deathFinished;
 
     public void release_death()
@@ -1196,8 +1257,9 @@ public partial class Player : Combatant
         _dead = false;
         _deathFinished = false;
         _fellOut = false;
+        lira = 0;
         fada_figs = 0;
-        fada_lifetime = 0;
+        GetNodeOrNull<HUD>("/root/HUD")?.SetLira(0);
         GetNodeOrNull<HUD>("/root/HUD")?.SetFadaFigs(0);
         EndSurge();
         _shakeLeft = 0.0f;
@@ -1206,11 +1268,10 @@ public partial class Player : Combatant
         _parryLeft = 0.0f;
         damage_mult = 1.0f;
         run_mult = 1.0f;
-        damage_taken_mult = 1.0f;
+        dash_bonus = 0;
         slam_damage_mult = 1.0f;
         attack_reach_mult = 1.0f;
         attack_projectile_bonus = 0;
-        impervious_until_hit = false;
         special_radius_mult = 1.0f;
         _dashEffect = StartingDashEffect;
         special_invuln_bonus = 0.0f;
@@ -1218,9 +1279,11 @@ public partial class Player : Combatant
         jump_velocity_bonus = 1.0f;
         _slamSpringBonus = 1.0f;
         magnet_target_bonus = 0;
+        fig_chance_bonus = 0.0f;
+        fig_magnet_range = 0.0f;
+        hit_shields = 0;
         ruh_cap = BaseRuhCap;
         air_jump_bonus = 0;
-        _rewardsTaken.Clear();
         max_health = BaseMaxHealth;
         _loadout.Clear();
         ApplyCharacter();
@@ -1244,14 +1307,16 @@ public partial class Player : Combatant
             return;
         }
 
-        _dashCd = Mathf.Max(_dashCd - delta, 0.0f);
+        if (_dashCharges < MaxDashCharges && (_dashCd -= delta) <= 0.0f)
+        {
+            _dashCharges += 1; // one charge back per cooldown; keep timing if more are still missing
+            _dashCd = _dashCharges < MaxDashCharges ? _dashCooldown : 0.0f;
+        }
         if (!HoldingSpecial())
             _specialCd = Mathf.Max(_specialCd - delta, 0.0f); // a held special's cooldown starts on release
         _launchCdLeft = Mathf.Max(_launchCdLeft - delta, 0.0f);
         UpdateOrbProximity();
         TrySurge();
-        _attackCd = Mathf.Max(_attackCd - delta, 0.0f);
-        UpdateCooldownBar();
         _ruhFlashCd = Mathf.Max(_ruhFlashCd - delta, 0.0f);
         _armorLeft = Mathf.Max(_armorLeft - delta, 0.0f);
         _iframesLeft = Mathf.Max(_iframesLeft - delta, 0.0f);
@@ -1274,6 +1339,7 @@ public partial class Player : Combatant
             _apexY = Mathf.Min(_apexY, GlobalPosition.Y);
         }
         _justLanded = onFloor && !_wasOnFloor && _fallPeak >= _landMinFallSpeed;
+        _gustLeft = onFloor && !_wasOnFloor ? 0.0f : Mathf.Max(_gustLeft - delta, 0.0f); // touching down ends a gust
         if (onFloor && !_wasOnFloor && _passives.Count > 0)
         {
             float drop = Mathf.Max(GlobalPosition.Y - _apexY, 0.0f);
@@ -1406,7 +1472,17 @@ public partial class Player : Combatant
             AddVelY(_gravity * gScale * delta);
         }
 
-        if (input != 0.0f)
+        bool gusted = _gustLeft > 0.0f && !IsOnFloor();
+        if (gusted)
+        {
+            // Riding a gust: no air brake, and steering only pushes back AGAINST the fling, weakly — holding the way
+            // he's blown can't slow him to run speed either.
+            if (input != 0.0f)
+                _facing = input > 0.0f ? 1 : -1;
+            if (input != 0.0f && Mathf.Sign(input) != Mathf.Sign(Velocity.X))
+                SetVelX(Mathf.MoveToward(Velocity.X, input * RunSpeed(), _acceleration * Combat.GustControl * delta));
+        }
+        else if (input != 0.0f)
         {
             _facing = input > 0.0f ? 1 : -1;
             SetVelX(Mathf.MoveToward(Velocity.X, input * RunSpeed(), _acceleration * delta));
@@ -1429,7 +1505,7 @@ public partial class Player : Combatant
                 return;
             }
         }
-        if (Input.IsActionJustPressed("attack") && (IsOnFloor() || AirAttackOk()))
+        if (AttackHeld() && !gusted && (IsOnFloor() || AirAttackOk())) // no swinging while blown (it would halt the fling)
         {
             AdvanceCombo();
             return;
@@ -1445,7 +1521,7 @@ public partial class Player : Combatant
                     return;
                 }
             }
-            if (_dashCd <= 0.0f)
+            if (_dashCharges > 0)
             {
                 Enter(State.DASH);
                 return;
@@ -1571,29 +1647,31 @@ public partial class Player : Combatant
 
     private const float DropThroughTime = 0.3f;
 
-    private bool DropThroughPlatform()
+    /// <summary>Drop down through the one-way platform he's standing on: stop colliding with the Platform layer for
+    /// <see cref="DropThroughTime"/> (solid ground stays solid). Only when the floor under him IS a platform — the
+    /// tile bodies of a TileMapLayer carry their physics layer's collision layer, so the floor contact tells us.</summary>
+    private void DropThroughPlatform()
     {
+        const uint platform = (uint)Combat.Layer.Platform;
         for (int i = 0; i < GetSlideCollisionCount(); i++)
         {
-            var collider = GetSlideCollision(i).GetCollider();
-            if (collider is Node n && n.IsInGroup("oneway_platform"))
+            var c = GetSlideCollision(i);
+            if (c.GetNormal().Dot(UpDirection) < 0.5f || (PhysicsServer2D.BodyGetCollisionLayer(c.GetColliderRid()) & platform) == 0)
+                continue; // not a floor contact with a platform
+            CollisionMask &= ~platform;
+            SetVelY(Mathf.Max(Velocity.Y, 60.0f));
+            GetTree().CreateTimer(DropThroughTime).Timeout += () =>
             {
-                AddCollisionExceptionWith(n);
-                SetVelY(Mathf.Max(Velocity.Y, 60.0f));
-                var body = n;
-                GetTree().CreateTimer(DropThroughTime).Timeout += () =>
-                {
-                    if (IsInstanceValid(body))
-                        RemoveCollisionExceptionWith(body);
-                };
-                return true;
-            }
+                if (IsInstanceValid(this))
+                    CollisionMask |= platform;
+            };
+            return;
         }
-        return false;
     }
 
     private void AirJump()
     {
+        _gustLeft = 0.0f; // an air jump catches him out of a gust — full air control back (a recovery move)
         SetVelY(AppliedJumpVelocity(false));
         _airJumpsUsed += 1;
         _sfx.play("jump");
@@ -1628,7 +1706,7 @@ public partial class Player : Combatant
                 Enter(State.SLAM);
                 return;
             }
-            if (Input.IsActionJustPressed("attack") && AirAttackOk())
+            if (AttackHeld() && AirAttackOk())
             {
                 AdvanceCombo();
                 return;
@@ -1644,7 +1722,7 @@ public partial class Player : Combatant
                         return;
                     }
                 }
-                if (_dashCd <= 0.0f)
+                if (_dashCharges > 0)
                 {
                     Enter(State.DASH);
                     return;
@@ -1660,12 +1738,12 @@ public partial class Player : Combatant
             StartSpecial();
             return;
         }
-        if (Input.IsActionJustPressed("attack"))
+        if (AttackHeld())
         {
             AdvanceCombo();
             return;
         }
-        if (Input.IsActionJustPressed("dash") && _dashCd <= 0.0f)
+        if (Input.IsActionJustPressed("dash") && _dashCharges > 0)
         {
             Enter(State.DASH);
             return;
@@ -1756,7 +1834,9 @@ public partial class Player : Combatant
             StartSpecial();
             return;
         }
-        if (Input.IsActionJustPressed("attack"))
+        // A press chains the next hit; HOLDING chains it too — except after the combo's last hit, which keeps its
+        // recovery beat before holding loops the combo back to its first hit (via IDLE).
+        if (Input.IsActionJustPressed("attack") || (AttackHeld() && _comboStep < AttackHits().Count))
         {
             AdvanceCombo();
             return;
@@ -1771,6 +1851,9 @@ public partial class Player : Combatant
             Enter(State.IDLE);
         }
     }
+
+    /// <summary>The attack button is down — every attack keeps going while it's held (flurries loop, combos chain).</summary>
+    private static bool AttackHeld() => Input.IsActionPressed("attack");
 
     /// <summary>A "held" special (Redere Shield) is up right now — its cooldown waits until it's released.</summary>
     private bool HoldingSpecial() => _state == State.SPECIAL && _currentSpecial != null && HasTag(_currentSpecial, "held");
@@ -1931,9 +2014,6 @@ public partial class Player : Combatant
                 StartFlurry();
             return;
         }
-        if (_currentAttack != null && CooldownOf(_currentAttack) > 0.0f && _attackCd > 0.0f)
-            return;
-
         var hits = AttackHits();
         if (hits.Count == 0)
             return;
@@ -1952,8 +2032,6 @@ public partial class Player : Combatant
         _sprite.SpeedScale = 1.0f;
         _sprite.Play(Anim(_currentAttack));
         _sprite.SetFrameAndProgress(segStart, 0.0f);
-        if (CooldownOf(_currentAttack) > 0.0f)
-            _attackCd = CooldownOf(_currentAttack);
     }
 
     private void StartFlurry()
@@ -1964,28 +2042,6 @@ public partial class Player : Combatant
         Enter(State.ATTACK);
         _sprite.SpeedScale = 1.0f;
         _sprite.Play(Anim(_currentAttack));
-    }
-
-    /// <summary>The above-head bar tracks the ATTACK cooldown only (e.g. Bakshen); specials have their own bar in the
-    /// HUD gauge, so the two never share one.</summary>
-    private void UpdateCooldownBar()
-    {
-        if (_cooldownBar == null)
-            return;
-        float cd = 0.0f, left = 0.0f;
-        if (_currentAttack != null && CooldownOf(_currentAttack) > 0.0f && _attackCd > 0.0f)
-        {
-            cd = CooldownOf(_currentAttack);
-            left = _attackCd;
-        }
-        if (cd <= 0.0f || left <= 0.0f)
-        {
-            if (_cooldownBar.Visible)
-                _cooldownBar.Visible = false;
-            return;
-        }
-        _cooldownBar.Visible = true;
-        _cooldownBar.SetRatio(1.0f - left / cd);
     }
 
     private GArr AttackHits()
@@ -2014,9 +2070,12 @@ public partial class Player : Combatant
         switch (state)
         {
             case State.DASH:
+                _gustLeft = 0.0f; // dashing breaks out of a gust (a recovery move)
                 _dashLeft = _dashTime;
                 _dashAnimLeft = Mathf.Max(_dashAnimTime, _dashTime);
-                _dashCd = _dashCooldown;
+                if (_dashCharges == MaxDashCharges)
+                    _dashCd = _dashCooldown; // the refill clock starts with the first charge spent
+                _dashCharges -= 1;
                 _bufferedAttack = false;
                 _sfx.play("dash");
                 foreach (var p in _passives)

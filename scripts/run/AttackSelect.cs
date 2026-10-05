@@ -7,7 +7,7 @@ namespace MyGame;
 /// The run-start "choose your attack" screen — an INVENTORY-style grid of weapon ICONS in a framed panel. Selecting
 /// one (click / hover-focus) reveals its name + stats + description in the details pane below; a Confirm (or clicking
 /// the already-selected weapon) locks it in for the whole run. RunManager opens this and awaits <c>chosen(id)</c>,
-/// then equips it. Built in code, pauses the game. Also owns the shared <see cref="CardBody"/> used by <see cref="RewardUI"/>.
+/// then equips it. Built in code, pauses the game.
 /// </summary>
 [GlobalClass]
 public partial class AttackSelect : CanvasLayer
@@ -150,7 +150,6 @@ public partial class AttackSelect : CanvasLayer
     private static string TypeLabel(Action a) => a.Style switch
     {
         ActionStyle.Flurry => "Flurry",
-        ActionStyle.Cooldown => "Charged",
         _ => "Combo",
     };
 
@@ -164,41 +163,6 @@ public partial class AttackSelect : CanvasLayer
         cell.AddThemeStyleboxOverride("hover", sb);
         cell.AddThemeStyleboxOverride("pressed", sb);
         cell.AddThemeStyleboxOverride("focus", sb);
-    }
-
-    /// <summary>A centered fixed-size icon over a wrapped label, filling a card and transparent to the mouse
-    /// (so the parent Button gets the click). Shared card content (RewardUI); `cardW` bounds the label width.</summary>
-    public static Control CardBody(Texture2D tex, string text, float cardW)
-    {
-        var box = new VBoxContainer
-        {
-            Alignment = BoxContainer.AlignmentMode.Center,
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-        };
-        box.SetAnchorsAndOffsetsPreset(Control.LayoutPreset.FullRect);
-        box.AddThemeConstantOverride("separation", 6);
-        var icon = new TextureRect
-        {
-            Texture = tex,
-            CustomMinimumSize = new Vector2(64, 64), // icon is the hero of the card
-            ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
-            StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
-            SizeFlagsHorizontal = Control.SizeFlags.ShrinkCenter,
-            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
-            TextureFilter = CanvasItem.TextureFilterEnum.LinearWithMipmaps, // smooth any scale (icons are hi-res, not pixel-art)
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-        };
-        box.AddChild(icon);
-        var label = new Label
-        {
-            Text = text,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            CustomMinimumSize = new Vector2(cardW - 14, 0),
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-        };
-        box.AddChild(label);
-        return box;
     }
 
     private void Pick(string id)

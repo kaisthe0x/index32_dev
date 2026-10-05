@@ -28,6 +28,17 @@ public partial class Combatant : CharacterBody2D
     /// Apply an incoming hit's knockback to this body and return how long to stagger (0 = none). The caller
     /// applies its own stun with the returned time and passes its facing (the shove dir when the source is level).
     /// </summary>
+    /// <summary>The velocity a GUST hit (<see cref="Hit.Gust"/>) flings this body with: away from the source (or behind
+    /// <paramref name="facing"/> if the source is gone or level with it) and up by <see cref="Combat.GustLift"/>.</summary>
+    public Vector2 GustVelocity(Hit hit, int facing)
+    {
+        int dir = GodotObject.IsInstanceValid(hit.Source) && hit.Source is Node2D src
+            ? Mathf.Sign(GlobalPosition.X - src.GlobalPosition.X) : 0;
+        if (dir == 0)
+            dir = -facing;
+        return new Vector2(dir * hit.Gust, -hit.Gust * Combat.GustLift);
+    }
+
     public float ApplyKnockback(Hit hit, int facing)
     {
         float stagger = hit.Stun;

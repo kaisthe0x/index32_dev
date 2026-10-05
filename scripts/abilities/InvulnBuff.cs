@@ -3,23 +3,23 @@ using Godot;
 namespace MyGame;
 
 /// <summary>
-/// Grant a per-tier invulnerability window when its bound trigger fires — the catalog's immunity buffs
+/// Grant an invulnerability window when its bound trigger fires — the catalog's immunity buffs
 /// (Dash Immunity, Jump Immunity, Slam Immunity, Hit Guard). One generic class, ROUTED by <see cref="Buff.Trigger"/>:
 /// the granted instance's Trigger picks which hook actually grants. Uses <c>Player.grant_invuln</c>. Built by
 /// <see cref="BuffCatalog"/>. (Perfect-Dodge / anim-end immunity land once those triggers emit.)
 /// </summary>
 public partial class InvulnBuff : Buff
 {
-    private readonly float[] _secs;  // per-tier seconds, indexed Common..Epic
+    private readonly float _secs;  // the window, seconds
 
-    public InvulnBuff(string id, Trigger trig, float[] secs)
+    public InvulnBuff(string id, Trigger trig, float secs)
     {
         Id = id;
         Trigger = trig;
         _secs = secs;
     }
 
-    private void Grant(Player p) => p.grant_invuln(_secs[Mathf.Clamp((int)Tier, 0, _secs.Length - 1)]);
+    private void Grant(Player p) => p.grant_invuln(_secs);
 
     public override void OnDash(Player p) { if (Trigger == Trigger.OnDash) Grant(p); }
     public override void OnGroundJump(Player p) { if (Trigger == Trigger.OnGroundJump) Grant(p); }

@@ -38,7 +38,6 @@ public static class UiStyle
     // --- type (Sixtyfour is drawn on an 8px grid, so sizes are multiples of 8) ---------------------------------------
     public const int SizeBody = 8;
     public const int SizeTitle = 16;
-    public const int SizeBanner = 32;
 
     // --- named styles (theme type variations) -------------------------------------------------------------------------
     public const string Title = "TitleLabel";       // big, CRT-scanline font, accent colour
