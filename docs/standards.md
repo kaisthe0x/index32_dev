@@ -181,8 +181,8 @@ A QA pass does not raise these as findings. They were chosen on purpose.
 These predate the standards. A QA pass does not report them as new findings, but **does** report a change that makes
 any of them worse, and says so when a change is a cheap chance to reduce one.
 
-- **Oversized classes:** `Player.cs` (~2,220 lines), `Enemy.cs` (~1,220), `HUD.cs` (~620). (`RunManager.cs` was split on
-  2026-10-09: ~1,090 → ~420.) Direction: carve out subsystems as their own classes (S3).
+- **Oversized classes:** `Player.cs` (~2,220 lines), `Enemy.cs` (~1,220). (Split on 2026-10-09: `RunManager.cs`
+  ~1,090 → ~420, `HUD.cs` ~620 → ~180.) Direction: carve out subsystems as their own classes (S3).
 - **By-name access to engine nodes, in one place:** `VfxPalette.RecolorNode` reads and sets `texture` by property
   name, because any node type may carry a gradient texture. The particle `emitting` / `one_shot` / `finished`
   access that `ParticleDirector` and the enemy walk trail used to do by name now goes through the typed

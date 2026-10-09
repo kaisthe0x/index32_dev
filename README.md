@@ -2047,9 +2047,9 @@ instead of a fixed fps that desyncs the moment speed changes. `RunAnimSpeed`
 `scenes/hud.tscn` + `scripts/HUD.cs` — health + Ruh in a **gauge** (bottom-centre, or following
 Khalid — a player setting), the **Esc pause menu**, the **Lira + fig counters** (top-left), a top-centre **round block**
 (`ROUND n` in the scanline font, `n LEFT` once few remain, `BEST m`;
-pushed by RunManager via `HUD.SetRound`, placed by the `RoundBlockAnchor` / `RoundBlockOffset` consts in `HUD.cs`; each
+pushed by RunManager via `HUD.SetRound`, placed by the `RoundBanner.BlockAnchor` / `RoundBanner.BlockOffset` consts in `scripts/ui/RoundBanner.cs`; each
 new round's number first appears big and glowing at screen centre, then flies up and shrinks into place —
-`HUD.PlayRoundIntro`, timing `IntroFadeIn` / `IntroHold` / `IntroFly`), the top-right
+`RoundBanner.PlayRoundIntro`, timing `IntroFadeIn` / `IntroHold` / `IntroFly`), the top-right
 active-buff list, off-screen enemy arrows and the low-HP screen effect. No portrait or name — those
 belong on the pause/character screens.
 
@@ -2064,27 +2064,27 @@ Three rows kept near the action, so you read your state without looking away fro
 - **Ruh orbs** — one `RuhPip` per Ruh charge (`Player.RuhPerBlock`), filling **from the bottom
   like liquid** as hits bank Ruh. Coloured like the in-world Ruh orbs (red family, recoloured to
   the Power-1 pick via `VfxPalette.Recolor` at bind), so health and Ruh differ by shape *and* colour.
-- **Special bar** — `SpecialBar`: a short pixel bar (`BarWidth` 19 × `BarHeight` 4, centred — narrower than the orbs, so the gauge tapers like a triangle; `HUD.SpecialBarTopGap` adds 2px above it so the orb→bar gap *looks* as wide as the pointy star→orb gap) for the equipped special's cooldown, fed each frame
+- **Special bar** — `SpecialBar`: a short pixel bar (`BarWidth` 19 × `BarHeight` 4, centred — narrower than the orbs, so the gauge tapers like a triangle; `HudGauge.SpecialBarTopGap` adds 2px above it so the orb→bar gap *looks* as wide as the pointy star→orb gap) for the equipped special's cooldown, fed each frame
   by `Player.SpecialReady()`. Always shown; fills in the UI accent as it recharges; when ready it pops, then
   pulses + glows until used (it only runs per-frame work while pulsing), and becoming ready wakes the gauge.
   See *Special cooldowns* for the cooldown rules.
 
 **Placement is a player setting** — `GaugePlacement` (`enums/ui/`), chosen in the pause menu, saved by
-`SaveData`, applied live by `HUD.ApplyGaugePlacement` (one `VBoxContainer`, reparented between two homes):
+`SaveData`, applied live by `HudGauge.ApplyPlacement` (one `VBoxContainer`, reparented between two homes):
 
 - **`Screen`** (default) — in the screen HUD (`UiLayers.Hud`, above the low-HP grade), anchored at horizontal
-  centre with its top at `GaugeScreenY` of screen height, and scaled about its top-centre by
-  `GaugePixelScale` (1.5) — a fixed, readable size. Screen UI — independent of the camera zoom (normal
+  centre with its top at `HudGauge.ScreenY` of screen height, and scaled about its top-centre by
+  `HudGauge.PixelScale` (1.5) — a fixed, readable size. Screen UI — independent of the camera zoom (normal
   and spawn/death alike).
-- **`FollowKhalid`** — centred `GaugeFeetGap` px under Khalid's feet, in world units (so it matches the
+- **`FollowKhalid`** — centred `HudGauge.FeetGap` px under Khalid's feet, in world units (so it matches the
   sprites' pixel size at any zoom — and shrinks with them at a zoomed-out camera). It hangs off a `Node2D` anchor on its own **camera-following
   `CanvasLayer`** (`FollowViewportEnabled`, **`UiLayers.Gauge`**: above the low-HP grade, below the screen HUD).
   A **`RemoteTransform2D` added to the Player** (only in this mode) carries the anchor, so it moves
   during physics and **physics interpolation** smooths it in step with Khalid. Deliberately *not* a
   Player child, so the player's hit-flash/blink modulate never bleeds into it.
 
-**Visibility:** it idles at 60% alpha (`GaugeIdleAlpha`) so it doesn't clutter the fight, wakes to
-full for `GaugeWakeTime` (1.6 s) on any health/Ruh change, and stays full while HP is low (whenever
+**Visibility:** it idles at 60% alpha (`HudGauge.IdleAlpha`) so it doesn't clutter the fight, wakes to
+full for `HudGauge.WakeTime` (1.6 s) on any health/Ruh change, and stays full while HP is low (whenever
 the low-HP effect is on). Star and orb counts follow `MaxHealth` / `RuhCap`, so max-HP or Ruh-cap
 buffs add pips.
 

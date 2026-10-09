@@ -153,7 +153,7 @@ Related, but not in this folder:
   +1 every `Rounds.KitCapGrowthRounds` rounds. Kits with no `SpawnCap` are unlimited.
 - **Change the drops** → Lira per kill: `EnemySpawner.LiraForTier` (by advisory tier) or a kit's `LiraDrop`; fig
   odds: `FigChance` in the kit's `Tune` (default `Enemy.FigChance` = 0.1). Pickup cues `lira_collect` / `fada_fig_collect` in
-  `SfxWorld` (PLACEHOLDERS). The ROUND n intro's timing is `IntroFadeIn` / `IntroHold` / `IntroFly` in `HUD.cs`.
+  `SfxWorld` (PLACEHOLDERS). The ROUND n intro's timing is `IntroFadeIn` / `IntroHold` / `IntroFly` in `scripts/ui/RoundBanner.cs`.
 - **Change the mystery box** → `configs/BoxRules.cs`: `Cost`, `SpinTime`, `OfferTime`, `TeddyChance`, `HardSpotChance`,
   `SpecialChance`, `Specials` (the box-only specials). Where it can stand: the layout's `BoxSpots/Easy` + `BoxSpots/Hard`
   markers. Its look: `scenes/things/mystery_box.tscn`.

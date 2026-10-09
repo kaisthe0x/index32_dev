@@ -6,6 +6,52 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-09 — `new-shit` — cleanup, part 7 (splitting the big classes: `HUD`)
+
+Step F, second class. `HUD.cs` was 624 lines holding every widget's fields, constants and logic in one class. It is
+now 179 lines: the screen layout, the binding to the player, and the `Set…` methods the run calls. One commit.
+Nothing is meant to look or behave differently.
+
+### The HUD's parts are their own classes
+
+- **What:** new classes in `scripts/ui/`:
+
+  | Class | Lines | Job |
+  |---|---|---|
+  | `HudGauge` | 240 | Health stars, Ruh orbs, the special bar; the Screen / FollowKhalid placement; dim-at-rest, bright on change. |
+  | `RoundBanner` | 106 | ROUND n / n LEFT / BEST n, and the flying round-start intro. |
+  | `BuffList` | 85 | The top-right list of shots, perks and box buffs. |
+  | `LowHealthVignette` | 81 | The low-health screen effect and its heartbeat. |
+  | `VialRow` | 36 | The carried-vial slots. |
+
+  `UiStyle.HudLabel(style)` replaces the HUD's private label maker, now that three classes need it.
+- **Why:** rule `S3`. The round intro's timing constants sat between the gauge's pixel scale and the low-health
+  fade; a change to one widget meant reading past all the others.
+- **How:** method bodies moved as they were. The widgets that are controls (`RoundBanner`, `BuffList`, `VialRow`) set
+  their own anchors in their constructors — the same values the HUD used to set from outside. `HudGauge` is a plain
+  node that owns both of the gauge's homes (the screen box and the world-following layer). The gauge stays bright at
+  low health by being told so each frame (`LowHealthVignette.Active`) instead of reading the vignette's field.
+  The pause menu's "gauge placement" setting now calls `HudGauge.ApplyPlacement` directly.
+- **Removed:** five "is the HUD built yet?" null checks on the `Set…` methods. The HUD is an autoload, built before
+  any scene can call it.
+- **Could affect:** everything on the HUD — the gauge and its two placements, its brightness, the round block and
+  intro, the counters, the vial slots, the buff list, the low-health effect — and when the HUD shows and hides.
+- **Tested:**
+  - A new 14-check headless scene, written and passed on the HUD **before** the split, then on the split HUD with
+    identical output. It reads only what the HUD shows (node types, label texts, visibility): 3 stars / 3 orbs / the
+    special bar; the round, n LEFT and BEST texts through `SetRound`, and n LEFT hiding at 0; both counters; one
+    framed slot per carry slot with the vial names; a granted buff's name and description, and the list emptying;
+    the low-health layer on at 1 HP and off after healing; FollowKhalid putting the pips on the world layer with one
+    follower on the player, and Screen putting them back and removing it.
+  - Screenshots from a windowed run before and after, compared region by region (counters, round block, gauge):
+    the same to the eye; the few differing pixels are the background behind them (the window came up one pixel
+    wider the second time).
+  - Build 0 warnings; clean boots.
+  - **Not tested:** the round intro's flight (the check waits for it to land), the heartbeat's look, the pause menu
+    switching the placement by hand.
+
+---
+
 ## 2026-10-09 — `new-shit` — cleanup, part 6 (splitting the big classes: `RunManager`)
 
 Step F, first class. `RunManager` was 1,087 lines doing eight jobs. It is now 421 lines that own the order of

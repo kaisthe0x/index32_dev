@@ -3,92 +3,29 @@ using Godot;
 namespace MyGame;
 
 /// <summary>
-/// The player HUD. Health stars + Ruh orbs + the special's cooldown bar sit in the <see cref="_gauge"/> — fixed at bottom-centre, or following under
-/// Khalid's feet, per the player's <see cref="GaugePlacement"/> setting (dim at rest, bright on any change or at low
-/// HP). Also: the Lira + Fada Fig counters (top-left), the ROUND / n LEFT / BEST block (top
-/// centre, pushed by RunManager), the active-buff
-/// list, off-screen enemy arrows, the low-HP effect, and the Esc <see cref="PauseMenu"/> (where that setting lives).
-/// An autoload, so it exists in every scene; binds to whatever <see cref="Player"/> enters the tree and hides when
-/// there's none. Built entirely in code.
+/// The player HUD — an autoload, so it exists in every scene; it binds to whatever <see cref="Player"/> enters the tree
+/// and hides when there's none. Built entirely in code. It owns the screen layout and the binding; each part is its own
+/// class: the <see cref="HudGauge"/> (health stars, Ruh orbs, special bar), the <see cref="RoundBanner"/> (ROUND / n LEFT
+/// / BEST, top centre), the Lira + Fada Fig <see cref="CurrencyCounter"/>s and the <see cref="VialRow"/> (top-left), the
+/// <see cref="BuffList"/> (top-right), the <see cref="OffscreenMarkers"/> (enemy arrows), the
+/// <see cref="LowHealthVignette"/>, and the Esc <see cref="PauseMenu"/>. The run pushes values in through the
+/// <c>Set…</c> methods here.
 /// </summary>
 public partial class HUD : CanvasLayer
 {
+	private static readonly Vector2 CurrencyPos = new(16, 14);
+
 	private Player? _player;
-
-	private CanvasLayer _lowHpLayer = null!;
-	private ShaderMaterial _lowHpMat = null!;
-	private float _lowHpLevel = 0.0f;
-	private float _lowHpTarget = 0.0f;
-	private float _lowHpTime = 0.0f;
-
-	private const float LowHpRatio = 0.34f;  // screen effect kicks in at ~1 block left
-	private const float LowHpMin = 0.35f;
-	private const float LowHpFade = 3.5f;
-	private const float LowHpBeatHz = 1.15f;
-	private const float LowHpPulseBase = 0.72f;
-	private const float LowHpPulsePunch = 0.6f;
-
-	private Control _root = null!;
+	private Control _root = null!;                 // the full-screen root of the screen HUD
 	private OffscreenMarkers _markers = null!;
-	private VBoxContainer _gauge = null!;     // health stars over Ruh orbs; reparented between the two placements
-	private float _gaugeWake = 0.0f;  // seconds left at full brightness after the last change
-	private GaugePlacement _placement;
-	// FollowKhalid placement: the gauge hangs off _gaugeAnchor on its own camera-following CanvasLayer, ABOVE the low-HP
-	// grade (so it stays legible exactly when HP is low) and below the screen HUD. A RemoteTransform2D on the Player drags
-	// the anchor along — set during physics, so physics interpolation smooths it in step with Khalid — and it's NOT a
-	// Player child, so the player's hit-flash / blink modulate never bleeds into it.
-	private CanvasLayer _gaugeLayer = null!;
-	private Node2D _gaugeAnchor = null!;
-	private RemoteTransform2D? _gaugeFollow; // only while a Player is bound AND the placement is FollowKhalid
+	private HudGauge _gauge = null!;
+	private LowHealthVignette _lowHealth = null!;
 	private PauseMenu _pauseMenu = null!;
-	private HBoxContainer _hpRow = null!;
-	private readonly List<HealthPip> _stars = new();
-	private readonly List<float> _starLevels = new();
-	private HBoxContainer _ruhRow = null!;
-	private readonly List<RuhPip> _orbs = new();
-	private readonly List<float> _orbLevels = new();
-	private SpecialBar _specialBar = null!;   // the special's cooldown, under the Ruh orbs (always shown; pulses when ready)
-	private Color _ruhFill;
 	private CurrencyCounter _liraCounter = null!;
 	private CurrencyCounter _figCounter = null!;
-	private HBoxContainer _vialRow = null!;   // the carried Dekken vials (SetVials)
-	private Label _roundLabel = null!;
-	private Label _leftLabel = null!;   // "n LEFT" — shown only once few quota enemies remain
-	private Label _bestLabel = null!;
-	private int _shownRound = 0; // the round whose intro has played (a higher one plays the intro again)
-	private Label? _roundIntro;   // the big "ROUND n" flying from screen centre into _roundLabel (only while animating)
-	private VBoxContainer _buffPanel = null!;
-
-	private static readonly Vector2 CurrencyPos = new(16, 14);
-	// Round block placement: RoundBlockAnchor is the screen point (as fractions of width/height) the block's TOP-CENTRE
-	// sits on — (0.5, 0) = top-centre, (0.5, 0.5) = dead centre, (0.5, 0.85) = low centre — and RoundBlockOffset nudges
-	// it from there in pixels (+x right, +y down).
-	private static readonly Vector2 RoundBlockAnchor = new(0.5f, 0.0f);
-	private static readonly Vector2 RoundBlockOffset = new(0.0f, 30.0f);
-	// Round intro: the big "ROUND n" fades in at screen centre, holds, then flies up + shrinks into the ROUND label.
-	private const float IntroFadeIn = 0.25f;
-	private const float IntroHold = 1.0f;
-	private const float IntroFly = 0.7f;
-	private const float IntroGlow = 1.8f;   // HDR multiplier on the accent while it's big (blooms), settling to 1
-	private const int PipGap = 1;              // pip pixels between pips
-	private const int RowGap = 1;              // pip pixels between the gauge's rows
-	// Extra pixels above the special bar: the stars' pointed tips leave a lot of visual air above the orbs, while the
-	// orbs' rounded bottoms sit almost flush on the flat bar — this evens the two gaps out to the eye.
-	private const int SpecialBarTopGap = 2;
-	private const float GaugeScreenY = 0.9f;   // Screen placement: gauge top, as a fraction of screen height
-	// Screen placement: a fixed, readable pixel scale for the pips — screen UI, independent of the camera zoom.
-	// (FollowKhalid is in world units instead, so it scales with the camera zoom along with the sprites.)
-	private const float GaugePixelScale = 1.5f;
-	private const float GaugeFeetGap = 3.0f;   // FollowKhalid: world px below Khalid's origin (his feet)
-	private const float GaugeIdleAlpha = 0.6f;
-	private const float GaugeWakeTime = 1.6f;
-	private const float GaugeFade = 4.0f;    // alpha per second
-
-	private static readonly Color HpEmpty = new(0.26f, 0.26f, 0.31f);
-	// Ruh in the red family, like the in-world Ruh orbs — recoloured to the Power-1 pick at bind (VfxPalette.Recolor).
-	private static readonly Color RuhFillBase = new(0.80f, 0.16f, 0.20f);
-	private static readonly Color RuhEmpty = new(0.30f, 0.14f, 0.17f);
-
+	private VialRow _vialRow = null!;
+	private RoundBanner _roundBanner = null!;
+	private BuffList _buffList = null!;
 
 	public override void _Ready()
 	{
@@ -96,10 +33,11 @@ public partial class HUD : CanvasLayer
 		BuildLog.PrintLastCompile(); // DEBUG: the first autoload to start says how long the last compile took
 		UiStyle.Install(); // first UI to exist (autoload) — make Sixtyfour the global fallback font before anything builds
 		BuildHud();
-		BuildLowHealth();
+		_lowHealth = new LowHealthVignette();
+		AddChild(_lowHealth);
 		_pauseMenu = new PauseMenu();
 		AddChild(_pauseMenu);
-		_pauseMenu.GaugePlacementChanged += ApplyGaugePlacement;
+		_pauseMenu.GaugePlacementChanged += _gauge.ApplyPlacement;
 		SetShown(false);
 		GetTree().NodeAdded += OnNodeAdded;
 		SetProcess(true);
@@ -107,8 +45,6 @@ public partial class HUD : CanvasLayer
 		if (existing != null)
 			Bind(existing);
 	}
-
-	// --- construction ---------------------------------------------------------
 
 	private void BuildHud()
 	{
@@ -119,22 +55,8 @@ public partial class HUD : CanvasLayer
 		_markers = new OffscreenMarkers();
 		AddChild(_markers);
 
-		_gauge = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore, Modulate = new Color(1, 1, 1, GaugeIdleAlpha) };
-		_gauge.AddThemeConstantOverride("separation", RowGap);
-		_gauge.Resized += LayoutGauge;
-		_root.AddChild(_gauge);
-		_hpRow = MkPipRow(_gauge);
-		_ruhRow = MkPipRow(_gauge);
-		_specialBar = new SpecialBar();
-		var barPad = new MarginContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
-		barPad.AddThemeConstantOverride("margin_top", SpecialBarTopGap);
-		barPad.AddChild(_specialBar);
-		_gauge.AddChild(barPad);
-		_gaugeLayer = new CanvasLayer { Layer = UiLayers.Gauge, FollowViewportEnabled = true };
-		AddChild(_gaugeLayer);
-		_gaugeAnchor = new Node2D();
-		_gaugeLayer.AddChild(_gaugeAnchor);
-		ApplyGaugePlacement(SaveData.GetGaugePlacement());
+		_gauge = new HudGauge(_root);
+		AddChild(_gauge);
 
 		var currencies = new VBoxContainer { Position = CurrencyPos, MouseFilter = Control.MouseFilterEnum.Ignore };
 		currencies.AddThemeConstantOverride("separation", 4);
@@ -143,339 +65,34 @@ public partial class HUD : CanvasLayer
 		currencies.AddChild(_liraCounter);
 		_figCounter = new CurrencyCounter("res://assets/things/fada_fig.png");
 		currencies.AddChild(_figCounter);
-		_vialRow = new HBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
-		_vialRow.AddThemeConstantOverride("separation", 4);
+		_vialRow = new VialRow();
 		currencies.AddChild(_vialRow);
 
-		// Round block (placed by RoundBlockAnchor/Offset): ROUND n / n LEFT (late in a round)
-		// / BEST n. Grows both ways from its anchor, so it stays centred on it.
-		var roundBox = new VBoxContainer
-		{
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-			AnchorLeft = RoundBlockAnchor.X,
-			AnchorRight = RoundBlockAnchor.X,
-			AnchorTop = RoundBlockAnchor.Y,
-			AnchorBottom = RoundBlockAnchor.Y,
-			OffsetLeft = RoundBlockOffset.X,
-			OffsetRight = RoundBlockOffset.X,
-			OffsetTop = RoundBlockOffset.Y,
-			OffsetBottom = RoundBlockOffset.Y,
-			GrowHorizontal = Control.GrowDirection.Both,
-		};
-		roundBox.AddThemeConstantOverride("separation", 2);
-		_root.AddChild(roundBox);
-		_roundLabel = MkLabel(UiStyle.HudTitle);
-		_leftLabel = MkLabel(UiStyle.HudHeading);
-		_bestLabel = MkLabel(UiStyle.HudMuted);
-		foreach (var l in new[] { _roundLabel, _leftLabel, _bestLabel })
-		{
-			l.HorizontalAlignment = HorizontalAlignment.Center;
-			roundBox.AddChild(l);
-		}
+		_roundBanner = new RoundBanner(_root);
+		_root.AddChild(_roundBanner);
 
-		// Active-buff list, pinned top-right and growing leftward to fit its widest line.
-		_buffPanel = new VBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore, Visible = false };
-		_buffPanel.SetAnchorsPreset(Control.LayoutPreset.TopRight);
-		_buffPanel.GrowHorizontal = Control.GrowDirection.Begin;
-		_buffPanel.OffsetRight = -14.0f;
-		_buffPanel.OffsetTop = 14.0f;
-		_root.AddChild(_buffPanel);
+		_buffList = new BuffList();
+		_root.AddChild(_buffList);
 	}
 
-	/// <summary>Move the gauge to <paramref name="g"/>: Screen = anchored bottom-centre in the screen HUD, scaled to sprite
-	/// pixel size; FollowKhalid = under the world-space anchor at world scale. Live — the pause menu calls it.</summary>
-	private void ApplyGaugePlacement(GaugePlacement g)
-	{
-		_placement = g;
-		if (g == GaugePlacement.Screen)
-		{
-			_gauge.Reparent(_root, false);
-			_gauge.AnchorLeft = 0.5f;
-			_gauge.AnchorRight = 0.5f;
-			_gauge.AnchorTop = GaugeScreenY;
-			_gauge.AnchorBottom = GaugeScreenY;
-			_gauge.GrowHorizontal = Control.GrowDirection.Both; // grows both ways from the centre anchor
-			_gauge.Scale = new Vector2(GaugePixelScale, GaugePixelScale);
-		}
-		else
-		{
-			_gauge.Reparent(_gaugeAnchor, false);
-			_gauge.SetAnchorsPreset(Control.LayoutPreset.TopLeft);
-			_gauge.Scale = Vector2.One;
-		}
-		_gauge.OffsetLeft = _gauge.OffsetRight = _gauge.OffsetTop = _gauge.OffsetBottom = 0.0f; // shrink to content
-		LayoutGauge();
-		SyncGaugeFollow();
-	}
-
-	/// <summary>Re-centre the gauge for its size: Screen scales about its top-centre (so scaling keeps it centred);
-	/// FollowKhalid sits centred just under the anchor (his feet).</summary>
-	private void LayoutGauge()
-	{
-		if (_placement == GaugePlacement.Screen)
-			_gauge.PivotOffset = new Vector2(_gauge.Size.X / 2.0f, 0.0f);
-		else
-		{
-			_gauge.PivotOffset = Vector2.Zero;
-			_gauge.Position = new Vector2(Mathf.Round(-_gauge.Size.X / 2.0f), GaugeFeetGap);
-		}
-	}
-
-	/// <summary>Give the bound Player a RemoteTransform2D driving the gauge anchor exactly when the placement is
-	/// FollowKhalid; remove it otherwise (or once unbound).</summary>
-	private void SyncGaugeFollow()
-	{
-		if (_player is { } player && _placement == GaugePlacement.FollowKhalid)
-		{
-			if (_gaugeFollow != null)
-				return;
-			_gaugeFollow = new RemoteTransform2D { UpdateRotation = false, UpdateScale = false, RemotePath = _gaugeAnchor.GetPath() };
-			_gaugeFollow.Ready += () => _gaugeAnchor.ResetPhysicsInterpolation(); // snap to Khalid, don't sweep in
-			// Deferred: Bind runs from node_added, while the Player is still mid-enter-tree.
-			player.CallDeferred(Node.MethodName.AddChild, _gaugeFollow);
-		}
-		else if (_gaugeFollow != null)
-		{
-			if (IsInstanceValid(_gaugeFollow))
-				_gaugeFollow.QueueFree();
-			_gaugeFollow = null;
-		}
-	}
-
-	private static HBoxContainer MkPipRow(Control parent)
-	{
-		var row = new HBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore, Alignment = BoxContainer.AlignmentMode.Center };
-		row.AddThemeConstantOverride("separation", PipGap);
-		parent.AddChild(row);
-		return row;
-	}
-
-	/// <summary>A HUD label in one of UiStyle's outlined HUD styles (text floats over the world).</summary>
-	private static Label MkLabel(string style) =>
-		new() { ThemeTypeVariation = style, MouseFilter = Control.MouseFilterEnum.Ignore, VerticalAlignment = VerticalAlignment.Center };
-
-	/// <summary>One owned Needle Point shot in the buff list: its name + rank in the rank's colour, and what it gives.</summary>
-	private static Control ShotLine(Shot s)
-	{
-		var name = MkLabel(UiStyle.HudHeading);
-		name.AddThemeColorOverride("font_color", NeedlePoint.RankColor(s.Rank));
-		name.Text = $"{s.Def.Name} {Shot.Roman(s.Rank)} · {Shot.FormatValue(s.Def, s.Rank)}";
-		return name;
-	}
-
-	/// <summary>One active Dekken perk in the buff list: its name and how long it has left ("1 ROUND", or "RUN").</summary>
-	private static Control PerkLine(Perk p)
-	{
-		var line = new HBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
-		line.AddThemeConstantOverride("separation", 8);
-		var name = MkLabel(UiStyle.HudHeading);
-		name.Text = p.Def.Name;
-		line.AddChild(name);
-		var left = MkLabel(UiStyle.HudMuted);
-		left.Text = p.Def.Duration == PerkDuration.Run ? "RUN" : p.RoundsLeft == 1 ? "1 ROUND" : $"{p.RoundsLeft} ROUNDS";
-		line.AddChild(left);
-		return line;
-	}
-
-	/// <summary>Rebuild the top-right active-buff list from the player's passives (call on grant / clear).</summary>
-	public void RefreshBuffs(List<Passive> passives)
-	{
-		if (_buffPanel == null)
-			return;
-		foreach (Node child in _buffPanel.GetChildren())
-			child.QueueFree();
-		bool any = false;
-		foreach (Passive p in passives)
-		{
-			if (p is Shot s)
-			{
-				any = true;
-				_buffPanel.AddChild(ShotLine(s));
-				continue;
-			}
-			if (p is Perk perk)
-			{
-				any = true;
-				_buffPanel.AddChild(PerkLine(perk));
-				continue;
-			}
-			if (p is not Buff b)
-				continue;
-			any = true;
-			var name = MkLabel(UiStyle.HudHeading);
-			name.Text = b.Name != "" ? b.Name : b.Id;
-			_buffPanel.AddChild(name);
-
-			var desc = MkLabel(UiStyle.HudMuted);
-			desc.Text = b.Description;
-			desc.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-			desc.CustomMinimumSize = new Vector2(258, 0);
-			_buffPanel.AddChild(desc);
-
-			_buffPanel.AddChild(new Control { CustomMinimumSize = new Vector2(0, 5) }); // row spacer
-		}
-		_buffPanel.Visible = any;
-	}
-
-	private void BuildLowHealth()
-	{
-		_lowHpLayer = new CanvasLayer { Layer = UiLayers.LowHealth, Visible = false };
-		AddChild(_lowHpLayer);
-
-		var rect = new ColorRect { MouseFilter = Control.MouseFilterEnum.Ignore };
-		rect.SetAnchorsPreset(Control.LayoutPreset.FullRect);
-		_lowHpMat = new ShaderMaterial { Shader = GD.Load<Shader>("res://vfx/shaders/low_health.gdshader") };
-		_lowHpMat.SetShaderParameter("intensity", 0.0);
-		rect.Material = _lowHpMat;
-		_lowHpLayer.AddChild(rect);
-	}
+	// --- what the run pushes in ------------------------------------------------
 
 	/// <summary>Show round <paramref name="round"/> (0 = before round 1: blank), <paramref name="left"/> quota enemies
 	/// remaining (0 = hidden — RunManager only passes it once few remain), and the <paramref name="best"/> round record.</summary>
-	public void SetRound(int round, int left, int best)
-	{
-		if (_roundLabel == null)
-			return;
-		_roundLabel.Text = round > 0 ? $"ROUND {round}" : "";
-		if (round > _shownRound)
-			PlayRoundIntro(round);
-		_shownRound = round; // a new run resets to 0, so round 1 plays again
-		_leftLabel.Text = $"{left} LEFT";
-		_leftLabel.Visible = left > 0;
-		_bestLabel.Text = best > 0 ? $"BEST {best}" : "";
-	}
-
-	/// <summary>The round-start intro: a big "ROUND n" (the title font at exactly 2x the label's size) fades in at screen
-	/// centre, holds, then glides up and shrinks to 0.5x onto <see cref="_roundLabel"/>'s rect — so it lands pixel-
-	/// aligned wherever the round block is placed — while its glow settles to the label's colour, then hands over to
-	/// the real label (kept invisible, not hidden, meanwhile so the block's layout doesn't jump).</summary>
-	private async void PlayRoundIntro(int round)
-	{
-		_roundIntro?.QueueFree();
-		var intro = new Label
-		{
-			Text = $"ROUND {round}",
-			ThemeTypeVariation = UiStyle.HudTitle,
-			HorizontalAlignment = HorizontalAlignment.Center,
-			MouseFilter = Control.MouseFilterEnum.Ignore,
-			Modulate = new Color(1, 1, 1, 0),
-		};
-		intro.AddThemeFontSizeOverride("font_size", UiStyle.SizeTitle * 2);
-		Color glow = new(UiStyle.Accent.R * IntroGlow, UiStyle.Accent.G * IntroGlow, UiStyle.Accent.B * IntroGlow);
-		intro.AddThemeColorOverride("font_color", glow);
-		_roundIntro = intro;
-		_root.AddChild(intro);
-		_roundLabel.Modulate = new Color(1, 1, 1, 0);
-
-		await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame); // let the round block lay out the new text
-		if (_roundIntro != intro)
-			return; // a newer intro replaced this one
-
-		const float scale = 0.5f; // SizeTitle / (SizeTitle * 2)
-		intro.Size = _roundLabel.Size / scale;
-		intro.Position = (_root.Size - intro.Size) / 2.0f;
-		var t = intro.CreateTween();
-		t.TweenProperty(intro, "modulate:a", 1.0f, IntroFadeIn);
-		t.TweenInterval(IntroHold);
-		t.SetParallel();
-		t.TweenProperty(intro, "global_position", _roundLabel.GlobalPosition, IntroFly).SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.InOut);
-		t.TweenProperty(intro, "scale", new Vector2(scale, scale), IntroFly).SetTrans(Tween.TransitionType.Cubic).SetEase(Tween.EaseType.InOut);
-		t.TweenProperty(intro, "theme_override_colors/font_color", UiStyle.Accent, IntroFly);
-		t.SetParallel(false);
-		t.TweenCallback(Callable.From(() =>
-		{
-			_roundLabel.Modulate = Colors.White;
-			intro.QueueFree();
-			if (_roundIntro == intro)
-				_roundIntro = null;
-		}));
-	}
-
-	// --- currencies -------------------------------------------------------------
+	public void SetRound(int round, int left, int best) => _roundBanner.SetRound(round, left, best);
 
 	/// <summary>Show the Lira balance (pushed by <c>Player</c>).</summary>
-	public void SetLira(int count) => _liraCounter?.SetCount(count);
+	public void SetLira(int count) => _liraCounter.SetCount(count);
 
 	/// <summary>Show the fada_fig balance (pushed by <c>Player</c>).</summary>
-	public void SetFadaFigs(int count) => _figCounter?.SetCount(count);
+	public void SetFadaFigs(int count) => _figCounter.SetCount(count);
 
-	/// <summary>Show the carried Dekken vials under the currency counters: one framed slot per carry slot — a held vial's
-	/// name, the <paramref name="selected"/> one (what the drink key drinks) framed in the accent colour, an empty slot
-	/// dim. PLACEHOLDER look (text) until the vial icons exist.</summary>
-	public void SetVials(IReadOnlyList<string> names, int selected)
-	{
-		if (_vialRow == null)
-			return;
-		foreach (Node child in _vialRow.GetChildren())
-			child.QueueFree();
-		for (int i = 0; i < Dekken.CarrySlots; i++)
-		{
-			bool held = i < names.Count;
-			bool isSelected = held && i == selected;
-			var slot = new PanelContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
-			slot.AddThemeStyleboxOverride("panel", UiStyle.Box(UiStyle.RaisedBg, isSelected ? UiStyle.Accent : UiStyle.FrameDim, isSelected ? 2 : 1));
-			var label = MkLabel(held ? UiStyle.HudHeading : UiStyle.HudMuted);
-			label.Text = held ? $" {names[i]} " : " — ";
-			slot.AddChild(label);
-			_vialRow.AddChild(slot);
-		}
-	}
+	/// <summary>Show the carried Dekken vials: a held vial's name per slot, the <paramref name="selected"/> one (what the
+	/// drink key drinks) framed in the accent colour.</summary>
+	public void SetVials(IReadOnlyList<string> names, int selected) => _vialRow.SetVials(names, selected);
 
-	// --- health stars + Ruh orbs (the gauge) ----------------------------------
-
-	/// <summary>Make <paramref name="row"/> hold exactly <paramref name="count"/> pips (adds/frees at the end, so the
-	/// surviving pips keep their levels + any running tween).</summary>
-	private static void ResizePips<T>(HBoxContainer row, List<T> pips, List<float> levels, int count) where T : PixelPip, new()
-	{
-		count = Mathf.Max(count, 1);
-		while (pips.Count < count)
-		{
-			var pip = new T();
-			row.AddChild(pip);
-			pips.Add(pip);
-			levels.Add(0.0f);
-		}
-		while (pips.Count > count)
-		{
-			int last = pips.Count - 1;
-			pips[last].QueueFree();
-			pips.RemoveAt(last);
-			levels.RemoveAt(last);
-		}
-	}
-
-	/// <summary>Each star shows its share of `current` half-blocks (2 per block): full / half / empty, all tinted
-	/// green→orange→red by the overall ratio (same bands as the floating enemy bars). When <paramref name="animate"/>,
-	/// a lost half wiggles and a gain pops.</summary>
-	private void UpdateStars(float current, float maximum, bool animate)
-	{
-		Color fill = FloatingHealthBar.ColorForRatio(maximum > 0.0f ? current / maximum : 0.0f);
-		for (int i = 0; i < _stars.Count; i++)
-		{
-			float level = Mathf.Clamp(current / 2.0f - i, 0.0f, 1.0f);
-			if (animate && level < _starLevels[i])
-				HudFx.Wiggle(_stars[i]);
-			else if (animate && level > _starLevels[i])
-				HudFx.Pop(_stars[i]);
-			_starLevels[i] = level;
-			_stars[i].SetLevel(level, fill, HpEmpty);
-		}
-	}
-
-	/// <summary>Each orb fills with its block's share of `current` Ruh; when <paramref name="animate"/>, an orb pops the
-	/// moment it becomes full.</summary>
-	private void UpdateOrbs(float current, bool animate)
-	{
-		float per = Player.RuhPerBlock;
-		for (int i = 0; i < _orbs.Count; i++)
-		{
-			float level = Mathf.Clamp(current / per - i, 0.0f, 1.0f);
-			if (animate && level >= 1.0f && _orbLevels[i] < 1.0f)
-				HudFx.Pop(_orbs[i]);
-			_orbLevels[i] = level;
-			_orbs[i].SetLevel(level, _ruhFill, RuhEmpty);
-		}
-	}
+	/// <summary>Rebuild the top-right active-buff list from the player's passives (call on grant / clear).</summary>
+	public void RefreshBuffs(List<Passive> passives) => _buffList.SetPassives(passives);
 
 	// --- binding --------------------------------------------------------------
 
@@ -504,13 +121,12 @@ public partial class HUD : CanvasLayer
 			return;
 		Unbind();
 		_player = player;
-		_ruhFill = VfxPalette.Recolor(RuhFillBase);
 		_player.HealthChanged += OnHealthChanged;
 		_player.RuhChanged += OnRuhChanged;
 		_player.TreeExiting += Unbind;
+		_gauge.Bind(player);
 		SyncHealth((float)_player.Health, (float)_player.MaxHealth, false); // seed silently — no pop-in on bind
-		SyncRuh((float)_player.Ruh, (float)_player.RuhCap, false);
-		SyncGaugeFollow();
+		_gauge.SetRuh((float)_player.Ruh, (float)_player.RuhCap, false);
 		SetShown(true);
 	}
 
@@ -523,7 +139,7 @@ public partial class HUD : CanvasLayer
 			_player.TreeExiting -= Unbind;
 		}
 		_player = null;
-		SyncGaugeFollow();
+		_gauge.Bind(null);
 		SetShown(false);
 	}
 
@@ -531,15 +147,10 @@ public partial class HUD : CanvasLayer
 	{
 		_root.Visible = shown;
 		_markers.Visible = shown;
-		_gaugeLayer.Visible = shown;
+		_gauge.WorldLayerShown = shown;
 		_pauseMenu.Enabled = shown; // Esc pauses only during a run
 		if (!shown)
-		{
-			_lowHpTarget = 0.0f;
-			_lowHpLevel = 0.0f;
-			if (_lowHpLayer != null)
-				_lowHpLayer.Visible = false;
-		}
+			_lowHealth.Clear();
 	}
 
 	public override void _Process(double deltaD)
@@ -552,74 +163,17 @@ public partial class HUD : CanvasLayer
 				Bind(p);
 			return;
 		}
-		UpdateLowHealth(delta);
-		if (_specialBar.SetProgress(_player.SpecialReady()))
-			_gaugeWake = GaugeWakeTime; // the special just became ready — light the gauge up
-		UpdateGaugeAlpha(delta);
-	}
-
-	private void UpdateLowHealth(float delta)
-	{
-		if (_lowHpLayer == null)
-			return;
-		_lowHpTime += delta;
-		_lowHpLevel = Mathf.MoveToward(_lowHpLevel, _lowHpTarget, LowHpFade * delta);
-		bool on = _lowHpLevel > 0.001f;
-		_lowHpLayer.Visible = on;
-		if (on)
-		{
-			float mult = LowHpPulseBase + LowHpPulsePunch * Heartbeat(_lowHpTime);
-			_lowHpMat.SetShaderParameter("intensity", Mathf.Clamp(_lowHpLevel * mult, 0.0f, 1.0f));
-		}
-	}
-
-	/// <summary>The gauge idles dim so it doesn't clutter the fight; any change wakes it to full for a moment, and it stays
-	/// full while HP is low (whenever the low-HP screen effect is on).</summary>
-	private void UpdateGaugeAlpha(float delta)
-	{
-		_gaugeWake = Mathf.Max(_gaugeWake - delta, 0.0f);
-		float target = _gaugeWake > 0.0f || _lowHpTarget > 0.0f ? 1.0f : GaugeIdleAlpha;
-		Color m = _gauge.Modulate;
-		m.A = Mathf.MoveToward(m.A, target, GaugeFade * delta);
-		_gauge.Modulate = m;
-	}
-
-	/// <summary>Heartbeat envelope 0..1: a sharp "lub" thump plus a softer "dub", so the pulse punches.</summary>
-	private static float Heartbeat(float t)
-	{
-		float ph = Mathf.PosMod(t * LowHpBeatHz, 1.0f);
-		float lub = Mathf.Exp(-Mathf.Pow(ph / 0.055f, 2.0f));
-		float dub = 0.6f * Mathf.Exp(-Mathf.Pow((ph - 0.17f) / 0.07f, 2.0f));
-		return Mathf.Min(lub + dub, 1.0f);
+		_lowHealth.Tick(delta);
+		_gauge.Tick(delta, _player.SpecialReady(), _lowHealth.Active);
 	}
 
 	private void OnHealthChanged(double current, double maximum) => SyncHealth((float)current, (float)maximum, true);
 
-	private void OnRuhChanged(double current, double maximum) => SyncRuh((float)current, (float)maximum, true);
+	private void OnRuhChanged(double current, double maximum) => _gauge.SetRuh((float)current, (float)maximum, true);
 
 	private void SyncHealth(float current, float maximum, bool animate)
 	{
-		int blocks = Mathf.RoundToInt(maximum / 2.0f); // 2 half-blocks per block
-		ResizePips(_hpRow, _stars, _starLevels, blocks);
-		UpdateStars(current, maximum, animate);
-		if (animate)
-			_gaugeWake = GaugeWakeTime;
-		float ratio = maximum > 0.0f ? current / maximum : 0.0f;
-		if (ratio >= LowHpRatio)
-			_lowHpTarget = 0.0f;
-		else
-		{
-			float t = Mathf.Clamp((LowHpRatio - ratio) / LowHpRatio, 0.0f, 1.0f);
-			_lowHpTarget = Mathf.Lerp(LowHpMin, 1.0f, t);
-		}
-	}
-
-	private void SyncRuh(float current, float maximum, bool animate)
-	{
-		int blocks = Mathf.RoundToInt(maximum / Player.RuhPerBlock);
-		ResizePips(_ruhRow, _orbs, _orbLevels, blocks);
-		UpdateOrbs(current, animate);
-		if (animate)
-			_gaugeWake = GaugeWakeTime;
+		_gauge.SetHealth(current, maximum, animate);
+		_lowHealth.SetHealthRatio(maximum > 0.0f ? current / maximum : 0.0f);
 	}
 }

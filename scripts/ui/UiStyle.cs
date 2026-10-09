@@ -79,6 +79,11 @@ public static class UiStyle
     /// any UI is built — the HUD autoload does, as the first UI to exist.</summary>
     public static void Install() => ThemeDB.FallbackFont = BodyFont;
 
+    /// <summary>A HUD label in one of the outlined HUD styles (<see cref="HudTitle"/>, <see cref="HudHeading"/>, …) —
+    /// text that floats over the world. Never takes the mouse.</summary>
+    public static Label HudLabel(string style) =>
+        new() { ThemeTypeVariation = style, MouseFilter = Control.MouseFilterEnum.Ignore, VerticalAlignment = VerticalAlignment.Center };
+
     /// <summary>A square flat box (pixel look — no rounded corners) with an optional uniform border, no content margin.</summary>
     public static StyleBoxFlat Box(Color bg, Color border = default, int borderW = 0)
     {
