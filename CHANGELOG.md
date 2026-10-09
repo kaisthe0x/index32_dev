@@ -22,7 +22,7 @@ Nothing is meant to play differently.
     range, the mystery box's current roll, the HUD's bound player, the run's camera and background image,
     `Actions.GetAction`, `BuffCatalog.Make`, `BoxLedger.Spin`, `LevelLayout.Placed`, the sound service's
     `make_loop` / `make_oneshot`, the `source` of the enemy `damaged` signal.
-  - **It is always set before anything reads it → declared non-null with `= null!`.** 69 fields: nodes built or
+  - **It is always set before anything reads it → declared non-null with `= null!`.** 67 fields: nodes built or
     fetched in `_Ready` (HUD rows and labels, the player's sprite and hurtbox, menu widgets) and values handed over by
     the one `Setup` / `Open` call. Each was checked to be assigned unconditionally on that path.
 - **Why:** rule `V1`. With ~200 warnings on every build, a new one — a real "this can be null here" — was invisible.
