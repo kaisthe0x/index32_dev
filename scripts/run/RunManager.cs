@@ -730,11 +730,11 @@ public partial class RunManager : Node2D
     {
         if (_player == null)
             return;
-        var orb = _ruhOrb.Instantiate<Node2D>();
+        var orb = _ruhOrb.Instantiate<RuhOrb>();
         VfxPalette.RecolorTree(orb);
         AddChild(orb);
         PlaceAt(orb, at + new Vector2(0, -18));
-        orb.Call("launch", _player, completedCharge);
+        orb.launch(_player, completedCharge);
     }
 
     private void OnEnemyDamaged(float amount, Node source, Enemy enemy)

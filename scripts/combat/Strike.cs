@@ -20,7 +20,7 @@ namespace MyGame;
 /// so a code path can still build a bare one; author scenes against the typed subclasses.
 /// </summary>
 [GlobalClass]
-public partial class Strike : Node2D, ITunable
+public partial class Strike : Node2D, ITunable, ISidedAttack
 {
     /// <summary>false = a player strike (hits enemies); true = an enemy strike (hits the player).</summary>
     [Export] public bool hostile { get; set; }
@@ -36,7 +36,7 @@ public partial class Strike : Node2D, ITunable
     [Export] public float tick { get; set; }
 
     /// <summary>Who struck (knockback credit + lunge/armor target); set by the spawner.</summary>
-    public Node? source;
+    public Node? source { get; set; }
 
     protected Hitbox? Box;
     private Godot.Timer? _tickTimer;
@@ -124,16 +124,16 @@ public partial class Strike : Node2D, ITunable
             }
             ResizeHitbox(t);
         }
-        // Wielder-effects on the striker (option A): lunge shoves forward, armor shrugs off stagger. No-op when
-        // the method is absent (a dynamic Call — the striker may be any body type).
-        if (source != null)
+        // Wielder-effects on the striker: lunge shoves forward, armor shrugs off stagger. A source that isn't an
+        // IStrikeWielder (an enemy) gets neither.
+        if (source is IStrikeWielder wielder)
         {
             float lunge = t.Lunge ?? 0.0f;
-            if (lunge != 0.0f && source.HasMethod("apply_lunge"))
-                source.Call("apply_lunge", lunge);
+            if (lunge != 0.0f)
+                wielder.ApplyLunge(lunge);
             float armor = t.SuperArmor ?? 0.0f;
-            if (armor > 0.0f && source.HasMethod("set_armor"))
-                source.Call("set_armor", armor);
+            if (armor > 0.0f)
+                wielder.SetArmor(armor);
         }
         int hits = t.MultiHit ?? 1;
         if (hits > 1 && Box != null)

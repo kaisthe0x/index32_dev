@@ -165,10 +165,16 @@ any of them worse, and says so when a change is a cheap chance to reduce one.
   Direction: carve out subsystems as their own classes (S3) when they are next touched.
 - **Dictionary-typed tables:** enemy kits (`EnemyKits`), emitter and sound tables use Godot dictionaries with string
   keys, applied by name (`enemy.Set(key, value)`). Direction: typed records (T3). New tables must be typed.
-- **`snake_case` public members** on `Player`, `Enemy`, `Hitbox`, `Strike`, `Sfx` and the transition aliases on
-  `Hit` — from the GDScript port. Direction: rename when a class is otherwise being reworked, all at once.
-- **Call-by-name seams:** `BlastStrike` → `source.Call("hold_animation", …)`, `HasMethod` checks. Direction: an
-  interface (T4).
+- **`snake_case` public members** on `Player`, `Enemy`, `Hitbox`, `Strike`, `Projectile` and `Sfx` — from the
+  GDScript port. Direction: rename when a class is otherwise being reworked, all at once.
+- **By-name access to engine particle nodes:** `ParticleDirector`, `VfxPalette` and the enemy walk trail set
+  `emitting` / `amount` / `lifetime` / `texture` by property name, because `CPUParticles2D` and `GPUParticles2D`
+  share those names but no typed base. Direction: one small typed wrapper, used by all three. (Calls between the
+  game's *own* classes are all typed since 2026-10-09 — keep it that way: rule `T4`.)
+- **Compiler warnings:** the project has nullable reference checking on, and the build prints about 410 warnings
+  (mostly `CS8618` — a field not set in the constructor; worst in `Player`, `HUD`, `RunManager`, `ParticleDirector`).
+  With that many, a new one goes unseen. Direction: bring it to zero, then make warnings fail the build. Until then
+  rule `V1` is checked by comparing the count before and after a change.
 - **Per-call allocations in spawn-time code:** `RunManager.SpotIsClear` and the point / ray queries build their
   shape and parameters on each call. Not per-frame today; must not move onto the per-frame path as-is.
 - **No automated tests.** Behaviour is checked by throwaway headless scenes that are deleted afterwards. Direction:

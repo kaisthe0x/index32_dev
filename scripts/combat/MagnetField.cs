@@ -25,16 +25,16 @@ public partial class MagnetField : Node2D
     {
         // Measure the grab from KHALID, not `self`: the director add_child()s us (running this _Ready) and only
         // sets our world position afterwards, so our own global_position isn't final here.
-        if (GetTree().GetFirstNodeInGroup("player") is Node2D khalid)
+        if (GetTree().GetFirstNodeInGroup("player") is Player khalid)
         {
             Vector2 origin = khalid.GlobalPosition;
-            int facing = khalid is Player fp ? fp.facing : 1;
+            int facing = khalid.facing;
             // Collect every in-range, same-level enemy IN FRONT (the facing side only), then grab the nearest
             // `max_targets` (closest-first).
-            var inReach = new List<(Node2D Enemy, float Dist)>();
+            var inReach = new List<(Enemy Enemy, float Dist)>();
             foreach (var e in GetTree().GetNodesInGroup("enemies"))
             {
-                if (e is not Node2D enemy)
+                if (e is not Enemy enemy)
                     continue;
                 float dx = (enemy.GlobalPosition.X - origin.X) * facing; // distance ahead; negative = behind him
                 if (dx >= 0.0f && dx <= pull_range && Mathf.Abs(enemy.GlobalPosition.Y - origin.Y) <= pull_y_band)
@@ -42,10 +42,10 @@ public partial class MagnetField : Node2D
             }
             inReach.Sort((a, b) => a.Dist.CompareTo(b.Dist));
             // Wider Pull buff bumps the grab count via a run-scoped bonus on the player.
-            int targets = max_targets + (khalid is Player pl ? pl.magnet_target_bonus : 0);
+            int targets = max_targets + khalid.magnet_target_bonus;
             int n = Mathf.Min(targets, inReach.Count);
             for (int i = 0; i < n; i++)
-                inReach[i].Enemy.Call("magnetize", khalid, arrive_dist, pull_speed, stun_time);
+                inReach[i].Enemy.magnetize(khalid, arrive_dist, pull_speed, stun_time);
         }
         GetTree().CreateTimer(life).Timeout += QueueFree;
     }

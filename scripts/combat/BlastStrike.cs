@@ -30,8 +30,8 @@ public partial class BlastStrike : Strike
     /// <summary>Hold the striker's pose for the emission window (option A: the strike drives its wielder).</summary>
     protected override void OnTuningApplied(SegmentData t)
     {
-        // Pass `this` so the caster can cancel us. C#→GDScript dynamic Call (the striker is a GDScript body).
-        if (emit_duration > 0.0f && source != null && source.HasMethod("hold_animation"))
-            source.Call("hold_animation", emit_duration, this);
+        // Pass `this` so the caster can cancel us.
+        if (emit_duration > 0.0f && source is IStrikeWielder wielder)
+            wielder.HoldAnimation(emit_duration, this);
     }
 }

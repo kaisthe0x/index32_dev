@@ -10,13 +10,13 @@ namespace MyGame;
 /// switching is just swapping the SpriteFrames resource. C# port of <c>scripts/player.gd</c> (Phase 4b of the
 /// migration) — the state machine, combat seam, surges, launch orbs, and the passive/buff dispatch.
 ///
-/// <para>PUBLIC SURFACE stays snake_case: the scene and the C# combat components (Strike calling
-/// <c>hold_animation</c>/<c>apply_lunge</c>) address these by exact name. Internals are idiomatic PascalCase.
+/// <para>Most of the PUBLIC SURFACE is still snake_case, a leftover of the GDScript port (docs/standards.md, Known
+/// debt); internals are PascalCase. What a strike asks of its wielder goes through <see cref="IStrikeWielder"/>.
 /// Config is fully typed C#: the equipped move is an <see cref="Action"/> record, its tuning a <see cref="SegmentData"/>.</para>
 /// </summary>
 [Tool]
 [GlobalClass]
-public partial class Player : Combatant
+public partial class Player : Combatant, IStrikeWielder
 {
     // --- signals (the HUD connects by these exact names) ---
     [Signal] public delegate void health_changedEventHandler(double current, double maximum);
@@ -162,12 +162,12 @@ public partial class Player : Combatant
     private const float LaunchMagnetTime = 0.08f;
     private const float LaunchCd = 0.45f;
 
-    private Node2D _launchOrb;
+    private LaunchOrb _launchOrb;
     private Vector2 _launchFrom = Vector2.Zero;
     private float _launchT = 0.0f;
     private Vector2 _launchVel = Vector2.Zero;
     private float _launchCdLeft = 0.0f;
-    private Node2D _nearOrb;
+    private LaunchOrb _nearOrb;
 
     private State _state = State.IDLE;
     private int _facing = 1;
@@ -716,21 +716,22 @@ public partial class Player : Combatant
         GD.Print("[DEBUG] cleared granted buffs");
     }
 
-    /// <summary>Stun every enemy within `radius` for `seconds` (Slam Quake) — the surge's stun-sweep pattern.</summary>
+    private static readonly Color StunSweepColor = new(1.0f, 0.85f, 0.2f, 0.6f); // the gold tint on a stun-swept enemy
+
+    /// <summary>Stun every enemy within `radius` for `seconds` — the stun sweep shared by the Wara surge and Slam Quake.</summary>
     public void stun_nearby(float radius, float seconds)
     {
         foreach (Node e in GetTree().GetNodesInGroup("enemies"))
         {
-            if (e is not Node2D en || !en.HasMethod("apply_hit"))
+            if (e is not Enemy enemy || GlobalPosition.DistanceTo(enemy.GlobalPosition) > radius)
                 continue;
-            if (GlobalPosition.DistanceTo(en.GlobalPosition) <= radius)
-                en.Call("apply_hit", new Hit
-                {
-                    Stun = seconds,
-                    Source = this,
-                    StatusColor = new Color(1.0f, 0.85f, 0.2f, 0.6f),
-                    StatusTime = seconds,
-                });
+            enemy.apply_hit(new Hit
+            {
+                Stun = seconds,
+                Source = this,
+                StatusColor = StunSweepColor,
+                StatusTime = seconds,
+            });
         }
     }
 
@@ -962,9 +963,9 @@ public partial class Player : Combatant
         Enter(AirborneDefault());
     }
 
-    public void apply_lunge(float impulse) => SetVelX(impulse * _facing);
+    public void ApplyLunge(float impulse) => SetVelX(impulse * _facing);
 
-    public void set_armor(float duration) => _armorLeft = Mathf.Max(_armorLeft, duration);
+    public void SetArmor(float duration) => _armorLeft = Mathf.Max(_armorLeft, duration);
 
     public void set_dash_effect(string effect) => _dashEffect = effect;
 
@@ -1009,9 +1010,8 @@ public partial class Player : Combatant
             _specialAura = scene?.Instantiate() as Node2D;
             if (_specialAura != null)
             {
-                Variant mc = _specialAura.Get("moon_color");
-                if (mc.VariantType == Variant.Type.Color)
-                    _specialAura.Set("moon_color", VfxPalette.Recolor(mc.As<Color>()));
+                if (_specialAura is OrbitAura orbit)
+                    orbit.moon_color = VfxPalette.Recolor(orbit.moon_color);
                 VfxPalette.RecolorTree(_specialAura);
                 AddChild(_specialAura);
             }
@@ -1096,24 +1096,7 @@ public partial class Player : Combatant
             EndSurge();
             return;
         }
-        float stunRadius = s.stun_radius;
-        float stunTime = s.stun_time;
-        foreach (Node e in GetTree().GetNodesInGroup("enemies"))
-        {
-            if (e is not Node2D en || !en.HasMethod("apply_hit"))
-                continue;
-            if (GlobalPosition.DistanceTo(en.GlobalPosition) <= stunRadius)
-            {
-                var h = new Hit
-                {
-                    Stun = stunTime,
-                    Source = this,
-                    StatusColor = new Color(1.0f, 0.85f, 0.2f, 0.6f),
-                    StatusTime = stunTime,
-                };
-                en.Call("apply_hit", h);
-            }
-        }
+        stun_nearby(s.stun_radius, s.stun_time);
         string burst = s.burst;
         if (burst != "" && ResourceLoader.Exists(burst))
         {
@@ -1131,7 +1114,7 @@ public partial class Player : Combatant
         EndSurge();
     }
 
-    public void hold_animation(double duration, BlastStrike effect)
+    public void HoldAnimation(double duration, BlastStrike effect)
     {
         if (duration <= 0.0 || _sprite == null)
             return;
@@ -1570,20 +1553,20 @@ public partial class Player : Combatant
     private State AirborneDefault() => HasFall() ? State.FALL : State.JUMP;
 
     // --- launch orbs ---
-    private Node2D OrbInPullRange()
+    private LaunchOrb OrbInPullRange()
     {
         var body = GlobalPosition + LaunchBody;
-        Node2D best = null;
+        LaunchOrb best = null;
         float bestD = LaunchPullRange * LaunchPullRange;
         foreach (Node o in GetTree().GetNodesInGroup("orbs"))
         {
-            if (o is not Node2D o2)
+            if (o is not LaunchOrb orb)
                 continue;
-            float d = body.DistanceSquaredTo(o2.GlobalPosition);
+            float d = body.DistanceSquaredTo(orb.GlobalPosition);
             if (d < bestD)
             {
                 bestD = d;
-                best = o2;
+                best = orb;
             }
         }
         return best;
@@ -1591,32 +1574,26 @@ public partial class Player : Combatant
 
     private void UpdateOrbProximity()
     {
-        Node2D near = null;
+        LaunchOrb near = null;
         if (!_dead && _state != State.SPAWN && _state != State.LAUNCH)
             near = OrbInPullRange();
         if (near == _nearOrb)
             return;
-        if (_nearOrb != null && IsInstanceValid(_nearOrb) && _nearOrb.HasMethod("set_near"))
-            _nearOrb.Call("set_near", false);
-        if (near != null && near.HasMethod("set_near"))
-            near.Call("set_near", true);
+        if (_nearOrb != null && IsInstanceValid(_nearOrb))
+            _nearOrb.set_near(false);
+        near?.set_near(true);
         _nearOrb = near;
     }
 
-    private void BeginLaunch(Node2D orb)
+    private void BeginLaunch(LaunchOrb orb)
     {
         _launchOrb = orb;
         _launchFrom = GlobalPosition;
         _launchT = 0.0f;
-        Variant upV = orb.Get("launch_up");
-        Variant fwdV = orb.Get("launch_forward");
-        float up = upV.VariantType != Variant.Type.Nil ? upV.As<float>() : 950.0f;
-        float fwd = fwdV.VariantType != Variant.Type.Nil ? fwdV.As<float>() : 650.0f;
-        _launchVel = new Vector2(_facing * fwd, -up);
+        _launchVel = new Vector2(_facing * orb.launch_forward, -orb.launch_up);
         Velocity = Vector2.Zero;
         Enter(State.LAUNCH);
-        if (orb.HasMethod("play_use"))
-            orb.Call("play_use");
+        orb.play_use();
     }
 
     private void ProcessLaunch(float delta)
@@ -1885,7 +1862,7 @@ public partial class Player : Combatant
     private void ProcessSpecial(float delta)
     {
         // A special that carries Lunge (e.g. Zahluq) dashes through: hold vertical and let the lunge impulse
-        // ride instead of friction-damping it (mirrors the dash branch in ProcessAttack). set_armor is already
+        // ride instead of friction-damping it (mirrors the dash branch in ProcessAttack). SetArmor is already
         // honoured globally, so super-armor works for specials without extra handling here.
         if (_activeHit.Lunge.HasValue)
         {

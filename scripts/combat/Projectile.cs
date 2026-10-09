@@ -14,7 +14,7 @@ namespace MyGame;
 /// <c>source</c>/<c>velocity</c>/<c>apply_tuning</c>) through the migration; internals are idiomatic.
 /// </summary>
 [GlobalClass]
-public partial class Projectile : Node2D, ITunable
+public partial class Projectile : Node2D, ITunable, ISidedAttack
 {
     [Export] public bool hostile { get; set; }
     [Export] public bool friendly_fire { get; set; }
@@ -51,7 +51,7 @@ public partial class Projectile : Node2D, ITunable
     private const float GroundFollowReach = 40.0f;
 
     /// <summary>Who fired it (knockback credit); set by the spawner.</summary>
-    public Node? source;
+    public Node? source { get; set; }
     /// <summary>A straight (homing == 0) shot moves by this; set by the spawner. A homing shot derives its own dir.</summary>
     public Vector2 velocity = Vector2.Zero;
 

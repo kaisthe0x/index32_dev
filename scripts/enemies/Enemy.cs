@@ -752,9 +752,12 @@ public partial class Enemy : Combatant
 			return null;
 		if (scene.Instantiate() is not Node2D node)
 			return null;
-		node.Set("hostile", !is_frenemy());
-		node.Set("friendly_fire", friendly_fire);
-		node.Set("source", this);
+		if (node is ISidedAttack attack)
+		{
+			attack.hostile = !is_frenemy();
+			attack.friendly_fire = friendly_fire;
+			attack.source = this;
+		}
 		node.Scale = new Vector2(Mathf.Abs(node.Scale.X) * Facing, node.Scale.Y);
 		node.Position = at;
 		if (toWorld)
@@ -1114,10 +1117,8 @@ public partial class Enemy : Combatant
 
 	protected Node2D? Player()
 	{
-		var p = GetTree().GetFirstNodeInGroup("player") as Node2D;
-		if (p != null && p.HasMethod("is_dead") && p.Call("is_dead").AsBool())
-			return null;
-		return p;
+		var p = GetTree().GetFirstNodeInGroup("player") as MyGame.Player;
+		return p != null && p.is_dead() ? null : p;
 	}
 
 	public bool is_frenemy() => _frenemyLeft > 0.0f;
@@ -1130,9 +1131,7 @@ public partial class Enemy : Combatant
 		float bestD = float.PositiveInfinity;
 		foreach (var e in GetTree().GetNodesInGroup("enemies"))
 		{
-			if (e == this || e is not Node2D n)
-				continue;
-			if (e.HasMethod("is_frenemy") && e.Call("is_frenemy").AsBool())
+			if (e == this || e is not Enemy n || n.is_frenemy())
 				continue;
 			float dd = GlobalPosition.DistanceSquaredTo(n.GlobalPosition);
 			if (dd < bestD)

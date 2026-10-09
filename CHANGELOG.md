@@ -6,6 +6,42 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-09 — `new-shit` — cleanup, part 1 (typed calls, leftovers)
+
+First step of bringing the existing code up to `docs/standards.md` (the plan and its order are in the workspace
+handoff). No behaviour is meant to change in either commit.
+
+### Calls between the game's own classes are typed
+
+- **What:** every `HasMethod("…")` / `Call("…")` / `Get("…")` / `Set("…")` between the game's own classes is now a
+  normal typed call. Two small interfaces carry the seams that cross class families:
+  - `IStrikeWielder` (`ApplyLunge`, `SetArmor`, `HoldAnimation`) — what a strike asks of the body that threw it.
+    `Player` implements it; `Strike` and `BlastStrike` use it instead of calling the player by method name.
+  - `ISidedAttack` (`hostile`, `friendly_fire`, `source`) — what `Enemy.SpawnAttack` sets on the `Strike` or
+    `Projectile` it spawns, instead of setting three properties by name.
+  The rest are direct: the player's stun sweep and Come Closer's pull call `Enemy` methods; the launch-orb code holds
+  `LaunchOrb`, not `Node2D`; the Ruh orb is instantiated as `RuhOrb`; enemies find the player as `Player`; the
+  off-screen arrows read `Enemy.enemy_id`; the surge aura recolour checks for `OrbitAura`.
+- **Why:** rule `T4`. A by-name call is a string the compiler cannot check — rename the method and it fails silently
+  in play. These were left from when half the game was GDScript and one side could not see the other's types.
+- **How:** `Player`'s three wielder methods were renamed to PascalCase as they moved behind the new interface. The
+  Wara surge had its own copy of the stun loop; it now calls `stun_nearby`, the same sweep Slam Quake uses (`O2`).
+- **Could affect:** everything these seams carry — enemy attacks landing on the player, stuns, Zahluq's lunge and
+  super-armor, the animation hold during a blast, Come Closer, launch orbs, Ruh orbs, charmed-enemy targeting.
+- **Tested:** a headless scene run on this commit and on the previous one, 10 checks, all passing: an enemy's attack
+  hurts the player; the stun sweep hits near and misses far; Zahluq lunges; a blast holds the animation; Come Closer
+  pulls; a charmed enemy targets an enemy and a normal one targets the player; a hit kills and a Ruh orb launches;
+  a dash by a launch orb captures the player; the Sleeper and Diver enemies load, take a hit and die; Wara negates a
+  hit and stuns. Build: 410 warnings before and after. **Not tested:** the off-screen arrows (nothing draws
+  headless) and the feel of any of it in real play.
+- **Left as is:** particle nodes are still driven by property name (`emitting`, `amount`…), because the engine's two
+  particle classes share no typed base — now listed under Known debt. Enemy kits still apply by name (the kits step).
+- **Found, not changed:** `Player.HoldAnimation` is only reached through the "crimson vortex" dash effect, and
+  nothing in the game turns that effect on (`set_dash_effect` has no caller). It looks like a planned box buff's
+  hook; the owner should say whether it stays.
+
+---
+
 ## 2026-10-09 — `new-shit`
 
 ### Standards rulebook and this changelog

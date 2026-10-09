@@ -733,7 +733,7 @@ centrally, so no exit can leave a stale `_flurry` that swallows later attack pre
 a long way. It is now a **rare special** (see below), but the dash mechanic is a shared move trait, honoured
 by **both** the attack state (`ProcessAttack`) and the special state (`ProcessSpecial`). Its tuning keys,
 read by the state processor and by the `Strike` at spawn:
-- **`lunge`** — the burst speed. `Strike.apply_tuning` → `Player.apply_lunge` sets `velocity.x`. Whenever the
+- **`lunge`** — the burst speed. `Strike.apply_tuning` → `Player.ApplyLunge` (through `IStrikeWielder`) sets `velocity.x`. Whenever the
   active hit carries a `lunge`, the state processor holds `velocity.y = 0` and **skips friction** so the
   impulse rides instead of being damped away.
 - **`hold`** — for an *attack*, seconds to **freeze on the strike frame** while sliding (extends
@@ -741,7 +741,7 @@ read by the state processor and by the `Strike` at spawn:
   **stops crisply** (velocity zeroed). For a *special* the animation itself paces the slide (the dash rides
   until the anim finishes). Non-lunge moves are unaffected (still friction-rooted).
 - **`super_armor`** — commits the dash so a hit mid-slide won't stagger him out of it (set ≈ `hold`).
-  Applied globally via `Player.set_armor` (ticked in the main physics loop), so it works in either state.
+  Applied globally via `Player.SetArmor` (ticked in the main physics loop), so it works in either state.
 - **`extents`** — the hitbox, made wide + tall so it **surrounds him** as he slides through enemies.
 
 The hitbox *sweeps* with him via the emitter row's **`follow: true`** — the director parents the effect
