@@ -59,10 +59,13 @@ tools/                Generator + verification scripts (not shipped)
 ```
 
 **Building.** `dotnet build mygamedev.csproj` (the Godot editor runs the same build). It must finish with zero
-warnings — a warning fails the build (`docs/standards.md`, rule `V1`). Every build prints
+warnings — a warning fails the build (`docs/standards.md`, rule `V1`). Every build that actually compiles prints
 `Compile time: 1.40 s (144 files, Debug)` and appends a line to **`build_times.log`** (git-ignored, per machine):
 when, configuration, seconds spent in the C# compile step, and the number of source files. A build with nothing to
-recompile logs about 0 s; a full compile of the game is about 1.4 s (2026-10-09).
+recompile adds nothing. The editor shows build messages only in its **MSBuild** panel, so when the game is started
+from the editor (F5) it prints the latest line itself, first thing in the **Output** panel:
+`Last C# compile: 2026-10-09 17:39:55  Debug  1.33 s  145 files` (`helpers/BuildLog.cs`, a `DEBUG` aid that does
+nothing in an exported game). A full compile of the game is about 1.4 s (2026-10-09).
 
 ## Controls
 

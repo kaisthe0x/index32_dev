@@ -6,6 +6,45 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-09 — `new-shit` — fixes from the owner's first run after the cleanup
+
+The owner pressed F5 and reported two things: an engine error in the Output panel, and no compile-time line.
+
+### Player no longer looks up the HUD from outside the scene tree
+
+- **What:** `Player` reached the HUD autoload with `GetNodeOrNull<HUD>("/root/HUD")` in seven places. They now go
+  through one private property, `Hud`, which returns null while the player is not in the scene tree.
+- **Why:** the editor printed `ERROR: Can't use get_node() with absolute paths from outside the active scene tree.`
+  `Player` is a `[Tool]` script, so it also runs inside the editor. When the editor applies the `Character`
+  property to a player that is not in the tree (a scene in a background tab; a script reload after a build),
+  `ApplyCharacter` → `SeedPassives` → `ClearPassives` → `RefreshBuffHud` asked for `/root/HUD` from there.
+- **Is it from the cleanup?** The code path is the same in the commit before the cleanup began (`744ec1f`), so the
+  fault is old. What made it show now is not established — most likely the editor reloading every script after the
+  rename. It was harmless either way: the lookup returned null and the game was unaffected.
+- **Could affect:** the buff list, Lira and fig counters on the HUD (all seven sites). In the running game the
+  player is always in the tree, so nothing changes there.
+- **Tested:** reproduced first — a headless scene that instantiates `player.tscn` without adding it to the tree and
+  sets `Character` printed the exact error; after the fix it prints nothing. The 15 headless checks pass (they cover
+  the fig counter through the mystery box).
+
+### The compile time shows where the owner looks
+
+- **What:** (1) the game prints `Last C# compile: <when>  <configuration>  <seconds> s  <files> files` as its first
+  line in the Output panel when started from the editor — new `helpers/BuildLog.cs`, called from `HUD._Ready`,
+  labelled `DEBUG`, inactive in an exported game. (2) `build_times.log` now gets a line only when the compiler
+  actually ran; builds with nothing to recompile used to add "0.03 s" lines.
+- **Why:** the build did log on F5 — the line was in `build_times.log` — but the editor shows build output only in
+  its MSBuild panel, not in Output, so the owner never saw it. And with the "0 s" lines, "the last line of the log"
+  was usually meaningless.
+- **How:** the build target compares the assembly's modified time with the moment the compile step started; if the
+  assembly was not rewritten, the compiler did not run and nothing is logged.
+- **Could affect:** nothing in the game.
+- **Tested:** a first build, a no-change build (no line), a one-file-touched build and a clean build wrote three
+  lines; `ExportDebug` and `ExportRelease` build clean; a headless run printed the line. **Not tested:** seeing it
+  in the editor's Output panel on F5 — that is the owner's check.
+
+---
+
 ## 2026-10-09 — `new-shit` — cleanup, part 4 (C# names everywhere)
 
 Step G. The classes ported from GDScript kept their `snake_case` public names (`player.take_damage()`,

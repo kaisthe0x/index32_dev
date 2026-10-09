@@ -93,6 +93,7 @@ public partial class HUD : CanvasLayer
 	public override void _Ready()
 	{
 		Layer = UiLayers.Hud;
+		BuildLog.PrintLastCompile(); // DEBUG: the first autoload to start says how long the last compile took
 		UiStyle.Install(); // first UI to exist (autoload) — make Sixtyfour the global fallback font before anything builds
 		BuildHud();
 		BuildLowHealth();

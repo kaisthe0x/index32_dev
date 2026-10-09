@@ -453,9 +453,14 @@ public partial class Player : Combatant, IStrikeWielder
         RefreshBuffHud();
     }
 
+    /// <summary>The HUD autoload — null while this player is outside the scene tree. The editor applies a character
+    /// to this [Tool] script's instance before it is in the tree (a background scene tab, a script reload), and an
+    /// absolute-path lookup from there is an engine error.</summary>
+    private HUD? Hud => IsInsideTree() ? GetNodeOrNull<HUD>("/root/HUD") : null;
+
     /// <summary>Push the current buff loadout to the HUD's active-buff list (autoload). Also called when a shot's
     /// rounds-left changed without the list changing.</summary>
-    public void RefreshBuffHud() => GetNodeOrNull<HUD>("/root/HUD")?.RefreshBuffs(_passives);
+    public void RefreshBuffHud() => Hud?.RefreshBuffs(_passives);
 
     /// <summary>Lira banked this run — the common currency (docs/game-loop.md § Economy). Reset by <see cref="BeginRun"/>.</summary>
     public int Lira { get; private set; } = 0;
@@ -464,7 +469,7 @@ public partial class Player : Combatant, IStrikeWielder
     public void CollectLira(int n)
     {
         Lira += n;
-        GetNodeOrNull<HUD>("/root/HUD")?.SetLira(Lira);
+        Hud?.SetLira(Lira);
     }
 
     /// <summary>FadaFigs banked this run — the rare currency (the mystery box spends it). Reset by <see cref="BeginRun"/>.</summary>
@@ -474,7 +479,7 @@ public partial class Player : Combatant, IStrikeWielder
     public void CollectFadaFig(int n = 1)
     {
         FadaFigs += n;
-        GetNodeOrNull<HUD>("/root/HUD")?.SetFadaFigs(FadaFigs);
+        Hud?.SetFadaFigs(FadaFigs);
     }
 
     /// <summary>Try to spend <paramref name="cost"/> FadaFigs (the mystery box). True + deducts if affordable; else false.</summary>
@@ -483,7 +488,7 @@ public partial class Player : Combatant, IStrikeWielder
         if (cost <= 0 || FadaFigs < cost)
             return false;
         FadaFigs -= cost;
-        GetNodeOrNull<HUD>("/root/HUD")?.SetFadaFigs(FadaFigs);
+        Hud?.SetFadaFigs(FadaFigs);
         return true;
     }
 
@@ -657,7 +662,7 @@ public partial class Player : Combatant, IStrikeWielder
         if (cost < 0 || Lira < cost)
             return false;
         Lira -= cost;
-        GetNodeOrNull<HUD>("/root/HUD")?.SetLira(Lira);
+        Hud?.SetLira(Lira);
         return true;
     }
 
@@ -1234,8 +1239,8 @@ public partial class Player : Combatant, IStrikeWielder
         _fellOut = false;
         Lira = 0;
         FadaFigs = 0;
-        GetNodeOrNull<HUD>("/root/HUD")?.SetLira(0);
-        GetNodeOrNull<HUD>("/root/HUD")?.SetFadaFigs(0);
+        Hud?.SetLira(0);
+        Hud?.SetFadaFigs(0);
         EndSurge();
         _shakeLeft = 0.0f;
         if (_sprite != null)
