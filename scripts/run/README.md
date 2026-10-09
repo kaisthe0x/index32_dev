@@ -14,7 +14,7 @@ implements is [`docs/game-loop.md`](../../docs/game-loop.md) — **endless CoD-Z
 | File | What it is |
 |---|---|
 | `RunManager.cs` (`RunManager`) | The brain + the arena root. Builds ONE arena and runs the **round loop** (a hidden quota per round, trickled in from a mixed roster at the layout's spawn spots, under a concurrent cap; the last few hunt the player, and from round 5 standing still draws kamikazes — then straight into the next round with a ROUND banner — no break), **awards Ruh per damaging hit landed** (via `gain_ruh_on_hit`, skipping a special's own hits — not per kill), **pays Lira on every kill** (coins that fly to the player) **plus a per-kit chance of one Fada Fig**, **spawns a mystery box** (spend figs for a stingy powerful-buff gamble — a win rarely offers a **special-swap** instead) **and the stalls** (Needle Point, Dekken — placed in the layout), ticks the run's `PerkLedger` at each round clear, and restarts the run on death. Owns the camera/death/spawn flair. |
-| `enemies.gd` (`EnemyKits`) | **The enemy roster** — one named kit per type (combat tuning + which scene), plus a `Tier`. `RunManager.SpawnPool` draws from these. Edit here to change *who* the enemies are. |
+| `EnemyKits.cs` (`EnemyKits`) | **The enemy roster** — one typed `EnemyKit` per type (id, name, tier, movement, which scene, and a `Tune` function that sets its combat stats). `RunManager.SpawnPool` draws from these. Edit here to change *who* the enemies are. |
 | `ShotLedger.cs` (`ShotLedger`) | **Needle Point's rules** for one run: the ranks owned of each shot (as `Shot` passives). BUY (break only) raises a shot one rank, permanently, at a rising price. Data in `configs/NeedlePoint.cs`; see the main README § Needle Point shots. |
 | `PerkLedger.cs` (`PerkLedger`) | **Dekken's rules** for one run: the round's stock (5 random perks, rerolled every round), active/owned perks (as `Perk` passives), BUY (break only) + `OnRoundClear`. Data in `configs/Dekken.cs`; see the main README § Dekken perks. |
 | `DekkenStall.cs` (`DekkenStall`, in `scripts/things/`) | The perk shop — a triangular VENDING MACHINE of vials (`assets/things/dekken.png`, 128×128, from `index32_art/art/stages/stage1/Dekken.png` — the mossy stage-1 version), placed in the layout. Its vials are tinted Khalid's hair colour (`vial_recolor.gdshader`). Press **E** at it to open the `DekkenMenu` (`scripts/ui/`). |
@@ -142,10 +142,10 @@ Related, but not in this folder:
   `Interval*` (seconds between spawns), `ShowLeftAt`. `RunManager.SpawnPool` is the
   roster drawn from. Anti-camp: `OffscreenDespawnTime` (how long off-screen before an enemy is silently culled) /
   `OffscreenMargin`.
-- **Cap a specific enemy type** → add `{ "spawn_cap", N }` to its kit in `EnemyKits` (e.g. Nasen = 1). The cap grows
-  +1 every `Rounds.KitCapGrowthRounds` rounds. Kits with no `spawn_cap` are unlimited.
-- **Change the drops** → Lira per kill: `RunManager.LiraForTier` (by advisory tier) or a kit's `lira_drop`; fig
-  odds: a kit's `fig_chance` (default `Enemy.fig_chance` = 0.1). Pickup cues `lira_collect` / `fada_fig_collect` in
+- **Cap a specific enemy type** → set `SpawnCap = N` on its kit in `EnemyKits` (e.g. Nasen: `with { SpawnCap = 1 }`). The cap grows
+  +1 every `Rounds.KitCapGrowthRounds` rounds. Kits with no `SpawnCap` are unlimited.
+- **Change the drops** → Lira per kill: `RunManager.LiraForTier` (by advisory tier) or a kit's `LiraDrop`; fig
+  odds: `fig_chance` in the kit's `Tune` (default `Enemy.fig_chance` = 0.1). Pickup cues `lira_collect` / `fada_fig_collect` in
   `SfxWorld` (PLACEHOLDERS). The ROUND n intro's timing is `IntroFadeIn` / `IntroHold` / `IntroFly` in `HUD.cs`.
 - **Change the mystery box** → `configs/BoxRules.cs`: `Cost`, `SpinTime`, `OfferTime`, `TeddyChance`, `HardSpotChance`,
   `SpecialChance`, `SPECIALS` (the box-only specials). Where it can stand: the layout's `BoxSpots/Easy` + `BoxSpots/Hard`
@@ -157,7 +157,7 @@ Related, but not in this folder:
   `PERKS`. A new perk = a `PerkIds` id + its entry + its effect (`Perk` for lasting ones, `PerkLedger.Buy` for one-use).
 - **Which buffs the box offers** → `BuffCatalog.FACTORIES` (each with its one value) minus `Parked`, minus what the
   player holds (`BuffCatalog.Pool`); a new buff = a `BuffIds` id + a factory + its `INFO` line.
-- **Change an enemy's stats** → its kit in `enemies.gd` (combat).
+- **Change an enemy's stats** → its kit's `Tune` in `EnemyKits.cs` (combat).
 - **Change the Ruh / surge economy** → `Player.RUH_PER_HIT` (fill rate per hit), `RUH_PER_BLOCK`
   (charge size), `BASE_RUH_CAP` (starting charges), and the Aegis surge's `cost` / `duration` in
   `configs/actions_khalid.gd` (`SURGES`) for its Ruh price + invuln window. (Specials cost no Ruh — their knob is each special's `Cooldown` in `ActionsKhalid.SPECIALS`.)

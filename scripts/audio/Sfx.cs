@@ -1,13 +1,11 @@
 using Godot;
 using System.Collections.Generic;
-using GDict = Godot.Collections.Dictionary;
-using GArr = Godot.Collections.Array;
 
 namespace MyGame;
 
 /// <summary>
 /// Central SOUND-EFFECTS service (autoload <c>Sfx</c>) — the runtime that PLAYS sounds; the catalog of which
-/// sounds exist lives in the pure-DATA configs (SfxCharacters/SfxEnemies/SfxWorld, bridged). Every sound is a
+/// sounds exist lives in the pure-DATA configs (SfxCharacters/SfxEnemies/SfxWorld). Every sound is a
 /// stable <c>key</c>; an unregistered key is a silent no-op. C# port of <c>scripts/audio/sfx.gd</c>.
 ///
 /// <para><b>Every cue plays at the same loudness, automatically.</b> On boot each cue's file is measured
@@ -15,8 +13,7 @@ namespace MyGame;
 /// <see cref="TargetLoudness"/> — so a new WAV needs no mastering or trim: drop it in, register its key. The per-cue
 /// VOLUMES tables are then only for DELIBERATE mix choices on top (a quiet ambient hum), never loudness fixes.</para>
 ///
-/// <para>PUBLIC surface stays snake_case: GDScript calls <c>Sfx.play(...)</c> on the autoload singleton and the
-/// still-bridged C# callers use <c>GetNode("/root/Sfx").Call("play", …)</c> — both address these by exact name.</para>
+/// <para>The PUBLIC surface is still snake_case, a leftover of the GDScript port (docs/standards.md, Known debt).</para>
 /// </summary>
 public partial class Sfx : Node
 {
@@ -37,28 +34,22 @@ public partial class Sfx : Node
     private readonly List<AudioStreamPlayer2D> _pos = new();
     private int _fi, _pi;
     private readonly Dictionary<string, AudioStream> _cache = new();
-    private readonly GDict _cues = new(); // key -> path, merged from the per-area configs
-    private readonly GDict _vol = new();  // key -> deliberate per-cue mix offset (dB), merged; unlisted = 0
-    private readonly GDict _pitch = new(); // key or dotted-prefix group -> random pitch range (min,max), merged; unlisted = fixed
+    private readonly Dictionary<string, string> _cues = new();  // key -> path, merged from the per-area configs
+    private readonly Dictionary<string, float> _vol = new();    // key -> deliberate per-cue mix offset (dB), merged; unlisted = 0
+    private readonly Dictionary<string, Vector2> _pitch = new(); // key or dotted-prefix group -> random pitch range (min,max), merged; unlisted = fixed
     private readonly Dictionary<string, float> _normalize = new(); // file path -> gain (dB) bringing it to TargetLoudness
     private StringName _bus = "Master";
 
     public override void _Ready()
     {
-        _cues.Merge(SfxCharacters.CUES);
-        _cues.Merge(SfxEnemies.CUES);
-        _cues.Merge(SfxWorld.CUES);
-        _vol.Merge(SfxCharacters.VOLUMES);
-        _vol.Merge(SfxEnemies.VOLUMES);
-        _vol.Merge(SfxWorld.VOLUMES);
-        _pitch.Merge(SfxCharacters.PITCH);
-        _pitch.Merge(SfxEnemies.PITCH);
-        _pitch.Merge(SfxWorld.PITCH);
+        Merge(_cues, SfxCharacters.CUES, SfxEnemies.CUES, SfxWorld.CUES);
+        Merge(_vol, SfxCharacters.VOLUMES, SfxEnemies.VOLUMES, SfxWorld.VOLUMES);
+        Merge(_pitch, SfxCharacters.PITCH, SfxEnemies.PITCH, SfxWorld.PITCH);
         if (PreferredOutput != "" && System.Array.IndexOf(AudioServer.GetOutputDeviceList(), PreferredOutput) != -1)
             AudioServer.OutputDevice = PreferredOutput;
         _bus = AudioServer.GetBusIndex(Bus) != -1 ? Bus : "Master";
-        foreach (Variant key in _cues.Keys)
-            Stream(key.AsString()); // load + measure every cue now, so no first-play hitch mid-fight
+        foreach (string key in _cues.Keys)
+            Stream(key); // load + measure every cue now, so no first-play hitch mid-fight
         for (int i = 0; i < Pool; i++)
         {
             // ProcessMode.Always so one-shots (UI/level-up cues) still play while the game is paused (menus).
@@ -94,9 +85,8 @@ public partial class Sfx : Node
         if (_cache.TryGetValue(key, out var cached))
             return cached;
         AudioStream s = null;
-        if (_cues.ContainsKey(key))
+        if (_cues.TryGetValue(key, out string path))
         {
-            string path = _cues[key].AsString();
             if (ResourceLoader.Exists(path))
             {
                 s = GD.Load<AudioStream>(path);
@@ -108,6 +98,15 @@ public partial class Sfx : Node
         }
         _cache[key] = s;
         return s;
+    }
+
+    /// <summary>Copy every entry of each of <paramref name="tables"/> into <paramref name="into"/> (a later table wins
+    /// a shared key).</summary>
+    private static void Merge<T>(Dictionary<string, T> into, params Dictionary<string, T>[] tables)
+    {
+        foreach (var table in tables)
+            foreach (var (key, value) in table)
+                into[key] = value;
     }
 
     /// <summary>The gain (dB) that brings <paramref name="s"/> to <see cref="TargetLoudness"/>; 0 (with a warning) if it
@@ -145,11 +144,8 @@ public partial class Sfx : Node
     {
         for (string k = key; ; k = k[..k.LastIndexOf('.')])
         {
-            if (_pitch.ContainsKey(k))
-            {
-                Vector2 range = _pitch[k].As<Vector2>();
+            if (_pitch.TryGetValue(k, out Vector2 range))
                 return 1.0f + (float)GD.RandRange(range.X, range.Y);
-            }
             if (!k.Contains('.'))
                 return 1.0f;
         }
@@ -159,19 +155,19 @@ public partial class Sfx : Node
     /// VOLUMES offset. Every player the service hands out starts from this.</summary>
     private float GainFor(string key)
     {
-        float gain = _vol.ContainsKey(key) ? _vol[key].As<float>() : 0.0f;
-        if (_cues.ContainsKey(key) && _normalize.TryGetValue(_cues[key].AsString(), out float n))
+        float gain = _vol.GetValueOrDefault(key);
+        if (_cues.TryGetValue(key, out string path) && _normalize.TryGetValue(path, out float n))
             gain += n;
         return gain;
     }
 
     /// <summary>Fire ONE random variant from `keys` (skips unregistered / missing). No-op if none resolve.</summary>
-    public void play_random(GArr keys, float volume_db = 0.0f, float pitch = 1.0f)
+    public void play_random(IReadOnlyList<string> keys, float volume_db = 0.0f, float pitch = 1.0f)
     {
         var valid = new List<string>();
-        foreach (Variant k in keys)
-            if (Stream(k.AsString()) != null)
-                valid.Add(k.AsString());
+        foreach (string k in keys)
+            if (Stream(k) != null)
+                valid.Add(k);
         if (valid.Count == 0)
             return;
         play(valid[(int)(GD.Randi() % (uint)valid.Count)], volume_db, pitch);

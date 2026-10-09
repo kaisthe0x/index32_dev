@@ -1,7 +1,5 @@
 using Godot;
 using System.Collections.Generic;
-using GDict = Godot.Collections.Dictionary;
-using GArr = Godot.Collections.Array;
 
 namespace MyGame;
 
@@ -15,31 +13,30 @@ namespace MyGame;
 /// </summary>
 public partial class ParticleDirector : Node2D
 {
+	/// <summary>How an effect was authored facing RIGHT, kept so it can be mirrored each time: a CPU emitter's
+	/// direction and gravity, or any other node's rotation.</summary>
+	private readonly record struct BasePose(Vector2 Direction, Vector2 Gravity, float Rotation);
+
 	private sealed class Sustained
 	{
 		public Node2D node; public List<Node> emitters; public string anim; public List<int> frames;
-		public Vector2 pos; public GDict baseCap; public List<Hitbox> hitboxes; public bool active;
+		public Vector2 pos; public BasePose basePose; public List<Hitbox> hitboxes; public bool active;
 	}
 
-	private sealed class Burst
-	{
-		public string anim; public List<int> frames; public Vector2 pos; public PackedScene scene;
-		public string node; public GDict set; public GDict boost; public bool conform_to_ground; public bool follow;
-	}
+	/// <summary>A burst row bound to its animation, with its frames converted to emitted indices.</summary>
+	private sealed record Burst(string Anim, List<int> Frames, EmitterDef Def);
 
 	private AnimatedSprite2D _sprite;
 	private readonly List<Sustained> _sustained = new();
 	private readonly List<Burst> _bursts = new();
-	private GDict _sfxFrames = new(); // anim -> { emitted_frame -> cue_key }
+	private readonly Dictionary<string, Dictionary<int, string>> _sfxFrames = new(); // anim -> { emitted_frame -> cue_key }
 
-	private GDict _sfxCharsFrames;
 	private Sfx _sfx;
 
 	/// <summary>Wire the director to a player sprite; watch frame/animation changes. Call once, then set_character().</summary>
 	public void setup(AnimatedSprite2D sprite)
 	{
 		_sprite = sprite;
-		_sfxCharsFrames = SfxCharacters.FRAMES;
 		_sfx = GetNode<Sfx>("/root/Sfx");
 		_sprite.FrameChanged += Refresh;
 		_sprite.AnimationChanged += Refresh;
@@ -55,64 +52,38 @@ public partial class ParticleDirector : Node2D
 		_bursts.Clear();
 		BuildSfxFrames(id);
 
-		var byAnim = Emitters.Character(id);
-		foreach (var animK in byAnim.Keys)
+		foreach (var (anim, rows) in Emitters.Character(id))
 		{
-			if (byAnim[animK].VariantType != Variant.Type.Array)
-				continue;
-			string anim = animK.AsString();
 			int start = SheetStart(anim);
-			foreach (Variant rowV in byAnim[animK].As<GArr>())
+			foreach (EmitterDef row in rows)
 			{
-				var row = rowV.As<GDict>();
-				var frames = FramesFor(anim, row.ContainsKey("frames") ? row["frames"] : new GArr(), start);
-				Vector2 pos = row["pos"].As<Vector2>();
-				var scene = row["scene"].As<PackedScene>();
-				var boost = row.ContainsKey("boost") ? row["boost"].As<GDict>() : new GDict();
-				string mode = row.ContainsKey("mode") ? row["mode"].AsString() : "burst";
-				if (mode == "sustained")
+				var frames = FramesFor(anim, row, start);
+				if (row.Mode != EmitterMode.Sustained)
 				{
-					var node = Spawn(scene, row.ContainsKey("node") ? row["node"].AsString() : "");
-					if (node == null)
-						continue;
-					ApplyOverrides(node, row.ContainsKey("set") ? row["set"].As<GDict>() : new GDict());
-					var emitters = EmittersOf(node);
-					foreach (var em in emitters)
-					{
-						Boost((Node2D)em, boost);
-						SetEmitting(em, false);
-					}
-					AddChild(node);
-					var hitboxes = HitboxesOf(node);
-					foreach (var hb in hitboxes)
-						hb.source = Attacker();
-					_sustained.Add(new Sustained
-					{
-						node = node,
-						emitters = emitters,
-						anim = anim,
-						frames = frames,
-						pos = pos,
-						baseCap = Capture(node),
-						hitboxes = hitboxes,
-						active = false,
-					});
+					_bursts.Add(new Burst(anim, frames, row));
+					continue;
 				}
-				else
+				var node = Spawn(row);
+				if (node == null)
+					continue;
+				var emitters = EmittersOf(node);
+				foreach (var em in emitters)
+					ParticleNodes.SetEmitting(em, false);
+				AddChild(node);
+				var hitboxes = HitboxesOf(node);
+				foreach (var hb in hitboxes)
+					hb.source = Attacker();
+				_sustained.Add(new Sustained
 				{
-					_bursts.Add(new Burst
-					{
-						anim = anim,
-						frames = frames,
-						pos = pos,
-						scene = scene,
-						node = row.ContainsKey("node") ? row["node"].AsString() : "",
-						set = row.ContainsKey("set") ? row["set"].As<GDict>() : new GDict(),
-						boost = boost,
-						conform_to_ground = row.ContainsKey("conform_to_ground") && row["conform_to_ground"].AsBool(),
-						follow = row.ContainsKey("follow") && row["follow"].AsBool(),
-					});
-				}
+					node = node,
+					emitters = emitters,
+					anim = anim,
+					frames = frames,
+					pos = row.Pos,
+					basePose = Capture(node),
+					hitboxes = hitboxes,
+					active = false,
+				});
 			}
 		}
 		Refresh();
@@ -120,74 +91,55 @@ public partial class ParticleDirector : Node2D
 
 	private void BuildSfxFrames(string id)
 	{
-		_sfxFrames = new GDict();
-		var byAnim = _sfxCharsFrames.ContainsKey(id) ? _sfxCharsFrames[id].As<GDict>() : new GDict();
-		foreach (var animK in byAnim.Keys)
+		_sfxFrames.Clear();
+		if (!SfxCharacters.FRAMES.TryGetValue(id, out var byAnim))
+			return;
+		foreach (var (anim, frames) in byAnim)
 		{
-			string anim = animK.AsString();
 			int start = SheetStart(anim);
-			var emap = new GDict();
-			var frames = byAnim[animK].As<GDict>();
-			foreach (var fK in frames.Keys)
-				emap[fK.As<int>() - start] = frames[fK];
+			var emap = new Dictionary<int, string>();
+			foreach (var (sheetFrame, cue) in frames)
+				emap[sheetFrame - start] = cue;
 			_sfxFrames[anim] = emap;
 		}
 	}
 
-	private List<int> FramesFor(string anim, Variant raw, int start)
+	/// <summary>The EMITTED animation frames <paramref name="row"/> plays on: every frame of <paramref name="anim"/>,
+	/// or its sheet-relative frames shifted by the frames the sprite generator dropped from the start.</summary>
+	private List<int> FramesFor(string anim, EmitterDef row, int start)
 	{
-		var outL = new List<int>();
-		if (raw.VariantType == Variant.Type.String && raw.AsString() == "all")
+		var frames = new List<int>();
+		if (row.AllFrames)
 		{
 			var sf = _sprite.SpriteFrames;
 			if (sf != null && sf.HasAnimation(anim))
 				for (int e = 0; e < sf.GetFrameCount(anim); e++)
-					outL.Add(e);
+					frames.Add(e);
 		}
 		else
 		{
-			foreach (Variant f in raw.As<GArr>())
-				outL.Add(f.As<int>() - start);
+			foreach (int sheetFrame in row.Frames)
+				frames.Add(sheetFrame - start);
 		}
-		return outL;
+		return frames;
 	}
 
-	private int SheetStart(string anim)
-	{
-		var sf = _sprite.SpriteFrames;
-		if (sf != null && sf.HasMeta("sheet_start"))
-			return sf.GetMeta("sheet_start").As<GDict>() is { } m && m.ContainsKey(anim) ? m[anim].As<int>() : 0;
-		return 0;
-	}
+	private int SheetStart(string anim) => AnimMeta.SheetStart(_sprite.SpriteFrames, anim);
 
-	/// <summary>Instantiate an effect from its preloaded scene; optionally lift one named child of a palette scene.</summary>
-	private Node2D Spawn(PackedScene scene, string nodeName = "")
+	/// <summary>Instantiate a row's effect, recoloured to the power picks and with the row's typed settings applied;
+	/// null (with a warning) if the scene is nothing the director can drive.</summary>
+	private Node2D Spawn(EmitterDef row)
 	{
-		if (scene == null)
+		if (row.Scene.Instantiate() is not Node2D node)
 			return null;
-		var root = scene.Instantiate();
-		var node = root as Node2D;
-		if (nodeName != "")
+		if (EmittersOf(node).Count == 0 && node is not Projectile && node is not Strike && node is not LobProjectile)
 		{
-			var child = root.GetNodeOrNull<Node2D>(nodeName);
-			if (child == null)
-			{
-				GD.PushWarning($"ParticleDirector: palette {scene.ResourcePath} has no child '{nodeName}'");
-				root.QueueFree();
-				return null;
-			}
-			root.RemoveChild(child);
-			child.Owner = null;
-			root.QueueFree();
-			node = child;
-		}
-		if (EmittersOf(node).Count == 0 && node is not Projectile && node is not Strike)
-		{
-			GD.PushWarning($"ParticleDirector: {scene.ResourcePath} has no CPU/GPUParticles2D and is not a Projectile/Strike");
+			GD.PushWarning($"ParticleDirector: {row.Scene.ResourcePath} has no CPU/GPUParticles2D and is not a Projectile/Strike");
 			node.QueueFree();
 			return null;
 		}
 		VfxPalette.RecolorTree(node); // honour power-colour picks (no-op without picks)
+		row.Configure?.Invoke(node);
 		return node;
 	}
 
@@ -206,8 +158,8 @@ public partial class ParticleDirector : Node2D
 			var ems = EmittersOf(f);
 			foreach (var em in ems)
 			{
-				SetOneShot(em, true);
-				SetEmitting(em, true);
+				ParticleNodes.SetOneShot(em, true);
+				ParticleNodes.SetEmitting(em, true);
 			}
 			FreeWhenDone(f, ems);
 		}
@@ -277,55 +229,10 @@ public partial class ParticleDirector : Node2D
 
 	private float Mirror() => _sprite.FlipH ? -1.0f : 1.0f;
 
-	private void Boost(Node2D node, GDict boost)
-	{
-		if (boost.Count == 0)
-			return;
-		float BF(string k, float d) => boost.ContainsKey(k) ? boost[k].As<float>() : d;
-		node.Set("amount", Mathf.Max(1, Mathf.RoundToInt(node.Get("amount").As<int>() * BF("amount", 1.0f))));
-		node.Set("lifetime", node.Get("lifetime").As<double>() * BF("lifetime", 1.0f));
-		if (boost.ContainsKey("explosiveness"))
-			node.Set("explosiveness", (double)BF("explosiveness", 0.0f));
-		if (node is CpuParticles2D)
-		{
-			ScaleMinMaxPair(node, "initial_velocity_min", "initial_velocity_max", BF("speed", 1.0f));
-			ScaleMinMaxPair(node, "scale_amount_min", "scale_amount_max", BF("scale", 1.0f));
-		}
-		else if (boost.ContainsKey("speed") || boost.ContainsKey("scale"))
-		{
-			GD.PushWarning("ParticleDirector: 'speed'/'scale' boost needs a CPUParticles2D");
-		}
-	}
+	private static BasePose Capture(Node2D node) =>
+		node is CpuParticles2D cp ? new BasePose(cp.Direction, cp.Gravity, 0.0f) : new BasePose(default, default, node.Rotation);
 
-	private void ApplyOverrides(Node2D node, GDict overrides)
-	{
-		foreach (var keyV in overrides.Keys)
-		{
-			string key = keyV.AsString();
-			int idx = key.LastIndexOf(':');
-			string prop = idx >= 0 ? key.Substring(idx + 1) : key;
-			string path = idx >= 0 ? key.Substring(0, idx) : "";
-			Node target = path != "" ? node.GetNodeOrNull(path) : node;
-			if (target == null)
-			{
-				GD.PushWarning($"ParticleDirector: override '{key}' -- no such child");
-				continue;
-			}
-			Variant value = overrides[keyV];
-			if (value.VariantType == Variant.Type.String && value.AsString().StartsWith("res://"))
-				value = GD.Load<Resource>(value.AsString());
-			target.Set(prop, value);
-		}
-	}
-
-	private GDict Capture(Node2D node)
-	{
-		if (node is CpuParticles2D cp)
-			return new GDict { { "dir", cp.Direction }, { "grav", cp.Gravity } };
-		return new GDict { { "rot", node.Rotation } };
-	}
-
-	private void Face(Node2D node, GDict baseCap, Vector2 pos, float m)
+	private static void Face(Node2D node, BasePose basePose, Vector2 pos, float m)
 	{
 		node.Position = new Vector2(pos.X * m, pos.Y);
 		if (node is Projectile)
@@ -334,15 +241,13 @@ public partial class ParticleDirector : Node2D
 		}
 		else if (node is CpuParticles2D cp)
 		{
-			Vector2 dir = baseCap["dir"].As<Vector2>();
-			Vector2 grav = baseCap["grav"].As<Vector2>();
-			cp.Direction = new Vector2(dir.X * m, dir.Y);
-			cp.Gravity = new Vector2(grav.X * m, grav.Y);
+			cp.Direction = new Vector2(basePose.Direction.X * m, basePose.Direction.Y);
+			cp.Gravity = new Vector2(basePose.Gravity.X * m, basePose.Gravity.Y);
 		}
 		else
 		{
 			node.Scale = new Vector2(m, node.Scale.Y);
-			node.Rotation = (baseCap.ContainsKey("rot") ? baseCap["rot"].As<float>() : node.Rotation) * m;
+			node.Rotation = basePose.Rotation * m;
 		}
 	}
 
@@ -357,9 +262,9 @@ public partial class ParticleDirector : Node2D
 			if (!IsInstanceValid(entry.node))
 				continue;
 			bool on = entry.anim == anim && entry.frames.Contains(frame);
-			Face(entry.node, entry.baseCap, entry.pos, m);
+			Face(entry.node, entry.basePose, entry.pos, m);
 			foreach (var em in entry.emitters)
-				SetEmitting(em, on);
+				ParticleNodes.SetEmitting(em, on);
 			if (on != entry.active)
 			{
 				if (on)
@@ -376,12 +281,10 @@ public partial class ParticleDirector : Node2D
 		}
 
 		foreach (var b in _bursts)
-			if (b.anim == anim && b.frames.Contains(frame))
+			if (b.Anim == anim && b.Frames.Contains(frame))
 				FireBurst(b, m);
 
-		var emapV = _sfxFrames.ContainsKey(anim) ? _sfxFrames[anim].As<GDict>() : new GDict();
-		string cue = emapV.ContainsKey(frame) ? emapV[frame].AsString() : "";
-		if (cue != "")
+		if (_sfxFrames.TryGetValue(anim, out var emap) && emap.TryGetValue(frame, out string cue))
 			_sfx.play_at(cue, GlobalPosition, 0.0f, 1.0f);
 	}
 
@@ -390,19 +293,19 @@ public partial class ParticleDirector : Node2D
 	{
 		float m = Mirror();
 		foreach (var b in _bursts)
-			if (b.anim == anim)
+			if (b.Anim == anim)
 				FireBurst(b, m, tilt);
 	}
 
 	private void FireBurst(Burst b, float m, float tilt = 0.0f)
 	{
-		var node = Spawn(b.scene, b.node);
+		EmitterDef row = b.Def;
+		var node = Spawn(row);
 		if (node == null)
 			return;
-		ApplyOverrides(node, b.set);
 		if (node is LobProjectile lob)
 		{
-			LaunchLob(lob, b, m);
+			LaunchLob(lob, row.Pos, m);
 			return;
 		}
 		SpawnFollowers(node, m);
@@ -412,21 +315,19 @@ public partial class ParticleDirector : Node2D
 			node.QueueFree();
 			return;
 		}
-		Face(node, Capture(node), b.pos, m);
+		Face(node, Capture(node), row.Pos, m);
 		if (!Mathf.IsZeroApprox(tilt))
 			node.Rotation += tilt;
-		foreach (var em in emitters)
-			Boost((Node2D)em, b.boost);
 		float emitDur = node is BlastStrike bs ? bs.emit_duration : 0.0f;
-		Vector2 target = GlobalPosition + new Vector2(b.pos.X * m, b.pos.Y);
+		Vector2 target = GlobalPosition + new Vector2(row.Pos.X * m, row.Pos.Y);
 		var world = World();
-		if (b.follow || world == null)
+		if (row.Follow || world == null)
 			AddChild(node);
 		else
 			world.AddChild(node);
 		PlaceAt(node, target);
 		var hitboxes = HitboxesOf(node);
-		if (b.conform_to_ground &&
+		if (row.ConformToGround &&
 			!GroundContour.Conform(node, IsInsideTree() ? GetWorld2D().DirectSpaceState : null))
 		{
 			node.QueueFree(); // AoE landed over a pit / no ground — don't emit or hit
@@ -434,15 +335,15 @@ public partial class ParticleDirector : Node2D
 		}
 		foreach (var em in emitters)
 		{
-			SetOneShot(em, emitDur <= 0.0f);
-			SetEmitting(em, true);
+			ParticleNodes.SetOneShot(em, emitDur <= 0.0f);
+			ParticleNodes.SetEmitting(em, true);
 			if (emitDur > 0.0f)
 			{
 				var emCap = em;
 				GetTree().CreateTimer(emitDur).Timeout += () =>
 				{
 					if (IsInstanceValid(emCap))
-						SetEmitting(emCap, false);
+						ParticleNodes.SetEmitting(emCap, false);
 				};
 			}
 		}
@@ -456,7 +357,7 @@ public partial class ParticleDirector : Node2D
 			FreeWhenDone(node, emitters);
 	}
 
-	private void LaunchLob(LobProjectile lob, Burst b, float m)
+	private void LaunchLob(LobProjectile lob, Vector2 pos, float m)
 	{
 		var atk = Attacker();
 		lob.source = atk;
@@ -466,7 +367,7 @@ public partial class ParticleDirector : Node2D
 			if (hit.Knockback.HasValue) lob.explosion_knockback = hit.Knockback.Value;
 			if (hit.Stun.HasValue) lob.explosion_stun = hit.Stun.Value;
 		}
-		Vector2 muzzle = GlobalPosition + new Vector2(b.pos.X * m, b.pos.Y);
+		Vector2 muzzle = GlobalPosition + new Vector2(pos.X * m, pos.Y);
 		lob.target = NearestEnemyPos(muzzle, m);
 		var world = World();
 		if (world != null)
@@ -496,15 +397,14 @@ public partial class ParticleDirector : Node2D
 	private void FreeWhenDone(Node root, List<Node> emitters)
 	{
 		int[] left = { emitters.Count };
-		// CPU/GPUParticles2D expose `finished` with DIFFERENT C# delegate types, so connect by name.
-		Callable handler = Callable.From(() =>
+		System.Action handler = () =>
 		{
 			left[0]--;
 			if (left[0] <= 0 && IsInstanceValid(root))
 				root.QueueFree();
-		});
+		};
 		foreach (var em in emitters)
-			em.Connect("finished", handler);
+			ParticleNodes.OnFinished(em, handler);
 	}
 
 	public override void _Process(double delta)
@@ -514,35 +414,12 @@ public partial class ParticleDirector : Node2D
 		float m = Mirror();
 		foreach (var entry in _sustained)
 			if (IsInstanceValid(entry.node))
-				Face(entry.node, entry.baseCap, entry.pos, m);
-	}
-
-	// --- small helpers (inlined from Nodes/MathUtil) --------------------------
-	private static void SetEmitting(Node em, bool on)
-	{
-		if (em is CpuParticles2D cp) cp.Emitting = on;
-		else if (em is GpuParticles2D gp) gp.Emitting = on;
-	}
-
-	private static void SetOneShot(Node em, bool on)
-	{
-		if (em is CpuParticles2D cp) cp.OneShot = on;
-		else if (em is GpuParticles2D gp) gp.OneShot = on;
+				Face(entry.node, entry.basePose, entry.pos, m);
 	}
 
 	private static void PlaceAt(Node2D node, Vector2 pos)
 	{
 		node.GlobalPosition = pos;
 		node.ResetPhysicsInterpolation();
-	}
-
-	private static void ScaleMinMaxPair(Node2D obj, string minProp, string maxProp, float f)
-	{
-		if (Mathf.IsEqualApprox(f, 1.0f))
-			return;
-		float lo = obj.Get(minProp).As<float>() * f;
-		float hi = obj.Get(maxProp).As<float>() * f;
-		if (f >= 1.0f) { obj.Set(maxProp, hi); obj.Set(minProp, lo); }
-		else { obj.Set(minProp, lo); obj.Set(maxProp, hi); }
 	}
 }

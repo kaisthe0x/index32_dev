@@ -1,6 +1,5 @@
 using Godot;
 using System.Collections.Generic;
-using GDict = Godot.Collections.Dictionary;
 
 namespace MyGame;
 
@@ -39,19 +38,19 @@ public static class PaletteConfig
     public static readonly Color RUH_CORE = new(1.9f, 0.45f, 0.5f);
 
     /// <summary>The player's chosen BODY picks {material → Color}, set once at run start; empty == default palette.</summary>
-    public static GDict picks = new();
+    private static Dictionary<string, Color> _picks = new();
 
-    public static void SetPicks(GDict newPicks) => picks = (GDict)newPicks.Duplicate();
+    public static void SetPicks(IReadOnlyDictionary<string, Color> picks) => _picks = new Dictionary<string, Color>(picks);
 
     /// <summary>The run's chosen PRIMARY (hair) colour, or the default red when unpicked — Khalid's damage number tints to this.</summary>
     public static Color HairColor() =>
-        picks.ContainsKey("hair") ? picks["hair"].As<Color>() : new Color(DEFAULT["hair"][0]);
+        _picks.TryGetValue("hair", out Color hair) ? hair : new Color(DEFAULT["hair"][0]);
 
-    /// <summary>Build a ready-to-use body ShaderMaterial: the LUT recolour (from `bodyPicks`, default = default look)
+    /// <summary>Build a ready-to-use body ShaderMaterial: the LUT recolour (from `bodyPicks`; null = the run's picks)
     /// plus every effect param. Used by BOTH the preview and Player, so they always match.</summary>
-    public static ShaderMaterial MakeMaterial(GDict bodyPicks = null)
+    public static ShaderMaterial MakeMaterial(IReadOnlyDictionary<string, Color>? bodyPicks = null)
     {
-        bodyPicks ??= picks;
+        bodyPicks ??= _picks;
         var m = new ShaderMaterial { Shader = GD.Load<Shader>(BODY_SHADER) };
         m.SetShaderParameter("src", ToLinearVec3(DefaultFlat()));
         m.SetShaderParameter("dst", ToLinearVec3(BuildTargets(bodyPicks)));
@@ -69,22 +68,20 @@ public static class PaletteConfig
     }
 
     /// <summary>A portrait ShaderMaterial whose hue uniforms follow `bodyPicks` (an unpicked family stays -1).</summary>
-    public static ShaderMaterial MakePortraitMaterial(GDict bodyPicks = null)
+    public static ShaderMaterial MakePortraitMaterial(IReadOnlyDictionary<string, Color> bodyPicks)
     {
-        bodyPicks ??= picks;
         var m = new ShaderMaterial { Shader = GD.Load<Shader>(PORTRAIT_SHADER) };
         ApplyPortraitHues(m, bodyPicks);
         return m;
     }
 
     /// <summary>Set an existing portrait material's colour uniforms from `bodyPicks` (live update on a pick change).</summary>
-    public static void ApplyPortraitHues(ShaderMaterial m, GDict bodyPicks)
+    public static void ApplyPortraitHues(ShaderMaterial m, IReadOnlyDictionary<string, Color> bodyPicks)
     {
         foreach (var (uni, mat) in PORTRAIT_MAP)
         {
-            if (bodyPicks.ContainsKey(mat))
+            if (bodyPicks.TryGetValue(mat, out Color c))
             {
-                Color c = bodyPicks[mat].As<Color>();
                 m.SetShaderParameter(uni, new Color(c.R, c.G, c.B, 1.0f));
             }
             else
@@ -143,13 +140,13 @@ public static class PaletteConfig
     }
 
     /// <summary>A full 36-colour target list from a {material → base Color} pick set (missing materials keep default).</summary>
-    public static List<Color> BuildTargets(GDict bodyPicks)
+    public static List<Color> BuildTargets(IReadOnlyDictionary<string, Color> bodyPicks)
     {
         var outL = new List<Color>();
         foreach (var m in MATERIALS)
         {
-            if (bodyPicks.ContainsKey(m))
-                outL.AddRange(Derive(m, bodyPicks[m].As<Color>()));
+            if (bodyPicks.TryGetValue(m, out Color pick))
+                outL.AddRange(Derive(m, pick));
             else
                 foreach (var hex in DEFAULT[m])
                     outL.Add(new Color(hex));

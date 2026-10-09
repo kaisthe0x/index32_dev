@@ -43,7 +43,10 @@ The point is that a mistake is a compile error, not a bug found in play.
   Reference `EnemyIds.Tarri`, never the literal `"tarri"`. (Not an enum: the id *is* the key, so an enum would need a
   string map at every boundary.)
 - **T3. A data shape is a `record` (or a small sealed class), not a dictionary.** Named, typed fields; nullable
-  means "unset".
+  means "unset". A lookup table is a `System.Collections.Generic.Dictionary<K, V>` with typed values. A Godot
+  dictionary or array (`Godot.Collections`) appears only where the engine hands one over or demands one — a
+  `ConfigFile` value, resource metadata, an engine property — and is converted to typed data right there
+  (`SaveData`, `AnimMeta`).
 - **T4. A seam between systems is an `interface`** (`ITunable` is the model) — not a duck-typed `HasMethod` / `Call`
   by name, and not reflection. Reflection is allowed in tests only.
 - **T5. No magic values in logic.** A number, colour, path or action name used by behaviour is a named constant —
@@ -70,7 +73,7 @@ The point is that a mistake is a compile error, not a bug found in play.
 - **O3. Smallest visibility that works.** `private` by default; `protected` only for a real subclass hook; `public`
   only for what another class calls.
 - **O4. No mutable static state**, except run-wide selections that deliberately survive a scene change
-  (`PaletteConfig.picks`, `VfxPalette.picks`) — each documented as such.
+  (the colour picks held by `PaletteConfig` and `VfxPalette`) — each documented as such.
 - **O5. Methods do one thing and read top to bottom.** Deep nesting or a method too long to see at once means
   extract a named helper. Prefer early returns.
 - **O6. Callers decide, callees act.** Pass the value in (`hunt(speedMult)`) instead of having a low-level class
@@ -163,15 +166,14 @@ any of them worse, and says so when a change is a cheap chance to reduce one.
 
 - **Oversized classes:** `Player.cs` (~2,270 lines), `Enemy.cs` (~1,240), `RunManager.cs` (~1,090), `HUD.cs` (~620).
   Direction: carve out subsystems as their own classes (S3) when they are next touched.
-- **Dictionary-typed tables:** enemy kits (`EnemyKits`), emitter and sound tables use Godot dictionaries with string
-  keys, applied by name (`enemy.Set(key, value)`). Direction: typed records (T3). New tables must be typed.
 - **`snake_case` public members** on `Player`, `Enemy`, `Hitbox`, `Strike`, `Projectile` and `Sfx` — from the
   GDScript port. Direction: rename when a class is otherwise being reworked, all at once.
-- **By-name access to engine particle nodes:** `ParticleDirector`, `VfxPalette` and the enemy walk trail set
-  `emitting` / `amount` / `lifetime` / `texture` by property name, because `CPUParticles2D` and `GPUParticles2D`
-  share those names but no typed base. Direction: one small typed wrapper, used by all three. (Calls between the
-  game's *own* classes are all typed since 2026-10-09 — keep it that way: rule `T4`.)
-- **Compiler warnings:** the project has nullable reference checking on, and the build prints about 410 warnings
+- **By-name access to engine nodes, in one place:** `VfxPalette.RecolorNode` reads and sets `texture` by property
+  name, because any node type may carry a gradient texture. The particle `emitting` / `one_shot` / `finished`
+  access that `ParticleDirector` and the enemy walk trail used to do by name now goes through the typed
+  `helpers/ParticleNodes.cs` — extend that, do not add new by-name access. (Calls between the game's *own* classes
+  are all typed since 2026-10-09 — keep it that way: rule `T4`.)
+- **Compiler warnings:** the project has nullable reference checking on, and the build prints about 200 warnings (196 on 2026-10-09)
   (mostly `CS8618` — a field not set in the constructor; worst in `Player`, `HUD`, `RunManager`, `ParticleDirector`).
   With that many, a new one goes unseen. Direction: bring it to zero, then make warnings fail the build. Until then
   rule `V1` is checked by comparing the count before and after a change.

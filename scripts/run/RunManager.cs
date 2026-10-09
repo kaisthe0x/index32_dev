@@ -1,5 +1,4 @@
 using Godot;
-using GDict = Godot.Collections.Dictionary;
 
 namespace MyGame;
 
@@ -27,7 +26,7 @@ public partial class RunManager : Node2D
 
     /// <summary>The roster the continuous spawner draws from (uniform random) — a mixed assortment of grunts plus the
     /// stationary sleeper (Nasen). Wardens (Kroj) are elite/pivot-only, not part of the trickle.</summary>
-    private static readonly GDict[] SpawnPool =
+    private static readonly EnemyKit[] SpawnPool =
     {
         EnemyKits.KEBUS, EnemyKits.BAGHEL, EnemyKits.MAZAB, EnemyKits.MATAT,
         EnemyKits.TARRI, EnemyKits.BRESKI, EnemyKits.NASEN, // Ein isn't here: it's the stand-still kamikaze (TickPressure)
@@ -91,7 +90,8 @@ public partial class RunManager : Node2D
     // --- bridges (cached in _Ready) ---
     private Music _music;
     private Sfx _sfx;
-    private PackedScene _enemyScene, _spawnFx, _ruhOrb, _liraScene, _fadaFigScene;
+    private PackedScene _spawnFx, _ruhOrb, _liraScene, _fadaFigScene;
+    private readonly System.Collections.Generic.Dictionary<string, PackedScene> _enemyScenes = new(); // kit scene path → loaded scene
 
     public override void _Ready()
     {
@@ -100,7 +100,6 @@ public partial class RunManager : Node2D
         _camera = GetNodeOrNull<Camera2D>("Camera2D");
         _music = GetNode<Music>("/root/Music");
         _sfx = GetNode<Sfx>("/root/Sfx");
-        _enemyScene = GD.Load<PackedScene>("res://scenes/enemy.tscn");
         _spawnFx = GD.Load<PackedScene>("res://vfx/spawn/enemy_spawn.tscn");
         _ruhOrb = GD.Load<PackedScene>("res://vfx/character/khalid/ruh_orb/ruh_orb.tscn");
         _liraScene = GD.Load<PackedScene>("res://scenes/lira.tscn");
@@ -313,19 +312,19 @@ public partial class RunManager : Node2D
 
     /// <summary>A random kit from the pool that is UNDER its per-type concurrent cap (uncapped kits always qualify);
     /// null if every kit is currently at cap.</summary>
-    private GDict PickSpawnKit()
+    private EnemyKit PickSpawnKit()
     {
-        var eligible = new System.Collections.Generic.List<GDict>();
-        foreach (GDict kit in SpawnPool)
-            if (LivingOfType(kit["id"].AsString()) < EffectiveCap(kit))
+        var eligible = new System.Collections.Generic.List<EnemyKit>();
+        foreach (EnemyKit kit in SpawnPool)
+            if (LivingOfType(kit.Id) < EffectiveCap(kit))
                 eligible.Add(kit);
         return eligible.Count == 0 ? null : eligible[(int)(GD.Randi() % (uint)eligible.Count)];
     }
 
-    /// <summary>A kit's current per-type concurrent cap: its <c>spawn_cap</c> base + 1 per
-    /// <see cref="Rounds.KitCapGrowthRounds"/> rounds. Kits with no <c>spawn_cap</c> are uncapped.</summary>
-    private int EffectiveCap(GDict kit) =>
-        kit.ContainsKey("spawn_cap") ? kit["spawn_cap"].AsInt32() + _round / Rounds.KitCapGrowthRounds : int.MaxValue;
+    /// <summary>A kit's current per-type concurrent cap: its <see cref="EnemyKit.SpawnCap"/> base + 1 per
+    /// <see cref="Rounds.KitCapGrowthRounds"/> rounds. Kits with no cap are uncapped.</summary>
+    private int EffectiveCap(EnemyKit kit) =>
+        kit.SpawnCap is int cap ? cap + _round / Rounds.KitCapGrowthRounds : int.MaxValue;
 
     /// <summary>How many living enemies of type <paramref name="id"/> are currently tracked.</summary>
     private int LivingOfType(string id)
@@ -341,9 +340,9 @@ public partial class RunManager : Node2D
     /// notices the player — or, from <see cref="Rounds.NearSpawnFromRound"/>, for <see cref="NearShare"/> of the grunts
     /// (and whenever every spot is held), near the player (<see cref="NearPlayerSpot"/>). False if there's nowhere to put
     /// it yet.</summary>
-    private bool SpawnOne(GDict kit)
+    private bool SpawnOne(EnemyKit kit)
     {
-        bool stationary = kit.ContainsKey("movement") && kit["movement"].AsInt32() == (int)EnemyMovement.Stationary;
+        bool stationary = kit.Movement == EnemyMovement.Stationary;
         bool nearAllowed = !stationary && _round >= Rounds.NearSpawnFromRound; // a stationary kit always uses a spot
         bool near = nearAllowed && GD.Randf() < NearShare(_round);
         Vector2? at = near ? NearPlayerSpot() : null;
@@ -362,7 +361,7 @@ public partial class RunManager : Node2D
 
     /// <summary>Put an enemy from <paramref name="kit"/> at <paramref name="at"/>: puff, wire its died/damaged signals, track
     /// it, and (unless optional) count it toward the round quota + the concurrent cap.</summary>
-    private Enemy SpawnAt(GDict kit, Vector2 at)
+    private Enemy SpawnAt(EnemyKit kit, Vector2 at)
     {
         SpawnFx(at);
         var enemy = SpawnEnemy(kit, at);
@@ -632,29 +631,29 @@ public partial class RunManager : Node2D
         return hit.Count > 0 ? hit["position"].As<Vector2>() : from;
     }
 
-    private Enemy SpawnEnemy(GDict kit, Vector2 pos)
+    /// <summary>Build an enemy from <paramref name="kit"/> — its scene, id, name and tuning — at <paramref name="pos"/>.
+    /// The Lira it drops comes from its tier unless the kit names an amount (Wardens do).</summary>
+    private Enemy SpawnEnemy(EnemyKit kit, Vector2 pos)
     {
-        var scene = kit.ContainsKey("scene") ? GD.Load<PackedScene>(kit["scene"].AsString()) : _enemyScene;
-        var enemy = (Enemy)scene.Instantiate();
-        foreach (var key in kit.Keys)
-        {
-            string k = key.AsString();
-            if (k is "scene" or "tier" or "pos" or "air" or "movement" or "spawn_cap")  // advisory kit metadata, not Enemy properties
-                continue;
-            if (k == "id")
-                enemy.Set("enemy_id", kit[key]);
-            else
-                enemy.Set(k, kit[key]);
-        }
-        // Lira drop count defaults from the advisory tier unless the kit set lira_drop explicitly (Wardens do).
-        if (!kit.ContainsKey("lira_drop") && kit.ContainsKey("tier"))
-            enemy.lira_drop = LiraForTier((EnemyTier)kit["tier"].AsInt32());
+        var enemy = EnemyScene(kit.Scene).Instantiate<Enemy>();
+        enemy.enemy_id = kit.Id;
+        enemy.display_name = kit.DisplayName;
+        kit.Tune(enemy);
+        enemy.lira_drop = kit.LiraDrop ?? LiraForTier(kit.Tier);
         enemy.Position = pos;
         _content.AddChild(enemy);
         return enemy;
     }
 
-    /// <summary>Default Lira dropped by an enemy of a given advisory tier (Wardens override via their kit).</summary>
+    /// <summary>The packed scene at <paramref name="path"/>, loaded once and kept (a kit's scene is spawned many times).</summary>
+    private PackedScene EnemyScene(string path)
+    {
+        if (!_enemyScenes.TryGetValue(path, out var scene))
+            _enemyScenes[path] = scene = GD.Load<PackedScene>(path);
+        return scene;
+    }
+
+    /// <summary>Default Lira dropped by an enemy of a given tier (a kit can override it).</summary>
     private static int LiraForTier(EnemyTier tier) => tier switch
     {
         EnemyTier.Chip => 1,
@@ -881,9 +880,7 @@ public partial class RunManager : Node2D
     /// <summary>Length in seconds of a character sound cue (0 if the cue or its file is missing).</summary>
     private static float CueLength(string cue)
     {
-        var cues = SfxCharacters.CUES;
-        string path = cues.ContainsKey(cue) ? cues[cue].AsString() : "";
-        if (path == "" || !ResourceLoader.Exists(path))
+        if (!SfxCharacters.CUES.TryGetValue(cue, out string path) || !ResourceLoader.Exists(path))
             return 0.0f;
         var s = GD.Load<AudioStream>(path);
         return s != null ? (float)s.GetLength() : 0.0f;

@@ -6,6 +6,83 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-09 — `new-shit` — cleanup, part 2 (typed content tables)
+
+Step D of bringing the code up to `docs/standards.md`: the game's content tables and the data passed around with
+them were Godot dictionaries with string keys — a leftover of the GDScript port. They are now typed. One commit.
+Two things play differently, both listed under "Behaviour changes" below; nothing else is meant to.
+
+### Content tables and their readers are typed
+
+- **What:**
+  - **Enemy kits** (`scripts/run/EnemyKits.cs`). A kit is an `EnemyKit` record (`records/enemies/EnemyKit.cs`): id,
+    display name, tier, movement, scene, optional `SpawnCap` / `LiraDrop`, and a `Tune` function that sets the
+    enemy's stats on the typed instance (`e.attack_range = 150f`). `EnemyKit.Of<SleeperEnemy>(…)` gives a kit for a
+    subclass a typed `Tune`. `RunManager` holds `EnemyKit[]` and no longer applies stats with `enemy.Set(name, value)`.
+    `Enemy.far_mode` is the new `FarMode` enum (`Aimed`, `Forward`, `GroundWave`, `Lob`) instead of a string.
+  - **Sound tables** (`configs/SfxCharacters.cs`, `SfxEnemies.cs`, `SfxWorld.cs`): `CUES` is
+    `Dictionary<string, string>`, `VOLUMES` `Dictionary<string, float>`, `PITCH` `Dictionary<string, Vector2>`, and
+    the frame-synced `FRAMES` a typed nested dictionary. `Sfx` and `Enemy` read them without `Variant` casts.
+  - **Emitter tables** (`vfx/config/EmittersCharacters.cs`, `EmittersEnemies.cs`): a row is an `EmitterDef` record
+    (`records/vfx/EmitterDef.cs`) — scene, position, `Mode` (the new `EmitterMode` enum), `Frames`, `AllFrames`,
+    `ConformToGround`, `Follow`, and a typed `Configure` hook. `ParticleDirector` and `Enemy` read the record.
+  - **Animation metadata** (`helpers/AnimMeta.cs`): hit frames, sheet start and loop bounds are parsed once per
+    `SpriteFrames` into typed tables and cached. `HitFrames` returns `IReadOnlyList<int>`; `LoopBound(…, "loop_from")`
+    became `LoopFrom` / `LoopTo`; `HitFramesOrAll` is the player's "every frame is a combo step" fallback.
+  - **Colour picks and saved schemes**: picks are `Dictionary<string, Color>`; a saved scheme is a `ColorScheme`
+    record (`records/ui/ColorScheme.cs`). `SaveData` converts to and from the engine's dictionaries only inside its
+    read / write helpers; `PaletteConfig`, `VfxPalette` and the colour screen never see one. `SaveData.ColorSchemes()`
+    and `SchemeUsed(i)` became `Scheme(i)` and `Scheme(i).IsEmpty`.
+  - **Small tables**: `EnemyMarkers.COLORS`, `Icons.PATHS`, the player's hurt cue list, the non-Khalid hair tint
+    (a tuple instead of a 3-key dictionary).
+  - **Particle nodes**: new `helpers/ParticleNodes.cs` (`SetEmitting`, `SetOneShot`, `OnFinished`) is the one typed
+    place that tells a `CPUParticles2D` from a `GPUParticles2D`; `ParticleDirector` and the enemy walk trail use it
+    instead of `Set("emitting", …)`. `VfxPalette` sets a gradient texture's gradient through the typed property.
+- **Why:** rule `T3` (a data shape is a record, not a dictionary) and `T1` (a closed set is an enum). With string
+  keys a typo in a kit (`"atack_range"`) or a wrong value type compiled and failed silently in play; now it does not
+  compile. It also removes boxing and `Variant` conversion from code that runs per frame (`AnimMeta` was read every
+  frame while an attack was held and built a new array each time — rule `P1`).
+- **How:** `T3` now also says where an engine dictionary is still correct: only where the engine hands one over or
+  demands one (a `ConfigFile` value, resource metadata, an engine property), converted on the spot. Three such
+  places remain: `SaveData`, `AnimMeta`, and the font-variation setting in `UiStyle`. The save file's format on disk
+  is unchanged.
+- **Behaviour changes:**
+  - **Health-bar names are right for every enemy.** The old kits for Kebus, Baghel and Mazab never set a display
+    name, so all three showed the default "Kebus". The record makes the name a required field.
+  - **A stronger or reskinned effect is now always its own scene.** The emitter-row keys `boost` (rescale particle
+    count / speed / size), `node` (fire one named child of a scene) and `set` (override a property by path) are
+    gone, with the director code behind them. No row used `boost` or `node`; the only `set`-style use (Cherry Shots'
+    homing last shot) is the typed `Configure` hook. `vfx/README.md` is updated.
+- **Removed as dead code** (rule `C1`, no caller anywhere): `Locomotion.Make` and `SurgeSpec.Make` (built those
+  objects from a dictionary; the actions build them directly), `Loadout.Options` / `SwapChoices` and
+  `Player.loadout_choices` (the old swap-reward offer), `LoadoutCategories.All` / `Parse`, the kits' unused `air`
+  key, `Player`'s private copy of `SheetStart`, and nine unused `using` aliases. The loadout picker (L1) will need
+  an options list again; it should be written typed then, against the screen that uses it.
+- **Could affect:** every enemy's stats and attacks (all ten kits were rewritten by hand — the risk is a value
+  copied wrong); which enemies spawn and their per-type caps; Lira per kill; all sound cues, their mix and pitch;
+  every particle effect on Khalid and the enemies, and the frame it fires on; combo steps, the special's strike
+  frame, looping animations (swing, Nasen's rage); the colour screen, saved schemes and the Dekken vial / UI colours
+  that follow them.
+- **Tested:**
+  - The 10-check headless scene from part 1, run on the finished code — all pass (enemy attack lands, stun sweep,
+    Zahluq lunge, blast hold, Come Closer, targeting, kill + Ruh orb, launch orb, Sleeper + Diver, Wara).
+  - Saved schemes: read the owner's real `save.cfg` (three used slots, written by the old code) — every pick came
+    back; wrote a scheme to slot 5 and read it back in a fresh process; record and settings untouched. The real
+    save was backed up first and restored after, byte-identical.
+  - `AnimMeta` against the raw resource values for Khalid, Breski and Nasen (hit frames, sheet start, loop from /
+    to, a missing animation, a null resource).
+  - Kit values compared line by line against the previous file.
+  - Clean headless boot of the colour screen (which recolours a sample effect with the saved scheme) and the arena.
+  - Build: 0 errors, 196 warnings. The "410" quoted in part 1 was that same list counted twice — the compiler prints
+    each warning in the build and again in the summary. The true count before this work was about 205; `standards.md`
+    is corrected.
+  - **Not tested:** how any effect or sound looks and sounds in real play (nothing draws or plays headless) — a
+    wrong particle position or a missing cue would show there first; the colour screen's buttons by hand.
+- **Left as is:** `VfxPalette.RecolorNode` still reads and sets `texture` by property name (any node type may carry
+  a gradient texture) — the one by-name engine access left, listed under Known debt.
+
+---
+
 ## 2026-10-09 — `new-shit` — cleanup, part 1 (typed calls, leftovers)
 
 First step of bringing the existing code up to `docs/standards.md` (the plan and its order are in the workspace

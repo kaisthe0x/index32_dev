@@ -86,8 +86,11 @@ frames. Adding an effect is a scene + a table row, no code.
    `script/build_particles.gd` scaffolds a starter scene (it **skips files that
    already exist**, so it never clobbers editor tweaks); shared textures come from
    `script/gen_particle_textures.py`.
-2. **Config** — `EmittersCharacters.TABLE` (GDScript), keyed
-   `character -> animation -> [ { scene, node?, set?, mode, frames, pos } ]`:
+2. **Config** — `EmittersCharacters.TABLE` (`vfx/config/EmittersCharacters.cs`), keyed
+   `character -> animation -> EmitterDef[]`. A row is a typed **`EmitterDef`** record
+   (`records/vfx/EmitterDef.cs`): `new EmitterDef(scene, pos) { Mode, Frames, AllFrames, ConformToGround,
+   Follow, Configure }` — the scene and position are required, the rest default to a plain burst. The fields are
+   described below under their old short names (`scene`, `mode`, `frames`, `pos`):
    - `scene` — a `preload`ed scene whose root is a single `CPUParticles2D`/`GPUParticles2D`,
      **or a `Node2D` bundling several** as one composite attack (the director drives
      all of them, and mirrors the composite by flipping `scale.x`, so its child
@@ -99,29 +102,15 @@ frames. Adding an effect is a scene + a table row, no code.
      under the scale flip) + a `Hitbox`. It briefly grows+fades its visuals and frees
      itself, and the director accepts it and arms its hitbox like any burst (see
      khalid's `attack_ora_ora`). Layering separate scenes (several `{…}`) still works.
-   - `node` — *optional* **palette addressing**. A "palette" scene bundles several
-     *independently-scheduled* emitters as named children; `node` names the one this
-     row fires. List the **same `scene`** with different `node`s to fire different
-     children on different frames — e.g. a palette scene could hold a `Shot` (fired
-     on `[2,4]`) and a `ShotLast` (a different-textured projectile, fired on `[7]`),
-     each its own self-contained `Shot`/`Hitbox`. (No shipped move uses `node` today —
-     Cherry Shots' two differing shots are two separate per-frame scenes instead.) Omit
-     `node` for the whole scene (single or composite). Note: `node` **lifts one child out and drops the rest**
-     (including sibling hitboxes) — to just reskin a shared scene per hit, use `set`,
-     not `node`.
-   - **Per-hit split files (preferred for multi-hit attacks).** Rather than bundle
-     every hit's emitters into one palette scene addressed by `node`, give each hit
+   - **Per-hit split files (how multi-hit attacks are authored).** Give each hit
      its **own** scene file named `<effect>_<sheetframe>.tscn` (frames it fires on,
      `_`-separated: `_3`, `_1_2` for two frames sharing one look, and a bare name =
      every frame). Each file is a self-contained `Strike` + `Hitbox` + its particles,
-     wired as an ordinary row with **no `node` key** (the whole file fires). This is
+     wired as an ordinary row (the whole file fires). This is
      what khalid's `attack_twin_reaper` uses — `attack_twin_reaper_3.tscn` …`_9.tscn`.
-     Why it beats the palette: each hit's emitters **edit in isolation** (open the one
-     file — no overlapping-emitter soup), no cross-hit subresource duplication, and the
-     director spawns exactly the file it needs instead of instancing the whole bundle and
-     discarding the rest. Frames still live in the config row for now; a later generator
-     can infer them from the filenames. Reserve `node`/palette for a scene whose parts
-     genuinely must live together.
+     Each hit's emitters **edit in isolation** (open the one file — no overlapping-emitter
+     soup), with no cross-hit subresource duplication, and the director spawns exactly the
+     file it needs. Frames live in the config row.
      **What does NOT split:** the `_<frame>` convention is only for **frame-scheduled
      multi-hit** effects. A **single-emission** effect (bakshen, ground_breaker, frenemy)
      is already one file — leave it bare-named. An **event-fired** effect (the dashes,
@@ -130,12 +119,9 @@ frames. Adding an effect is a scene + a table row, no code.
      `Trail` + lingering `Vortex`), that split is handled **inside** the scene by the
      `Trail` node-name convention (below), not by separate files. Splitting only kicks in
      when one move fires distinct groups on distinct **frames**.
-   - `set` — *optional* **property overrides** applied on spawn, so one shared scene
-     covers several variants without a clone per tweak. Keys are `"ChildPath:property"`
-     (an empty path targets the spawned node itself); a `"res://…"` value is loaded
-     as a `Resource`. E.g. `"set": { "Slash:texture": "res://…/slash_down.png" }`
-     shows a different crescent on one combo hit — no second scene. (Now that the table is
-     GDScript, a `set` value can be any literal — `Vector2`, a `preload`ed resource, a scalar.)
+   - `Configure` — *optional* typed hook run on the spawned node, for the rare row that must
+     change the instance it spawns (Cherry Shots' last shot turns on homing through
+     `EmittersCharacters.HomingShot`). A different LOOK is a different scene, not a hook.
    - **Composite child positions** — in a `Node2D` composite, the director only
      positions the *root* (at `pos`); each child particle keeps the local position
      you authored inside the scene. So lay one child at the feet `(0,0)`, another
@@ -155,29 +141,17 @@ frames. Adding an effect is a scene + a table row, no code.
        (so the ground jump stays silent). See the double-jump note in the root README.
    - `frames` — **sheet-relative** indices (same numbering as `loop_from` /
      `hit_frames`; the idle-reference frame counts). Converted to emitted indices
-     via the `sheet_start` SpriteFrames metadata. Or the string **`"all"`** —
-     expands to *every* frame of that animation, so a whole-animation effect (an
+     via the `sheet_start` SpriteFrames metadata. Or set **`AllFrames = true`** —
+     it expands to *every* frame of that animation, so a whole-animation effect (an
      idle aura, say) needs no frame list and never breaks when the frame count
      changes.
    - Multiple emitters can share an `animation` — list several `{...}` and they all
      play together (that's how you layer several particle scenes at once).
    - `pos` — `[x, y]` pixel offset from the sprite origin (the feet), for facing
      right; auto-mirrored when facing left.
-   - `boost` — *optional* intensity, so one type can be reused at different
-     power levels instead of duplicating the scene:
-
-     | Key | Meaning |
-     |---|---|
-     | `amount` | particle count **multiplier** |
-     | `speed` | initial-velocity **multiplier** |
-     | `scale` | particle-size **multiplier** |
-     | `lifetime` | lifetime **multiplier** |
-     | `explosiveness` | absolute `0..1` (multiplying the usual 0 would do nothing) |
-
-     They're multipliers *on the scene's own values*, so they keep tracking the
-     base as you tune it. One scene owns the *look*, the JSON owns *how hard it
-     hits*. Fork a separate scene only when an effect needs a genuinely different
-     look (direction, spread, colour, gravity, rotation), not just more power.
+   - **One scene per look and per power level.** A row cannot rescale a scene's particle
+     count / speed / size: a stronger version of an effect is its own scene. (The old `boost`,
+     `set` and `node` row keys were removed on 2026-10-09 — no row used `boost` or `node`.)
 
    > **Sounds are NOT here.** This config is particles only. Frame-synced hit sounds live in the
    > parallel **`SfxCharacters.FRAMES`** (same `anim → {frame: cue}` shape, sheet-relative) and are
@@ -314,7 +288,7 @@ passive movement trail is `<state>_trail`. Two ranged examples:
   (the `forward` ranged mode, with a scorched `ground_trail`).
 - **Kebus** `projectile` = `attack/kebus_projectile.tscn` — an aimed staff bolt: an ember-trail
   `CPUParticles2D` + a soft glow `Core`. (An enemy with no `projectile` scene gets the built-in orb.)
-- **Mazab** (`far_mode = "lob"`) uses **two** config entries for its thrown bomb: `delayed_projectile`
+- **Mazab** (`far_mode = FarMode.Lob`) uses **two** config entries for its thrown bomb: `delayed_projectile`
   = `attack/mazab_delayed_projectile.tscn` (a steel-blue glowing `Core` + short dust trail — a `LobProjectile`
   spins it as it arcs) and `delayed_projectile_burst` = `attack/mazab_delayed_projectile_burst.tscn` (a one-shot radial shard
   burst + ground dust, instanced inside the explosion `Strike`, not on the projectile). A lob has
@@ -328,11 +302,11 @@ passive movement trail is `<state>_trail`. Two ranged examples:
 
 ### Enemy emitters — `EmittersEnemies.TABLE` (THE one place)
 
-Every enemy's particle emitters live in one table, `vfx/config/emitters_enemies.gd` — the enemy
+Every enemy's particle emitters live in one table, `vfx/config/EmittersEnemies.cs` — the enemy
 counterpart to `EmittersCharacters`, but simpler: enemy effects are attached in **code** by
 state/event (a trail worn while patrolling, a blast on arrival, a projectile visual on the shot),
 not fired on animation frames, so there's **no frame scheduling** — only *which* scene and
-*where*. Keyed `enemy_id → effect → { "scene": preload("res://…"), "pos": Vector2(x, y) }`:
+*where*. Keyed `enemy_id → effect → new EmitterDef(scene, pos)` (the same typed record as the character table):
 
 - **`scene`** — the preloaded scene to emit. The table is **authoritative for presence**: delete a
   row (or clear its `scene`) and the enemy **stops emitting it entirely** — no code change. (That's

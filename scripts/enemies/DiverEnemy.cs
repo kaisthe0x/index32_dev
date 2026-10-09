@@ -1,5 +1,4 @@
 using Godot;
-using GDict = Godot.Collections.Dictionary;
 
 namespace MyGame;
 

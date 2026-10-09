@@ -1,5 +1,5 @@
+using System.Collections.Generic;
 using Godot;
-using GDict = Godot.Collections.Dictionary;
 
 namespace MyGame;
 
@@ -12,7 +12,7 @@ namespace MyGame;
 /// </summary>
 public static class SfxEnemies
 {
-    public static readonly GDict CUES = new()
+    public static readonly Dictionary<string, string> CUES = new()
     {
         ["enemy_death"] = "res://sfx/enemy/enemy_death.wav",  // any enemy dies (positional)
         ["enemy_spawn"] = "res://sfx/enemy/enemy_spawn.wav",  // a batch enemy spawns w/ the puff — PLACEHOLDER
@@ -48,14 +48,14 @@ public static class SfxEnemies
     /// <summary>Per-cue MIX offset in decibels (negative = quieter), on top of the automatic loudness normalization
     /// (every cue already plays at <see cref="Sfx.TargetLoudness"/>). Only for DELIBERATE choices — a cue that should
     /// sit under or over the rest — never to fix a hot or quiet file. Unlisted = 0.</summary>
-    public static readonly GDict VOLUMES = new();
+    public static readonly Dictionary<string, float> VOLUMES = new();
 
     /// <summary>Per-cue random PITCH range as (min, max) offsets from normal pitch — <c>new(-0.06f, 0.06f)</c> = ±6%,
     /// <c>new(0f, 0.08f)</c> = same-or-up to +8% — re-rolled every play so repeated sounds don't sound copy-pasted. A key
     /// may name a GROUP: a cue with no entry of its own uses its nearest dotted prefix ("kebus.projectile.3" →
     /// "kebus.projectile" → "kebus"). Unlisted = fixed pitch. Keep it subtle (3-8%); signature stingers / alerts /
     /// loops stay unlisted.</summary>
-    public static readonly GDict PITCH = new()
+    public static readonly Dictionary<string, Vector2> PITCH = new()
     {
         ["enemy_death"] = new Vector2(-0.07f, 0.07f), // fire constantly — the biggest win
         ["enemy_spawn"] = new Vector2(-0.07f, 0.07f),
@@ -67,19 +67,21 @@ public static class SfxEnemies
         ["ventilator"] = new Vector2(-0.06f, 0.06f),
     };
 
-    public static readonly GDict FRAMES = new()
+    public static readonly Dictionary<string, Dictionary<string, Dictionary<int, string>>> FRAMES = new()
     {
-        ["baghel"] = new GDict { ["attack_projectile"] = new GDict { [4] = "baghel.projectile.4" } },
-        ["kebus"] = new GDict { ["attack_projectile"] = new GDict { [3] = "kebus.projectile.3" } },
-        ["nasen"] = new GDict { ["attack_aoe"] = new GDict { [2] = "nasen.aoe.2" } },  // rage AoE erupts on this frame
-        ["matat"] = new GDict { ["attack_aoe"] = new GDict { [4] = "matat.aoe.4" } },  // AoE erupts (sheet-relative)
-        ["tarri"] = new GDict { ["attack_blast"] = new GDict { [3] = "tarri.blast.3" } },  // blast erupts on last frame
-        ["breski"] = new GDict { ["attack_melee"] = new GDict { [4] = "breski.melee.4", [9] = "breski.melee.9" } },  // 2-hit combo
-        ["ventilator"] = new GDict { ["attack_blast"] = new GDict { [5] = "ventilator.blast.5" } },  // gust fires on the last frame
+        ["baghel"] = new() { ["attack_projectile"] = new() { [4] = "baghel.projectile.4" } },
+        ["kebus"] = new() { ["attack_projectile"] = new() { [3] = "kebus.projectile.3" } },
+        ["nasen"] = new() { ["attack_aoe"] = new() { [2] = "nasen.aoe.2" } },  // rage AoE erupts on this frame
+        ["matat"] = new() { ["attack_aoe"] = new() { [4] = "matat.aoe.4" } },  // AoE erupts (sheet-relative)
+        ["tarri"] = new() { ["attack_blast"] = new() { [3] = "tarri.blast.3" } },  // blast erupts on last frame
+        ["breski"] = new() { ["attack_melee"] = new() { [4] = "breski.melee.4", [9] = "breski.melee.9" } },  // 2-hit combo
+        ["ventilator"] = new() { ["attack_blast"] = new() { [5] = "ventilator.blast.5" } },  // gust fires on the last frame
         // (ein's arrival blast is a CODE event, not a sprite frame — played from DiverEnemy via "ein.kamikaze".)
     };
 
+    private static readonly Dictionary<string, Dictionary<int, string>> NoFrames = new();
+
     /// <summary>The per-frame cue map for one enemy (empty if none) — anim → { sheet_frame: cue_key }.</summary>
-    public static GDict FramesFor(string id) =>
-        FRAMES.ContainsKey(id) ? FRAMES[id].As<GDict>() : new GDict();
+    public static Dictionary<string, Dictionary<int, string>> FramesFor(string id) =>
+        FRAMES.TryGetValue(id, out var byAnim) ? byAnim : NoFrames;
 }

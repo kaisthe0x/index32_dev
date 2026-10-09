@@ -1,7 +1,6 @@
 using Godot;
 using System.Collections.Generic;
-using GDict = Godot.Collections.Dictionary;
-using GArray = Godot.Collections.Array;
+using System.Linq;
 
 namespace MyGame;
 
@@ -72,7 +71,7 @@ public partial class Enemy : Combatant
 	[Export] public float close_strike_lifetime { get; set; } = 0.15f;
 	[Export] public float close_lunge { get; set; }  // forward impulse on the hit frame (0 = none); a lunge-type attack (Kroj) slides in
 	[Export] public float projectile_speed { get; set; } = 260.0f;
-	[Export(PropertyHint.Enum, "aimed,forward,ground_wave,lob")] public string far_mode { get; set; } = "aimed";
+	[Export] public FarMode far_mode { get; set; } = FarMode.Aimed;
 	[Export] public float far_travel { get; set; } = 100.0f;
 	[Export] public float far_aim_cap { get; set; } = 0.0f; // aimed mode: cap the shot's tilt to ±this° off horizontal (0 = no cap); keeps it off vertical
 	[Export] public Vector2 far_hitbox_extents { get; set; } = new(5, 5);
@@ -113,7 +112,7 @@ public partial class Enemy : Combatant
 	protected bool HasClose, HasFar, HasDeath, HasWalk;
 	protected string CloseAnim = "", FarAnim = "";
 	private readonly List<Node> _patrolTrailEmitters = new();
-	private GDict _frameSfx = new();
+	private readonly Dictionary<string, Dictionary<int, string>> _frameSfx = new(); // anim -> { emitted frame -> cue }
 	protected float AttackCd;
 	protected bool AttackFired;
 	protected float PointA, PointB, PatrolTarget;
@@ -193,7 +192,7 @@ public partial class Enemy : Combatant
 			if (reach > 0.0f)
 				close_range = reach;
 		}
-		if (HasFar && (far_mode == "forward" || far_mode == "ground_wave"))
+		if (HasFar && (far_mode == FarMode.Forward || far_mode == FarMode.GroundWave))
 			far_range = Mathf.Min(far_range, far_travel);
 
 		Health = max_health;
@@ -317,7 +316,7 @@ public partial class Enemy : Combatant
 		{
 			bool moving = Mathf.Abs(Velocity.X) > 5.0f;
 			foreach (var em in _patrolTrailEmitters)
-				em.Set("emitting", moving);
+				ParticleNodes.SetEmitting(em, moving);
 		}
 
 		if (_frenemyLeft > 0.0f)
@@ -537,20 +536,17 @@ public partial class Enemy : Combatant
 
 	private void BuildFrameSfx()
 	{
-		_frameSfx = new GDict();
-		var byAnim = SfxEnemies.FramesFor(enemy_id);
+		_frameSfx.Clear();
 		var sf = Sprite.SpriteFrames;
-		foreach (var animKey in byAnim.Keys)
+		foreach (var (anim, frames) in SfxEnemies.FramesFor(enemy_id))
 		{
-			var a = (StringName)animKey.AsString();
-			if (!sf.HasAnimation(a))
+			if (!sf.HasAnimation(anim))
 				continue;
-			int start = SheetStart(a);
-			var map = new GDict();
-			var frames = byAnim[animKey].AsGodotDictionary();
-			foreach (var sheetFrame in frames.Keys)
-				map[sheetFrame.AsInt32() - start] = frames[sheetFrame];
-			_frameSfx[a.ToString()] = map;
+			int start = SheetStart(anim);
+			var map = new Dictionary<int, string>();
+			foreach (var (sheetFrame, cue) in frames)
+				map[sheetFrame - start] = cue;
+			_frameSfx[anim] = map;
 		}
 	}
 
@@ -565,11 +561,8 @@ public partial class Enemy : Combatant
 	{
 		if (_frameSfx.Count == 0)
 			return;
-		if (!_frameSfx.TryGetValue(Sprite.Animation.ToString(), out var mapV))
-			return;
-		var map = mapV.AsGodotDictionary();
-		string cue = map.TryGetValue(Sprite.Frame, out var c) ? c.AsString() : "";
-		PlayAttackSfx(cue);
+		if (_frameSfx.TryGetValue(Sprite.Animation, out var map) && map.TryGetValue(Sprite.Frame, out string? cue))
+			PlayAttackSfx(cue);
 	}
 
 	private void PlayAttackSfx(string cue)
@@ -688,12 +681,11 @@ public partial class Enemy : Combatant
 
 	protected Vector2 VfxPos(string effect, Vector2 fallback = default)
 	{
-		Vector2 p = EnemyEffect(effect).TryGetValue("pos", out var v) ? v.AsVector2() : fallback;
+		Vector2 p = EnemyEffect(effect)?.Pos ?? fallback;
 		return new Vector2(p.X * Facing, p.Y);
 	}
 
-	protected PackedScene? VfxScene(string effect) =>
-		EnemyEffect(effect).TryGetValue("scene", out var v) ? v.As<PackedScene>() : null;
+	protected PackedScene? VfxScene(string effect) => EnemyEffect(effect)?.Scene;
 
 	private void BuildPatrolTrail()
 	{
@@ -711,7 +703,7 @@ public partial class Enemy : Combatant
 		foreach (var e in trail.FindChildren("*", "GpuParticles2D", true, false))
 			_patrolTrailEmitters.Add(e);
 		foreach (var em in _patrolTrailEmitters)
-			em.Set("emitting", false);
+			ParticleNodes.SetEmitting(em, false);
 	}
 
 	protected Node2D? MakeVfx(string effect)
@@ -725,7 +717,7 @@ public partial class Enemy : Combatant
 		return node as Node2D;
 	}
 
-	protected int LoopFrom(StringName anim) => Mathf.Max(LoopBound(anim, "loop_from"), 0);
+	protected int LoopFrom(StringName anim) => Mathf.Max(AnimMeta.LoopFrom(Sprite.SpriteFrames, anim), 0);
 
 	protected void ReplayFrom(StringName anim, int from)
 	{
@@ -844,7 +836,7 @@ public partial class Enemy : Combatant
 		string key = close_type != "" ? close_type : "aoe";
 		var hits = HitFramesOf(CloseAnim);
 		if (hits.Count > 0)
-			key = MeleeVfxKey(hits[0].AsInt32());
+			key = MeleeVfxKey(hits[0]);
 		var scene = VfxScene(key);
 		if (scene == null)
 			return 0.0f;
@@ -857,13 +849,12 @@ public partial class Enemy : Combatant
 		inst.Free();
 		if (far <= 0.0f)
 			return 0.0f;
-		Vector2 pos = EnemyEffect(key).TryGetValue("pos", out var v) ? v.AsVector2() : Vector2.Zero;
-		return far + pos.X;
+		return far + (EnemyEffect(key)?.Pos.X ?? 0.0f);
 	}
 
 	private void FireProjectile()
 	{
-		if (far_mode == "lob")
+		if (far_mode == FarMode.Lob)
 		{
 			FireLob();
 			return;
@@ -880,7 +871,7 @@ public partial class Enemy : Combatant
 		proj.rotate_to_heading = false;
 		proj.source = this;
 
-		if (far_mode == "ground_wave")
+		if (far_mode == FarMode.GroundWave)
 		{
 			// Baghel's floor surge: rolls forward horizontally and hugs the terrain surface as it goes.
 			proj.velocity = new Vector2(projectile_speed * Facing, 0.0f);
@@ -888,7 +879,7 @@ public partial class Enemy : Combatant
 			proj.ground_trail = true;
 			proj.ground_follow = true;
 		}
-		else if (far_mode == "forward")
+		else if (far_mode == FarMode.Forward)
 		{
 			// A straight, non-tracking bolt: flies forward in the facing direction for far_travel px.
 			proj.velocity = new Vector2(projectile_speed * Facing, 0.0f);
@@ -943,8 +934,7 @@ public partial class Enemy : Combatant
 			explosion_effect = VfxScene("delayed_projectile_burst"),
 			explosion_sfx = $"{enemy_id}.delayed_projectile_burst",
 		};
-		lob.explosion_effect_pos = EnemyEffect("delayed_projectile_burst").TryGetValue("pos", out var v)
-			? v.AsVector2() : Vector2.Zero;
+		lob.explosion_effect_pos = EnemyEffect("delayed_projectile_burst")?.Pos ?? Vector2.Zero;
 		var vis = VfxScene("delayed_projectile");
 		if (vis != null)
 			lob.AddChild(vis.Instantiate());
@@ -966,11 +956,11 @@ public partial class Enemy : Combatant
 	{
 		var hits = HitFramesOf(FarAnim);
 		if (hits.Count > 0)
-			return hits[0].AsInt32();
+			return hits[0];
 		return Mathf.Max(1, Sprite.SpriteFrames.GetFrameCount(FarAnim) / 2);
 	}
 
-	protected GArray HitFramesOf(StringName anim) =>
+	protected IReadOnlyList<int> HitFramesOf(StringName anim) =>
 		AnimMeta.HitFrames(Sprite.SpriteFrames, anim);
 
 	protected string CurrentAttackType() => State == EState.Far ? far_type : close_type;
@@ -1216,13 +1206,10 @@ public partial class Enemy : Combatant
 
 	// --- bridges (GDScript configs / UI / autoload / util) ------------------
 
-	private GDict EnemyEffect(string effect) => Emitters.EnemyEffect(enemy_id, effect);
+	private EmitterDef? EnemyEffect(string effect) => Emitters.EnemyEffect(enemy_id, effect);
 
 	private int SheetStart(StringName anim) =>
 		AnimMeta.SheetStart(Sprite.SpriteFrames, anim);
-
-	private int LoopBound(StringName anim, string key) =>
-		AnimMeta.LoopBound(Sprite.SpriteFrames, anim, key);
 
 	protected void SfxPlayAt(string cue, Vector2 pos) =>
 		GetNodeOrNull<Sfx>("/root/Sfx")?.play_at(cue, pos);

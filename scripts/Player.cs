@@ -1,7 +1,5 @@
 using Godot;
 using System.Collections.Generic;
-using GDict = Godot.Collections.Dictionary;
-using GArr = Godot.Collections.Array;
 
 namespace MyGame;
 
@@ -241,7 +239,7 @@ public partial class Player : Combatant, IStrikeWielder
     private Tween _hairTween = null;
     private ShaderMaterial _tintMat = null;
     private bool _bodyIsLut = false;
-    private GDict _hairBase = new();
+    private (Color Base, Color AccentA, Color AccentB)? _hairBase;   // the tint shader's own colours (non-LUT body only)
     private static readonly Color HairAbsorbBase = new(2.6f, 1.7f, 0.5f);
     private static readonly Color HairAbsorbA = new(2.3f, 1.0f, 0.35f);
     private static readonly Color HairAbsorbB = new(1.9f, 0.6f, 0.25f);
@@ -299,7 +297,7 @@ public partial class Player : Combatant, IStrikeWielder
             _tintMat = PaletteConfig.MakeMaterial();
             _bodyIsLut = true;
             sprite.Material = _tintMat;
-            _hairBase = new GDict();
+            _hairBase = null;
         }
         else
         {
@@ -313,13 +311,13 @@ public partial class Player : Combatant, IStrikeWielder
                 Variant aa = _tintMat.GetShaderParameter("accent_a");
                 Variant ab = _tintMat.GetShaderParameter("accent_b");
                 _hairBase = (br.VariantType == Variant.Type.Color && aa.VariantType == Variant.Type.Color && ab.VariantType == Variant.Type.Color)
-                    ? new GDict { { "base_red", br }, { "accent_a", aa }, { "accent_b", ab } }
-                    : new GDict();
+                    ? (br.AsColor(), aa.AsColor(), ab.AsColor())
+                    : null;
             }
             else
             {
                 _tintMat = null;
-                _hairBase = new GDict();
+                _hairBase = null;
                 sprite.Material = mat;
             }
         }
@@ -411,8 +409,6 @@ public partial class Player : Combatant, IStrikeWielder
     {
         return _loadout.TryGetValue(category, out var id) ? id : Loadout.DefaultId(character, category);
     }
-
-    public GArr loadout_choices() => Loadout.SwapChoices(character, _loadout);
 
     private void SeedPassives()
     {
@@ -574,6 +570,8 @@ public partial class Player : Combatant, IStrikeWielder
     // =====================================================================================================
     // Damage / health
     // =====================================================================================================
+    private static readonly string[] HurtCues = { "hurt.1", "hurt.2", "hurt.3" }; // one is picked at random per hit
+
     public void take_damage(float amount)
     {
         // Slot health: every hit costs a flat HALF-BLOCK, regardless of `amount` (so damage-reduction is inert now).
@@ -581,7 +579,7 @@ public partial class Player : Combatant, IStrikeWielder
         float before = health;
         health -= HitCost;
         WarnLowHealth(before, health);
-        _sfx.play_random(new GArr { "hurt.1", "hurt.2", "hurt.3" }); // pitch variation comes from SfxCharacters.PITCH
+        _sfx.play_random(HurtCues); // pitch variation comes from SfxCharacters.PITCH
         // Colour flash over the hurt anim, via the palette shader's `flash` uniform (a plain modulate is swallowed).
         FlashSprite(_sprite, Combat.DamageFlash, Combat.DamageFlashTime);
         if (health <= 0.0f && !_dead)
@@ -763,7 +761,7 @@ public partial class Player : Combatant, IStrikeWielder
 
     private void HairSurge(float strength, float dur)
     {
-        if (_tintMat == null || (!_bodyIsLut && _hairBase.Count == 0))
+        if (_tintMat == null || (!_bodyIsLut && _hairBase == null))
             return;
         if (_hairTween != null && _hairTween.IsValid())
             _hairTween.Kill();
@@ -781,9 +779,11 @@ public partial class Player : Combatant, IStrikeWielder
             _tintMat.SetShaderParameter("hair_surge", f);
             return;
         }
-        _tintMat.SetShaderParameter("base_red", ((Color)_hairBase["base_red"]).Lerp(HairAbsorbBase, f));
-        _tintMat.SetShaderParameter("accent_a", ((Color)_hairBase["accent_a"]).Lerp(HairAbsorbA, f));
-        _tintMat.SetShaderParameter("accent_b", ((Color)_hairBase["accent_b"]).Lerp(HairAbsorbB, f));
+        if (_hairBase is not var (baseCol, accentA, accentB))
+            return;
+        _tintMat.SetShaderParameter("base_red", baseCol.Lerp(HairAbsorbBase, f));
+        _tintMat.SetShaderParameter("accent_a", accentA.Lerp(HairAbsorbA, f));
+        _tintMat.SetShaderParameter("accent_b", accentB.Lerp(HairAbsorbB, f));
     }
 
     // =====================================================================================================
@@ -1130,16 +1130,16 @@ public partial class Player : Combatant, IStrikeWielder
                     p.OnSpecialStrike(this);
             return;
         }
-        int loopTo = LoopMeta("loop_to");
+        int loopTo = AnimMeta.LoopTo(_sprite.SpriteFrames, _sprite.Animation);
         if (loopTo >= 0 && _sprite.Frame > loopTo)
-            _sprite.SetFrameAndProgress(Mathf.Max(LoopMeta("loop_from"), 0), 0.0f);
+            _sprite.SetFrameAndProgress(Mathf.Max(AnimMeta.LoopFrom(_sprite.SpriteFrames, _sprite.Animation), 0), 0.0f);
     }
 
     private int SpecialStrikeFrame()
     {
         var hits = AnimMeta.HitFrames(_sprite.SpriteFrames, Anim(_currentSpecial));
         if (hits.Count > 0)
-            return hits[0].As<int>();
+            return hits[0];
         return _sprite.SpriteFrames.GetFrameCount(Anim(_currentSpecial)) / 2;
     }
 
@@ -1933,7 +1933,7 @@ public partial class Player : Combatant, IStrikeWielder
             return;
         }
         SetVelY(Mathf.Max(Velocity.Y, _slamSpeed));
-        int hold = Mathf.Max(0, _slamHoldFrame - SheetStart("slam"));
+        int hold = Mathf.Max(0, _slamHoldFrame - AnimMeta.SheetStart(_sprite.SpriteFrames, "slam"));
         if (_sprite.Frame >= hold)
         {
             _sprite.SetFrameAndProgress(hold, 0.0f);
@@ -1954,14 +1954,6 @@ public partial class Player : Combatant, IStrikeWielder
         _activeHit = new SegmentData { DamageScale = Mathf.Lerp(1.0f, _slamMaxDamageMult, t) * slam_damage_mult };
         foreach (var p in _passives)
             p.OnSlamLand(this, drop, Mathf.Max(Velocity.Y, _slamSpeed));
-    }
-
-    private int SheetStart(StringName anim)
-    {
-        var sf = _sprite.SpriteFrames;
-        if (sf != null && sf.HasMeta("sheet_start"))
-            return sf.GetMeta("sheet_start").As<GDict>()[anim.ToString()].As<int>();
-        return 0;
     }
 
     private bool HasSlam() => _sprite.SpriteFrames != null && _sprite.SpriteFrames.HasAnimation("slam");
@@ -1994,8 +1986,8 @@ public partial class Player : Combatant, IStrikeWielder
 
         if (_comboWindow <= 0.0f || _comboStep >= hits.Count)
             _comboStep = 0;
-        int segStart = _comboStep == 0 ? 0 : hits[_comboStep - 1].As<int>() + 1;
-        _segEnd = hits[_comboStep].As<int>();
+        int segStart = _comboStep == 0 ? 0 : hits[_comboStep - 1] + 1;
+        _segEnd = hits[_comboStep];
         _comboStep += 1;
         _activeHit = ResolveTuning(_currentAttack, _comboStep - 1);
 
@@ -2017,16 +2009,8 @@ public partial class Player : Combatant, IStrikeWielder
         _sprite.Play(Anim(_currentAttack));
     }
 
-    private GArr AttackHits()
-    {
-        var hits = AnimMeta.HitFrames(_sprite.SpriteFrames, Anim(_currentAttack));
-        if (hits.Count > 0)
-            return hits;
-        var all = new GArr();
-        for (int i = 0; i < _sprite.SpriteFrames.GetFrameCount(Anim(_currentAttack)); i++)
-            all.Add(i);
-        return all;
-    }
+    /// <summary>The frames that end each combo segment: the authored hit frames, or every frame when none are authored.</summary>
+    private IReadOnlyList<int> AttackHits() => AnimMeta.HitFramesOrAll(_sprite.SpriteFrames, Anim(_currentAttack));
 
     private void Enter(State state)
     {
@@ -2184,13 +2168,10 @@ public partial class Player : Combatant, IStrikeWielder
 
     private void OnAnimationLooped()
     {
-        int start = LoopMeta("loop_from");
+        int start = AnimMeta.LoopFrom(_sprite.SpriteFrames, _sprite.Animation);
         if (start > 0)
             _sprite.SetFrameAndProgress(start, 0.0f);
     }
-
-    private int LoopMeta(StringName key) =>
-        AnimMeta.LoopBound(_sprite.SpriteFrames, _sprite.Animation, key.ToString());
 
     private void OnAnimationFinished()
     {

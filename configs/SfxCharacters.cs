@@ -1,5 +1,5 @@
+using System.Collections.Generic;
 using Godot;
-using GDict = Godot.Collections.Dictionary;
 
 namespace MyGame;
 
@@ -12,7 +12,7 @@ namespace MyGame;
 /// </summary>
 public static class SfxCharacters
 {
-    public static readonly GDict CUES = new()
+    public static readonly Dictionary<string, string> CUES = new()
     {
         // --- movement / feedback (played by code on an event) ---
         ["dash"] = "res://sfx/character/dash/dash.wav",
@@ -74,7 +74,7 @@ public static class SfxCharacters
     /// <summary>Per-cue MIX offset in decibels (negative = quieter), on top of the automatic loudness normalization
     /// (every cue already plays at <see cref="Sfx.TargetLoudness"/>). Only for DELIBERATE choices — a cue that should
     /// sit under or over the rest — never to fix a hot or quiet file. Unlisted = 0.</summary>
-    public static readonly GDict VOLUMES = new()
+    public static readonly Dictionary<string, float> VOLUMES = new()
     {
         ["run"] = -15.0f, // the looping footsteps are a bed under the action, not a hit
 		["dash"] = -15.0f,
@@ -86,7 +86,7 @@ public static class SfxCharacters
     /// may name a GROUP: a cue with no entry of its own uses its nearest dotted prefix ("kebus.projectile.3" →
     /// "kebus.projectile" → "kebus"). Unlisted = fixed pitch. Keep it subtle (3-8%); signature stingers / alerts /
     /// loops stay unlisted.</summary>
-    public static readonly GDict PITCH = new()
+    public static readonly Dictionary<string, Vector2> PITCH = new()
     {
         ["hurt"] = new Vector2(-0.05f, 0.05f),        // hurt.1-3
         ["dash"] = new Vector2(-0.05f, 0.05f),
@@ -101,22 +101,22 @@ public static class SfxCharacters
         ["redere_frisbee.impact"] = new Vector2(-0.04f, 0.04f),
     };
 
-    public static readonly GDict FRAMES = new()
+    public static readonly Dictionary<string, Dictionary<string, Dictionary<int, string>>> FRAMES = new()
     {
-        ["khalid"] = new GDict
+        ["khalid"] = new()
         {
-            ["attack_twin_reaper"] = new GDict { [3] = "twin_reaper.3", [4] = "twin_reaper.4", [6] = "twin_reaper.6", [7] = "twin_reaper.7", [9] = "twin_reaper.9" },
-            ["attack_rope_dart"] = new GDict { [6] = "rope_dart.6", [9] = "rope_dart.9", [14] = "rope_dart.14", [16] = "rope_dart.16" },
-            ["attack_ora_ora"] = new GDict { [2] = "ora_ora.2", [4] = "ora_ora.4" },
-            ["attack_cherry_shots"] = new GDict { [3] = "cherry_shots.3", [7] = "cherry_shots.7" },
-            ["attack_spear"] = new GDict { [6] = "spear.6", [9] = "spear.9", [13] = "spear.13" },
-            ["attack_bakshen"] = new GDict { [3] = "bakshen" }, // slash sound on the RELEASE frame (3), not the 1s windup (frame 1) — so a stagger mid-windup makes no sound
-            ["attack_zahluq"] = new GDict { [2] = "zahluq" },
-            ["special_ground_breaker"] = new GDict { [1] = "ground_breaker", [3] = "ground_breaker.3" },
-            ["special_frenemy"] = new GDict { [3] = "frenemy" },
-            ["special_come_closer"] = new GDict { [3] = "come_closer" },
-            ["special_redere_shield"] = new GDict { [3] = "redere_shield" },
-            ["special_redere_frisbee"] = new GDict { [1] = "redere_frisbee.1" },
+            ["attack_twin_reaper"] = new() { [3] = "twin_reaper.3", [4] = "twin_reaper.4", [6] = "twin_reaper.6", [7] = "twin_reaper.7", [9] = "twin_reaper.9" },
+            ["attack_rope_dart"] = new() { [6] = "rope_dart.6", [9] = "rope_dart.9", [14] = "rope_dart.14", [16] = "rope_dart.16" },
+            ["attack_ora_ora"] = new() { [2] = "ora_ora.2", [4] = "ora_ora.4" },
+            ["attack_cherry_shots"] = new() { [3] = "cherry_shots.3", [7] = "cherry_shots.7" },
+            ["attack_spear"] = new() { [6] = "spear.6", [9] = "spear.9", [13] = "spear.13" },
+            ["attack_bakshen"] = new() { [3] = "bakshen" }, // slash sound on the RELEASE frame (3), not the 1s windup (frame 1) — so a stagger mid-windup makes no sound
+            ["attack_zahluq"] = new() { [2] = "zahluq" },
+            ["special_ground_breaker"] = new() { [1] = "ground_breaker", [3] = "ground_breaker.3" },
+            ["special_frenemy"] = new() { [3] = "frenemy" },
+            ["special_come_closer"] = new() { [3] = "come_closer" },
+            ["special_redere_shield"] = new() { [3] = "redere_shield" },
+            ["special_redere_frisbee"] = new() { [1] = "redere_frisbee.1" },
         },
     };
 }

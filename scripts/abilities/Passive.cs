@@ -1,5 +1,4 @@
 using Godot;
-using GDict = Godot.Collections.Dictionary;
 
 namespace MyGame;
 
@@ -12,9 +11,6 @@ namespace MyGame;
 /// <para>Two flavours, same interface: a character's INTRINSIC ability (<see cref="CharacterAbility"/>, seeded
 /// first on equip) and a REWARD-granted passive (added at runtime via <c>Player.add_passive</c> when its reward
 /// is taken, torn down on run restart). <see cref="Buff"/> extends this with move-scope + tier + duration.</para>
-///
-/// <para><c>action</c> params are the <c>Action</c> object, carried as <see cref="GodotObject"/> (bridge:
-/// <c>action.Get("id")</c> / <c>.Call("segment", seg)</c>).</para>
 /// </summary>
 [GlobalClass]
 public partial class Passive : RefCounted

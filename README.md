@@ -1046,7 +1046,7 @@ live in **`vfx/`**, documented in **[vfx/README.md](vfx/README.md)**. In short:
   AoEs. Use it instead of a `CPUParticles2D` when the texture itself must h-flip (a directional drawn slash). Its projectile sibling is **`Projectile`** (`scripts/combat/Projectile.cs`).
 - **Where to add an attack effect:** a visual → `EmittersCharacters`; a hit's
   numbers → the action's `hit.segments` in `configs/actions_<char>.gd`; a spawned thing/behavior → a
-  `scripts/abilities/<id>.gd` hook. Full walkthrough (composites, `boost`,
+  `scripts/abilities/<id>.gd` hook. Full walkthrough (composites,
   `Local Coords`, per-child positioning) in [vfx/README.md](vfx/README.md).
 
 ### Sprite tint shaders (Khalid's living hair + recolourable outfit)
@@ -1140,8 +1140,8 @@ the part to black (the nearest-shade anchor keeps the shift small).
   seventh to `MATERIALS`/`DEFAULT`, re-swatch the sprite) to pick them independently. TODO.
 
 > **Wired into the run.** The preview screen is now the **boot scene** (`project.godot`
-> `main_scene`), and its **Start run** button stamps the picks into `PaletteConfig.picks`
-> (body) + `VfxPalette.picks` (powers) — both statics that survive the scene change — then
+> `main_scene`), and its **Start run** button stamps the picks into `PaletteConfig`
+> (body) + `VfxPalette` (powers) through their `SetPicks` — both hold them in a static that survives the scene change — then
 > loads `level.tscn`. In `Player.cs`, `_apply_character()` builds Khalid's body material from
 > `PaletteConfig.MakeMaterial()` (the SAME builder the preview uses, so run == preview), and
 > the Ruh-absorb hair flare now drives the LUT's `hair_surge` uniform. The old tint shader
@@ -1149,7 +1149,8 @@ the part to black (the nearest-shade anchor keeps the shift small).
 >
 > **Scheme slots (saved across sessions).** The selector is **Default + up to `SaveData.MAX_SCHEMES`
 > (5) slots**, plus an **active** index, persisted to `user://save.cfg` (`[colors]` section, alongside
-> the run record; ConfigFile serialises `Color`/`Dictionary`/`Array` natively). **Default** (active
+> the run record; ConfigFile serialises `Color`/`Dictionary`/`Array` natively — but engine dictionaries stop at
+> `SaveData`'s read/write helpers: the rest of the game sees a typed `ColorScheme` record, `SaveData.Scheme(i)`). **Default** (active
 > `= -1`) is the built-in palette — always selectable and never overwritten, so the default look stays
 > reachable even when all 5 slots are customised (Save is disabled while it's selected). Selecting a
 > slot loads it and makes it active; **Save scheme** writes the current picks into the active slot;
@@ -1207,7 +1208,7 @@ in-place swap would compound across spawns). So "blue attacks" is today's red ef
 hue: glow, fade and HDR bloom all survive. Neutrals (below `SAT_FLOOR`) and unmatched hues (the
 purple, `> HUE_TOL`) are left untouched.
 
-- **`VfxPalette.picks`** — `{family -> Color}`, set once per run (`set_picks`); empty = the
+- **The power picks** — `family -> Color` (`Dictionary<string, Color>`), set once per run (`VfxPalette.SetPicks`); empty = the
   default red/gold/teal look. **Dedicated to VFX**, independent of the body pickers.
 - **Choke points** — `ParticleDirector._spawn()` calls `recolor_tree` on every effect it fires
   (dash / run / all attacks / all specials / slam / spawn / death / blink). The surge aura
@@ -1484,16 +1485,16 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
 - **`contact_damage`** (default **0 = off**): when set, touching the player
   deals it on `contact_interval`. Also per-instance.
 - **The far attack** fires from the **muzzle** (the `Emitters` config `<id> → projectile → pos`) on the
-  animation's hit frame (`hit_frames` metadata). Four `far_mode`s:
-  - `"aimed"` (the default) — a `scripts/combat/Projectile.cs` that fires at the player's **body** and
+  animation's hit frame (`hit_frames` metadata). Four `far_mode`s (the `FarMode` enum):
+  - `FarMode.Aimed` (the default) — a `scripts/combat/Projectile.cs` that fires at the player's **body** and
     **tracks their elevation** at fire time (`can_fly_up` + `rotate_to_heading`, so it can angle up/down at a
     player a level away and points along its flight). **`far_aim_cap`** clamps the tilt to ±that° off horizontal
     (Kebus = 45), so a player far above/below never makes the shot near-vertical — it just fires at the cap.
     Pair with a wide **`attack_align_y`** (Kebus = 120) so he'll *engage* across levels, not only when level with you.
     The shot doesn't steer after firing (`homing = 0`). Kebus' staff bolt.
-  - `"forward"` — a straight, **non-tracking** bolt: flies dead ahead in the enemy's facing for `far_travel`
+  - `FarMode.Forward` — a straight, **non-tracking** bolt: flies dead ahead in the enemy's facing for `far_travel`
     px then fizzles, ignoring where you are. (Use it for a dumb straight shooter; `aggro` still governs chasing.)
-  - `"ground_wave"` — a `Projectile` that rolls forward along the ground and **hugs the terrain surface**
+  - `FarMode.GroundWave` — a `Projectile` that rolls forward along the ground and **hugs the terrain surface**
     (`ground_follow`, + a scorch `ground_trail`), rippling up/down slopes; fizzles at `far_travel` or when
     it runs off a ledge — Baghel's red energy surge.
   - `"lob"` — a **`LobProjectile`** (`scripts/combat/LobProjectile.cs`), a *thrown bomb*
@@ -1879,9 +1880,9 @@ the build basics:
   `EnemySpawns` node of `Marker2D` spawn spots (`LevelLayout.EnemySpawns`).
 - **Enemies** — each round (`TickRound`) trickles its hidden quota in, one **kit** at a time picked at random from
   `RunManager.SpawnPool`, under the round's concurrent cap; spawning stops once the quota has spawned and the round
-  clears on the last kill (only non-optional enemies count). A **kit** (`EnemyKits.KEBUS`, …) is either an `id` (built
-  from the generic `enemy.tscn` with that `enemy_id`) or a `scene` (a custom enemy — `sleeper_enemy.tscn`,
-  `diver_enemy.tscn`), plus any Enemy `@export` overrides. `RunManager.SpawnEnemy` applies them; the enemy's
+  clears on the last kill (only non-optional enemies count). A **kit** (`EnemyKits.KEBUS`, …) is a typed `EnemyKit` record: id, display name, tier, movement, which scene (the
+  generic `enemy.tscn` by default, or a custom one — `sleeper_enemy.tscn`, `diver_enemy.tscn`) and a `Tune` function
+  that sets the enemy's stats on the typed instance. `RunManager.SpawnEnemy` instantiates and tunes it; the enemy's
   `died` signal frees a cap slot and drops Lira (+ a chance of a Fada Fig) — buffs come from the mystery box, not kills.
 - **Spawn spots** — `RunManager.PickSpawnSpot` picks a FREE `EnemySpawns` marker (one enemy per spot; `_spotOf`
   frees it on death), spreading them over the map: the free spot farthest from the ones already held, among those at

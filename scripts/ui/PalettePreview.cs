@@ -1,7 +1,6 @@
 using Godot;
 using System;
 using System.Collections.Generic;
-using GDict = Godot.Collections.Dictionary;
 
 namespace MyGame;
 
@@ -54,11 +53,11 @@ public partial class PalettePreview : Control
     private ScrollContainer _scroll;
     private VBoxContainer _col;
     private Node2D _sample;
-    private readonly GDict _bodyPicks = new();   // material -> picked Color (missing = default shade ramp)
-    private readonly GDict _powerPicks = new();  // family -> picked Color (missing = family default)
+    private readonly Dictionary<string, Color> _bodyPicks = new();   // material -> picked Color (missing = default shade ramp)
+    private readonly Dictionary<string, Color> _powerPicks = new();  // family -> picked Color (missing = family default)
     private readonly Dictionary<string, ColorPickerButton> _bodyPickers = new();
     private readonly Dictionary<string, ColorPickerButton> _powerPickers = new();
-    private readonly GDict _uiPicks = new();     // UiStyle.PickFrame/PickAccent -> picked Color (always both set)
+    private readonly Dictionary<string, Color> _uiPicks = new();     // UiStyle.PickFrame/PickAccent -> picked Color (always both set)
     private readonly Dictionary<string, ColorPickerButton> _uiPickers = new();
     private readonly List<Button> _slotButtons = new();
     private Button _saveButton;
@@ -127,28 +126,19 @@ public partial class PalettePreview : Control
 
     // --- scheme <-> working picks -------------------------------------------
 
+    /// <summary>Load the active slot's scheme into the working picks; power and UI picks fall back to their defaults.</summary>
     private void LoadActive()
     {
-        GDict scheme = _activeSlot < 0
-            ? new GDict { { "body", new GDict() }, { "power", new GDict() } }
-            : SaveData.ColorSchemes()[_activeSlot].As<GDict>();
-        ReadSchemeIntoWorking(scheme);
-    }
-
-    private void ReadSchemeIntoWorking(GDict scheme)
-    {
+        ColorScheme scheme = _activeSlot < 0 ? ColorScheme.Empty : SaveData.Scheme(_activeSlot);
         _bodyPicks.Clear();
-        var body = scheme.ContainsKey("body") ? scheme["body"].As<GDict>() : new GDict();
-        foreach (var mK in body.Keys)
-            _bodyPicks[mK] = body[mK];
+        foreach (var (material, colour) in scheme.Body)
+            _bodyPicks[material] = colour;
         _powerPicks.Clear();
-        var savedPower = scheme.ContainsKey("power") ? scheme["power"].As<GDict>() : new GDict();
         foreach (var fam in POWER_ORDER)
-            _powerPicks[fam] = savedPower.ContainsKey(fam) ? savedPower[fam] : POWER_FAMILIES[fam];
+            _powerPicks[fam] = scheme.Power.GetValueOrDefault(fam, POWER_FAMILIES[fam]);
         _uiPicks.Clear();
-        var savedUi = scheme.ContainsKey("ui") ? scheme["ui"].As<GDict>() : new GDict(); // older saves have no "ui"
         foreach (var k in UI_ORDER)
-            _uiPicks[k] = savedUi.ContainsKey(k) ? savedUi[k] : UI_DEFAULTS[k];
+            _uiPicks[k] = scheme.Ui.GetValueOrDefault(k, UI_DEFAULTS[k]);
     }
 
     /// <summary>Push the current working picks to every live view.</summary>
@@ -157,11 +147,11 @@ public partial class PalettePreview : Control
         ApplyBodyDst();
         PaletteConfig.ApplyPortraitHues(_portraitMat, _bodyPicks);
         foreach (var (m, picker) in _bodyPickers)
-            picker.Color = _bodyPicks.ContainsKey(m) ? _bodyPicks[m].As<Color>() : new Color(PaletteConfig.DEFAULT[m][1]);
+            picker.Color = BodyPickFor(m);
         foreach (var (fam, picker) in _powerPickers)
-            picker.Color = _powerPicks[fam].As<Color>();
+            picker.Color = _powerPicks[fam];
         foreach (var (k, picker) in _uiPickers)
-            picker.Color = _uiPicks[k].As<Color>();
+            picker.Color = _uiPicks[k];
         PushStatics();
         RebuildSample();
     }
@@ -175,7 +165,7 @@ public partial class PalettePreview : Control
 
     /// <summary>Recolour the whole UI (this screen live, plus every menu/HUD the run builds) from the UI picks.</summary>
     private void ApplyUiPicks() =>
-        UiStyle.SetColors(_uiPicks[UiStyle.PickFrame].As<Color>(), _uiPicks[UiStyle.PickAccent].As<Color>());
+        UiStyle.SetColors(_uiPicks[UiStyle.PickFrame], _uiPicks[UiStyle.PickAccent]);
 
     private void ApplyBodyDst() =>
         _mat.SetShaderParameter("dst", PaletteConfig.ToLinearVec3(PaletteConfig.BuildTargets(_bodyPicks)));
@@ -237,14 +227,14 @@ public partial class PalettePreview : Control
         foreach (var fam in POWER_ORDER)
         {
             string f = fam;
-            col.AddChild(SwatchRow(POWER_LABELS[fam], _powerPicks[fam].As<Color>(), c => OnPowerColour(c, f), _powerPickers, fam));
+            col.AddChild(SwatchRow(POWER_LABELS[fam], _powerPicks[fam], c => OnPowerColour(c, f), _powerPickers, fam));
         }
 
         col.AddChild(Header("UI"));
         foreach (var k in UI_ORDER)
         {
             string key = k;
-            col.AddChild(SwatchRow(UI_LABELS[k], _uiPicks[k].As<Color>(), c => OnUiColour(c, key), _uiPickers, k));
+            col.AddChild(SwatchRow(UI_LABELS[k], _uiPicks[k], c => OnUiColour(c, key), _uiPickers, k));
         }
 
         col.AddChild(Header("BACKDROP"));
@@ -271,7 +261,7 @@ public partial class PalettePreview : Control
     }
 
     private Color BodyPickFor(string matName) =>
-        _bodyPicks.ContainsKey(matName) ? _bodyPicks[matName].As<Color>() : new Color(PaletteConfig.DEFAULT[matName][1]);
+        _bodyPicks.GetValueOrDefault(matName, new Color(PaletteConfig.DEFAULT[matName][1]));
 
     /// <summary>One labelled row in a subtle strip. If `swatch` is given it's used; else a ColorPickerButton
     /// is made, seeded to `col`, wired to `cb`, and stored in `store[key]`.</summary>
@@ -331,7 +321,7 @@ public partial class PalettePreview : Control
     private void RefreshSlotLabels()
     {
         for (int i = 0; i < _slotButtons.Count; i++)
-            _slotButtons[i].Text = $"{i + 1}{(SaveData.SchemeUsed(i) ? "•" : "")}";
+            _slotButtons[i].Text = $"{i + 1}{(!SaveData.Scheme(i).IsEmpty ? "•" : "")}";
     }
 
     // --- handlers -----------------------------------------------------------
@@ -373,7 +363,7 @@ public partial class PalettePreview : Control
     {
         if (_activeSlot < 0)
             return;
-        SaveData.SaveScheme(_activeSlot, _bodyPicks, _powerPicks, _uiPicks);
+        SaveData.SaveScheme(_activeSlot, new ColorScheme(_bodyPicks, _powerPicks, _uiPicks));
         RefreshSlotLabels();
     }
 

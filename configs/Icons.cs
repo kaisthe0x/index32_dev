@@ -1,6 +1,5 @@
 using Godot;
 using System.Collections.Generic;
-using GDict = Godot.Collections.Dictionary;
 
 namespace MyGame;
 
@@ -14,7 +13,7 @@ public static class Icons
 {
     private const string Fallback = "res://vfx/shared/textures/soft_dot.png";
 
-    private static readonly GDict PATHS = new()
+    private static readonly Dictionary<string, string> PATHS = new()
     {
         // enemy STATUS icons
         { "status:reap", "res://vfx/shared/textures/skull_texture.png" },
@@ -28,7 +27,7 @@ public static class Icons
     /// <summary>The texture for a namespaced key ("buff:momentum", "status:stun", …), cached. Unknown = FALLBACK.</summary>
     public static Texture2D Texture(string key)
     {
-        string path = PATHS.ContainsKey(key) ? PATHS[key].AsString() : Fallback;
+        string path = PATHS.GetValueOrDefault(key, Fallback);
         return LoadCached(ResourceLoader.Exists(path) ? path : Fallback);
     }
 
