@@ -649,12 +649,12 @@ first gap each side so an effect doesn't leap a pit). Used three ways:
   sleeper hurts them. It still only *triggers* on player detection (the `SleeperEnemy` rage_zone), never on
   enemies. The flag flows generically: `Enemy.SpawnAttack` copies it to the Strike, whose mask uses
   `Combat.HurtMask(hostile, FriendlyFire)` to also scan the attacker's own team's hurt layer.
-- **Enemy static AoEs (`ConformGround` kit flag)** — Matat sets it (`Enemy.SpawnMeleeStrike`) and Nasen
+- **Enemy static AoEs (`MeleeAttack.ConformGround` kit flag)** — Matat sets it (`MeleeAttack.Strike`) and Nasen
   sets it (`SleeperEnemy.SpawnRageAoe` — the sleeper spawns its rage aoe on its own path, not the melee one);
   each runs the *same* `GroundContour.Conform` on the spawned `AoeStrike`. (Enemies bypass `ParticleDirector`,
   hence a kit flag rather than an emitter-row flag — but one conform path. Any new enemy attack spawned by a
   bespoke method must call `GroundContour.Conform` itself to honour the flag.)
-- **Traveling wave (`Projectile.GroundFollow`)** — Baghel's `ground_wave` `FarMode` sets it; each
+- **Traveling wave (`Projectile.GroundFollow`)** — Baghel's `ground_wave` `ShotAttack.Path` sets it; each
   `_PhysicsProcess` the projectile `GroundProbe.TryAt`s under itself, snaps its Y to the surface
   (`GroundFollowOffset` above it) and tilts to the normal, so the wave ripples up/down slopes as it
   rolls; it runs off a ledge → `Expire`. Facing stays on `Scale.X`, tilt on `Rotation`.
@@ -1297,7 +1297,7 @@ code at startup and stays **disabled** except while muffled/sweeping back, so it
     particle bursts). This is symmetric to VFX — the **Emitters config stays particles-only**.
 - **Enemy sound keys** follow conventions the code composes: `enemy_death` / `enemy_spawn` (shared,
   positional — death on `_die`, spawn with the puff in `RunManager._spawn_fx`), `<id>.<type>`
-  (attack start, `type` = the enemy's `CloseType` / `FarType` — the StrikeType of its close-range /
+  (attack start, `type` = the enemy's `Enemy.Close` / `Enemy.Far` — the StrikeType of its close-range /
   far-range attack, picked by which attack fired),
   `<id>.delayed_projectile_burst` (a lob's delayed explosion), and per-frame
   hits in `SfxEnemies.Frames` — all in `SfxEnemies`, keyed by `EnemyId`.
@@ -1346,9 +1346,14 @@ can be dropped into a level and tuned in the inspector; the enemy's **body** (sp
 hurtbox, contact box, health bar) is built in code, but its **attacks** are
 self-contained SCENES (see below), so the scene has nothing fragile to hand-wire. Key traits:
 
-- **Capabilities come from `CloseType` / `FarType`.** Each names the StrikeType of the enemy's
-  close-range / far-range attack; the animation is **DERIVED** as `attack_<type>` (e.g. `attack_aoe`,
-  `attack_projectile`) and that attack is enabled when its sheet exists. An enemy with only one —
+- **Capabilities come from `Enemy.Close` / `Enemy.Far`** — two optional **attack objects** the kit gives it
+  (`scripts/enemies/attacks/`): a `MeleeAttack` (slash, shockwave, held blast, lunge, gust), a `ShotAttack`
+  (a projectile — aimed, straight, or a ground wave: `ShotPath`) or a `LobAttack` (an arcing bomb). Each holds only
+  its own numbers (`Range`, `Damage`, `Knockback`, `Stun`, plus what is particular to it) and does its own work on
+  the animation's frames; the enemy decides only WHEN to start one. A kit reads
+  `e.Close = new MeleeAttack(StrikeType.Blast) { Range = 140, Damage = 16, … }`. The attack's StrikeType names its
+  animation, **DERIVED** as `attack_<type>` (e.g. `attack_aoe`, `attack_projectile`), its effect row and its sound
+  cue, and the attack is enabled when its sheet exists. An enemy with only one —
   or, like a stationary sleeper, **no `walk`** — just works; missing animations are never used (a
   walk-less enemy stands instead of patrolling).
 - **Attacks are self-contained scenes (the PLAYER pattern).** Every enemy attack — a melee `Strike`,
@@ -1367,8 +1372,8 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
   it those enemies' melee dealt no damage — a long-standing gap, fixed 2026-08.)
   Two knobs ride on this: the `EmittersEnemies` **`pos`** anchors the whole attack (mirrored by facing —
   move it to reposition a strike's beam/box together), and the enemy **engages at its REAL reach** — on
-  `_ready` `CloseRange` is derived from the attack scene's hitbox far-edge (+ `pos.x`) via `_melee_reach()`,
-  and a `"forward"` shot's `FarRange` is clamped to `FarTravel`. So an enemy closes exactly as far
+  `_ready` `MeleeAttack.Range` is derived from the attack scene's hitbox far-edge (+ `pos.x`) via `_melee_reach()`,
+  and a `"forward"` shot's `Far.Range` is clamped to `ShotAttack.Travel`. So an enemy closes exactly as far
   as it can hit, and shrinking a hitbox brings it *closer* — no separate range to keep in sync with the box.
   **Authoring the particles:** the `Strike` leaves emission to the scene, so a `CPUParticles2D` at its default
   `one_shot = false` **loops for the strike's whole life** (reads as "it keeps emitting"). For a single hit
@@ -1376,7 +1381,7 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
   strike, the clean workflow is: **author each emitter dead-centre `(0,0)` and position it with `pos`** — no
   hand-nudging nodes in the editor. (`pos` carries the hitbox too, so the burst and the box stay together.)
 - **Close jab vs. AoE.** The close attack's hit frame(s) fire the strike scene (`EmittersEnemies` `<id> -> aoe`
-  / `CloseType`); its **Hitbox is authored in that scene** — a jab is a small box in front, an **AoE swing**
+  / `Enemy.Close`); its **Hitbox is authored in that scene** — a jab is a small box in front, an **AoE swing**
   a wide box centred on the body with a long lifetime (it still hits once — `Hitbox` dedups). **Matat** is the worked example: a
   chasing bruiser who sweeps his arms for a wide orange shockwave (kit `EnemyKits.Matat`; VFX
   `vfx/enemy/matat/attack/matat_aoe.tscn`; the AoE erupts on attack frame 4). His `AttackLoops = true`
@@ -1386,7 +1391,7 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
 - **Channelled stationary blast.** **Tarri** is a Bakshen-style caster with more reach: a lit-yellow mob who,
   on his **last attack frame**, **holds + vibrates** (the freeze-on-fire-frame hit-stop + `AttackShake`)
   while he ERUPTS a **wide stationary forward blast in front — a melee `Strike`, NOT a travelling shot**.
-  He's close-only (anim `attack_blast`), so he walks into `CloseRange` (his blast reach) and swings;
+  He's close-only (anim `attack_blast`), so he walks into `MeleeAttack.Range` (his blast reach) and swings;
   `tarri_blast.tscn` (a `Strike` scene) authors the forward hitbox + a **beam that emits from his body and
   mirrors with facing** (fixed via `_spawn_attack`). **The hold length is the blast's own `EmitDuration`,
   not `AttackHitstop`:** when a fire frame spawns a channeled Strike, `_on_frame_changed` feeds that Strike's
@@ -1395,7 +1400,7 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
   in `tarri_blast.tscn` to retime the whole thing). Non-channel melees (Matat's instant `aoe`) still use the
   plain `AttackHitstop`. His `CloseType = "blast"` keys both the SFX (`tarri.blast`
   at the start, `tarri.blast.3` on the fire frame) **and** the strike VFX — `_spawn_melee_strike` looks up
-  the effect under the enemy's `CloseType` (falling back to `aoe`), so a typed strike (Matat's `aoe`, Tarri's `blast`) finds its scene
+  the effect under the enemy's `Enemy.Close` (falling back to `aoe`), so a typed strike (Matat's `aoe`, Tarri's `blast`) finds its scene
   under that key. Kit `EnemyKits.Tarri`; VFX `vfx/enemy/tarri/attack/tarri_blast.tscn`.
   **Getting hit mid-channel cancels it — visuals AND audio.** A channeled Strike (`EmitDuration > 0`) is
   remembered as `Enemy._active_channel` when it spawns; if a hit **staggers or stuns** us before the window
@@ -1413,7 +1418,7 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
   behind him can't yank him around to chase while his blast is still firing the other way. `_active_channel`
   goes invalid the instant the Strike frees, releasing him exactly when the blast is gone.
 - **Wind gust — a hit that FLINGS instead of hurting (Ventilator).** A strike whose tuning carries a **`Gust`**
-  (`SegmentData.Gust` → `Hitbox.Gust` → `Hit.Gust`, px/s; an enemy kit sets it with **`CloseGust`**) does **no damage
+  (`SegmentData.Gust` → `Hitbox.Gust` → `Hit.Gust`, px/s; an enemy kit sets it with **`MeleeAttack.Gust`**) does **no damage
   and no stagger**. On Khalid (`Player.BlownAway`) it breaks off what he's doing (`BreakOffForHit` — the same interrupt a
   real hit uses: orb launch, held channel, Nem's sleep), then flings him **away from the source and up**
   (`Combatant.GustVelocity`: `Gust` horizontally, `Gust × Combat.GustLift` (0.55) up) into the air state. For
@@ -1422,7 +1427,7 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
   (full control back) — those are the recoveries; landing ends it too. Shields that block a hit (Redere from the front,
   i-frames, a dash) block a gust. An enemy caught by one (a charmed Ventilator) is flung and held in stun
   (`Combat.GustEnemyStagger`) instead of damaged. **Ventilator** is the user: a red creature riding a whirlwind
-  (kit `EnemyKits.Ventilator`, `CloseType = "blast"`, `CloseGust` 540 — tuned so an air jump within ~0.3 s or any
+  (kit `EnemyKits.Ventilator`, `CloseType = "blast"`, `MeleeAttack.Gust` 540 — tuned so an air jump within ~0.3 s or any
   dash back saves you, and doing nothing doesn't). Like Tarri, the wind fires on his **last attack frame (5)** and he
   holds + vibrates there for the blast's `EmitDuration` (0.6 s); VFX `vfx/enemy/ventilator/attack/ventilator_blast.tscn`
   (a `BlastStrike`: pale-cyan gust/streak/swirl emitters + a 150×40 forward hitbox), SFX `ventilator.blast` (wind-up) +
@@ -1452,11 +1457,11 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
   `<state>_trail` (`walk_trail`, worn by Tarri). So `nasen`/`matat → aoe`, `kebus`/`baghel → projectile`,
   `tarri → blast`. **The SFX
   side (`SfxEnemies`) uses the same type keys** — `<id>.<type>` where `type` is the enemy's
-  `CloseType` / `FarType` (`@export`, set per kit; picked by which attack fired) — and the
+  `Enemy.Close` / `Enemy.Far` (`@export`, set per kit; picked by which attack fired) — and the
   scene/wav **filenames** follow suit (`nasen_aoe.tscn`, `mazab_delayed_projectile.tscn`, `aoe.wav`, …).
 - **Behaviour:** patrols between its spawn point and `spawn + PatrolDistance`,
   pausing `IdleTimeMin..max` seconds at each end. If the player enters its line (aligned + within
-  `FarRange`) it engages — its **close attack** (the `attack_<CloseType>` strike) within `CloseRange`,
+  `Far.Range`) it engages — its **close attack** (the `attack_<CloseType>` strike) within `MeleeAttack.Range`,
   else its **far attack** (the `attack_<FarType>` shot). A **close-only** enemy (a close attack, no far) then
   **walks in** to close the gap even without `aggro` — otherwise a close-range mob would just stand and wait;
   a far-attack one holds its ground and fires. While engaged it plays a **live idle loop** (a breathing
@@ -1479,8 +1484,8 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
   `AggroRange` (320 px, real distance — it patrols its spawn spot until you come that close; get farther and it
   drops back to patrol; a straggler told to `hunt()` ignores the range and chases 1.6× faster), instead of only
   fighting whoever wanders into its line. It chases to its **attack reach** — a *far-attack* mob closes
-  only to **firing range** (`FarRange`) and holds (it won't run its bow into your face), a
-  *close-only* mob closes to `CloseRange` and swings. It's a per-instance export, so set it **false**
+  only to **firing range** (`Far.Range`) and holds (it won't run its bow into your face), a
+  *close-only* mob closes to `MeleeAttack.Range` and swings. It's a per-instance export, so set it **false**
   per-kit for a mob that should just guard a spot.
 - **`AlertDuration`** (default **5s**): getting hit **alerts** the enemy — it then
   detects and *pursues* the attacker for that long **regardless of its normal range**
@@ -1494,33 +1499,33 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
 - **`ContactDamage`** (default **0 = off**): when set, touching the player
   deals it on `ContactInterval`. Also per-instance.
 - **The far attack** fires from the **muzzle** (the `Emitters` config `<id> → projectile → pos`) on the
-  animation's hit frame (`hit_frames` metadata). Four `FarMode`s (the `FarMode` enum):
-  - `FarMode.Aimed` (the default) — a `scripts/combat/Projectile.cs` that fires at the player's **body** and
+  animation's hit frame (`hit_frames` metadata). Four `ShotAttack.Path`s (the `ShotAttack.Path` enum):
+  - `ShotPath.Aimed` (the default) — a `scripts/combat/Projectile.cs` that fires at the player's **body** and
     **tracks their elevation** at fire time (`CanFlyUp` + `RotateToHeading`, so it can angle up/down at a
-    player a level away and points along its flight). **`FarAimCap`** clamps the tilt to ±that° off horizontal
+    player a level away and points along its flight). **`ShotAttack.AimCap`** clamps the tilt to ±that° off horizontal
     (Kebus = 45), so a player far above/below never makes the shot near-vertical — it just fires at the cap.
     Pair with a wide **`AttackAlignY`** (Kebus = 120) so he'll *engage* across levels, not only when level with you.
     The shot doesn't steer after firing (`homing = 0`). Kebus' staff bolt.
-  - `FarMode.Forward` — a straight, **non-tracking** bolt: flies dead ahead in the enemy's facing for `FarTravel`
+  - `ShotPath.Forward` — a straight, **non-tracking** bolt: flies dead ahead in the enemy's facing for `ShotAttack.Travel`
     px then fizzles, ignoring where you are. (Use it for a dumb straight shooter; `aggro` still governs chasing.)
-  - `FarMode.GroundWave` — a `Projectile` that rolls forward along the ground and **hugs the terrain surface**
-    (`GroundFollow`, + a scorch `GroundTrail`), rippling up/down slopes; fizzles at `FarTravel` or when
+  - `ShotPath.GroundWave` — a `Projectile` that rolls forward along the ground and **hugs the terrain surface**
+    (`GroundFollow`, + a scorch `GroundTrail`), rippling up/down slopes; fizzles at `ShotAttack.Travel` or when
     it runs off a ledge — Baghel's red energy surge.
   - `"lob"` — a **`LobProjectile`** (`scripts/combat/LobProjectile.cs`), a *thrown bomb*
-    (Mazab). It arcs out of the muzzle **aimed** at a spot next to the player (`LobLandOffset`,
+    (Mazab). It arcs out of the muzzle **aimed** at a spot next to the player (`LobAttack.LandOffset`,
     biased toward the thrower), then **flies ballistically** until it lands on a real surface,
-    where it sits **harmless but blinking** for `LobDwell` (~1s) and **explodes** into a wide
+    where it sits **harmless but blinking** for `LobAttack.Dwell` (~1s) and **explodes** into a wide
     ground AoE. It deals **no damage in the air or on landing** — only the blast hurts, so it's
     *dodgeable*: clear the landing spot before the timer ends. Three phases — **ARC** → **DWELL**
     → **EXPLODE** (spawns a hostile `Strike`, the same AoE component nasen's aoe / the
-    ground-breaker use, sized by `LobExplosionExtents` and using
-    `FarDamage`/`FarKnockback`/`FarStun`). Two things keep it honest:
-    - **`LobArcTime`** only *solves the launch velocity* to aim the toss (arc height/angle);
+    ground-breaker use, sized by `LobAttack.ExplosionExtents` and using
+    `ShotAttack.Damage`/`ShotAttack.Knockback`/`ShotAttack.Stun`). Two things keep it honest:
+    - **`LobAttack.ArcTime`** only *solves the launch velocity* to aim the toss (arc height/angle);
       it does **not** decide where it stops. The bomb keeps falling until it actually crosses an
       **`L_WORLD`** surface **while descending** (a per-step ray, so it can't tunnel through a
       thin ledge; one-way platforms are passed through on the way up) — so a player who steps
       out from under it never leaves it hanging in mid-air.
-    - **`LobMaxLife`** (default 3s) is the safety net: a bomb thrown over a ledge with nothing
+    - **`LobAttack.MaxLife`** (default 3s) is the safety net: a bomb thrown over a ledge with nothing
       below **detonates mid-air** (no dwell) when it elapses, rather than falling forever.
 
     The thrown-object look (Mazab's steel-blue `mazab_rock.tscn`, spun as it tumbles) and the
@@ -1566,7 +1571,7 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
     the audio twin (played positionally at the same spot). Lobs explode via `LobProjectile`, separate from this.
 - **The close attack** enables a hitbox in front on the animation's hit frame (from the
   `hit_frames` metadata — Kebus: sheet frame 3).
-- **`AttackLoops`** (default **off**): when on, the close attack **loops** while the
+- **`MeleeAttack.Loops`** (default **off**): when on, the close attack **loops** while the
   player stays in close reach (a channel/flurry) instead of one swing per cooldown. Each
   cycle re-plays from the anim's `loop_from` (`gen_spriteframes`), so a wind-up lead-in
   plays once and only the strike cycle repeats; when the player leaves reach it ends with
@@ -1673,7 +1678,7 @@ keeps raging for `RageLinger` (2s) before dozing off.
   `Enemy._loop_from(anim)` reads the generator's `loop_from` metadata and `_replay_from(anim,
   frame)` re-plays skipping the lead-in — any enemy or subclass calls them; the caller just
   decides *when* to loop (nasen: still raging; generic melee: player still in reach — see
-  `AttackLoops`).
+  `MeleeAttack.Loops`).
 - Spawned via the roster's **`scene`** key (below), not the default `enemy.tscn`.
 
 ### Ein — a floating kamikaze (`scripts/enemies/DiverEnemy.cs`, `scenes/ein.tscn`)

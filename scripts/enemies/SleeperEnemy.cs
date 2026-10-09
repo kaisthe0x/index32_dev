@@ -20,7 +20,11 @@ public partial class SleeperEnemy : Enemy
     [Export] public float RageKnockback { get; set; } = 130.0f;
     [Export] public Vector2 RageExtents { get; set; } = new(52, 22);
 
+    private static readonly string RageKey = StrikeType.Aoe.Key();   // names its animation, effect row and sound cue
+    private static readonly StringName RageAnim = "attack_" + RageKey;
+
     private float _rageLeft;
+    private bool _eruptedThisYell;   // the AoE has gone off in the current pass of the rage animation
 
     /// <summary>Stationary sleeper AI — no patrol. Wake + rage while the player is in the zone (linger after).</summary>
     protected override void Act(float delta)
@@ -51,18 +55,18 @@ public partial class SleeperEnemy : Enemy
     {
         SetState(EState.Rage);
         if (fromFrame == 0)
-            PlayAttackStartSfx(CloseAnim); // the wake/attack cue -- once per rage, not every yell loop
-        AttackFired = false;
+            PlayAttackStartSfx(RageKey); // the wake/attack cue -- once per rage, not every yell loop
+        _eruptedThisYell = false;
         Impacted = false;
-        ReplayFrom(CloseAnim, fromFrame);
+        ReplayFrom(RageAnim, fromFrame);
     }
 
     protected override void OnFrameChanged()
     {
         PlayFrameSfx();
-        if (State == EState.Rage && !AttackFired && HitFramesOf(CloseAnim).Contains(Sprite.Frame))
+        if (State == EState.Rage && !_eruptedThisYell && HitFramesOf(RageAnim).Contains(Sprite.Frame))
         {
-            AttackFired = true;
+            _eruptedThisYell = true;
             SpawnRageAoe();
             BeginHitstop();
         }
@@ -78,7 +82,7 @@ public partial class SleeperEnemy : Enemy
         if (State == EState.Rage)
         {
             if (_rageLeft > 0.0f)
-                StartRage(LoopFrom(CloseAnim)); // keep raging -- loop from loop_from (wake plays once)
+                StartRage(LoopFrom(RageAnim)); // keep raging -- loop from loop_from (wake plays once)
             else
             {
                 Engaged = false;
@@ -111,10 +115,9 @@ public partial class SleeperEnemy : Enemy
     /// <summary>The rage AoE: the `aoe` Strike scene centred on us, our rage numbers injected.</summary>
     private void SpawnRageAoe()
     {
-        var node = SpawnAttack(VfxScene("aoe"),
-            new SegmentData { Damage = RageDamage, Knockback = RageKnockback }, false, VfxPos("aoe"));
-        if (ConformGround && node != null)
+        var node = SpawnAttack(EffectScene(RageKey),
+            new SegmentData { Damage = RageDamage, Knockback = RageKnockback }, false, EffectPos(RageKey));
+        if (node != null)
             GroundContour.Conform(node, GetWorld2D()?.DirectSpaceState); // ground-band flames hug the slope, like the slam
-
     }
 }

@@ -6,6 +6,59 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-09 — `new-shit` — `Enemy` redesign, step 1: attacks are objects
+
+The owner approved redesigning `Enemy` and `Player` rather than only moving code. This is the first step for
+`Enemy`. Nothing is meant to play differently.
+
+### An enemy's attacks are objects its kit gives it
+
+- **What:** `Enemy` carried 29 flat attack settings (`CloseDamage`, `FarRange`, `FarMode`, `LobArcTime`, …) that
+  every enemy had whether it used them or not, and one block of code that branched on them. Now an enemy has two
+  optional slots, `Close` and `Far`, each holding an **attack object** from the new `scripts/enemies/attacks/`:
+
+  | Class | What it is |
+  |---|---|
+  | `EnemyAttack` | The base: type, range, damage, knockback, stun; `Begin()` and `OnFrame(frame)`. |
+  | `MeleeAttack` | Lands on the animation's hit frames — slash, shockwave, held blast, lunge, gust. Takes its range from its effect scene's reach. |
+  | `RangedAttack` | Base for an attack that releases one thing on its fire frame, from the muzzle. |
+  | `ShotAttack` | A projectile: aimed, straight ahead, or a ground wave (`ShotPath`, was `FarMode`). |
+  | `LobAttack` | An arcing bomb that lands, dwells and bursts. |
+
+  A kit now reads `e.Far = new ShotAttack { Speed = 200, AimCap = 45 };` or
+  `e.Close = new MeleeAttack(StrikeType.Blast) { Range = 140, Damage = 16, Knockback = 120, Stun = 0.3f };`.
+  `Enemy` decides only **when** to start an attack; the attack does the rest. `Enemy.cs` went from 1,225 to 1,015
+  lines and lost 29 exports and seven methods.
+- **Why:** the owner's decision (quality and bloat). A setting that belongs to one kind of attack now lives with
+  that attack, a kit can only set what its attacks have, and a new kind of attack is a new class instead of another
+  branch in `Enemy`. Enemy ranks will build on this.
+- **How:**
+  - The two states `Close` / `Far` became one, `Attack`, with the attack in progress remembered. The enemy's
+    "start when lined up, in range and off cooldown" logic is unchanged.
+  - A melee-only enemy used the far attack's default range (300) as the distance at which it walks in on a
+    lined-up target. That number is now its own setting, `Enemy.EngageRange`, with the same default.
+  - The Sleeper and the Diver never used the base attack code — they only borrowed its animation name. Each now
+    names its own animation (`attack_aoe`, `attack_kamikaze`); their kits no longer set an attack type.
+    The Sleeper's rage always hugs the ground (its only kit had the flag on).
+  - What an attack needs from its enemy is public on `Enemy`: `Facing`, `Target()`, `SpawnAttack`, `EffectScene` /
+    `EffectPos` / `Effect` (were `VfxScene` / `VfxPos`), `HitFramesOf`, `BeginHitstop`, `Lunge`.
+- **Removed as dead:** `FarHitboxExtents` and `FarHitboxOffset` were set by two kits and read by nothing. The bare
+  melee hitbox's size, position and lifetime were settable per kit, but every kit that set them has an effect scene,
+  which is used instead — they are now constants beside the one case that needs them (Kebus's jab).
+  `Enemy.CurrentAttackType` had no caller.
+- **Could affect:** every enemy's attack — when it starts, what it spawns, its numbers, its sounds, hit-stop and
+  lunge; the Sleeper's rage and the kamikaze's dive.
+- **Tested:**
+  - **A recorder, run before and after.** For all 10 kits, each spawned far from and next to a standing player, it
+    records everything the enemy produces: each strike, projectile, lob and hitbox with every exported value after
+    tuning (damage, knockback, stun, gust, speed, range, life, flags, shape sizes) and each sound file played.
+    Two runs on the old code gave the same 104 lines; the redesigned code gives **the same 104 lines**.
+  - The 10 seam checks, the 8 run-loop checks and the 4 status checks pass. Build 0 warnings.
+  - **Not tested:** how it looks and feels in play; an enemy attacking while charmed; the Warden outside the
+    recorder's two scenarios.
+
+---
+
 ## 2026-10-09 — `new-shit` — unused `Player` members removed; the rest written down
 
 ### Nine unused members leave `Player`
