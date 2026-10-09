@@ -36,6 +36,15 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 - **QA pass:** the first version had the shader parameter and node names as bare string literals and did the work
   inline in `_Ready` (rules `T5`, `O5`); both are now named constants and a `TintVials` method.
 
+### Choking-man statue: new art
+
+- **What:** `assets/terrain/stage1/man_choking_statue.png` replaced with the redrawn 128×128 version; its node in
+  `stage1_v1.tscn` goes from scale 0.7 to 1.4.
+- **Why:** the owner changed the statue's detail. The new canvas is half the old one, so the scale doubles to keep
+  the same height on screen (about 179 px).
+- **Could affect:** only that prop. At 1.4 the pixels are slightly uneven, as they were at 0.7.
+- **Tested:** the arena boots clean. **Not tested:** how it looks in game.
+
 ---
 
 ## 2026-10-04 — `new-shit`

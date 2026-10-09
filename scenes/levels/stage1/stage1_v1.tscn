@@ -32,7 +32,7 @@ z_index = -30
 [node name="Statue" type="Sprite2D" parent="Aesthetic" unique_id=1659359735]
 z_index = -1
 position = Vector2(-694, -84.99999)
-scale = Vector2(0.7, 0.7)
+scale = Vector2(1.4, 1.4)
 texture = ExtResource("3_whpx4")
 flip_h = true
 
