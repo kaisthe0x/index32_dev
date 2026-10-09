@@ -14,7 +14,7 @@ public partial class NeedlePointMenu : StallMenu
     private const float NextWidth = 104.0f;
     private const float BuyWidth = 80.0f;
 
-    private ShotLedger _ledger;
+    private ShotLedger _ledger = null!;
 
     public void Open(ShotLedger ledger, Player player)
     {
@@ -24,7 +24,7 @@ public partial class NeedlePointMenu : StallMenu
 
     protected override void FillRows(VBoxContainer rows)
     {
-        foreach (ShotDef def in NeedlePoint.SHOTS)
+        foreach (ShotDef def in NeedlePoint.Shots)
             rows.AddChild(Row(def));
     }
 
@@ -42,7 +42,7 @@ public partial class NeedlePointMenu : StallMenu
         row.AddChild(Cell(rank == 0 ? "" : Shot.EffectText(def, rank), NowWidth));
         row.AddChild(Cell(maxed ? "" : $"→ {Shot.FormatValue(def, rank + 1)}", NextWidth, UiStyle.Muted));
         row.AddChild(ActionButton(maxed ? "MAXED" : $"BUY {_ledger.Price(id)}", BuyWidth,
-            !maxed && Player.lira >= _ledger.Price(id), () => _ledger.Buy(id)));
+            !maxed && Player.Lira >= _ledger.Price(id), () => _ledger.Buy(id)));
         return strip;
     }
 }

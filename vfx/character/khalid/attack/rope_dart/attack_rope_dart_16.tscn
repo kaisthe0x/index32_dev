@@ -13,7 +13,7 @@ point_count = 3
 
 [node name="RopeDart" type="Node2D" unique_id=354740859]
 script = ExtResource("1_gyk1e")
-lifetime = 0.32
+Lifetime = 0.32
 
 [node name="Hitbox" type="Area2D" parent="." unique_id=1575578955]
 collision_layer = 32

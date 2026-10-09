@@ -16,7 +16,7 @@ public partial class DekkenMenu : StallMenu
     private const float DrinkWidth = 90.0f;
     private const float KeepWidth = 82.0f;
 
-    private PerkLedger _ledger;
+    private PerkLedger _ledger = null!;
 
     public void Open(PerkLedger ledger, Player player)
     {
@@ -39,7 +39,7 @@ public partial class DekkenMenu : StallMenu
         row.AddChild(Cell(Lasts(def), LastsWidth, UiStyle.Muted));
         string blocked = _ledger.Blocked(id);
         string keepBlocked = _ledger.KeepBlocked(id);
-        bool affordable = Player.lira >= _ledger.Price(id);
+        bool affordable = Player.Lira >= _ledger.Price(id);
         row.AddChild(Cell(Status(id, blocked), StatusWidth, UiStyle.Muted));
         row.AddChild(ActionButton($"DRINK {_ledger.Price(id)}", DrinkWidth, blocked == "" && affordable, () => _ledger.BuyDrink(id)));
         string keepText = def.Duration == PerkDuration.Run ? "—" : _ledger.Held.Contains(id) ? "HELD" : $"KEEP {_ledger.Price(id)}";

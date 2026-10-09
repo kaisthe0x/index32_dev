@@ -11,7 +11,7 @@ public static class FloatingTextTypes
 {
     private const string Font = "res://assets/fonts/Sixtyfour-Regular-VariableFont_BLED,SCAN.ttf";
 
-    public static readonly Dictionary<FloatingTextType, FloatingTextStyle> TYPES = new()
+    public static readonly Dictionary<FloatingTextType, FloatingTextStyle> Types = new()
     {
         // Damage numbers: small white light hits -> big hot-gold heavy hits (ramped by magnitude).
         [FloatingTextType.Damage] = new FloatingTextStyle
@@ -27,7 +27,7 @@ public static class FloatingTextTypes
             ColorLo = new Color(1.2f, 0.7f, 1.3f), ColorHi = new Color(1.5f, 0.35f, 1.2f),
             Rise = 26.0f, Drift = 12.0f, Jitter = 8.0f, Life = 0.8f, PopScale = 0.7f, PopTime = 0.14f, Hold = 0.4f,
         },
-        // Damage the PLAYER takes — Player.take_damage OVERRIDES the colour per-call with the run's hair pick.
+        // Damage the PLAYER takes — Player.TakeDamage OVERRIDES the colour per-call with the run's hair pick.
         [FloatingTextType.PlayerDamage] = new FloatingTextStyle
         {
             Font = Font, SizeLo = 8, SizeHi = 12, MagLo = 5.0f, MagHi = 40.0f,

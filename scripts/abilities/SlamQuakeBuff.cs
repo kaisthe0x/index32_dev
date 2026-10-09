@@ -4,7 +4,7 @@ namespace MyGame;
 
 /// <summary>
 /// Slam Quake: on a slam landing, stun every enemy within <see cref="QuakeRadius"/> for a set duration
-/// (<c>Player.stun_nearby</c>, the surge's stun-sweep pattern). Radius is a fixed tunable. Built by <see cref="BuffCatalog"/>.
+/// (<c>Player.StunNearby</c>, the surge's stun-sweep pattern). Radius is a fixed tunable. Built by <see cref="BuffCatalog"/>.
 /// </summary>
 public partial class SlamQuakeBuff : Buff
 {
@@ -20,5 +20,5 @@ public partial class SlamQuakeBuff : Buff
     }
 
     public override void OnSlamLand(Player p, float fallDistance, float fallSpeed) =>
-        p.stun_nearby(QuakeRadius, _secs);
+        p.StunNearby(QuakeRadius, _secs);
 }

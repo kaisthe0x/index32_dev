@@ -1,15 +1,15 @@
 using Godot;
-using GDict = Godot.Collections.Dictionary;
+using System.Collections.Generic;
 
 namespace MyGame;
 
 /// <summary>
-/// Per-enemy MARKER colour for the off-screen enemy arrows (<see cref="OffscreenMarkers"/>). Keyed by enemy_id;
-/// an unknown id falls back to a threat red. C# port of <c>configs/enemy_markers.gd</c> (pure data).
+/// Per-enemy MARKER colour for the off-screen enemy arrows (<see cref="OffscreenMarkers"/>). Keyed by EnemyId;
+/// an unknown id falls back to a threat red.
 /// </summary>
 public static class EnemyMarkers
 {
-    private static readonly GDict COLORS = new()
+    private static readonly Dictionary<string, Color> Colors = new()
     {
         { EnemyIds.Kebus, new Color(0.90f, 0.68f, 0.24f) },   // tan / gold
         { EnemyIds.Baghel, new Color(0.72f, 0.48f, 0.98f) },  // purple
@@ -23,5 +23,5 @@ public static class EnemyMarkers
     };
     private static readonly Color Fallback = new(1.0f, 0.30f, 0.30f);
 
-    public static Color ColorFor(string enemyId) => COLORS.ContainsKey(enemyId) ? COLORS[enemyId].As<Color>() : Fallback;
+    public static Color ColorFor(string enemyId) => Colors.GetValueOrDefault(enemyId, Fallback);
 }

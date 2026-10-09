@@ -26,7 +26,7 @@ size = Vector2(39, 20)
 
 [node name="AttackOraOra" type="Node2D" unique_id=640990001]
 script = ExtResource("1_strike")
-lifetime = 0.13
+Lifetime = 0.13
 
 [node name="Punch" type="CPUParticles2D" parent="." unique_id=640990002]
 amount = 1

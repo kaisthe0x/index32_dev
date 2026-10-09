@@ -16,7 +16,7 @@ size = Vector2(37, 26)
 
 [node name="BreskiMelee4" type="Node2D" unique_id=626078375]
 script = ExtResource("1_strike")
-lifetime = 0.24
+Lifetime = 0.24
 
 [node name="Jab" type="CPUParticles2D" parent="." unique_id=1827842528]
 amount = 90

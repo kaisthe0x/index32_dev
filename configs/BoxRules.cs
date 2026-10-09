@@ -21,5 +21,5 @@ public static class BoxRules
     public const float SpecialChance = 0.06f;   // a spin offers a special-swap instead of a buff
 
     /// <summary>The specials only the box gives (never one already equipped).</summary>
-    public static readonly string[] SPECIALS = { SpecialIds.Zahluq, SpecialIds.Bakshen };
+    public static readonly string[] Specials = { SpecialIds.Zahluq, SpecialIds.Bakshen };
 }

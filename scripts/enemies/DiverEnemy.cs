@@ -1,11 +1,10 @@
 using Godot;
-using GDict = Godot.Collections.Dictionary;
 
 namespace MyGame;
 
 /// <summary>
 /// Diver archetype: a floating kamikaze. Drifts + bobs on patrol, and the moment the player enters
-/// <see cref="detect_range"/> it LOCKS the player's current position and flies straight at it (attack anim
+/// <see cref="DetectRange"/> it LOCKS the player's current position and flies straight at it (attack anim
 /// looping) — committing fully, no re-tracking, so dodging makes it miss. On arrival (or on contact) it ERUPTS
 /// a one-shot AoE + its death burst and is gone. Killed before it arrives, the death burst still plays; it just
 /// doesn't explode. Floats freely (overrides the grounded loop; no gravity/floor/edge patrol). Ein is one
@@ -15,18 +14,18 @@ namespace MyGame;
 public partial class DiverEnemy : Enemy
 {
     [ExportGroup("Diver")]
-    [Export] public float detect_range { get; set; } = 220.0f;
-    [Export] public float charge_speed { get; set; } = 230.0f;
-    [Export] public float arrival_radius { get; set; } = 12.0f;
-    [Export] public float bob_amplitude { get; set; } = 6.0f;
-    [Export] public float bob_speed { get; set; } = 3.0f;
+    [Export] public float DetectRange { get; set; } = 220.0f;
+    [Export] public float ChargeSpeed { get; set; } = 230.0f;
+    [Export] public float ArrivalRadius { get; set; } = 12.0f;
+    [Export] public float BobAmplitude { get; set; } = 6.0f;
+    [Export] public float BobSpeed { get; set; } = 3.0f;
 
     [ExportSubgroup("Explosion")]
-    [Export] public Vector2 explosion_extents { get; set; } = new(38, 32);
-    [Export] public Vector2 explosion_offset { get; set; } = new(0, -16);
-    [Export] public float explosion_damage { get; set; } = 18.0f;
-    [Export] public float explosion_knockback { get; set; } = 170.0f;
-    [Export] public float explosion_stun { get; set; } = 0.2f;
+    [Export] public Vector2 ExplosionExtents { get; set; } = new(38, 32);
+    [Export] public Vector2 ExplosionOffset { get; set; } = new(0, -16);
+    [Export] public float ExplosionDamage { get; set; } = 18.0f;
+    [Export] public float ExplosionKnockback { get; set; } = 170.0f;
+    [Export] public float ExplosionStun { get; set; } = 0.2f;
 
     private float _homeY;
     private float _bobT;
@@ -48,7 +47,7 @@ public partial class DiverEnemy : Enemy
     private void BuildContactDetector()
     {
         _contact = new Area2D { CollisionLayer = 0, CollisionMask = (uint)Combat.Layer.PlayerHurt };
-        _contact.AddChild(MakeBox(hurtbox_size, new Vector2(0, -hurtbox_size.Y / 2.0f)));
+        _contact.AddChild(MakeBox(HurtboxSize, new Vector2(0, -HurtboxSize.Y / 2.0f)));
         AddChild(_contact);
         _contact.AreaEntered += OnContact;
     }
@@ -76,17 +75,17 @@ public partial class DiverEnemy : Enemy
     private void FloatPatrol(float delta)
     {
         var player = Player();
-        if (player != null && GlobalPosition.DistanceTo(player.GlobalPosition) <= detect_range)
+        if (player != null && GlobalPosition.DistanceTo(player.GlobalPosition) <= DetectRange)
         {
             BeginCharge(player.GlobalPosition);
             return;
         }
         float dir = Mathf.Sign(PatrolTarget - GlobalPosition.X);
-        GlobalPosition += new Vector2(dir * move_speed * delta, 0);
+        GlobalPosition += new Vector2(dir * MoveSpeed * delta, 0);
         if (Mathf.Abs(PatrolTarget - GlobalPosition.X) <= 2.0f)
             PatrolTarget = Mathf.IsEqualApprox(PatrolTarget, PointB) ? PointA : PointB;
         _bobT += delta;
-        GlobalPosition = new Vector2(GlobalPosition.X, _homeY + Mathf.Sin(_bobT * bob_speed) * bob_amplitude);
+        GlobalPosition = new Vector2(GlobalPosition.X, _homeY + Mathf.Sin(_bobT * BobSpeed) * BobAmplitude);
         if (dir != 0.0f)
             Face((int)dir);
     }
@@ -104,12 +103,12 @@ public partial class DiverEnemy : Enemy
     private void Charge(float delta)
     {
         Vector2 to = _chargeTarget - GlobalPosition;
-        if (to.Length() <= arrival_radius)
+        if (to.Length() <= ArrivalRadius)
         {
             Arrive();
             return;
         }
-        Vector2 step = to.Normalized() * charge_speed;
+        Vector2 step = to.Normalized() * ChargeSpeed;
         GlobalPosition += step * delta;
         if (!Mathf.IsZeroApprox(step.X))
             Face(Mathf.Sign(step.X));
@@ -128,8 +127,8 @@ public partial class DiverEnemy : Enemy
     {
         if (State == EState.Dead)
             return;
-        Health = Mathf.Max(Health - hit.amount, 0.0f);
-        Bar.SetRatio(Health / max_health);
+        Health = Mathf.Max(Health - hit.Amount, 0.0f);
+        Bar.SetRatio(Health / MaxHealth);
         Flash(Sprite);
         if (Health <= 0.0f)
             Die();
@@ -147,10 +146,10 @@ public partial class DiverEnemy : Enemy
     {
         SfxPlayAt("ein.kamikaze", GlobalPosition);
         var strike = SpawnAttack(VfxScene("kamikaze"),
-            new SegmentData { Damage = explosion_damage, Knockback = explosion_knockback, Stun = explosion_stun },
+            new SegmentData { Damage = ExplosionDamage, Knockback = ExplosionKnockback, Stun = ExplosionStun },
             true);
         if (strike != null)
-            PlaceAt(strike, GlobalPosition);
+            Nodes.PlaceAt(strike, GlobalPosition);
     }
 
     /// <summary>Wear the trail for `effect` (config key), or "" to clear it. The old trail dissipates in the level.</summary>

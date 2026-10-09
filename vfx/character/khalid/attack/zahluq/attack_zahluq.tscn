@@ -31,7 +31,7 @@ point_count = 4
 [node name="AttackZahluq" type="Node2D" unique_id=1900000001]
 z_index = 1
 script = ExtResource("1_strike")
-lifetime = 0.6
+Lifetime = 0.6
 
 [node name="Hitbox" type="Area2D" parent="." unique_id=1900000002]
 position = Vector2(0, -26)

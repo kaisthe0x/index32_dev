@@ -37,7 +37,7 @@ size = Vector2(92, 60)
 
 [node name="MatatAoe" type="Node2D" unique_id=1717391371]
 script = ExtResource("StrikeSc")
-lifetime = 0.35
+Lifetime = 0.35
 
 [node name="Right" type="Node2D" parent="." unique_id=1654430766]
 

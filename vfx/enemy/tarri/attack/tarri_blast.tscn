@@ -24,7 +24,7 @@ size = Vector2(88, 11)
 
 [node name="TarriBlast" type="Node2D" unique_id=1098402964]
 script = ExtResource("1_strike")
-emit_duration = 0.1
+EmitDuration = 0.1
 
 [node name="Blast" type="CPUParticles2D" parent="." unique_id=1267034825]
 position = Vector2(0, 1)

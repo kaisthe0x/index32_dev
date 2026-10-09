@@ -22,7 +22,7 @@ size = Vector2(104, 44)
 
 [node name="NasenRage" type="Node2D"]
 script = ExtResource("StrikeSc")
-lifetime = 0.5
+Lifetime = 0.5
 
 [node name="Flames" type="CPUParticles2D" parent="."]
 z_index = 1

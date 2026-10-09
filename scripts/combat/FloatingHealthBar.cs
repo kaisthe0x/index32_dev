@@ -27,7 +27,7 @@ public partial class FloatingHealthBar : Node2D
     private static readonly Color ColorLow = new(0.86f, 0.22f, 0.22f);
 
     private float _ratio = 1.0f;
-    private Label _label;
+    private Label _label = null!;
 
     /// <summary>Green (high) / orange (mid) / red (low) for a 0..1 fill fraction.</summary>
     public static Color ColorForRatio(float r)

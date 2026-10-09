@@ -59,7 +59,7 @@ public static class UiStyle
     public static readonly FontVariation BodyFont = MakeFont(BodyScan, BodyBleed);
     public static readonly FontVariation TitleFont = MakeFont(TitleScan, TitleBleed);
 
-    private static Theme _theme;
+    private static Theme? _theme;
     /// <summary>The shared menu theme (built once; <see cref="SetColors"/> repaints it in place, so every Control using it
     /// updates live).</summary>
     public static Theme Theme => _theme ??= Populate(new Theme());
@@ -78,6 +78,11 @@ public static class UiStyle
     /// <summary>Make Sixtyfour the global fallback font (any text without a theme font). Call once at startup, before
     /// any UI is built — the HUD autoload does, as the first UI to exist.</summary>
     public static void Install() => ThemeDB.FallbackFont = BodyFont;
+
+    /// <summary>A HUD label in one of the outlined HUD styles (<see cref="HudTitle"/>, <see cref="HudHeading"/>, …) —
+    /// text that floats over the world. Never takes the mouse.</summary>
+    public static Label HudLabel(string style) =>
+        new() { ThemeTypeVariation = style, MouseFilter = Control.MouseFilterEnum.Ignore, VerticalAlignment = VerticalAlignment.Center };
 
     /// <summary>A square flat box (pixel look — no rounded corners) with an optional uniform border, no content margin.</summary>
     public static StyleBoxFlat Box(Color bg, Color border = default, int borderW = 0)

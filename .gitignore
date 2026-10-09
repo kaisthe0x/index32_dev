@@ -15,3 +15,6 @@ node_modules/
 # Parked characters (feyke/katalyst/lenbondosen/wayna) — moved out to keep this repo Khalid-only.
 # Kept locally for backup / migration to a separate repo; Godot skips it via playground/.gdignore.
 playground/
+
+# Per-machine compile-time log written by every build (see mygamedev.csproj)
+build_times.log

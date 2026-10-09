@@ -1,6 +1,5 @@
 using Godot;
 using System.Collections.Generic;
-using GDict = Godot.Collections.Dictionary;
 
 namespace MyGame;
 
@@ -8,13 +7,13 @@ namespace MyGame;
 /// Central ICON registry for things without their own icon field — buffs + status pips. UI asks HERE, so when real
 /// art lands you swap a PATH and nothing else changes. Keys are namespaced ("buff:&lt;id&gt;", "status:&lt;id&gt;");
 /// textures load lazily + cache. A buff with no entry shows the fallback. C# port of <c>configs/icons.gd</c>.
-/// >>> TODO(art): every path is a TEMP placeholder (reused pngs). <<<
+/// PLACEHOLDER: every path is a stand-in (reused pngs) until the real icons are drawn.
 /// </summary>
 public static class Icons
 {
     private const string Fallback = "res://vfx/shared/textures/soft_dot.png";
 
-    private static readonly GDict PATHS = new()
+    private static readonly Dictionary<string, string> Paths = new()
     {
         // enemy STATUS icons
         { "status:reap", "res://vfx/shared/textures/skull_texture.png" },
@@ -28,7 +27,7 @@ public static class Icons
     /// <summary>The texture for a namespaced key ("buff:momentum", "status:stun", …), cached. Unknown = FALLBACK.</summary>
     public static Texture2D Texture(string key)
     {
-        string path = PATHS.ContainsKey(key) ? PATHS[key].AsString() : Fallback;
+        string path = Paths.GetValueOrDefault(key, Fallback);
         return LoadCached(ResourceLoader.Exists(path) ? path : Fallback);
     }
 

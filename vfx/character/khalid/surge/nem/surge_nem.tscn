@@ -5,9 +5,9 @@
 
 [node name="SurgeNem" type="Node2D" unique_id=1900001004]
 script = ExtResource("1_orbit")
-count = 14
-moon_texture = ExtResource("2_s57f2")
-moon_color = Color(1.4825656, 0, 0, 1)
-center = Vector2(0, -20)
-near_scale = 0.01
-far_scale = 0.008
+Count = 14
+MoonTexture = ExtResource("2_s57f2")
+MoonColor = Color(1.4825656, 0, 0, 1)
+Center = Vector2(0, -20)
+NearScale = 0.01
+FarScale = 0.008

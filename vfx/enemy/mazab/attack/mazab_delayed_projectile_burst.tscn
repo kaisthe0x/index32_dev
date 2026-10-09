@@ -21,7 +21,7 @@ size = Vector2(96, 52)
 
 [node name="MazabExplosion" type="Node2D" unique_id=1622210443]
 script = ExtResource("StrikeSc")
-lifetime = 0.4
+Lifetime = 0.4
 
 [node name="Shards" type="CPUParticles2D" parent="." unique_id=885911861]
 texture_filter = 1
@@ -64,7 +64,7 @@ color_ramp = SubResource("Grad_dust")
 
 [node name="Hitbox" type="Area2D" parent="."]
 script = ExtResource("HitboxSc")
-ranged = true
+Ranged = true
 
 [node name="Shape" type="CollisionShape2D" parent="Hitbox"]
 position = Vector2(0, -26)

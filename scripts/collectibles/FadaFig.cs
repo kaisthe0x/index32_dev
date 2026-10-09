@@ -4,35 +4,35 @@ namespace MyGame;
 
 /// <summary>
 /// A collectible Fada Fig — the RARE currency (docs/game-loop.md § Economy; spent at the mystery box). A kill drops one
-/// at the enemy's <c>Enemy.fig_chance</c> (10 % default, per-kit override). It pops out of the corpse with a little
+/// at the enemy's <c>Enemy.FigChance</c> (10 % default, per-kit override). It pops out of the corpse with a little
 /// bounce + tumble (RigidBody physics) and settles on the ground; the player collects it by physically touching it —
 /// the child <c>Pickup</c> Area detects the player's body. There's no magnet by default — only while the player holds the
-/// Dekken Magnet perk (<c>Player.fig_magnet_range</c> &gt; 0) does a fig in range fly to him (<see cref="magnetize"/>).
+/// Dekken Magnet perk (<c>Player.FigMagnetRange</c> &gt; 0) does a fig in range fly to him (<see cref="Magnetize"/>).
 /// </summary>
 public partial class FadaFig : RigidBody2D
 {
-    [Export] public float pop_up_min { get; set; } = 120.0f;
-    [Export] public float pop_up_max { get; set; } = 200.0f;
-    [Export] public float pop_side { get; set; } = 85.0f;
-    [Export] public float life_seconds { get; set; } = 30.0f;   // despawn if never collected (avoids clutter)
-    [Export] public float magnet_speed { get; set; } = 540.0f;  // used only once magnetized
+    [Export] public float PopUpMin { get; set; } = 120.0f;
+    [Export] public float PopUpMax { get; set; } = 200.0f;
+    [Export] public float PopSide { get; set; } = 85.0f;
+    [Export] public float LifeSeconds { get; set; } = 30.0f;   // despawn if never collected (avoids clutter)
+    [Export] public float MagnetSpeed { get; set; } = 540.0f;  // used only once magnetized
 
     /// <summary>The player whose Magnet perk can pull this fig in (set by RunManager at spawn).</summary>
-    public Player Collector;
+    public Player? Collector;
 
-    private Node2D _magnetTarget;
+    private Node2D? _magnetTarget;
     private bool _collected;
 
     // One shared pulse-glow material for every Fada Fig (a scene-wide resource, not per-instance).
-    private static ShaderMaterial _glowMaterial;
+    private static ShaderMaterial? _glowMaterial;
 
     public override void _Ready()
     {
         ZIndex = WorldZ.Drops;
         // Scatter pop: up + a little sideways, with a spin so it tumbles/rolls before settling.
         LinearVelocity = new Vector2(
-            (float)GD.RandRange(-pop_side, pop_side),
-            -(float)GD.RandRange(pop_up_min, pop_up_max));
+            (float)GD.RandRange(-PopSide, PopSide),
+            -(float)GD.RandRange(PopUpMin, PopUpMax));
         AngularVelocity = (float)GD.RandRange(-8.0, 8.0);
 
         _glowMaterial ??= new ShaderMaterial { Shader = GD.Load<Shader>("res://vfx/shaders/world/pulse_glow.gdshader") };
@@ -40,13 +40,13 @@ public partial class FadaFig : RigidBody2D
 
         GetNode<Area2D>("Pickup").BodyEntered += OnBodyEntered;
 
-        if (life_seconds > 0.0f)
-            GetTree().CreateTimer(life_seconds).Timeout += () => { if (!_collected) QueueFree(); };
+        if (LifeSeconds > 0.0f)
+            GetTree().CreateTimer(LifeSeconds).Timeout += () => { if (!_collected) QueueFree(); };
     }
 
     /// <summary>Pull this Fada Fig toward <paramref name="target"/> (the player) instead of resting on the ground — it
     /// then flies in and is collected on contact.</summary>
-    public void magnetize(Node2D target)
+    public void Magnetize(Node2D target)
     {
         _magnetTarget = target;
         GravityScale = 0.0f;
@@ -54,11 +54,11 @@ public partial class FadaFig : RigidBody2D
 
     public override void _PhysicsProcess(double delta)
     {
-        if (_magnetTarget == null && Collector != null && IsInstanceValid(Collector) && Collector.fig_magnet_range > 0.0f
-            && GlobalPosition.DistanceTo(Collector.GlobalPosition) <= Collector.fig_magnet_range)
-            magnetize(Collector);
+        if (_magnetTarget == null && Collector != null && IsInstanceValid(Collector) && Collector.FigMagnetRange > 0.0f
+            && GlobalPosition.DistanceTo(Collector.GlobalPosition) <= Collector.FigMagnetRange)
+            Magnetize(Collector);
         if (!_collected && _magnetTarget != null && IsInstanceValid(_magnetTarget))
-            LinearVelocity = (_magnetTarget.GlobalPosition - GlobalPosition).Normalized() * magnet_speed;
+            LinearVelocity = (_magnetTarget.GlobalPosition - GlobalPosition).Normalized() * MagnetSpeed;
     }
 
     private void OnBodyEntered(Node body)
@@ -66,8 +66,8 @@ public partial class FadaFig : RigidBody2D
         if (_collected || body is not Player p)
             return;
         _collected = true;
-        p.collect_fada_fig(1);
-        GetNodeOrNull<Sfx>("/root/Sfx")?.play_at("fada_fig_collect", GlobalPosition);
+        p.CollectFadaFig(1);
+        GetNodeOrNull<Sfx>("/root/Sfx")?.PlayAt("fada_fig_collect", GlobalPosition);
         QueueFree();
     }
 }

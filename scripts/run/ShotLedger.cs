@@ -29,14 +29,14 @@ public sealed class ShotLedger
     /// unaffordable.</summary>
     public bool Buy(string id)
     {
-        if (Maxed(id) || !_player.spend_lira(Price(id)))
+        if (Maxed(id) || !_player.SpendLira(Price(id)))
             return false;
         int rank = Rank(id) + 1;
         if (_owned.TryGetValue(id, out var old))
-            _player.remove_passive(old);
+            _player.RemovePassive(old);
         var shot = new Shot(NeedlePoint.Get(id), rank);
         _owned[id] = shot;
-        _player.add_passive(shot);
+        _player.AddPassive(shot);
         return true;
     }
 }

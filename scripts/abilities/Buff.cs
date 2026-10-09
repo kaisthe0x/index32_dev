@@ -5,7 +5,7 @@ namespace MyGame;
 
 /// <summary>
 /// A MOVE-SCOPED build capability — the item/build layer. A Buff IS a <see cref="Passive"/> (granted the same
-/// way: a reward's passive → <c>Player.add_passive</c>, torn down on run restart), plus the reward doc's extras.
+/// way: a reward's passive → <c>Player.AddPassive</c>, torn down on run restart), plus the reward doc's extras.
 /// C# port of <c>scripts/abilities/buff.gd</c>, extended to the doc's model. See docs/rewards-design.md.
 ///
 /// <list type="bullet">

@@ -12,7 +12,7 @@ namespace MyGame;
 /// </summary>
 public partial class NeedlePointStall : Stall
 {
-    public ShotLedger Ledger;
+    public ShotLedger Ledger = null!;
 
     public override void _Ready()
     {

@@ -1,22 +1,17 @@
 using Godot;
 using System.Collections.Generic;
-using GDict = Godot.Collections.Dictionary;
-using GArr = Godot.Collections.Array;
 
 namespace MyGame;
 
 /// <summary>
 /// Central SOUND-EFFECTS service (autoload <c>Sfx</c>) — the runtime that PLAYS sounds; the catalog of which
-/// sounds exist lives in the pure-DATA configs (SfxCharacters/SfxEnemies/SfxWorld, bridged). Every sound is a
+/// sounds exist lives in the pure-DATA configs (SfxCharacters/SfxEnemies/SfxWorld). Every sound is a
 /// stable <c>key</c>; an unregistered key is a silent no-op. C# port of <c>scripts/audio/sfx.gd</c>.
 ///
 /// <para><b>Every cue plays at the same loudness, automatically.</b> On boot each cue's file is measured
 /// (<see cref="SfxLoudness"/>: its peak momentary loudness) and given the gain that brings it to
 /// <see cref="TargetLoudness"/> — so a new WAV needs no mastering or trim: drop it in, register its key. The per-cue
 /// VOLUMES tables are then only for DELIBERATE mix choices on top (a quiet ambient hum), never loudness fixes.</para>
-///
-/// <para>PUBLIC surface stays snake_case: GDScript calls <c>Sfx.play(...)</c> on the autoload singleton and the
-/// still-bridged C# callers use <c>GetNode("/root/Sfx").Call("play", …)</c> — both address these by exact name.</para>
 /// </summary>
 public partial class Sfx : Node
 {
@@ -36,29 +31,23 @@ public partial class Sfx : Node
     private readonly List<AudioStreamPlayer> _flat = new();
     private readonly List<AudioStreamPlayer2D> _pos = new();
     private int _fi, _pi;
-    private readonly Dictionary<string, AudioStream> _cache = new();
-    private readonly GDict _cues = new(); // key -> path, merged from the per-area configs
-    private readonly GDict _vol = new();  // key -> deliberate per-cue mix offset (dB), merged; unlisted = 0
-    private readonly GDict _pitch = new(); // key or dotted-prefix group -> random pitch range (min,max), merged; unlisted = fixed
+    private readonly Dictionary<string, AudioStream?> _cache = new();
+    private readonly Dictionary<string, string> _cues = new();  // key -> path, merged from the per-area configs
+    private readonly Dictionary<string, float> _vol = new();    // key -> deliberate per-cue mix offset (dB), merged; unlisted = 0
+    private readonly Dictionary<string, Vector2> _pitch = new(); // key or dotted-prefix group -> random pitch range (min,max), merged; unlisted = fixed
     private readonly Dictionary<string, float> _normalize = new(); // file path -> gain (dB) bringing it to TargetLoudness
     private StringName _bus = "Master";
 
     public override void _Ready()
     {
-        _cues.Merge(SfxCharacters.CUES);
-        _cues.Merge(SfxEnemies.CUES);
-        _cues.Merge(SfxWorld.CUES);
-        _vol.Merge(SfxCharacters.VOLUMES);
-        _vol.Merge(SfxEnemies.VOLUMES);
-        _vol.Merge(SfxWorld.VOLUMES);
-        _pitch.Merge(SfxCharacters.PITCH);
-        _pitch.Merge(SfxEnemies.PITCH);
-        _pitch.Merge(SfxWorld.PITCH);
+        Merge(_cues, SfxCharacters.Cues, SfxEnemies.Cues, SfxWorld.Cues);
+        Merge(_vol, SfxCharacters.Volumes, SfxEnemies.Volumes, SfxWorld.Volumes);
+        Merge(_pitch, SfxCharacters.Pitch, SfxEnemies.Pitch, SfxWorld.Pitch);
         if (PreferredOutput != "" && System.Array.IndexOf(AudioServer.GetOutputDeviceList(), PreferredOutput) != -1)
             AudioServer.OutputDevice = PreferredOutput;
         _bus = AudioServer.GetBusIndex(Bus) != -1 ? Bus : "Master";
-        foreach (Variant key in _cues.Keys)
-            Stream(key.AsString()); // load + measure every cue now, so no first-play hitch mid-fight
+        foreach (string key in _cues.Keys)
+            Stream(key); // load + measure every cue now, so no first-play hitch mid-fight
         for (int i = 0; i < Pool; i++)
         {
             // ProcessMode.Always so one-shots (UI/level-up cues) still play while the game is paused (menus).
@@ -76,13 +65,7 @@ public partial class Sfx : Node
     /// waveforms — two identical copies ≈ +6 dB), so busy moments spike far past a single cue's authored level. The
     /// limiter caps the summed output at <see cref="LimiterCeilingDb"/>: inaudible under light load, only clamping the
     /// heat-of-battle peaks. Added in CODE (not the .tres bus layout) so it can't be clobbered by an open editor.
-    ///
-    /// TODO(sfx-loudness): the limiter is a safety net, not a full fix. Ways to improve later —
-    ///   1. A gentle COMPRESSOR before it (AudioEffectCompressor, ~-18 dB threshold / ~4:1) so loud moments duck
-    ///      smoothly instead of hard-clamping — more polished dynamics.
-    ///   2. Per-cue CONCURRENCY CAP / dedupe: skip or duck a cue already playing N copies (or fired within a few ms),
-    ///      which tackles the ROOT (the same sound stacking) rather than the summed symptom.
-    ///   3. Expose the ceiling / limiter on-off to the options menu for players who want it off.
+    /// It is a safety net, not a mix: see docs/future-enhancements-and-fixes.md for what would do it properly.</summary>
     private void InstallLimiter()
     {
         if (AudioServer.GetBusIndex(_bus) == -1)
@@ -90,19 +73,18 @@ public partial class Sfx : Node
         AudioBus.AddEffect(_bus, new AudioEffectHardLimiter { CeilingDb = LimiterCeilingDb });
     }
 
-    public void set_volume(float v) => AudioBus.SetVolumeLinear(Bus, v);
-    public float get_volume() => AudioBus.GetVolumeLinear(Bus);
-    public void set_muted(bool on) => AudioBus.SetMuted(Bus, on);
+    public void SetVolume(float v) => AudioBus.SetVolumeLinear(Bus, v);
+    public float GetVolume() => AudioBus.GetVolumeLinear(Bus);
+    public void SetMuted(bool on) => AudioBus.SetMuted(Bus, on);
 
     /// <summary>The stream for a cue key (cached), or null. Unregistered = silent no-op; registered-but-missing warns.</summary>
-    private AudioStream Stream(string key)
+    private AudioStream? Stream(string key)
     {
         if (_cache.TryGetValue(key, out var cached))
             return cached;
-        AudioStream s = null;
-        if (_cues.ContainsKey(key))
+        AudioStream? s = null;
+        if (_cues.TryGetValue(key, out string? path))
         {
-            string path = _cues[key].AsString();
             if (ResourceLoader.Exists(path))
             {
                 s = GD.Load<AudioStream>(path);
@@ -114,6 +96,15 @@ public partial class Sfx : Node
         }
         _cache[key] = s;
         return s;
+    }
+
+    /// <summary>Copy every entry of each of <paramref name="tables"/> into <paramref name="into"/> (a later table wins
+    /// a shared key).</summary>
+    private static void Merge<T>(Dictionary<string, T> into, params Dictionary<string, T>[] tables)
+    {
+        foreach (var table in tables)
+            foreach (var (key, value) in table)
+                into[key] = value;
     }
 
     /// <summary>The gain (dB) that brings <paramref name="s"/> to <see cref="TargetLoudness"/>; 0 (with a warning) if it
@@ -131,7 +122,7 @@ public partial class Sfx : Node
     }
 
     /// <summary>Fire a one-shot (non-positional). No-op if the key is unregistered or its file is missing.</summary>
-    public void play(string key, float volume_db = 0.0f, float pitch = 1.0f)
+    public void Play(string key, float volume_db = 0.0f, float pitch = 1.0f)
     {
         var s = Stream(key);
         if (s == null || _flat.Count == 0)
@@ -151,11 +142,8 @@ public partial class Sfx : Node
     {
         for (string k = key; ; k = k[..k.LastIndexOf('.')])
         {
-            if (_pitch.ContainsKey(k))
-            {
-                Vector2 range = _pitch[k].As<Vector2>();
+            if (_pitch.TryGetValue(k, out Vector2 range))
                 return 1.0f + (float)GD.RandRange(range.X, range.Y);
-            }
             if (!k.Contains('.'))
                 return 1.0f;
         }
@@ -165,26 +153,26 @@ public partial class Sfx : Node
     /// VOLUMES offset. Every player the service hands out starts from this.</summary>
     private float GainFor(string key)
     {
-        float gain = _vol.ContainsKey(key) ? _vol[key].As<float>() : 0.0f;
-        if (_cues.ContainsKey(key) && _normalize.TryGetValue(_cues[key].AsString(), out float n))
+        float gain = _vol.GetValueOrDefault(key);
+        if (_cues.TryGetValue(key, out string? path) && _normalize.TryGetValue(path, out float n))
             gain += n;
         return gain;
     }
 
     /// <summary>Fire ONE random variant from `keys` (skips unregistered / missing). No-op if none resolve.</summary>
-    public void play_random(GArr keys, float volume_db = 0.0f, float pitch = 1.0f)
+    public void PlayRandom(IReadOnlyList<string> keys, float volume_db = 0.0f, float pitch = 1.0f)
     {
         var valid = new List<string>();
-        foreach (Variant k in keys)
-            if (Stream(k.AsString()) != null)
-                valid.Add(k.AsString());
+        foreach (string k in keys)
+            if (Stream(k) != null)
+                valid.Add(k);
         if (valid.Count == 0)
             return;
-        play(valid[(int)(GD.Randi() % (uint)valid.Count)], volume_db, pitch);
+        Play(valid[(int)(GD.Randi() % (uint)valid.Count)], volume_db, pitch);
     }
 
     /// <summary>The stream for `key` forced to LOOP (a duplicate, so the shared one-shot stream is never flipped).</summary>
-    private AudioStream LoopedStream(string key)
+    private AudioStream? LoopedStream(string key)
     {
         var s = Stream(key);
         if (s == null)
@@ -217,35 +205,35 @@ public partial class Sfx : Node
     // louder ADDS to VolumeDb (never overwrites it, which would drop the normalization).
 
     /// <summary>A dedicated LOOPING player for `key` the CALLER owns + parents (footsteps, a hum). Null if missing.</summary>
-    public AudioStreamPlayer make_loop(string key)
+    public AudioStreamPlayer? MakeLoop(string key)
     {
         var s = LoopedStream(key);
         return s == null ? null : new AudioStreamPlayer { Bus = _bus, Stream = s, VolumeDb = GainFor(key) };
     }
 
     /// <summary>A dedicated ONE-SHOT player the CALLER owns (stoppable early, e.g. a slam whoosh). Null if missing.</summary>
-    public AudioStreamPlayer make_oneshot(string key)
+    public AudioStreamPlayer? MakeOneshot(string key)
     {
         var s = Stream(key);
         return s == null ? null : new AudioStreamPlayer { Bus = _bus, Stream = s, VolumeDb = GainFor(key) };
     }
 
-    /// <summary>Positional twin of make_oneshot(): a one-shot AudioStreamPlayer2D the caller parents on a world object.</summary>
-    public AudioStreamPlayer2D make_oneshot_2d(string key)
+    /// <summary>Positional twin of MakeOneshot(): a one-shot AudioStreamPlayer2D the caller parents on a world object.</summary>
+    public AudioStreamPlayer2D? MakeOneshot2D(string key)
     {
         var s = Stream(key);
         return s == null ? null : new AudioStreamPlayer2D { Bus = _bus, Stream = s, VolumeDb = GainFor(key) };
     }
 
-    /// <summary>Positional twin of make_loop(): a looping AudioStreamPlayer2D the caller parents at a world spot (an orb hum).</summary>
-    public AudioStreamPlayer2D make_loop_2d(string key)
+    /// <summary>Positional twin of MakeLoop(): a looping AudioStreamPlayer2D the caller parents at a world spot (an orb hum).</summary>
+    public AudioStreamPlayer2D? MakeLoop2D(string key)
     {
         var s = LoopedStream(key);
         return s == null ? null : new AudioStreamPlayer2D { Bus = _bus, Stream = s, VolumeDb = GainFor(key) };
     }
 
     /// <summary>Fire a one-shot at a world position (2D panning). No-op if missing.</summary>
-    public void play_at(string key, Vector2 world_pos, float volume_db = 0.0f, float pitch = 1.0f)
+    public void PlayAt(string key, Vector2 world_pos, float volume_db = 0.0f, float pitch = 1.0f)
     {
         var s = Stream(key);
         if (s == null || _pos.Count == 0)

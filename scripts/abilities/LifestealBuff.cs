@@ -22,6 +22,6 @@ public partial class LifestealBuff : Buff
     public override void OnHitDealt(Player player, float amount, Node target)
     {
         if (amount > 0.0f && GD.Randf() < _chance)
-            player.heal(HealHalfBlock);
+            player.Heal(HealHalfBlock);
     }
 }

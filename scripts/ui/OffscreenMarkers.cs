@@ -38,7 +38,7 @@ public partial class OffscreenMarkers : Control
 
         foreach (Node e in GetTree().GetNodesInGroup("enemies"))
         {
-            if (e is not Node2D enemy)
+            if (e is not Enemy enemy)
                 continue;
             Vector2 screen = xform * enemy.GlobalPosition;
             if (screen.X >= 0.0f && screen.X <= view.X && screen.Y >= 0.0f && screen.Y <= view.Y)
@@ -49,9 +49,7 @@ public partial class OffscreenMarkers : Control
             Vector2 edge = ClampToRect(center, dir, lo, hi);
             float worldDist = enemy.GlobalPosition.DistanceTo(camCenter);
             float t = Mathf.Clamp((worldDist - FadeStart) / Mathf.Max(FadeEnd - FadeStart, 1.0f), 0.0f, 1.0f);
-            Variant idV = enemy.Get("enemy_id");
-            string id = idV.VariantType != Variant.Type.Nil ? idV.AsString() : "";
-            Color col = EnemyMarkers.ColorFor(id);
+            Color col = EnemyMarkers.ColorFor(enemy.EnemyId);
             col.A = Mathf.Lerp(AlphaNear, AlphaFar, t);
             DrawChevron(edge, dir.Angle(), Mathf.Lerp(SizeNear, SizeFar, t), col);
         }

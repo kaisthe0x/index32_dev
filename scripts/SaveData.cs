@@ -1,4 +1,5 @@
 using Godot;
+using System.Collections.Generic;
 using GDict = Godot.Collections.Dictionary;
 using GArr = Godot.Collections.Array;
 
@@ -6,12 +7,12 @@ namespace MyGame;
 
 /// <summary>
 /// Persistent player data in <c>user://save.cfg</c>: the run RECORD (highest round reached, ever), the character
-/// COLOUR SCHEMES from the picker, and player SETTINGS from the pause menu. C# port of <c>scripts/save_data.gd</c>.
+/// COLOUR SCHEMES from the picker, and player SETTINGS from the pause menu.
 /// All static: one record, no instance needed.
 /// </summary>
 public static class SaveData
 {
-    private const string PATH = "user://save.cfg";
+    private const string SavePath = "user://save.cfg";
 
     private static int _record = -1;   // lazy-loaded best-ever round reached (-1 = not read from disk yet)
 
@@ -21,7 +22,7 @@ public static class SaveData
         if (_record < 0)
         {
             var cfg = new ConfigFile();
-            _record = cfg.Load(PATH) == Error.Ok ? cfg.GetValue("run", "rounds_record", 0).As<int>() : 0;
+            _record = cfg.Load(SavePath) == Error.Ok ? cfg.GetValue("run", "rounds_record", 0).As<int>() : 0;
         }
         return _record;
     }
@@ -33,19 +34,19 @@ public static class SaveData
             return false;
         _record = round;
         var cfg = new ConfigFile();
-        cfg.Load(PATH); // keep any other keys already saved
+        cfg.Load(SavePath); // keep any other keys already saved
         cfg.SetValue("run", "rounds_record", _record);
-        cfg.Save(PATH);
+        cfg.Save(SavePath);
         return true;
     }
 
     // --- colour schemes (from the picker) -----------------------------------
-    // Up to MAX_SCHEMES named slots + an "active" index. Each scheme: {"body": {material→Color}, "power":
-    // {family→Color}, "ui": {UiStyle.PickFrame/PickAccent→Color}}; empty (or missing, in older saves) dicts mean
-    // "defaults". ConfigFile serialises Color/Dictionary/Array natively.
-    public const int MAX_SCHEMES = 5;
-    private static GArr _schemes = new();
-    private static int _active = 0;
+    // Up to MaxSchemes slots + an "active" index. On disk each scheme is {"body": {material→Color}, "power":
+    // {family→Color}, "ui": {UiStyle.PickFrame/PickAccent→Color}} -- ConfigFile serialises Color/Dictionary/Array
+    // natively. Engine dictionaries exist ONLY in ReadScheme/WriteScheme; the rest of the game sees ColorScheme.
+    public const int MaxSchemes = 5;
+    private static readonly ColorScheme[] _schemes = new ColorScheme[MaxSchemes];
+    private static int _active = -1;
     private static bool _colorsLoaded = false;
 
     private static void LoadColors()
@@ -53,25 +54,25 @@ public static class SaveData
         if (_colorsLoaded)
             return;
         var cfg = new ConfigFile();
-        if (cfg.Load(PATH) == Error.Ok)
+        var saved = new GArr();
+        if (cfg.Load(SavePath) == Error.Ok)
         {
-            _schemes = cfg.GetValue("colors", "schemes", new GArr()).As<GArr>();
+            saved = cfg.GetValue("colors", "schemes", new GArr()).As<GArr>();
             _active = cfg.GetValue("colors", "active", -1).As<int>();
         }
-        // Normalise to exactly MAX_SCHEMES slots so the UI can index them freely.
-        _schemes = _schemes.Slice(0, Mathf.Min(_schemes.Count, MAX_SCHEMES));
-        while (_schemes.Count < MAX_SCHEMES)
-            _schemes.Add(new GDict { { "body", new GDict() }, { "power", new GDict() }, { "ui", new GDict() } });
+        // Always exactly MaxSchemes slots, so the UI can index them freely.
+        for (int i = 0; i < MaxSchemes; i++)
+            _schemes[i] = i < saved.Count ? ReadScheme(saved[i].As<GDict>()) : ColorScheme.Empty;
         // -1 == the built-in DEFAULT look (always available, never overwritten); 0..MAX-1 == a saved slot.
-        _active = Mathf.Clamp(_active, -1, MAX_SCHEMES - 1);
+        _active = Mathf.Clamp(_active, -1, MaxSchemes - 1);
         _colorsLoaded = true;
     }
 
-    /// <summary>All MAX_SCHEMES slots (index 0..4); each {"body":{}, "power":{}, "ui":{}}. Empty dicts = an unused slot.</summary>
-    public static GArr ColorSchemes()
+    /// <summary>The scheme saved in slot `i` (0..MaxSchemes-1); an unused slot is <see cref="ColorScheme.Empty"/>.</summary>
+    public static ColorScheme Scheme(int i)
     {
         LoadColors();
-        return _schemes;
+        return _schemes[i];
     }
 
     /// <summary>The slot index applied on startup (and currently selected in the picker). -1 == the DEFAULT look.</summary>
@@ -81,22 +82,12 @@ public static class SaveData
         return _active;
     }
 
-    /// <summary>Whether slot `i` has any saved picks (so the UI can mark used vs empty slots).</summary>
-    public static bool SchemeUsed(int i)
+    /// <summary>Write slot `i` (the scheme is copied) and (by default) make it the active/startup scheme.</summary>
+    public static void SaveScheme(int i, ColorScheme scheme, bool makeActive = true)
     {
         LoadColors();
-        var s = _schemes[i].As<GDict>();
-        bool bodyEmpty = !s.ContainsKey("body") || s["body"].As<GDict>().Count == 0;
-        bool powerEmpty = !s.ContainsKey("power") || s["power"].As<GDict>().Count == 0;
-        bool uiEmpty = !s.ContainsKey("ui") || s["ui"].As<GDict>().Count == 0;
-        return !(bodyEmpty && powerEmpty && uiEmpty);
-    }
-
-    /// <summary>Write slot `i` from the chosen picks and (by default) make it the active/startup scheme.</summary>
-    public static void SaveScheme(int i, GDict body, GDict power, GDict ui, bool makeActive = true)
-    {
-        LoadColors();
-        _schemes[i] = new GDict { { "body", body.Duplicate() }, { "power", power.Duplicate() }, { "ui", ui.Duplicate() } };
+        _schemes[i] = new ColorScheme(
+            new Dictionary<string, Color>(scheme.Body), new Dictionary<string, Color>(scheme.Power), new Dictionary<string, Color>(scheme.Ui));
         if (makeActive)
             _active = i;
         PersistColors();
@@ -106,17 +97,44 @@ public static class SaveData
     public static void SetActive(int i)
     {
         LoadColors();
-        _active = Mathf.Clamp(i, -1, MAX_SCHEMES - 1);
+        _active = Mathf.Clamp(i, -1, MaxSchemes - 1);
         PersistColors();
     }
 
     private static void PersistColors()
     {
+        var saved = new GArr();
+        foreach (var scheme in _schemes)
+            saved.Add(WriteScheme(scheme));
         var cfg = new ConfigFile();
-        cfg.Load(PATH); // keep the run record + anything else already saved
-        cfg.SetValue("colors", "schemes", _schemes);
+        cfg.Load(SavePath); // keep the run record + anything else already saved
+        cfg.SetValue("colors", "schemes", saved);
         cfg.SetValue("colors", "active", _active);
-        cfg.Save(PATH);
+        cfg.Save(SavePath);
+    }
+
+    private static ColorScheme ReadScheme(GDict saved) =>
+        new(ReadPicks(saved, "body"), ReadPicks(saved, "power"), ReadPicks(saved, "ui"));
+
+    /// <summary>One pick set of a saved scheme; a missing set (older saves have no "ui") reads as no picks.</summary>
+    private static Dictionary<string, Color> ReadPicks(GDict saved, string set)
+    {
+        var picks = new Dictionary<string, Color>();
+        if (saved.TryGetValue(set, out Variant value))
+            foreach (var (key, colour) in value.As<GDict>())
+                picks[key.AsString()] = colour.AsColor();
+        return picks;
+    }
+
+    private static GDict WriteScheme(ColorScheme scheme) =>
+        new() { { "body", WritePicks(scheme.Body) }, { "power", WritePicks(scheme.Power) }, { "ui", WritePicks(scheme.Ui) } };
+
+    private static GDict WritePicks(IReadOnlyDictionary<string, Color> picks)
+    {
+        var saved = new GDict();
+        foreach (var (key, colour) in picks)
+            saved[key] = colour;
+        return saved;
     }
 
     // --- player settings (pause menu) ---------------------------------------
@@ -130,7 +148,7 @@ public static class SaveData
         if (_gaugePlacement == null)
         {
             var cfg = new ConfigFile();
-            string name = cfg.Load(PATH) == Error.Ok ? cfg.GetValue("settings", "gauge_placement", "").AsString() : "";
+            string name = cfg.Load(SavePath) == Error.Ok ? cfg.GetValue("settings", "gauge_placement", "").AsString() : "";
             _gaugePlacement = System.Enum.TryParse(name, out GaugePlacement g) ? g : GaugePlacement.Screen;
         }
         return _gaugePlacement.Value;
@@ -140,8 +158,8 @@ public static class SaveData
     {
         _gaugePlacement = g;
         var cfg = new ConfigFile();
-        cfg.Load(PATH); // keep the run record + colours + anything else already saved
+        cfg.Load(SavePath); // keep the run record + colours + anything else already saved
         cfg.SetValue("settings", "gauge_placement", g.ToString());
-        cfg.Save(PATH);
+        cfg.Save(SavePath);
     }
 }

@@ -1,59 +1,57 @@
 using Godot;
 using System.Collections.Generic;
-using GDict = Godot.Collections.Dictionary;
 
 namespace MyGame;
 
 /// <summary>
-/// A flying attack — player OR enemy (team-agnostic via <see cref="hostile"/>). It travels (straight or homing
+/// A flying attack — player OR enemy (team-agnostic via <see cref="Hostile"/>). It travels (straight or homing
 /// toward a target), carries a <see cref="Hitbox"/> that damages the opposing team, and frees itself on a hit
 /// or when it runs out of range/life. C# port of <c>scripts/combat/projectile.gd</c>.
 ///
-/// Spawned as a SCENE (player, fired by the ParticleDirector) or in CODE (enemy.gd sets velocity/params).
-/// NAMING: public surface stays snake_case (the scenes author the <c>[Export]</c>s and the spawners set
-/// <c>source</c>/<c>velocity</c>/<c>apply_tuning</c>) through the migration; internals are idiomatic.
+/// Spawned as a SCENE (player, fired by the ParticleDirector) or in CODE (<see cref="Enemy"/> sets velocity/params).
+/// The scenes author the <c>[Export]</c>s by name — rename one and its scenes must follow.
 /// </summary>
 [GlobalClass]
-public partial class Projectile : Node2D, ITunable
+public partial class Projectile : Node2D, ITunable, ISidedAttack
 {
-    [Export] public bool hostile { get; set; }
-    [Export] public bool friendly_fire { get; set; }
+    [Export] public bool Hostile { get; set; }
+    [Export] public bool FriendlyFire { get; set; }
 
     [ExportGroup("Motion")]
-    [Export] public float speed { get; set; } = 420.0f;
-    [Export] public float homing { get; set; } = 6.0f;
-    [Export] public float max_range { get; set; }
-    [Export] public float max_life { get; set; }
-    [Export] public float acquire_range { get; set; } = 420.0f;
-    [Export] public bool can_fly_up { get; set; }
-    [Export] public float vertical_reach { get; set; } = 40.0f;
-    [Export] public bool rotate_to_heading { get; set; } = true;
+    [Export] public float Speed { get; set; } = 420.0f;
+    [Export] public float Homing { get; set; } = 6.0f;
+    [Export] public float MaxRange { get; set; }
+    [Export] public float MaxLife { get; set; }
+    [Export] public float AcquireRange { get; set; } = 420.0f;
+    [Export] public bool CanFlyUp { get; set; }
+    [Export] public float VerticalReach { get; set; } = 40.0f;
+    [Export] public bool RotateToHeading { get; set; } = true;
 
     [ExportGroup("Bounce")]
-    [Export] public int bounces { get; set; }
-    [Export] public float bounce_homing { get; set; } = 8.0f;
-    [Export] public float bounce_range { get; set; }
+    [Export] public int Bounces { get; set; }
+    [Export] public float BounceHoming { get; set; } = 8.0f;
+    [Export] public float BounceRange { get; set; }
 
     [ExportGroup("Look / lifecycle")]
-    /// <summary>Positional Sfx cue played at the contact point on hit ("" = silent). Same pattern as LobProjectile.explosion_sfx.</summary>
-    [Export] public string impact_sfx { get; set; } = "";
+    /// <summary>Positional Sfx cue played at the contact point on hit ("" = silent). Same pattern as LobProjectile.ExplosionSfx.</summary>
+    [Export] public string ImpactSfx { get; set; } = "";
     /// <summary>Optional drawn END animation played in place on expiry (dissolve instead of a blink-out).</summary>
-    [Export] public SpriteFrames? end_frames { get; set; }
+    [Export] public SpriteFrames? EndFrames { get; set; }
     /// <summary>Lay red embers along the floor as it rolls past (a ground surge scorch trail).</summary>
-    [Export] public bool ground_trail { get; set; }
+    [Export] public bool GroundTrail { get; set; }
 
     /// <summary>Ride the terrain surface as it travels — snap onto the ground each frame + tilt to the slope, so a
     /// forward "ground wave" hugs curves instead of flying flat. It dissipates when it runs off the ground (a ledge).</summary>
-    [Export] public bool ground_follow { get; set; }
+    [Export] public bool GroundFollow { get; set; }
     /// <summary>How high above the sampled surface the wave rides (its particles/hitbox are authored around this).</summary>
-    [Export] public float ground_follow_offset { get; set; }
+    [Export] public float GroundFollowOffset { get; set; }
 
     private const float GroundFollowReach = 40.0f;
 
     /// <summary>Who fired it (knockback credit); set by the spawner.</summary>
-    public Node? source;
+    public Node? Source { get; set; }
     /// <summary>A straight (homing == 0) shot moves by this; set by the spawner. A homing shot derives its own dir.</summary>
-    public Vector2 velocity = Vector2.Zero;
+    public Vector2 Velocity = Vector2.Zero;
 
     private Vector2 _dir = Vector2.Right;
     private float _traveled;
@@ -68,12 +66,12 @@ public partial class Projectile : Node2D, ITunable
     public override void _Ready()
     {
         AddToGroup("projectiles"); // so a respawn can clear in-flight shots
-        _bouncesLeft = bounces;
-        if (velocity.Length() > 0.01f)
+        _bouncesLeft = Bounces;
+        if (Velocity.Length() > 0.01f)
         {
             // The spawner (enemy) gave an explicit velocity: derive heading + speed from it.
-            _dir = velocity.Normalized();
-            speed = velocity.Length();
+            _dir = Velocity.Normalized();
+            Speed = Velocity.Length();
         }
         else
         {
@@ -89,15 +87,15 @@ public partial class Projectile : Node2D, ITunable
         var hb = FindHitbox();
         if (hb != null)
         {
-            hb.CollisionLayer = Combat.HitLayer(hostile);
-            hb.CollisionMask = Combat.HurtMask(hostile, friendly_fire);
-            hb.ranged = true; // flag every projectile hit as ranged (nasen etc. react by type)
-            hb.source = source;
-            hb.struck += OnStruck;
-            hb.activate(); // a projectile leaves its box live for its whole flight
+            hb.CollisionLayer = Combat.HitLayer(Hostile);
+            hb.CollisionMask = Combat.HurtMask(Hostile, FriendlyFire);
+            hb.Ranged = true; // flag every projectile hit as ranged (nasen etc. react by type)
+            hb.Source = Source;
+            hb.Struck += OnStruck;
+            hb.Activate(); // a projectile leaves its box live for its whole flight
         }
 
-        if (ground_trail)
+        if (GroundTrail)
             AddChild(MakeGroundTrail(SampleVisualColor()));
         // Target acquired on the first physics tick, NOT here (the spawner snaps us to the muzzle after add_child).
     }
@@ -105,7 +103,7 @@ public partial class Projectile : Node2D, ITunable
     /// <summary>Face the heading: a drawn shot ROTATES; a shot authored blasting +x MIRRORS via scale.x (no 180 flip).</summary>
     private void Orient()
     {
-        if (rotate_to_heading)
+        if (RotateToHeading)
         {
             Rotation = _dir.Angle();
         }
@@ -126,7 +124,7 @@ public partial class Projectile : Node2D, ITunable
             return true; // can't sample -> keep travelling rather than vanishing
         if (!GroundProbe.TryAt(space, GlobalPosition.X, GlobalPosition.Y, GroundFollowReach, out Vector2 point, out Vector2 normal))
             return false;
-        GlobalPosition = new Vector2(GlobalPosition.X, point.Y - ground_follow_offset);
+        GlobalPosition = new Vector2(GlobalPosition.X, point.Y - GroundFollowOffset);
         Rotation = normal.Angle() + Mathf.Pi / 2.0f; // stand perpendicular to the surface
         return true;
     }
@@ -136,7 +134,7 @@ public partial class Projectile : Node2D, ITunable
         float d = (float)delta;
         if (_dying)
             return;
-        if (homing > 0.0f)
+        if (Homing > 0.0f)
         {
             if (!_acquired)
             {
@@ -147,34 +145,34 @@ public partial class Projectile : Node2D, ITunable
             {
                 Node2D? aim = AimPoint(_target!);
                 Vector2 want = (aim ?? _target!).GlobalPosition - GlobalPosition;
-                if (!can_fly_up && want.Y < 0.0f)
+                if (!CanFlyUp && want.Y < 0.0f)
                     want.Y = 0.0f; // track a level/lower target, never steer upward
                 if (want.Length() > 0.01f)
-                    _dir = _dir.Slerp(want.Normalized(), Mathf.Clamp(homing * d, 0.0f, 1.0f));
+                    _dir = _dir.Slerp(want.Normalized(), Mathf.Clamp(Homing * d, 0.0f, 1.0f));
             }
             else
             {
                 // No target ahead -> stop homing and fly straight along the launch heading.
-                homing = 0.0f;
+                Homing = 0.0f;
                 _dir = _launchDir;
             }
         }
-        if (!can_fly_up && _dir.Y < 0.0f)
+        if (!CanFlyUp && _dir.Y < 0.0f)
         {
             _dir = new Vector2(_dir.X, 0.0f); // hard floor: never travel upward
             _dir = _dir.Length() > 0.01f ? _dir.Normalized() : Vector2.Right;
         }
-        GlobalPosition += _dir * speed * d;
+        GlobalPosition += _dir * Speed * d;
         Orient();
-        if (ground_follow && !SnapToGround())
+        if (GroundFollow && !SnapToGround())
         {
             Expire(); // ran off the ground (a ledge / pit) -> the wave dissipates
             return;
         }
-        _traveled += speed * d;
+        _traveled += Speed * d;
 
         _life += d;
-        if ((max_range > 0.0f && _traveled >= max_range) || (max_life > 0.0f && _life >= max_life))
+        if ((MaxRange > 0.0f && _traveled >= MaxRange) || (MaxLife > 0.0f && _life >= MaxLife))
             Expire();
     }
 
@@ -182,37 +180,37 @@ public partial class Projectile : Node2D, ITunable
     /// Configure this shot's hitbox from a resolved tuning dict. Called by the spawner after add_child. Absent
     /// fields keep the hitbox's authored values (the cherry_shots case, where two shots carry their own damage).
     /// </summary>
-    public void apply_tuning(SegmentData t, Node? striker)
+    public void ApplyTuning(SegmentData t, Node? striker)
     {
         if (striker != null)
-            source = striker;
+            Source = striker;
         var hb = FindHitbox();
         if (hb == null)
             return;
-        if (t.Damage.HasValue) hb.damage = t.Damage.Value;
-        if (t.Knockback.HasValue) hb.knockback = t.Knockback.Value;
-        if (t.Gust.HasValue) hb.gust = t.Gust.Value;
-        if (t.Stun.HasValue) hb.stun = t.Stun.Value;
+        if (t.Damage.HasValue) hb.Damage = t.Damage.Value;
+        if (t.Knockback.HasValue) hb.Knockback = t.Knockback.Value;
+        if (t.Gust.HasValue) hb.Gust = t.Gust.Value;
+        if (t.Stun.HasValue) hb.Stun = t.Stun.Value;
         if (t.Color.HasValue)
         {
-            hb.status_color = t.Color.Value;
-            hb.status_time = t.ColorTime ?? t.Stun ?? 0.0f;
+            hb.StatusColor = t.Color.Value;
+            hb.StatusTime = t.ColorTime ?? t.Stun ?? 0.0f;
         }
-        if (t.FromSpecial.HasValue) hb.from_special = t.FromSpecial.Value;
+        if (t.FromSpecial.HasValue) hb.FromSpecial = t.FromSpecial.Value;
         if (t.Reap.HasValue)
         {
-            hb.dot_percent = t.Reap.Value;
-            hb.dot_time = t.ReapTime ?? 0.0f;
+            hb.DotPercent = t.Reap.Value;
+            hb.DotTime = t.ReapTime ?? 0.0f;
         }
     }
 
-    /// <summary>Nearest target AHEAD in the facing x-direction, within acquire_range. Opposing-team group.</summary>
+    /// <summary>Nearest target AHEAD in the facing x-direction, within AcquireRange. Opposing-team group.</summary>
     private Node2D? NearestTargetAhead()
     {
         float facing = _dir.X >= 0.0f ? 1.0f : -1.0f;
-        string group = hostile ? "player" : "enemies";
+        string group = Hostile ? "player" : "enemies";
         Node2D? best = null;
-        float bestD = acquire_range;
+        float bestD = AcquireRange;
         foreach (var e in GetTree().GetNodesInGroup(group))
         {
             if (e is not Node2D n)
@@ -223,7 +221,7 @@ public partial class Projectile : Node2D, ITunable
             Vector2 to = aim.GlobalPosition - GlobalPosition;
             if (to.X * facing <= 0.0f)
                 continue; // behind us in x
-            if (!can_fly_up && Mathf.Abs(to.Y) > vertical_reach)
+            if (!CanFlyUp && Mathf.Abs(to.Y) > VerticalReach)
                 continue; // off our level
             float dist = Mathf.Abs(to.X);
             if (dist < bestD)
@@ -240,7 +238,7 @@ public partial class Projectile : Node2D, ITunable
     {
         if (!IsInstanceValid(_target))
             return false;
-        return _target!.IsInGroup(hostile ? "player" : "enemies");
+        return _target!.IsInGroup(Hostile ? "player" : "enemies");
     }
 
     /// <summary>What the shot homes to for `target`: its hurtbox's collision-shape (the torso). Falls back to the target.</summary>
@@ -271,8 +269,8 @@ public partial class Projectile : Node2D, ITunable
     {
         Vector2 at = HitPoint(victim);
         SpawnImpact(at);
-        if (impact_sfx != "")
-            GetNodeOrNull<Sfx>("/root/Sfx")?.play_at(impact_sfx, at);
+        if (ImpactSfx != "")
+            GetNodeOrNull<Sfx>("/root/Sfx")?.PlayAt(ImpactSfx, at);
 
         Node struckEnemy = victim.GetParent();
         if (struckEnemy != null && !_hitTargets.Contains(struckEnemy))
@@ -286,13 +284,13 @@ public partial class Projectile : Node2D, ITunable
                 _bouncesLeft -= 1;
                 _target = next;
                 _acquired = true;
-                homing = Mathf.Max(homing, bounce_homing);
+                Homing = Mathf.Max(Homing, BounceHoming);
                 Node2D? aim = AimPoint(next);
                 Vector2 to = (aim ?? next).GlobalPosition - GlobalPosition;
                 if (to.Length() > 0.01f)
                     _dir = to.Normalized();
                 _launchDir = _dir;
-                _traveled = 0.0f; // each ricochet leg gets a fresh max_range budget
+                _traveled = 0.0f; // each ricochet leg gets a fresh MaxRange budget
                 Orient();
                 return; // keep flying
             }
@@ -303,8 +301,8 @@ public partial class Projectile : Node2D, ITunable
     /// <summary>Nearest UN-hit opposing-team member for a ricochet, in ANY direction (a bounce can reverse).</summary>
     private Node2D? NearestBounceTarget()
     {
-        string group = hostile ? "player" : "enemies";
-        float reach = bounce_range > 0.0f ? bounce_range : acquire_range;
+        string group = Hostile ? "player" : "enemies";
+        float reach = BounceRange > 0.0f ? BounceRange : AcquireRange;
         Node2D? best = null;
         float bestD = reach;
         foreach (var e in GetTree().GetNodesInGroup(group))
@@ -315,7 +313,7 @@ public partial class Projectile : Node2D, ITunable
             if (aim == null)
                 continue;
             Vector2 to = aim.GlobalPosition - GlobalPosition;
-            if (!can_fly_up && Mathf.Abs(to.Y) > vertical_reach)
+            if (!CanFlyUp && Mathf.Abs(to.Y) > VerticalReach)
                 continue;
             float dist = to.Length();
             if (dist < bestD)
@@ -327,7 +325,7 @@ public partial class Projectile : Node2D, ITunable
         return best;
     }
 
-    /// <summary>Reached max range/life without hitting: dissolve via end_frames, else fade any trail, else vanish.</summary>
+    /// <summary>Reached max range/life without hitting: dissolve via EndFrames, else fade any trail, else vanish.</summary>
     private void Expire()
     {
         if (_dying)
@@ -339,9 +337,9 @@ public partial class Projectile : Node2D, ITunable
             hb.SetDeferred(Area2D.PropertyName.Monitoring, false);
             hb.SetDeferred(CollisionObject2D.PropertyName.CollisionLayer, 0);
         }
-        velocity = Vector2.Zero;
+        Velocity = Vector2.Zero;
 
-        if (end_frames != null)
+        if (EndFrames != null)
         {
             AnimatedSprite2D? spr = FindSprite();
             if (spr == null) // a particle-only shot -- make a sprite to play the dissolve on
@@ -351,7 +349,7 @@ public partial class Projectile : Node2D, ITunable
             }
             foreach (var em in Emitters())
                 em.Emitting = false;
-            spr.SpriteFrames = end_frames;
+            spr.SpriteFrames = EndFrames;
             spr.Play("default");
             spr.AnimationFinished += QueueFree;
             GetTree().CreateTimer(3.0).Timeout += QueueFree; // safety net; QueueFree on a freed self is a no-op

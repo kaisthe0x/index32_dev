@@ -6,8 +6,8 @@
 [node name="Lira" type="Node2D"]
 z_index = 5
 script = ExtResource("1_lira")
-flight_time = 0.45
-arc_height = 40.0
+FlightTime = 0.45
+ArcHeight = 40.0
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
 texture_filter = 4

@@ -5,9 +5,9 @@
 
 [node name="SurgeAegis" type="Node2D" unique_id=1900001001]
 script = ExtResource("1_orbit")
-count = 14
-moon_texture = ExtResource("2_vklmt")
-moon_color = Color(1.1250899, 0, 0.2521258, 1)
-center = Vector2(0, -20)
-near_scale = 0.01
-far_scale = 0.008
+Count = 14
+MoonTexture = ExtResource("2_vklmt")
+MoonColor = Color(1.1250899, 0, 0.2521258, 1)
+Center = Vector2(0, -20)
+NearScale = 0.01
+FarScale = 0.008

@@ -8,14 +8,13 @@ namespace MyGame;
 /// decides what to do. C# port of <c>scripts/combat/hurtbox.gd</c>.
 ///
 /// Set <c>CollisionLayer</c> to the team's hurt layer (Combat.*Hurt) and leave <c>CollisionMask</c> at 0;
-/// <c>Monitorable</c> must stay true (default) so hitboxes see it. Public surface kept <c>snake_case</c>
-/// (<c>take_hit</c>, <c>hurt</c>) for the still-GDScript owners until they're ported (see Hitbox.cs note).
+/// <c>Monitorable</c> must stay true (default) so hitboxes see it.
 /// </summary>
 [GlobalClass]
 public partial class Hurtbox : Area2D
 {
     [Signal]
-    public delegate void hurtEventHandler(Hit hit);
+    public delegate void HurtEventHandler(Hit hit);
 
-    public void take_hit(Hit hit) => EmitSignal(SignalName.hurt, hit);
+    public void TakeHit(Hit hit) => EmitSignal(SignalName.Hurt, hit);
 }

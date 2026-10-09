@@ -17,7 +17,7 @@ public static class NeedlePoint
     /// <summary>Every shot, in the order the stall lists them. Values per rank (index 0 = rank I), then rank I's Lira price.
     /// Priced by worth: mobility is cheap, damage is an investment (Attack Damage multiplies everything you do). For
     /// scale — the round curve pays roughly 140 Lira by the end of round 5 and 560 by round 10.</summary>
-    public static readonly ShotDef[] SHOTS =
+    public static readonly ShotDef[] Shots =
     {
         new(ShotIds.Dash, "Extra Dash", "+{0} dash", ShotStat.Dashes, new[] { 1f, 2f, 3f }, 30),
         new(ShotIds.AirJump, "Extra Jump", "+{0} air jump", ShotStat.AirJumps, new[] { 1f, 2f, 3f }, 25),
@@ -33,7 +33,7 @@ public static class NeedlePoint
             new[] { 1.20f, 1.35f, 1.50f, 1.70f, 2.00f }, 30),
     };
 
-    private static readonly Dictionary<string, ShotDef> ById = SHOTS.ToDictionary(d => d.Id); // after SHOTS: init order
+    private static readonly Dictionary<string, ShotDef> ById = Shots.ToDictionary(d => d.Id); // after SHOTS: init order
 
     /// <summary>The shot with this <see cref="ShotIds"/> id.</summary>
     public static ShotDef Get(string id) => ById[id];
@@ -42,7 +42,7 @@ public static class NeedlePoint
     public const float PriceGrowth = 1.6f;
 
     /// <summary>The rank colours (index 0 = rank I). Beyond the table, the last colour repeats.</summary>
-    public static readonly Color[] RANK_COLORS =
+    public static readonly Color[] RankColors =
     {
         new(0.62f, 0.62f, 0.66f), // grey
         new(0.35f, 0.85f, 0.45f), // green
@@ -55,5 +55,5 @@ public static class NeedlePoint
     public static int PriceOfNext(ShotDef def, int owned) => Mathf.RoundToInt(def.Price * Mathf.Pow(PriceGrowth, owned));
 
     /// <summary>The colour of rank <paramref name="rank"/> (1 = rank I).</summary>
-    public static Color RankColor(int rank) => RANK_COLORS[Mathf.Clamp(rank - 1, 0, RANK_COLORS.Length - 1)];
+    public static Color RankColor(int rank) => RankColors[Mathf.Clamp(rank - 1, 0, RankColors.Length - 1)];
 }

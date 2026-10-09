@@ -11,11 +11,11 @@ namespace MyGame;
 public partial class PauseMenu : CanvasLayer
 {
     /// <summary>The player picked a gauge placement (already persisted to <see cref="SaveData"/>).</summary>
-    public event System.Action<GaugePlacement> GaugePlacementChanged;
+    public event System.Action<GaugePlacement>? GaugePlacementChanged;
 
     private readonly Dictionary<GaugePlacement, Button> _placementButtons = new();
-    private Button _resume;
-    private ColorRect _dim;
+    private Button _resume = null!;
+    private ColorRect _dim = null!;
     private bool _enabled;
 
     /// <summary>Whether Esc may open the menu. Disabling while open closes it.</summary>
@@ -59,7 +59,7 @@ public partial class PauseMenu : CanvasLayer
         _dim.Color = UiStyle.Backdrop; // the UI palette may have been recoloured since Build
         GetTree().Paused = true;
         Input.MouseMode = Input.MouseModeEnum.Visible;
-        GetNode<Music>("/root/Music").set_muffled(true); // music goes "underwater" while paused
+        GetNode<Music>("/root/Music").SetMuffled(true); // music goes "underwater" while paused
         Visible = true;
         _resume.GrabFocus();
     }
@@ -68,7 +68,7 @@ public partial class PauseMenu : CanvasLayer
     {
         Visible = false;
         GetTree().Paused = false;
-        GetNode<Music>("/root/Music").set_muffled(false);
+        GetNode<Music>("/root/Music").SetMuffled(false);
         Input.MouseMode = Input.MouseModeEnum.Hidden; // back to play — hide the cursor
     }
 

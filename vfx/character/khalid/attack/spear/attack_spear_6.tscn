@@ -23,7 +23,7 @@ script = ExtResource("1_strike")
 collision_layer = 32
 collision_mask = 16
 script = ExtResource("2_hb")
-damage = 8.0
+Damage = 8.0
 
 [node name="Shape" type="CollisionShape2D" parent="Hitbox" unique_id=1024897721]
 position = Vector2(49.5, -1)

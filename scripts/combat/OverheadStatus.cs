@@ -6,7 +6,7 @@ namespace MyGame;
 /// <summary>
 /// A looping animation hovering over an enemy's head while a status is active — e.g. the swirling "halo" of a
 /// STUN. Built in code; the over-head twin of <see cref="StatusIcons"/>. Shows the highest-PRIORITY active
-/// status that has an over-head anim (StatusTypes.OVERHEAD), bobs it, hides when none. C# port of
+/// status that has an over-head anim (StatusTypes.Overhead), bobs it, hides when none. C# port of
 /// <c>scripts/combat/overhead_status.gd</c>. C#-only consumer (Enemy); bridges the GDScript StatusTypes config.
 /// </summary>
 public partial class OverheadStatus : Node2D
@@ -14,7 +14,7 @@ public partial class OverheadStatus : Node2D
     private const float BobAmpl = 1.5f;
     private const float BobSpeed = 2.2f;
 
-    private AnimatedSprite2D _sprite;
+    private AnimatedSprite2D _sprite = null!;
     private float _yOff = 0.0f;
     private StatusType? _shown = null;
     private float _phase = 0.0f;
@@ -42,9 +42,9 @@ public partial class OverheadStatus : Node2D
     public void SetActive(List<StatusType> ids)
     {
         StatusType? pick = null;
-        foreach (StatusType id in StatusTypes.ORDER)
+        foreach (StatusType id in StatusTypes.Order)
         {
-            if (ids.Contains(id) && StatusTypes.OVERHEAD.ContainsKey(id))
+            if (ids.Contains(id) && StatusTypes.Overhead.ContainsKey(id))
             {
                 pick = id;
                 break;
@@ -59,7 +59,7 @@ public partial class OverheadStatus : Node2D
             SetProcess(false);
             return;
         }
-        var spec = StatusTypes.OVERHEAD[status];
+        var spec = StatusTypes.Overhead[status];
         _sprite.SpriteFrames = FramesFor(spec);
         _sprite.Scale = Vector2.One * spec.Scale;
         _yOff = spec.YOff;
@@ -87,7 +87,7 @@ public partial class OverheadStatus : Node2D
         int fw = tex.GetWidth() / Mathf.Max(hframes, 1);
         int fh = tex.GetHeight();
         var sf = new SpriteFrames();
-        sf.SetAnimationLoop("default", true);
+        sf.SetAnimationLoopMode("default", SpriteFrames.LoopMode.Linear);
         sf.SetAnimationSpeed("default", spec.Fps);
         for (int i = 0; i < hframes; i++)
         {

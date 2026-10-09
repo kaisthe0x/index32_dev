@@ -23,10 +23,10 @@ public partial class Perk : Passive
     {
         switch (Def.Id)
         {
-            case PerkIds.FigChance: p.fig_chance_bonus += Def.Value; break;
-            case PerkIds.Magnet: p.fig_magnet_range += Def.Value; break;
-            case PerkIds.Shield: p.hit_shields = (int)Def.Value; break;
-            case PerkIds.WiderPull: p.magnet_target_bonus += (int)Def.Value; break;
+            case PerkIds.FigChance: p.FigChanceBonus += Def.Value; break;
+            case PerkIds.Magnet: p.FigMagnetRange += Def.Value; break;
+            case PerkIds.Shield: p.HitShields = (int)Def.Value; break;
+            case PerkIds.WiderPull: p.MagnetTargetBonus += (int)Def.Value; break;
         }
     }
 
@@ -34,10 +34,10 @@ public partial class Perk : Passive
     {
         switch (Def.Id)
         {
-            case PerkIds.FigChance: p.fig_chance_bonus -= Def.Value; break;
-            case PerkIds.Magnet: p.fig_magnet_range -= Def.Value; break;
-            case PerkIds.Shield: p.hit_shields = 0; break;
-            case PerkIds.WiderPull: p.magnet_target_bonus -= (int)Def.Value; break;
+            case PerkIds.FigChance: p.FigChanceBonus -= Def.Value; break;
+            case PerkIds.Magnet: p.FigMagnetRange -= Def.Value; break;
+            case PerkIds.Shield: p.HitShields = 0; break;
+            case PerkIds.WiderPull: p.MagnetTargetBonus -= (int)Def.Value; break;
         }
     }
 
@@ -45,8 +45,8 @@ public partial class Perk : Passive
     {
         switch (Def.Id)
         {
-            case PerkIds.Shield: p.hit_shields = (int)Def.Value; break; // a fresh block each round it covers
-            case PerkIds.Prepared: p.surge_free(); break;
+            case PerkIds.Shield: p.HitShields = (int)Def.Value; break; // a fresh block each round it covers
+            case PerkIds.Prepared: p.SurgeFree(); break;
         }
     }
 }

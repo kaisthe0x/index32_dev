@@ -10,9 +10,9 @@ namespace MyGame;
 /// </summary>
 public abstract partial class StallMenu : CanvasLayer
 {
-    protected Player Player { get; private set; }
-    private VBoxContainer _rows;
-    private Label _balance;
+    protected Player Player { get; private set; } = null!;   // set by OpenFrame, before anything reads it
+    private VBoxContainer _rows = null!;
+    private Label _balance = null!;
 
     protected StallMenu()
     {
@@ -64,7 +64,7 @@ public abstract partial class StallMenu : CanvasLayer
     /// <summary>Rebuild the balance line and every row.</summary>
     protected void Refresh()
     {
-        _balance.Text = $"LIRA {Player.lira}    FIGS {Player.fada_figs}";
+        _balance.Text = $"LIRA {Player.Lira}    FIGS {Player.FadaFigs}";
         foreach (Node child in _rows.GetChildren())
             child.QueueFree();
         FillRows(_rows);
@@ -108,7 +108,7 @@ public abstract partial class StallMenu : CanvasLayer
         {
             if (!act())
                 return;
-            GetNodeOrNull<Sfx>("/root/Sfx")?.play("buff_select"); // PLACEHOLDER cue
+            GetNodeOrNull<Sfx>("/root/Sfx")?.Play("buff_select"); // PLACEHOLDER cue
             Refresh();
         };
         return b;

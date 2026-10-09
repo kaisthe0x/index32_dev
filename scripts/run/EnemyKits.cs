@@ -1,127 +1,198 @@
 using Godot;
-using GDict = Godot.Collections.Dictionary;
 
 namespace MyGame;
 
 /// <summary>
-/// The enemy roster — one named kit per enemy TYPE, drawn from by RunManager's spawn pool.
-/// A kit is a spawn spec: an `id` (built from scenes/enemy.tscn) or a custom `scene`, plus Enemy @export overrides
-/// (combat tuning), applied by RunManager via <c>enemy.Set(key, value)</c> — so a kit stays a by-name override BAG
-/// (its keys mirror Enemy's [Export] names), not a fixed record. A few keys are ADVISORY metadata RunManager reads
-/// but never Sets on the Enemy: `tier` (<see cref="EnemyTier"/>, wave-building shorthand) and `spawn_cap` (max of
-/// this type alive at once, grown over the run — e.g. Nasen = 1). IDs use <see cref="EnemyIds"/>; close_type/far_type (the
-/// enemy's close-range / far-range attack) use the <see cref="StrikeType"/> taxonomy. C# port of
-/// <c>scripts/run/enemies.gd</c> (pure data).
+/// The enemy roster — one <see cref="EnemyKit"/> per enemy TYPE. <see cref="EnemySpawner.SpawnPool"/> draws from these, and
+/// <see cref="PressureSpawns"/> (the kamikaze, the Ventilator) names its two directly. Each kit's <c>Tune</c> sets only what differs
+/// from the defaults declared on <see cref="Enemy"/>. <c>CloseType</c> / <c>FarType</c> (the close-range and
+/// far-range attack) use the <see cref="StrikeType"/> taxonomy's keys, which also name the attack's animation, effect
+/// and sound.
 /// </summary>
 public static class EnemyKits
 {
-	public static readonly GDict KEBUS = new()
+	public static readonly EnemyKit Kebus = new(EnemyIds.Kebus, "Kebus", EnemyTier.Strong, EnemyMovement.Ground, e =>
 	{
-		{ "id", EnemyIds.Kebus }, { "tier", (int)EnemyTier.Strong }, { "movement", (int)EnemyMovement.Ground },
-		{ "close_type", StrikeType.Melee.Key() }, { "far_type", StrikeType.Projectile.Key() },
-		// far_mode defaults to "aimed": tracks the player + aims at the body, tilt capped to ±45° (never vertical);
-		// attack_align_y is wide so he'll engage you a level up/down.
-		{ "far_aim_cap", 45.0 }, { "attack_align_y", 120.0 }, { "far_hitbox_extents", new Vector2(7, 10) },
-		{ "projectile_speed", 200.0 },
-		{ "fig_chance", 0.25 }, // the hardest grunt — better fig odds than the 10 % default
-	};
+		e.CloseType = StrikeType.Melee.Key();
+		e.FarType = StrikeType.Projectile.Key();
+		// FarMode stays Aimed: tracks the player + aims at the body, tilt capped to ±45° (never vertical);
+		// AttackAlignY is wide so he'll engage you a level up/down.
+		e.FarAimCap = 45.0f;
+		e.AttackAlignY = 120.0f;
+		e.FarHitboxExtents = new Vector2(7, 10);
+		e.ProjectileSpeed = 200.0f;
+		e.FigChance = 0.25f; // the hardest grunt — better fig odds than the 10 % default
+	});
 
-	public static readonly GDict BAGHEL = new()
+	public static readonly EnemyKit Baghel = new(EnemyIds.Baghel, "Baghel", EnemyTier.Chip, EnemyMovement.Ground, e =>
 	{
-		{ "id", EnemyIds.Baghel }, { "tier", (int)EnemyTier.Chip }, { "movement", (int)EnemyMovement.Ground }, { "far_type", StrikeType.Projectile.Key() },
-		{ "far_mode", "ground_wave" }, { "far_range", 130.0 }, { "far_travel", 100.0 }, { "projectile_speed", 200.0 },
-		{ "far_hitbox_extents", new Vector2(4, 15) }, { "far_hitbox_offset", new Vector2(0, -9) }, { "far_damage", 7.0 },
-		{ "idle_time_min", 5.0 }, { "idle_time_max", 7.0 },
-	};
+		e.FarType = StrikeType.Projectile.Key();
+		e.FarMode = FarMode.GroundWave;
+		e.FarRange = 130.0f;
+		e.FarTravel = 100.0f;
+		e.ProjectileSpeed = 200.0f;
+		e.FarHitboxExtents = new Vector2(4, 15);
+		e.FarHitboxOffset = new Vector2(0, -9);
+		e.FarDamage = 7.0f;
+		e.IdleTimeMin = 5.0f;
+		e.IdleTimeMax = 7.0f;
+	});
 
-	public static readonly GDict MAZAB = new()
+	public static readonly EnemyKit Mazab = new(EnemyIds.Mazab, "Mazab", EnemyTier.Mid, EnemyMovement.Ground, e =>
 	{
-		{ "id", EnemyIds.Mazab }, { "tier", (int)EnemyTier.Mid }, { "movement", (int)EnemyMovement.Ground }, { "far_type", StrikeType.DelayedProjectile.Key() },
-		{ "far_mode", "lob" }, { "far_range", 260.0 }, { "attack_align_y", 120.0 }, { "attack_cooldown", 2.2 },
-		{ "far_damage", 16.0 }, { "far_knockback", 160.0 }, { "far_stun", 0.25 },
-		{ "lob_arc_time", 0.9 }, { "lob_dwell", 1.0 }, { "lob_explosion_extents", new Vector2(48, 26) },
-	};
+		e.FarType = StrikeType.DelayedProjectile.Key();
+		e.FarMode = FarMode.Lob;
+		e.FarRange = 260.0f;
+		e.AttackAlignY = 120.0f;
+		e.AttackCooldown = 2.2f;
+		e.FarDamage = 16.0f;
+		e.FarKnockback = 160.0f;
+		e.FarStun = 0.25f;
+		e.LobArcTime = 0.9f;
+		e.LobDwell = 1.0f;
+		e.LobExplosionExtents = new Vector2(48, 26);
+	});
 
-	public static readonly GDict NASEN = new()
+	// The stationary sleeper. Optional: it needn't be killed to clear a round.
+	public static readonly EnemyKit Nasen = EnemyKit.Of<SleeperEnemy>(EnemyIds.Nasen, "Nasen", EnemyTier.Strong,
+		EnemyMovement.Stationary, "res://scenes/sleeper_enemy.tscn", e =>
 	{
-		{ "scene", "res://scenes/sleeper_enemy.tscn" }, { "id", EnemyIds.Nasen }, { "display_name", "Nasen" },
-		{ "max_health", 90.0 }, { "tier", (int)EnemyTier.Strong }, { "movement", (int)EnemyMovement.Stationary }, { "optional", true }, { "close_type", StrikeType.Aoe.Key() }, { "conform_ground", true },
-		// The rage AoE hits OTHER enemies too (friendly fire) — it still only TRIGGERS on player detection (SleeperEnemy rage_zone).
-		{ "friendly_fire", true },
-		// Concurrent cap: at most this many alive at once (RunManager grows it as the run progresses). Advisory metadata.
-		{ "spawn_cap", 1 },
-	};
+		e.MaxHealth = 90.0f;
+		e.Optional = true;
+		e.CloseType = StrikeType.Aoe.Key();
+		e.ConformGround = true;
+		// The rage AoE hits OTHER enemies too — it still only TRIGGERS on player detection (SleeperEnemy.RageZone).
+		e.FriendlyFire = true;
+	}) with { SpawnCap = 1 };
 
-	public static readonly GDict EIN = new()
+	// The stand-still KAMIKAZE (<see cref="PressureSpawns"/> — not in the round's spawn pool): optional (not part of the
+	// round), drops nothing (no farming by standing still), and notices from far enough to dive at once.
+	public static readonly EnemyKit Ein = EnemyKit.Of<DiverEnemy>(EnemyIds.Ein, "Ein", EnemyTier.Mid,
+		EnemyMovement.Flying, "res://scenes/diver_enemy.tscn", e =>
 	{
-		// The stand-still KAMIKAZE (RunManager's pressure spawn — not in the round's spawn pool): optional (not part of the
-		// round), drops nothing (no farming by standing still), and notices from far enough to dive at once.
-		{ "scene", "res://scenes/diver_enemy.tscn" }, { "id", EnemyIds.Ein }, { "display_name", "Ein" }, { "max_health", 28.0 }, { "air", true }, { "movement", (int)EnemyMovement.Flying }, { "close_type", StrikeType.Kamikaze.Key() },
-		{ "optional", true }, { "lira_drop", 0 }, { "fig_chance", 0.0 }, { "detect_range", 320.0 },
-		{ "body_size", new Vector2(22, 22) }, { "hurtbox_size", new Vector2(26, 26) }, { "move_speed", 34.0 },
-		{ "patrol_distance", 70.0 }, { "tier", (int)EnemyTier.Mid },
-	};
+		e.MaxHealth = 28.0f;
+		e.CloseType = StrikeType.Kamikaze.Key();
+		e.Optional = true;
+		e.FigChance = 0.0f;
+		e.DetectRange = 320.0f;
+		e.BodySize = new Vector2(22, 22);
+		e.HurtboxSize = new Vector2(26, 26);
+		e.MoveSpeed = 34.0f;
+		e.PatrolDistance = 70.0f;
+	}) with { LiraDrop = 0 };
 
-	public static readonly GDict VENTILATOR = new()
+	// The EDGE enemy (<see cref="PressureSpawns"/> — not in the round's spawn pool): appears on the inland side when the
+	// player is near either end of the arena, and blasts WIND (CloseGust) that does no damage but flings him outward
+	// — off the edge unless he air-jumps / dashes back. Optional (not part of the round) but drops Lira + figs as usual.
+	// Like Tarri, the blast fires on the LAST attack frame and he holds + vibrates there (the blast's EmitDuration).
+	public static readonly EnemyKit Ventilator = new(EnemyIds.Ventilator, "Ventilator", EnemyTier.Mid, EnemyMovement.Ground, e =>
 	{
-		// The EDGE enemy (RunManager's edge spawn — not in the round's spawn pool): appears on the inland side when the
-		// player is near either end of the arena, and blasts WIND (close_gust) that does no damage but flings him outward
-		// — off the edge unless he air-jumps / dashes back. Optional (not part of the round) but drops Lira + figs as usual.
-		// Like Tarri, the blast fires on the LAST attack frame and he holds + vibrates there (the blast's emit_duration).
-		{ "id", EnemyIds.Ventilator }, { "display_name", "Ventilator" }, { "tier", (int)EnemyTier.Mid }, { "movement", (int)EnemyMovement.Ground }, { "close_type", StrikeType.Blast.Key() },
-		{ "optional", true },
-		{ "max_health", 60.0 }, { "body_size", new Vector2(18, 36) }, { "hurtbox_size", new Vector2(22, 42) },
-		{ "move_speed", 40.0 }, { "patrol_distance", 80.0 },
-		{ "close_range", 150.0 }, { "attack_align_y", 52.0 }, { "attack_cooldown", 2.4 },
-		{ "close_damage", 0.0 }, { "close_knockback", 0.0 }, { "close_stun", 0.0 }, { "close_gust", 540.0 },
-		{ "attack_hitstop", 2.0 }, { "attack_shake", 1.5 },
-	};
+		e.CloseType = StrikeType.Blast.Key();
+		e.Optional = true;
+		e.MaxHealth = 60.0f;
+		e.BodySize = new Vector2(18, 36);
+		e.HurtboxSize = new Vector2(22, 42);
+		e.MoveSpeed = 40.0f;
+		e.PatrolDistance = 80.0f;
+		e.CloseRange = 150.0f;
+		e.AttackAlignY = 52.0f;
+		e.AttackCooldown = 2.4f;
+		e.CloseDamage = 0.0f;
+		e.CloseKnockback = 0.0f;
+		e.CloseStun = 0.0f;
+		e.CloseGust = 540.0f;
+		e.AttackHitstop = 2.0f;
+		e.AttackShake = 1.5f;
+	});
 
-	public static readonly GDict MATAT = new()
+	public static readonly EnemyKit Matat = new(EnemyIds.Matat, "Matat", EnemyTier.Strong, EnemyMovement.Ground, e =>
 	{
-		{ "id", EnemyIds.Matat }, { "display_name", "Matat" }, { "tier", (int)EnemyTier.Strong }, { "movement", (int)EnemyMovement.Ground }, { "close_type", StrikeType.Aoe.Key() }, { "conform_ground", true },
-		{ "max_health", 95.0 }, { "body_size", new Vector2(20, 34) }, { "hurtbox_size", new Vector2(24, 40) },
-		{ "move_speed", 40.0 }, { "patrol_distance", 90.0 }, { "far_range", 300.0 },
-		{ "close_range", 52.0 }, { "attack_align_y", 44.0 }, { "attack_cooldown", 1.2 },
-		{ "attack_loops", true }, { "attack_hitstop", 0.0 },
-		{ "close_damage", 11.0 }, { "close_knockback", 150.0 }, { "close_stun", 0.25 },
-		{ "close_hitbox_x", 0.0 }, { "close_hitbox_extents", new Vector2(46, 30) }, { "close_strike_lifetime", 0.35 },
-	};
+		e.CloseType = StrikeType.Aoe.Key();
+		e.ConformGround = true;
+		e.MaxHealth = 95.0f;
+		e.BodySize = new Vector2(20, 34);
+		e.HurtboxSize = new Vector2(24, 40);
+		e.MoveSpeed = 40.0f;
+		e.PatrolDistance = 90.0f;
+		e.FarRange = 300.0f;
+		e.CloseRange = 52.0f;
+		e.AttackAlignY = 44.0f;
+		e.AttackCooldown = 1.2f;
+		e.AttackLoops = true;
+		e.AttackHitstop = 0.0f;
+		e.CloseDamage = 11.0f;
+		e.CloseKnockback = 150.0f;
+		e.CloseStun = 0.25f;
+		e.CloseHitboxX = 0.0f;
+		e.CloseHitboxExtents = new Vector2(46, 30);
+		e.CloseStrikeLifetime = 0.35f;
+	});
 
-	public static readonly GDict TARRI = new()
+	public static readonly EnemyKit Tarri = new(EnemyIds.Tarri, "Tarri", EnemyTier.Mid, EnemyMovement.Ground, e =>
 	{
-		{ "id", EnemyIds.Tarri }, { "display_name", "Tarri" }, { "tier", (int)EnemyTier.Mid }, { "movement", (int)EnemyMovement.Ground }, { "close_type", StrikeType.Blast.Key() },
-		{ "max_health", 70.0 }, { "body_size", new Vector2(18, 24) }, { "hurtbox_size", new Vector2(22, 28) },
-		{ "move_speed", 34.0 }, { "patrol_distance", 100.0 },
-		{ "close_range", 140.0 }, { "attack_align_y", 52.0 }, { "attack_cooldown", 2.6 },
-		{ "close_hitbox_x", 70.0 }, { "close_hitbox_extents", new Vector2(70, 22) }, { "close_strike_lifetime", 2.0 },
-		{ "close_damage", 16.0 }, { "close_knockback", 120.0 }, { "close_stun", 0.3 },
-		{ "attack_hitstop", 2.0 }, { "attack_shake", 1.5 },
-	};
+		e.CloseType = StrikeType.Blast.Key();
+		e.MaxHealth = 70.0f;
+		e.BodySize = new Vector2(18, 24);
+		e.HurtboxSize = new Vector2(22, 28);
+		e.MoveSpeed = 34.0f;
+		e.PatrolDistance = 100.0f;
+		e.CloseRange = 140.0f;
+		e.AttackAlignY = 52.0f;
+		e.AttackCooldown = 2.6f;
+		e.CloseHitboxX = 70.0f;
+		e.CloseHitboxExtents = new Vector2(70, 22);
+		e.CloseStrikeLifetime = 2.0f;
+		e.CloseDamage = 16.0f;
+		e.CloseKnockback = 120.0f;
+		e.CloseStun = 0.3f;
+		e.AttackHitstop = 2.0f;
+		e.AttackShake = 1.5f;
+	});
 
-	public static readonly GDict BRESKI = new()
+	public static readonly EnemyKit Breski = new(EnemyIds.Breski, "Breski", EnemyTier.Strong, EnemyMovement.Ground, e =>
 	{
-		{ "id", EnemyIds.Breski }, { "display_name", "Breski" }, { "tier", (int)EnemyTier.Strong }, { "movement", (int)EnemyMovement.Ground }, { "close_type", StrikeType.Melee.Key() },
-		{ "max_health", 110.0 }, { "body_size", new Vector2(18, 28) }, { "hurtbox_size", new Vector2(22, 34) },
-		{ "move_speed", 46.0 }, { "patrol_distance", 90.0 },
-		{ "close_range", 56.0 }, { "attack_align_y", 44.0 }, { "attack_cooldown", 1.8 },
-		{ "close_damage", 10.0 }, { "close_knockback", 130.0 }, { "close_stun", 0.2 },
-		{ "attack_hitstop", 0.12 }, { "attack_shake", 1.0 },
-	};
+		e.CloseType = StrikeType.Melee.Key();
+		e.MaxHealth = 110.0f;
+		e.BodySize = new Vector2(18, 28);
+		e.HurtboxSize = new Vector2(22, 34);
+		e.MoveSpeed = 46.0f;
+		e.PatrolDistance = 90.0f;
+		e.CloseRange = 56.0f;
+		e.AttackAlignY = 44.0f;
+		e.AttackCooldown = 1.8f;
+		e.CloseDamage = 10.0f;
+		e.CloseKnockback = 130.0f;
+		e.CloseStun = 0.2f;
+		e.AttackHitstop = 0.12f;
+		e.AttackShake = 1.0f;
+	});
 
 	// --- Wardens (elite tier: WardenEnemy — teleporting lunger, cinematic spawn, persistent corpse) ---
-	public static readonly GDict KROJ = new()
+	public static readonly EnemyKit Kroj = EnemyKit.Of<WardenEnemy>(EnemyIds.Kroj, "Kroj", EnemyTier.Strong,
+		EnemyMovement.Ground, "res://scenes/warden.tscn", e =>
 	{
-		{ "scene", "res://scenes/warden.tscn" }, { "id", EnemyIds.Kroj }, { "display_name", "Kroj" },
-		{ "movement", (int)EnemyMovement.Ground }, { "tier", (int)EnemyTier.Strong },
-		{ "max_health", 300.0 }, { "body_size", new Vector2(28, 44) }, { "hurtbox_size", new Vector2(34, 52) },
-		{ "move_speed", 55.0 }, { "aggro", true }, { "aggro_range", 640.0 }, { "lira_drop", 12 },
-        // Attack = a LUNGE (close_type=lunge): he closes and body-checks; close_lunge is the forward impulse.
-        { "close_type", StrikeType.Lunge.Key() }, { "close_range", 130.0 }, { "close_lunge", 460.0 },
-		{ "close_damage", 22.0 }, { "close_knockback", 190.0 }, { "close_stun", 0.3 },
-		{ "close_hitbox_x", 30.0 }, { "close_hitbox_extents", new Vector2(40, 40) }, { "close_strike_lifetime", 0.3 },
-		{ "attack_cooldown", 2.0 }, { "attack_align_y", 54.0 }, { "attack_hitstop", 0.0 },
-        // Teleport pursuit (WardenEnemy exports) — warp in when the player stays far, landing outside lunge range.
-        { "teleport_range", 360.0 }, { "teleport_delay", 1.6 }, { "teleport_land_offset", 96.0 },
-	};
+		e.MaxHealth = 300.0f;
+		e.BodySize = new Vector2(28, 44);
+		e.HurtboxSize = new Vector2(34, 52);
+		e.MoveSpeed = 55.0f;
+		e.Aggro = true;
+		e.AggroRange = 640.0f;
+		// Attack = a LUNGE: he closes and body-checks; CloseLunge is the forward impulse.
+		e.CloseType = StrikeType.Lunge.Key();
+		e.CloseRange = 130.0f;
+		e.CloseLunge = 460.0f;
+		e.CloseDamage = 22.0f;
+		e.CloseKnockback = 190.0f;
+		e.CloseStun = 0.3f;
+		e.CloseHitboxX = 30.0f;
+		e.CloseHitboxExtents = new Vector2(40, 40);
+		e.CloseStrikeLifetime = 0.3f;
+		e.AttackCooldown = 2.0f;
+		e.AttackAlignY = 54.0f;
+		e.AttackHitstop = 0.0f;
+		// Teleport pursuit — warp in when the player stays far, landing outside lunge range.
+		e.TeleportRange = 360.0f;
+		e.TeleportDelay = 1.6f;
+		e.TeleportLandOffset = 96.0f;
+	}) with { LiraDrop = 12 };
 }

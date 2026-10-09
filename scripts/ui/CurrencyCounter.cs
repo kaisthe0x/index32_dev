@@ -10,9 +10,9 @@ public partial class CurrencyCounter : HBoxContainer
 {
     private const float IconSize = 24.0f;
 
-    private readonly string _iconPath;
-    private TextureRect _icon;
-    private Label _label;
+    private readonly string _iconPath = "";
+    private TextureRect _icon = null!;
+    private Label _label = null!;
     private int _count = 0;
 
     public CurrencyCounter() { } // Godot needs a parameterless constructor; the HUD always builds it with an icon

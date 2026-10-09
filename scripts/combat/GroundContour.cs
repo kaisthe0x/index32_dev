@@ -38,7 +38,7 @@ public sealed class GroundContour
     /// an enemy's <c>SpawnAttack</c>). Returns false when there's no ground under the impact — the caller then
     /// discards the effect (an AoE over a pit shouldn't emit or hit). A null space (can't sample) leaves it as authored.
     /// </summary>
-    public static bool Conform(Node2D node, PhysicsDirectSpaceState2D space)
+    public static bool Conform(Node2D node, PhysicsDirectSpaceState2D? space)
     {
         if (node == null || space == null)
             return true;
@@ -83,7 +83,7 @@ public sealed class GroundContour
     /// impact column, stopping at the first gap each side. Each ray searches ±<paramref name="reach"/> around the
     /// previous sample's height, so it tracks curves. Returns null if there's no ground under the impact itself.
     /// </summary>
-    public static GroundContour Build(PhysicsDirectSpaceState2D space, Vector2 center, float halfWidth, float step, float reach)
+    public static GroundContour? Build(PhysicsDirectSpaceState2D? space, Vector2 center, float halfWidth, float step, float reach)
     {
         if (space == null || step <= 0.0f)
             return null;

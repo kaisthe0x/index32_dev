@@ -11,7 +11,7 @@ namespace MyGame;
 /// </summary>
 public sealed record Action
 {
-    private readonly string _name;
+    private readonly string? _name;
 
     public string Id { get; init; } = "";
     /// <summary>Display name; falls back to a title-cased <see cref="Id"/> when unset.</summary>
@@ -23,11 +23,11 @@ public sealed record Action
     public ActionStyle Style { get; init; } = ActionStyle.Standard;
     public string[] Tags { get; init; } = [];
     public float Cooldown { get; init; } = 0.0f;
-    public HitData Hit { get; init; } = null;
-    public Locomotion Move { get; init; } = null;
-    public SurgeSpec Surge { get; init; } = null;
+    public HitData? Hit { get; init; }
+    public Locomotion? Move { get; init; }
+    public SurgeSpec? Surge { get; init; }
     /// <summary>Explicit animation name; when null the animation is derived from <see cref="Category"/> + <see cref="Id"/>.</summary>
-    public string AnimationOverride { get; init; } = null;
+    public string? AnimationOverride { get; init; }
 
     /// <summary>The sprite animation this action plays — <c>attack_&lt;id&gt;</c> / <c>special_&lt;id&gt;</c> / <c>surge_&lt;id&gt;</c>, or the override.</summary>
     public StringName Animation => AnimationOverride ?? Category switch

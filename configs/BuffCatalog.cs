@@ -16,13 +16,13 @@ namespace MyGame;
 /// </summary>
 public static class BuffCatalog
 {
-    public static readonly Dictionary<string, Func<Buff>> FACTORIES = new()
+    public static readonly Dictionary<string, Func<Buff>> Factories = new()
     {
         // --- lifesteal (LifestealBuff via OnHitDealt): chance per hit to restore half a block ---
         [BuffIds.Bloodrush] = () => new LifestealBuff(BuffIds.Bloodrush, 0.08f),
         [BuffIds.Skim] = () => new LifestealBuff(BuffIds.Skim, 0.03f),
 
-        // --- immunity windows (InvulnBuff via grant_invuln, routed by trigger): seconds ---
+        // --- immunity windows (InvulnBuff via GrantInvuln, routed by trigger): seconds ---
         [BuffIds.DashImmunity] = () => new InvulnBuff(BuffIds.DashImmunity, Trigger.OnDash, 1.5f),
         [BuffIds.JumpImmunity] = () => new InvulnBuff(BuffIds.JumpImmunity, Trigger.OnGroundJump, 1.0f),
         [BuffIds.SlamImmunity] = () => new InvulnBuff(BuffIds.SlamImmunity, Trigger.OnSlamLand, 2.0f),
@@ -46,23 +46,11 @@ public static class BuffCatalog
 
         // --- attack ramp: Momentum (OnHitDealt → stacking damage; resets when a full swing/combo whiffs, via OnAnimEnd) ---
         [BuffIds.Momentum] = () => new MomentumBuff(BuffIds.Momentum, 1.40f) { AppliesTo = { "attack" } },
-
-        // TODO(slam_feast): no enemy kill-count is available at OnSlamLand — the slam's damage Strike (slam_default)
-        //   is a burst the ParticleDirector spawns on the slam anim frames 3/4, i.e. AFTER SlamRelease dispatches
-        //   OnSlamLand, so no kills are counted yet at the hook — defer until a slam-kill tally lands.
-        // TODO(backstab): needs the victim's position vs the player's facing at CONTACT; damage is baked into the
-        //   Hitbox at activate time and applied in Hitbox.OnAreaEntered (amount already fixed), with no pre-contact
-        //   per-victim tuning hook — defer until an on-contact tuning seam exists.
-        // TODO(pd_haste/pd_fury/pd_aegis): a dash dodge can't be detected cleanly — dash i-frames work by making the
-        //   player's Hurtbox non-Monitorable during the active dash (Player._PhysicsProcess), so an incoming hit
-        //   never reaches OnHurt (no Area overlap fires) and there is no "avoided due to dash" event. Emitting would
-        //   require flipping that hurtbox logic and guessing intent — risks breaking the dodge — defer until a clean
-        //   perfect-dodge window is added.
     };
 
     /// <summary>Player-facing name + one-line description per buff id (HUD + offers). Complements the per-tier
     /// scaling in FACTORIES. Keep in sync with FACTORIES as buffs are added.</summary>
-    public static readonly Dictionary<string, (string Name, string Desc)> INFO = new()
+    public static readonly Dictionary<string, (string Name, string Desc)> Info = new()
     {
         [BuffIds.Bloodrush] = ("Bloodrush", "Landing a hit has a good chance to restore half a health block."),
         [BuffIds.Skim] = ("Skim", "Landing a hit has a small chance to restore half a health block."),
@@ -83,13 +71,13 @@ public static class BuffCatalog
     public static readonly HashSet<string> Parked = new() { BuffIds.InstantReset };
 
     /// <summary>Build the <see cref="Buff"/> for <paramref name="id"/> (null if it isn't implemented), with its Name +
-    /// Description filled from <see cref="INFO"/>.</summary>
-    public static Buff Make(string id)
+    /// Description filled from <see cref="Info"/>.</summary>
+    public static Buff? Make(string id)
     {
-        if (!FACTORIES.TryGetValue(id, out var f))
+        if (!Factories.TryGetValue(id, out var f))
             return null;
         var buff = f();
-        if (INFO.TryGetValue(id, out var info))
+        if (Info.TryGetValue(id, out var info))
         {
             buff.Name = info.Name;
             buff.Description = info.Desc;
@@ -104,15 +92,14 @@ public static class BuffCatalog
     {
         var equipped = new HashSet<string>
         {
-            player.loadout_id(LoadoutCategory.Attack), player.loadout_id(LoadoutCategory.Special),
+            player.LoadoutId(LoadoutCategory.Attack), player.LoadoutId(LoadoutCategory.Special),
         };
         var ids = new List<string>();
-        foreach (string id in FACTORIES.Keys)
+        foreach (string id in Factories.Keys)
         {
-            if (Parked.Contains(id) || player.has_passive(id))
+            if (Parked.Contains(id) || player.HasPassive(id))
                 continue;
-            Buff b = Make(id);
-            if (b.AppliesTo.All(a => a is "*" or "attack" or "special" || equipped.Contains(a)))
+            if (Make(id) is { } b && b.AppliesTo.All(a => a is "*" or "attack" or "special" || equipped.Contains(a)))
                 ids.Add(id);
         }
         return ids;

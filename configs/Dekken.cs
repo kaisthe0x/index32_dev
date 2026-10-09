@@ -24,7 +24,7 @@ public static class Dekken
 
     /// <summary>The perk pool. <c>Value</c> per perk: Heal = half-blocks restored; Fig Chance = added drop chance;
     /// Magnet = pull radius (px); Shield = hits blocked per round; Wider Pull = extra Come Closer targets.</summary>
-    public static readonly PerkDef[] PERKS =
+    public static readonly PerkDef[] Perks =
     {
         new(PerkIds.Heal, "Heal", "Restore a health block.", PerkDuration.OneUse, 0, 20, 2f),
         new(PerkIds.FastTravel, "Fast Travel", "Teleport to the mystery box.", PerkDuration.OneUse, 0, 20, 0f),
@@ -36,7 +36,7 @@ public static class Dekken
             SpecialIds.ComeCloser),
     };
 
-    private static readonly Dictionary<string, PerkDef> ById = PERKS.ToDictionary(d => d.Id); // after PERKS: init order
+    private static readonly Dictionary<string, PerkDef> ById = Perks.ToDictionary(d => d.Id); // after PERKS: init order
 
     /// <summary>The perk with this <see cref="PerkIds"/> id.</summary>
     public static PerkDef Get(string id) => ById[id];

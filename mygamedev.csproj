@@ -6,7 +6,32 @@
     <RootNamespace>MyGame</RootNamespace>
     <!-- Strictness the migration is FOR: nullable reference types + latest C#. -->
     <Nullable>enable</Nullable>
+    <!-- The build is warning-free (docs/standards.md, rule V1): a new warning fails it, so none can pile up unseen. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
+
+  <!-- Compile-time log. Times the C# compile step itself (CoreCompile) and appends one line per COMPILE to
+       build_times.log (git-ignored: timings are per machine): when, configuration, seconds, source files.
+       Runs for every build, from the command line or the Godot editor; a build with nothing to recompile adds no
+       line (the compiler did not run, so the assembly in obj/ is older than the stamp). The game prints the
+       last line when it starts from the editor (helpers/BuildLog.cs), because the editor shows build messages
+       only in its MSBuild panel. -->
+  <Target Name="StampCompileStart" BeforeTargets="CoreCompile">
+    <PropertyGroup>
+      <CompileStartTicks>$([System.DateTime]::Now.Ticks)</CompileStartTicks>
+    </PropertyGroup>
+  </Target>
+  <Target Name="LogCompileTime" AfterTargets="CoreCompile">
+    <PropertyGroup>
+      <AssemblyWritten>@(IntermediateAssembly->'%(ModifiedTime)')</AssemblyWritten>
+      <CompilerRan Condition="'$(AssemblyWritten)' != '' And $([System.DateTime]::Parse('$(AssemblyWritten)').Ticks) &gt;= $(CompileStartTicks)">true</CompilerRan>
+      <CompileTicks>$([MSBuild]::Subtract($([System.DateTime]::Now.Ticks), $(CompileStartTicks)))</CompileTicks>
+      <CompileSeconds>$([System.TimeSpan]::FromTicks($(CompileTicks)).TotalSeconds.ToString("F2"))</CompileSeconds>
+      <CompileLogLine>$([System.DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss"))  $(Configuration)  $(CompileSeconds) s  @(Compile->Count()) files</CompileLogLine>
+    </PropertyGroup>
+    <Message Condition="'$(CompilerRan)' == 'true'" Importance="high" Text="Compile time: $(CompileSeconds) s (@(Compile->Count()) files, $(Configuration))" />
+    <WriteLinesToFile Condition="'$(CompilerRan)' == 'true'" File="$(MSBuildProjectDirectory)/build_times.log" Lines="$(CompileLogLine)" Overwrite="false" />
+  </Target>
 </Project>

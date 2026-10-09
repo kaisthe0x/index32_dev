@@ -55,7 +55,7 @@ burst on the **last** death frame (the poof lands as the pose dissolves), `"spaw
 
 **Referencing a scene.** A row points at its scene by **`preload("res://…")`** in the
 `Emitters` table — validated at parse time, resident before the game runs (no runtime `load`).
-Keep scenes role-named (`attack_chainsaw`, `run_default`, `special_ready`) and organized:
+Keep scenes role-named (`attack_chainsaw`, `run_default`, `SpecialReady`) and organized:
 **art that only one attack uses lives in that attack's folder**
 (e.g. khalid's sit in `khalid/attack/ora_ora/`); art reused across a
 character's effects goes in that character's `shared/textures/`; art reused across
@@ -77,7 +77,7 @@ frames. Adding an effect is a scene + a table row, no code.
    the `Action`'s `hit` (`configs/actions_<char>.gd`) at spawn (see the damage section below) — nothing is baked here.
 
    **How a scene is referenced.** A row names its scene with **`preload("res://…")`** in
-   `EmittersCharacters.TABLE` — so it's validated at parse time and resident before the game
+   `EmittersCharacters.Table` — so it's validated at parse time and resident before the game
    runs (no runtime `load`, no folder-scan index). Reusable building blocks are declared once as
    named consts and referenced across rows (e.g. `WIND_STREAKS`). Files still live under
    `vfx/character/<id>/…` / `vfx/shared/` — that's just where they sit on disk; the table points
@@ -86,8 +86,11 @@ frames. Adding an effect is a scene + a table row, no code.
    `script/build_particles.gd` scaffolds a starter scene (it **skips files that
    already exist**, so it never clobbers editor tweaks); shared textures come from
    `script/gen_particle_textures.py`.
-2. **Config** — `EmittersCharacters.TABLE` (GDScript), keyed
-   `character -> animation -> [ { scene, node?, set?, mode, frames, pos } ]`:
+2. **Config** — `EmittersCharacters.Table` (`vfx/config/EmittersCharacters.cs`), keyed
+   `character -> animation -> EmitterDef[]`. A row is a typed **`EmitterDef`** record
+   (`records/vfx/EmitterDef.cs`): `new EmitterDef(scene, pos) { Mode, Frames, AllFrames, ConformToGround,
+   Follow, Configure }` — the scene and position are required, the rest default to a plain burst. The fields are
+   described below under their old short names (`scene`, `mode`, `frames`, `pos`):
    - `scene` — a `preload`ed scene whose root is a single `CPUParticles2D`/`GPUParticles2D`,
      **or a `Node2D` bundling several** as one composite attack (the director drives
      all of them, and mirrors the composite by flipping `scale.x`, so its child
@@ -99,43 +102,26 @@ frames. Adding an effect is a scene + a table row, no code.
      under the scale flip) + a `Hitbox`. It briefly grows+fades its visuals and frees
      itself, and the director accepts it and arms its hitbox like any burst (see
      khalid's `attack_ora_ora`). Layering separate scenes (several `{…}`) still works.
-   - `node` — *optional* **palette addressing**. A "palette" scene bundles several
-     *independently-scheduled* emitters as named children; `node` names the one this
-     row fires. List the **same `scene`** with different `node`s to fire different
-     children on different frames — e.g. a palette scene could hold a `Shot` (fired
-     on `[2,4]`) and a `ShotLast` (a different-textured projectile, fired on `[7]`),
-     each its own self-contained `Shot`/`Hitbox`. (No shipped move uses `node` today —
-     Cherry Shots' two differing shots are two separate per-frame scenes instead.) Omit
-     `node` for the whole scene (single or composite). Note: `node` **lifts one child out and drops the rest**
-     (including sibling hitboxes) — to just reskin a shared scene per hit, use `set`,
-     not `node`.
-   - **Per-hit split files (preferred for multi-hit attacks).** Rather than bundle
-     every hit's emitters into one palette scene addressed by `node`, give each hit
+   - **Per-hit split files (how multi-hit attacks are authored).** Give each hit
      its **own** scene file named `<effect>_<sheetframe>.tscn` (frames it fires on,
      `_`-separated: `_3`, `_1_2` for two frames sharing one look, and a bare name =
      every frame). Each file is a self-contained `Strike` + `Hitbox` + its particles,
-     wired as an ordinary row with **no `node` key** (the whole file fires). This is
+     wired as an ordinary row (the whole file fires). This is
      what khalid's `attack_twin_reaper` uses — `attack_twin_reaper_3.tscn` …`_9.tscn`.
-     Why it beats the palette: each hit's emitters **edit in isolation** (open the one
-     file — no overlapping-emitter soup), no cross-hit subresource duplication, and the
-     director spawns exactly the file it needs instead of instancing the whole bundle and
-     discarding the rest. Frames still live in the config row for now; a later generator
-     can infer them from the filenames. Reserve `node`/palette for a scene whose parts
-     genuinely must live together.
+     Each hit's emitters **edit in isolation** (open the one file — no overlapping-emitter
+     soup), with no cross-hit subresource duplication, and the director spawns exactly the
+     file it needs. Frames live in the config row.
      **What does NOT split:** the `_<frame>` convention is only for **frame-scheduled
      multi-hit** effects. A **single-emission** effect (bakshen, ground_breaker, frenemy)
      is already one file — leave it bare-named. An **event-fired** effect (the dashes,
-     double-jump — fired by `fire_effect()`, not an animation frame) also stays one scene;
+     double-jump — fired by `FireEffect()`, not an animation frame) also stays one scene;
      where it needs a following part *and* a lingering part (the crimson vortex's follow
      `Trail` + lingering `Vortex`), that split is handled **inside** the scene by the
      `Trail` node-name convention (below), not by separate files. Splitting only kicks in
      when one move fires distinct groups on distinct **frames**.
-   - `set` — *optional* **property overrides** applied on spawn, so one shared scene
-     covers several variants without a clone per tweak. Keys are `"ChildPath:property"`
-     (an empty path targets the spawned node itself); a `"res://…"` value is loaded
-     as a `Resource`. E.g. `"set": { "Slash:texture": "res://…/slash_down.png" }`
-     shows a different crescent on one combo hit — no second scene. (Now that the table is
-     GDScript, a `set` value can be any literal — `Vector2`, a `preload`ed resource, a scalar.)
+   - `Configure` — *optional* typed hook run on the spawned node, for the rare row that must
+     change the instance it spawns (Cherry Shots' last shot turns on homing through
+     `EmittersCharacters.HomingShot`). A different LOOK is a different scene, not a hook.
    - **Composite child positions** — in a `Node2D` composite, the director only
      positions the *root* (at `pos`); each child particle keeps the local position
      you authored inside the scene. So lay one child at the feet `(0,0)`, another
@@ -149,38 +135,26 @@ frames. Adding an effect is a scene + a table row, no code.
      **burst** is **anchored in the world** at the spot it fires and stays put as
      he moves on — right for a blast/detonation.
      - **Code-triggered bursts** — a `burst` keyed under an animation name the sprite
-       never plays won't auto-fire on a frame; call `ParticleDirector.fire_effect(key)`
+       never plays won't auto-fire on a frame; call `ParticleDirector.FireEffect(key)`
        to spawn it on a game event instead. That's how the **double jump** works: its
        effect lives under `double_jump` and `player.gd` fires it only on the air jump
        (so the ground jump stays silent). See the double-jump note in the root README.
    - `frames` — **sheet-relative** indices (same numbering as `loop_from` /
      `hit_frames`; the idle-reference frame counts). Converted to emitted indices
-     via the `sheet_start` SpriteFrames metadata. Or the string **`"all"`** —
-     expands to *every* frame of that animation, so a whole-animation effect (an
+     via the `sheet_start` SpriteFrames metadata. Or set **`AllFrames = true`** —
+     it expands to *every* frame of that animation, so a whole-animation effect (an
      idle aura, say) needs no frame list and never breaks when the frame count
      changes.
    - Multiple emitters can share an `animation` — list several `{...}` and they all
      play together (that's how you layer several particle scenes at once).
    - `pos` — `[x, y]` pixel offset from the sprite origin (the feet), for facing
      right; auto-mirrored when facing left.
-   - `boost` — *optional* intensity, so one type can be reused at different
-     power levels instead of duplicating the scene:
-
-     | Key | Meaning |
-     |---|---|
-     | `amount` | particle count **multiplier** |
-     | `speed` | initial-velocity **multiplier** |
-     | `scale` | particle-size **multiplier** |
-     | `lifetime` | lifetime **multiplier** |
-     | `explosiveness` | absolute `0..1` (multiplying the usual 0 would do nothing) |
-
-     They're multipliers *on the scene's own values*, so they keep tracking the
-     base as you tune it. One scene owns the *look*, the JSON owns *how hard it
-     hits*. Fork a separate scene only when an effect needs a genuinely different
-     look (direction, spread, colour, gravity, rotation), not just more power.
+   - **One scene per look and per power level.** A row cannot rescale a scene's particle
+     count / speed / size: a stronger version of an effect is its own scene. (The old `boost`,
+     `set` and `node` row keys were removed on 2026-10-09 — no row used `boost` or `node`.)
 
    > **Sounds are NOT here.** This config is particles only. Frame-synced hit sounds live in the
-   > parallel **`SfxCharacters.FRAMES`** (same `anim → {frame: cue}` shape, sheet-relative) and are
+   > parallel **`SfxCharacters.Frames`** (same `anim → {frame: cue}` shape, sheet-relative) and are
    > played by the same director in `_refresh`, symmetrically to the bursts. See the Audio section
    > in the top-level README.
 
@@ -210,7 +184,7 @@ scene**. Code owns the numbers (clobber-safe, buffable); the editor owns the geo
    the `extents`/`x` reach + `lunge`/`super_armor`/`multi_hit`) in the action's `hit.segments`
    in **`configs/actions_<char>.gd`** — NOT on the `Hitbox`. The player resolves them via
    `resolve_tuning()` (the buff seam) into `_active_hit`, and the director's
-   `_inject_tuning` passes them to the node's `apply_tuning()` when it arms the box. Any
+   `_inject_tuning` passes them to the node's `ApplyTuning()` when it arms the box. Any
    value left on the `Hitbox` is a fallback used only when the action's `hit` omits it
    (or is null — the cherry_shots case, where two shots carry their own per-shot damage).
 3. The **`ParticleDirector` arms it**: on spawn it sets `source` and switches the box on
@@ -299,7 +273,7 @@ Pick the layer by *what the effect is*:
 
 Enemy effects live under `vfx/enemy/<id>/attack/` (and `…/other/`) and are loaded **by path**,
 not the director index. Which scene each enemy emits — and where — comes from
-**the `Emitters` config** (see below), keyed by `enemy_id`. `enemy.gd` reads the
+**the `Emitters` config** (see below), keyed by `EnemyId`. `enemy.gd` reads the
 `projectile` entry and spawns a **hostile `Projectile`** (the same `scripts/combat/projectile.gd`
 players use — team via the `hostile` flag) with that scene as its visual + a `Hitbox` built from
 the enemy's ranged tuning; a `lob` reads `delayed_projectile` (the thrown object) and
@@ -311,10 +285,10 @@ passive movement trail is `<state>_trail`. Two ranged examples:
 (Every scene named below is wired through the `Emitters` config, not a script/roster field.)
 
 - **Baghel** `projectile` = `attack/baghel_projectile.tscn` — a `CPUParticles2D` ground surge
-  (the `forward` ranged mode, with a scorched `ground_trail`).
+  (the `forward` ranged mode, with a scorched `GroundTrail`).
 - **Kebus** `projectile` = `attack/kebus_projectile.tscn` — an aimed staff bolt: an ember-trail
   `CPUParticles2D` + a soft glow `Core`. (An enemy with no `projectile` scene gets the built-in orb.)
-- **Mazab** (`far_mode = "lob"`) uses **two** config entries for its thrown bomb: `delayed_projectile`
+- **Mazab** (`FarMode = FarMode.Lob`) uses **two** config entries for its thrown bomb: `delayed_projectile`
   = `attack/mazab_delayed_projectile.tscn` (a steel-blue glowing `Core` + short dust trail — a `LobProjectile`
   spins it as it arcs) and `delayed_projectile_burst` = `attack/mazab_delayed_projectile_burst.tscn` (a one-shot radial shard
   burst + ground dust, instanced inside the explosion `Strike`, not on the projectile). A lob has
@@ -326,13 +300,13 @@ passive movement trail is `<state>_trail`. Two ranged examples:
   patrols with no trail.
   The trails are `local_coords = false` so they rake out behind the orb as it moves.
 
-### Enemy emitters — `EmittersEnemies.TABLE` (THE one place)
+### Enemy emitters — `EmittersEnemies.Table` (THE one place)
 
-Every enemy's particle emitters live in one table, `vfx/config/emitters_enemies.gd` — the enemy
+Every enemy's particle emitters live in one table, `vfx/config/EmittersEnemies.cs` — the enemy
 counterpart to `EmittersCharacters`, but simpler: enemy effects are attached in **code** by
 state/event (a trail worn while patrolling, a blast on arrival, a projectile visual on the shot),
 not fired on animation frames, so there's **no frame scheduling** — only *which* scene and
-*where*. Keyed `enemy_id → effect → { "scene": preload("res://…"), "pos": Vector2(x, y) }`:
+*where*. Keyed `EnemyId → effect → new EmitterDef(scene, pos)` (the same typed record as the character table):
 
 - **`scene`** — the preloaded scene to emit. The table is **authoritative for presence**: delete a
   row (or clear its `scene`) and the enemy **stops emitting it entirely** — no code change. (That's
@@ -347,8 +321,8 @@ fallback)` / `_make_vfx(effect)` (instantiate + position, or null if no scene) �
 `Emitters.enemy_effect(id, effect)`. Effect keys today: `ein → attack_trail / explosion`, `nasen →
 rage`, `kebus/baghel → projectile`, `mazab → projectile / explosion`. Add an enemy or effect row
 to give it a look/position with **no code change**. (This owns the *visual*;
-an AoE's *hitbox* size/offset stays a combat `@export` like `explosion_offset` / `rage_extents` /
-`lob_explosion_extents`, and combat behavior like `far_mode` stays in the roster.)
+an AoE's *hitbox* size/offset stays a combat `@export` like `ExplosionOffset` / `RageExtents` /
+`LobExplosionExtents`, and combat behavior like `FarMode` stays in the roster.)
 
 ## Build tools
 
@@ -384,29 +358,29 @@ life. Facing is by travel direction: the shot rotates to its heading, so author 
 strip pointing **right**.
 
 **`Projectile` exports** (`scripts/combat/projectile.gd`): `speed`, `homing` (steer rate; 0 = fly
-straight), `max_range`, `acquire_range`. It locks the **nearest enemy ahead in the facing
-direction on the same level** — "same level" is a `±vertical_reach` band (default 40px, under
+straight), `MaxRange`, `AcquireRange`. It locks the **nearest enemy ahead in the facing
+direction on the same level** — "same level" is a `±VerticalReach` band (default 40px, under
 the platform spacing), so a homing shot **won't dive at someone a platform below just
 because they're closer in x**; nearest is measured by horizontal distance among that band.
-Set `can_fly_up = true` to drop the band (and let it steer upward). If the target **dies
+Set `CanFlyUp = true` to drop the band (and let it steer upward). If the target **dies
 mid-flight** (or none was ever in range), the shot **stops homing and flies straight along
 its launch heading** — so a trailing shot keeps going and can hit an enemy behind the dead
 one, or expires, instead of veering off on a stale curve. `impact_effect` (a `PackedScene`)
 spawns a one-shot effect at the point of contact when it hits, then self-frees; leave empty
 for none.
 
-**End / dissolve animation (`end_frames`).** So a shot that reaches `max_range`
-*without hitting anything* dissolves instead of blinking out, give it an `end_frames`
+**End / dissolve animation (`EndFrames`).** So a shot that reaches `MaxRange`
+*without hitting anything* dissolves instead of blinking out, give it an `EndFrames`
 `SpriteFrames`. On expiry the shot freezes, switches off its hitbox + any particle
-trail, swaps its `AnimatedSprite2D` to `end_frames`, and frees when that animation
+trail, swaps its `AnimatedSprite2D` to `EndFrames`, and frees when that animation
 finishes. To make one:
 
 1. Draw the dissolve as a horizontal strip named `<base>_end_anim.png` (the `_end_anim`
    suffix makes `gen_effect_frames.gd` slice it **non-looping** — a dissolve plays
    once). Drop it in the attack's folder beside the fly strip.
 2. Run `gen_effect_frames.gd` → `<base>_end_anim.tres`.
-3. Point the projectile scene's `Projectile.end_frames` at that `.tres`
+3. Point the projectile scene's `Projectile.EndFrames` at that `.tres`
    (`attack_ring_kiss.tscn` is the worked example).
 
-This is expiry-only — a hit still uses `impact_effect`. Leave `end_frames` empty to
+This is expiry-only — a hit still uses `impact_effect`. Leave `EndFrames` empty to
 keep the old blink-out.

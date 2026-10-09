@@ -19,7 +19,7 @@ public partial class OverchargeBuff : Buff
 
     public override void OnHitDealt(Player p, float amount, Node target)
     {
-        if (target is Enemy e && e.last_hit_from_special)
-            p.reduce_special_cooldown(_secs);
+        if (target is Enemy e && e.LastHitFromSpecial)
+            p.ReduceSpecialCooldown(_secs);
     }
 }

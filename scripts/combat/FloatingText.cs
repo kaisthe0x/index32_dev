@@ -26,7 +26,7 @@ public partial class FloatingText : Node2D
     /// size/colour ramp; `colorOverride` replaces the preset colour for THIS call (the player's hair pick).</summary>
     public static void Emit(FloatingTextType type, Node2D host, Vector2 localPos, string text, float magnitude = 0.0f, Color? colorOverride = null)
     {
-        if (!FloatingTextTypes.TYPES.TryGetValue(type, out var style))
+        if (!FloatingTextTypes.Types.TryGetValue(type, out var style))
         {
             GD.PushWarning($"FloatingText: unknown type '{type}'");
             return;
