@@ -971,6 +971,11 @@ Closer +2 targets; only stocked with Come Closer). All placeholders.
   whose `Collector` RunManager sets; `hit_shields` — spent in `Player.OnHurt`; `magnet_target_bonus`), and the new
   `Passive.OnRoundStart` hook (dispatched by `RunManager.StartRound` → `Player.notify_round_start`) re-arms the Shield
   and fires Prepared (`Player.surge_free`, no Ruh).
+- **The vials wear Khalid's hair colour.** `DekkenStall.TintVials` puts `vfx/shaders/vial_recolor.gdshader` on the
+  machine's art with `tint` = `PaletteConfig.HairColor()` at full brightness — the default red, or the hair colour
+  picked for the run. The shader repaints ONLY the vials: they're the art's one red ramp, so a pixel counts when red
+  dominates (g and b under `key` × r, measured in linear light — the amber glow lines sit well clear), scaled by the
+  painted pixel's brightness so the shading survives. Any stage's Dekken art works as long as its vials stay that red.
 - **The menu** is `DekkenMenu`, on the same `StallMenu` frame as Needle Point's — each row has a DRINK and a KEEP
   button. Active perks show in the HUD's
   top-right list (rounds left, or RUN).

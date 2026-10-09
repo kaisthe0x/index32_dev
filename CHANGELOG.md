@@ -22,6 +22,20 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 - **Not kept:** a separate QA-reviewer agent and a GitHub workflow to run it on pull requests were drafted and then
   dropped before ever being committed — the coding agent does the QA pass itself instead.
 
+### Dekken's vials wear Khalid's hair colour
+
+- **What:** `vfx/shaders/vial_recolor.gdshader`, applied to the machine's art by `DekkenStall.TintVials` with the
+  run's hair colour (`PaletteConfig.HairColor()`). Only the vials change; steel, amber lines and moss are untouched.
+- **Why:** the owner picked green hair and the vials stayed red; they are meant to read as the same substance.
+- **How:** the vials are the art's only red ramp, so the shader keys on red dominance and repaints those pixels the
+  tint scaled by their painted brightness. The key is measured in linear light (the project renders 2D in HDR) —
+  a first version keyed in sRGB terms recoloured the amber lines too.
+- **Could affect:** any future Dekken art must keep its vials in that red and use that red nowhere else.
+- **Tested:** windowed render of three machines (default, green, blue hair) — vials follow, amber lines do not.
+  **Not tested:** in a real run with a saved colour scheme.
+- **QA pass:** the first version had the shader parameter and node names as bare string literals and did the work
+  inline in `_Ready` (rules `T5`, `O5`); both are now named constants and a `TintVials` method.
+
 ---
 
 ## 2026-10-04 — `new-shit`

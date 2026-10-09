@@ -191,7 +191,8 @@ run that keeps getting harder).
   once) or **KEEP** it: the player carries up to **2** vials, **never two of the same kind**, and drinks one later
   with a single key press — **instant**, mid-fight (Q drinks, Tab picks). A timed perk's rounds start when it's
   drunk. Whole-run perks are drink-only. *Planned:* Dekken's items become upgradeable across runs with experience
-  points; the vials glow in Khalid's hair colour (and follow a recolour); the stall becomes a vending machine.
+  points; *Built since:* the stall is a vending
+  machine, and its vials wear Khalid's hair colour (they follow a recolour — `vial_recolor.gdshader`).
 - **Pauses the game.**
 - Placeholder perks: **Heal** (a block, 20 Lira) · **Fast Travel** (teleport to the box, one use, 20 Lira) ·
   **Fig Chance** (+5 % fig chance on every enemy, whole run, 40 Lira) · **Magnet** (loose figs within 400 px fly to
