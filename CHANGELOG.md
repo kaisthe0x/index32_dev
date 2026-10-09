@@ -6,6 +6,37 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-09 — `new-shit` — enemy status display stops allocating every tick
+
+### `Enemy.RefreshStatusIcons` compares flags instead of building a list and a string
+
+- **What:** every living enemy, every physics tick, built a new `List<StatusType>` and joined it into a string just
+  to see whether its status pips (reap / stun / charm) had changed. It now packs the three conditions into an `int`,
+  compares that, and builds the list only when the set really changes.
+- **Why:** rule `P1` (no allocation on the per-frame path). With 12 enemies alive that was about 1,400 short-lived
+  objects a second for the garbage collector. Found while reading `Enemy` for step F.
+- **Could affect:** the status pips beside an enemy's health bar and the halo over its head.
+- **Tested:** a 4-check headless scene: no pips at rest; Stun after a stun; Reap, Stun, Charm in that order when all
+  three apply; none once they run out. The 10 seam checks pass. Build 0 warnings.
+
+### Step F stops here for `Enemy` and `Player` — and why
+
+`RunManager` and `HUD` were split because they were several jobs sharing a file. `Enemy` (1,226 lines) and `Player`
+(2,219) were read with the same intent and left alone, deliberately:
+
+- Each is **one state machine** whose states share about forty fields. No block of methods can leave with a narrow
+  interface. Moving `Enemy`'s attack code (445 lines) into its own class would mean handing that class some thirty
+  of `Enemy`'s fields and exports — two classes that cannot be understood apart, which is worse than one.
+- What can leave cleanly is small: about 200 lines of `Enemy` in four pieces, about 450 of `Player` in four. That
+  takes them to ~1,000 and ~1,750 — still oversized, for real risk in the code every fight runs through.
+- Making them properly small is a **design change**: an enemy's attacks as behaviour objects its kit picks; the
+  player's states as state objects. That changes how kits and moves are authored, so it is the owner's decision,
+  and it is best done with the feature that needs it (enemy ranks; the loadout picker).
+
+Recorded under Known debt in `docs/standards.md`. Nothing in `Player` was changed.
+
+---
+
 ## 2026-10-09 — `new-shit` — cleanup, part 7 (splitting the big classes: `HUD`)
 
 Step F, second class. `HUD.cs` was 624 lines holding every widget's fields, constants and logic in one class. It is

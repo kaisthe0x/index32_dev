@@ -142,7 +142,7 @@ public partial class Enemy : Combatant
 	private StatusIcons _statusIcons = null!;
 	private OverheadStatus _overhead = null!;
 	protected float HeadY;
-	private string _shownStatus = "";
+	private int _shownStatus;   // the reap / stun / charm flags currently displayed (RefreshStatusIcons)
 	private RayCast2D _edgeRayLeft = null!, _edgeRayRight = null!;
 
 	public bool LastHitFromSpecial;
@@ -1031,8 +1031,8 @@ public partial class Enemy : Combatant
 		Hurt.SetDeferred(Area2D.PropertyName.Monitorable, false);
 		SetDeferred(CollisionObject2D.PropertyName.CollisionLayer, 0);
 		Bar.Visible = false;
-		_statusIcons.SetActive(new System.Collections.Generic.List<StatusType>());
-		_overhead.SetActive(new System.Collections.Generic.List<StatusType>());
+		_statusIcons.SetActive(new List<StatusType>());
+		_overhead.SetActive(new List<StatusType>());
 		_status.Clear();
 		if (HasDeath)
 			Play("death");
@@ -1087,16 +1087,21 @@ public partial class Enemy : Combatant
 
 	// --- status pips --------------------------------------------------------
 
+	/// <summary>Show the statuses this enemy is under (pips beside the health bar + the overhead halo). Runs every
+	/// tick, so it compares three flags and only builds the list when one of them changed.</summary>
 	private void RefreshStatusIcons()
 	{
-		var ids = new System.Collections.Generic.List<StatusType>();
-		if (_dotLeft > 0.0f) ids.Add(StatusType.Reap);
-		if (State == EState.Stun || StunLeft > 0.0f) ids.Add(StatusType.Stun);
-		if (_frenemyLeft > 0.0f) ids.Add(StatusType.Charm);
-		string key = string.Join(",", ids);
-		if (key == _shownStatus)
+		bool reap = _dotLeft > 0.0f;
+		bool stun = State == EState.Stun || StunLeft > 0.0f;
+		bool charm = _frenemyLeft > 0.0f;
+		int shown = (reap ? 1 : 0) | (stun ? 2 : 0) | (charm ? 4 : 0);
+		if (shown == _shownStatus)
 			return;
-		_shownStatus = key;
+		_shownStatus = shown;
+		var ids = new List<StatusType>();
+		if (reap) ids.Add(StatusType.Reap);
+		if (stun) ids.Add(StatusType.Stun);
+		if (charm) ids.Add(StatusType.Charm);
 		_statusIcons.SetActive(ids);
 		_overhead.SetActive(ids);
 	}
