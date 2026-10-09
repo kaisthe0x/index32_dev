@@ -10,6 +10,10 @@
 > [`docs/game-loop.md`](docs/game-loop.md) + [`docs/buff-catalog.md`](docs/buff-catalog.md). Sections below describe
 > the **current code** — the round loop itself is built; ranks, drops and Warden rounds are next.
 
+> **📐 Standards and changelog.** The rules this code is held to are in [`docs/standards.md`](docs/standards.md).
+> Every change gets a QA pass against them before it is pushed, and nothing is pushed without an entry in
+> [`CHANGELOG.md`](CHANGELOG.md): what each commit does, why and how, what it could affect, and how it was tested.
+
 A 2D pixel-art action platformer in **Godot 4.7**. A character-agnostic player controller
 drives the playable character. This repo ships **Khalid only** — four other characters were
 parked in the gitignored `playground/` directory (for a future separate repo); the engine
