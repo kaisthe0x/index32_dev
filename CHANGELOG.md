@@ -6,6 +6,161 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-09 — `new-shit` — `Player` redesign: one class per state
+
+The second half of the redesign the owner approved. `Player.cs` was 2,213 lines: one class holding fourteen states'
+logic and every state's data in one list of ~110 fields. Nothing is meant to play differently.
+
+### What he is doing is a state class; `Player` is what the states share
+
+- **What:** ten state classes in the new `scripts/player/states/`, each with the data only it needs, an `Enter()`
+  (its one-off entry effects) and a `Tick()`:
+
+  | Class | Lines | What it is |
+  |---|---|---|
+  | `FreeState` | 198 | Idle / run / jump / fall (one state — `FreeMode` only picks the animation). Every action starts here. |
+  | `SurgeState` | 219 | All of surges: firing, the effect while it lasts, the aura, Nem's sleep, Wara's armed counter. |
+  | `AttackState` | 171 | Combos (segment by segment) and flurries (looped while held); the buffered special. |
+  | `LaunchState` | 127 | Launch orbs: the orb in range, the pull, the fling, the lock-out. |
+  | `DashState` | 112 | The dash / blink and its recovery; the buffered attack. |
+  | `SpecialState` | 96 | Casting the special; its cooldown; held specials; the parry window. |
+  | `LandState` | 88 | The landing animation and everything that cancels it. |
+  | `SlamState` | 84 | The drop and the impact. |
+  | `DeathState`, `SpawnState` | 49, 25 | The two animations he cannot act in. |
+  | `PlayerState` | 46 | The base: `Animation`, `Enter()`, `Tick()`, and the helpers the states share. |
+
+  Two plain classes in `scripts/player/parts/`: **`Wallet`** (Lira and Fada Figs, with a `Changed` event the HUD
+  listens to — callers now write `player.Wallet.SpendLira(…)`) and **`BodyTint`** (the body shader and the hair's
+  flare on absorbing Ruh).
+  `Player.cs` is 1,180 lines: health and Ruh, the loadout, passives and the tuning seam, taking damage and dying,
+  the per-tick pipeline, and the three ways to change state.
+- **Why:** the owner's redesign decision. Before, the dash's four timers sat in the same list as the combo's seven
+  flags and the surge's thirteen fields, and any of them could be touched from anywhere. Now a state's data is
+  private to it; what another state may do to it is a named method (`_attack.StopSwing()`,
+  `_launch.Release(lockOut: true)`, `_surge.End()`).
+- **How:**
+  - The state classes are **nested in `Player`**, which is a `partial` class spread over those files. Nested classes
+    can use the player's private members, so nothing had to be made public for them — the shared data is still the
+    player's own, but each state's data is no longer everybody's.
+  - The fourteen-value `State` enum is gone. `Enter(state)` replaced the old `Enter` and its `switch` (each case
+    moved into that state's `Enter()`); `SetFree(mode)` replaced the plain `_state = …` assignments, which
+    deliberately skipped those entry effects; `EnterFree(mode)` is the first with a free-movement look.
+  - Idle, run, jump, fall and hurt were five enum values that all ran the same code. They are one state.
+  - The code inside each state is the old method body, moved by hand and reading the player through `P`.
+- **Removed as dead:** `_blinkPhaseWalls` (a flag nothing ever set — the blink always stops at walls), six one-line
+  wrappers (`Anim`, `HasTag`, `CooldownOf`, `IsFlurry`, `HasSlam`, `IsShielding`), and `HUD.SetLira` /
+  `SetFadaFigs` (the HUD reads the wallet itself now).
+- **Could affect:** everything Khalid does.
+- **Tested:**
+  - **A recorder, run before and after** (`handoff_files/PlayerTrace.cs`). It plays a fixed 52-part script of inputs
+    at a fixed frame rate — running, jumping, double jump, ground / air / held dash, a dash with a buffered attack,
+    the slam, each of the 5 attacks three ways (one press, held, repeated presses), an attack in the air, an attack
+    with a buffered special, each of the 7 specials, the shield held and released, a parry and a block, each of the
+    5 surges, a surge with no Ruh, Wara triggered by an enemy's hit, Nem interrupted, a flinch, a knockback, a hit
+    mid-attack, a hit during dash i-frames, a gust recovered by air jump and by dash, a launch orb, the wallet,
+    death and the restart — and writes one line per physics tick: animation and frame, position, velocity, health,
+    Ruh, facing, whether he can be hit, whether he is visible, plus every strike / projectile he produces with its
+    values and every sound. Three runs on the old code agreed on all 10,700 tick lines.
+    **The redesigned player produces the same file: 0 differing lines**, same attack nodes, same sounds.
+  - The other 42 headless checks pass (seam 10, surge / combo / box / vial 6, run loop 8, HUD 14, status 4), with
+    the checks' own peeks at private fields updated for the new classes.
+  - Applying a character to a player outside the scene tree (the editor's case) logs no error.
+  - Build 0 warnings; clean boot of the colour screen and the arena.
+  - **Not tested:** real play — the recorder proves the same inputs give the same result, tick for tick, on flat
+    ground; it does not cover platforms (drop-through), slopes, or a real fight's timing. The hair flare and the
+    HUD's counter pop were not seen.
+- **Found, not changed:** jumping at the exact moment of landing (from the land animation) makes no jump sound and
+  does not tell passives a ground jump happened, unlike every other ground jump. It was like that before; the
+  recorder would flag the fix as a difference, so it is left for the owner to confirm.
+
+---
+
+## 2026-10-09 — `new-shit` — `Enemy` redesign, step 2: its self-contained parts
+
+### Attack sounds, status display, edge sensing and the magnet pull are classes
+
+- **What:** four pieces of `Enemy` that each had their own state and a narrow job moved to the new
+  `scripts/enemies/parts/`:
+
+  | Class | Job |
+  |---|---|
+  | `AttackSounds` | An attack's start cue and its per-frame cues; a held channel's sounds on stoppable players. |
+  | `StatusDisplay` | The pips beside the health bar, the halo overhead, the coloured flash over the sprite. |
+  | `EdgeSensor` | The two rays that tell a walking enemy there is floor ahead. |
+  | `MagnetPull` | Being dragged to a point by Come Closer, and stunned on arrival. |
+
+  `Enemy.cs` is now 864 lines (1,225 before the redesign). What is left is what an enemy *is*: its stats, its
+  body, the loop that decides between patrolling, chasing and attacking, taking damage, and dying.
+- **Why:** the owner's redesign decision; rule `S3`. Each of these could be read, and changed, without knowing the
+  enemy's state machine.
+- **How:** code moved as it was. `MagnetPull.Step` returns what the enemy should do (nothing, "you have arrived",
+  or a velocity) instead of setting the enemy's fields, so the enemy still owns its own movement and stun.
+  Subclasses reach the sounds through `Sounds` instead of three forwarding methods.
+- **Left in `Enemy` on purpose:** stun, charm and the reap damage-over-time. They change what the enemy does each
+  tick (its state, its target, its health), so they are the state machine, not a part beside it. Hit-stop likewise
+  — thirty lines that freeze and shake the enemy's own sprite.
+- **Could affect:** enemy attack sounds (including a blast's sounds stopping when it is staggered); status pips,
+  halo and flash; enemies stopping at ledges and following slopes; Come Closer.
+- **Tested:** the attack recorder again matches the original baseline line for line (104 lines — it includes
+  every sound file each enemy plays). The 10 seam checks (Come Closer among them), the 8 run-loop checks and the 4
+  status checks pass. Build 0 warnings. **Not tested:** an enemy at a real ledge (the checks run on flat ground and
+  the stage's slopes only by chance); a blast interrupted mid-sound.
+
+---
+
+## 2026-10-09 — `new-shit` — `Enemy` redesign, step 1: attacks are objects
+
+The owner approved redesigning `Enemy` and `Player` rather than only moving code. This is the first step for
+`Enemy`. Nothing is meant to play differently.
+
+### An enemy's attacks are objects its kit gives it
+
+- **What:** `Enemy` carried 29 flat attack settings (`CloseDamage`, `FarRange`, `FarMode`, `LobArcTime`, …) that
+  every enemy had whether it used them or not, and one block of code that branched on them. Now an enemy has two
+  optional slots, `Close` and `Far`, each holding an **attack object** from the new `scripts/enemies/attacks/`:
+
+  | Class | What it is |
+  |---|---|
+  | `EnemyAttack` | The base: type, range, damage, knockback, stun; `Begin()` and `OnFrame(frame)`. |
+  | `MeleeAttack` | Lands on the animation's hit frames — slash, shockwave, held blast, lunge, gust. Takes its range from its effect scene's reach. |
+  | `RangedAttack` | Base for an attack that releases one thing on its fire frame, from the muzzle. |
+  | `ShotAttack` | A projectile: aimed, straight ahead, or a ground wave (`ShotPath`, was `FarMode`). |
+  | `LobAttack` | An arcing bomb that lands, dwells and bursts. |
+
+  A kit now reads `e.Far = new ShotAttack { Speed = 200, AimCap = 45 };` or
+  `e.Close = new MeleeAttack(StrikeType.Blast) { Range = 140, Damage = 16, Knockback = 120, Stun = 0.3f };`.
+  `Enemy` decides only **when** to start an attack; the attack does the rest. `Enemy.cs` went from 1,225 to 1,015
+  lines and lost 29 exports and seven methods.
+- **Why:** the owner's decision (quality and bloat). A setting that belongs to one kind of attack now lives with
+  that attack, a kit can only set what its attacks have, and a new kind of attack is a new class instead of another
+  branch in `Enemy`. Enemy ranks will build on this.
+- **How:**
+  - The two states `Close` / `Far` became one, `Attack`, with the attack in progress remembered. The enemy's
+    "start when lined up, in range and off cooldown" logic is unchanged.
+  - A melee-only enemy used the far attack's default range (300) as the distance at which it walks in on a
+    lined-up target. That number is now its own setting, `Enemy.EngageRange`, with the same default.
+  - The Sleeper and the Diver never used the base attack code — they only borrowed its animation name. Each now
+    names its own animation (`attack_aoe`, `attack_kamikaze`); their kits no longer set an attack type.
+    The Sleeper's rage always hugs the ground (its only kit had the flag on).
+  - What an attack needs from its enemy is public on `Enemy`: `Facing`, `Target()`, `SpawnAttack`, `EffectScene` /
+    `EffectPos` / `Effect` (were `VfxScene` / `VfxPos`), `HitFramesOf`, `BeginHitstop`, `Lunge`.
+- **Removed as dead:** `FarHitboxExtents` and `FarHitboxOffset` were set by two kits and read by nothing. The bare
+  melee hitbox's size, position and lifetime were settable per kit, but every kit that set them has an effect scene,
+  which is used instead — they are now constants beside the one case that needs them (Kebus's jab).
+  `Enemy.CurrentAttackType` had no caller.
+- **Could affect:** every enemy's attack — when it starts, what it spawns, its numbers, its sounds, hit-stop and
+  lunge; the Sleeper's rage and the kamikaze's dive.
+- **Tested:**
+  - **A recorder, run before and after.** For all 10 kits, each spawned far from and next to a standing player, it
+    records everything the enemy produces: each strike, projectile, lob and hitbox with every exported value after
+    tuning (damage, knockback, stun, gust, speed, range, life, flags, shape sizes) and each sound file played.
+    Two runs on the old code gave the same 104 lines; the redesigned code gives **the same 104 lines**.
+  - The 10 seam checks, the 8 run-loop checks and the 4 status checks pass. Build 0 warnings.
+  - **Not tested:** how it looks and feels in play; an enemy attacking while charmed; the Warden outside the
+    recorder's two scenarios.
+
+---
+
 ## 2026-10-09 — `new-shit` — unused `Player` members removed; the rest written down
 
 ### Nine unused members leave `Player`

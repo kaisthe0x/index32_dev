@@ -35,7 +35,7 @@ public partial class Lira : ArcFlight
     {
         if (target is not Player p)
             return;
-        p.CollectLira(1);
+        p.Wallet.CollectLira(1);
         GetNodeOrNull<Sfx>("/root/Sfx")?.PlayAt("lira_collect", GlobalPosition);
     }
 }

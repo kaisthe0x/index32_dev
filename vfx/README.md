@@ -288,7 +288,7 @@ passive movement trail is `<state>_trail`. Two ranged examples:
   (the `forward` ranged mode, with a scorched `GroundTrail`).
 - **Kebus** `projectile` = `attack/kebus_projectile.tscn` — an aimed staff bolt: an ember-trail
   `CPUParticles2D` + a soft glow `Core`. (An enemy with no `projectile` scene gets the built-in orb.)
-- **Mazab** (`FarMode = FarMode.Lob`) uses **two** config entries for its thrown bomb: `delayed_projectile`
+- **Mazab** (`a LobAttack`) uses **two** config entries for its thrown bomb: `delayed_projectile`
   = `attack/mazab_delayed_projectile.tscn` (a steel-blue glowing `Core` + short dust trail — a `LobProjectile`
   spins it as it arcs) and `delayed_projectile_burst` = `attack/mazab_delayed_projectile_burst.tscn` (a one-shot radial shard
   burst + ground dust, instanced inside the explosion `Strike`, not on the projectile). A lob has
@@ -322,7 +322,7 @@ fallback)` / `_make_vfx(effect)` (instantiate + position, or null if no scene) �
 rage`, `kebus/baghel → projectile`, `mazab → projectile / explosion`. Add an enemy or effect row
 to give it a look/position with **no code change**. (This owns the *visual*;
 an AoE's *hitbox* size/offset stays a combat `@export` like `ExplosionOffset` / `RageExtents` /
-`LobExplosionExtents`, and combat behavior like `FarMode` stays in the roster.)
+`LobAttack.ExplosionExtents`, and combat behavior like `ShotAttack.Path` stays in the roster.)
 
 ## Build tools
 

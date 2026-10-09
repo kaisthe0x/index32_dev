@@ -29,7 +29,7 @@ public sealed class ShotLedger
     /// unaffordable.</summary>
     public bool Buy(string id)
     {
-        if (Maxed(id) || !_player.SpendLira(Price(id)))
+        if (Maxed(id) || !_player.Wallet.SpendLira(Price(id)))
             return false;
         int rank = Rank(id) + 1;
         if (_owned.TryGetValue(id, out var old))

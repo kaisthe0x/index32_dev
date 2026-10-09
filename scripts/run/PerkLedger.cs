@@ -76,7 +76,7 @@ public sealed class PerkLedger
     /// nothing (<see cref="Blocked"/>), or it's unaffordable.</summary>
     public bool BuyDrink(string id)
     {
-        if (!_stock.Contains(id) || Blocked(id) != "" || !_player.SpendLira(Price(id)))
+        if (!_stock.Contains(id) || Blocked(id) != "" || !_player.Wallet.SpendLira(Price(id)))
             return false;
         Apply(Dekken.Get(id));
         return true;
@@ -86,7 +86,7 @@ public sealed class PerkLedger
     /// (<see cref="KeepBlocked"/>), or it's unaffordable.</summary>
     public bool BuyKeep(string id)
     {
-        if (!_stock.Contains(id) || KeepBlocked(id) != "" || !_player.SpendLira(Price(id)))
+        if (!_stock.Contains(id) || KeepBlocked(id) != "" || !_player.Wallet.SpendLira(Price(id)))
             return false;
         _held.Add(id);
         _heldChanged(this);

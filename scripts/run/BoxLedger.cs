@@ -21,7 +21,7 @@ public sealed class BoxLedger
     {
         if (BuffCatalog.Pool(_player).Count == 0)
             return "EMPTY";
-        return _player.FadaFigs < BoxRules.Cost ? $"NEED {BoxRules.Cost}" : "";
+        return _player.Wallet.FadaFigs < BoxRules.Cost ? $"NEED {BoxRules.Cost}" : "";
     }
 
     /// <summary>The names the box flickers through while it spins — everything it could give right now.</summary>
@@ -37,7 +37,7 @@ public sealed class BoxLedger
     /// when the box <paramref name="canRelocate"/> (the layout has another spot for it).</summary>
     public BoxRoll? Spin(bool canRelocate)
     {
-        if (Blocked() != "" || !_player.SpendFadaFigs(BoxRules.Cost))
+        if (Blocked() != "" || !_player.Wallet.SpendFadaFigs(BoxRules.Cost))
             return null;
         if (canRelocate && GD.Randf() < BoxRules.TeddyChance)
             return new BoxRoll(BoxOutcome.Teddy, "", "TEDDY BEAR", "The box moves on.");
@@ -55,7 +55,7 @@ public sealed class BoxLedger
     }
 
     /// <summary>Give the spin's figs back (the teddy bear).</summary>
-    public void Refund() => _player.CollectFadaFig(BoxRules.Cost);
+    public void Refund() => _player.Wallet.CollectFadaFigs(BoxRules.Cost);
 
     /// <summary>The player took <paramref name="roll"/>: a buff joins his passives for the run; a special replaces his.</summary>
     public void Take(BoxRoll roll)

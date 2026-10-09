@@ -27,6 +27,9 @@ public partial class DiverEnemy : Enemy
     [Export] public float ExplosionKnockback { get; set; } = 170.0f;
     [Export] public float ExplosionStun { get; set; } = 0.2f;
 
+    private static readonly string DiveKey = StrikeType.Kamikaze.Key();   // names its animation and effect rows
+    private static readonly StringName DiveAnim = "attack_" + DiveKey;
+
     private float _homeY;
     private float _bobT;
     private Vector2 _chargeTarget;
@@ -93,9 +96,9 @@ public partial class DiverEnemy : Enemy
     private void BeginCharge(Vector2 target)
     {
         _chargeTarget = target;
-        SetTrail("kamikaze_trail");
+        SetTrail(DiveKey + "_trail");
         SetState(EState.Charge);
-        Play(CloseAnim);
+        Play(DiveAnim);
         Face(Mathf.Sign(target.X - GlobalPosition.X));
     }
 
@@ -144,8 +147,8 @@ public partial class DiverEnemy : Enemy
     /// <summary>Build the arrival blast: the `kamikaze` Strike scene into the LEVEL (outlives our death).</summary>
     private void SpawnExplosion()
     {
-        SfxPlayAt("ein.kamikaze", GlobalPosition);
-        var strike = SpawnAttack(VfxScene("kamikaze"),
+        SfxPlayAt($"{EnemyId}.{DiveKey}", GlobalPosition);
+        var strike = SpawnAttack(EffectScene(DiveKey),
             new SegmentData { Damage = ExplosionDamage, Knockback = ExplosionKnockback, Stun = ExplosionStun },
             true);
         if (strike != null)

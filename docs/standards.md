@@ -181,14 +181,13 @@ A QA pass does not raise these as findings. They were chosen on purpose.
 These predate the standards. A QA pass does not report them as new findings, but **does** report a change that makes
 any of them worse, and says so when a change is a cheap chance to reduce one.
 
-- **Oversized classes:** `Player.cs` (~2,220 lines), `Enemy.cs` (~1,220). (Split on 2026-10-09: `RunManager.cs`
-  ~1,090 → ~420, `HUD.cs` ~620 → ~180.) These two are different in kind: each is one state machine whose states
-  share ~40 fields, so there is no group of methods that can leave with a narrow interface the way the camera left
-  `RunManager`. The pieces that *can* leave cleanly are small (attack sounds, the status display, hit-stop, the edge
-  sensor — about 200 lines of `Enemy`; the wallet, surges, launch orbs, body tint — about 450 of `Player`).
-  Getting them properly small means a design change, not a move: an enemy's attacks as behaviour objects chosen by
-  its kit, the player's states as state objects. Direction: do that as designed work with the owner, alongside the
-  feature that needs it (enemy ranks for `Enemy`; the loadout picker for `Player`) — not as a blind cleanup.
+- **Still large:** `Player.cs` (~1,180 lines) and `Enemy.cs` (~860), after the 2026-10-09 redesign (`Player`: one
+  class per state in `scripts/player/states/`, parts in `scripts/player/parts/`; `Enemy`: attacks as objects in
+  `scripts/enemies/attacks/`, parts in `scripts/enemies/parts/`; before that `RunManager.cs` ~1,090 → ~420 and
+  `HUD.cs` ~620 → ~180). What is left in each is its shared core. `Player`'s could shrink further: the damage path
+  (`OnHurt` and what a hit interrupts, ~120 lines), the passive list and its dispatch loops (~90), the loadout
+  (~70). Direction: take those when the loadout picker or a buff feature next touches them — and do not grow
+  either file: a new behaviour is a new state, attack or part (rule `S3`).
 - **By-name access to engine nodes, in one place:** `VfxPalette.RecolorNode` reads and sets `texture` by property
   name, because any node type may carry a gradient texture. The particle `emitting` / `one_shot` / `finished`
   access that `ParticleDirector` and the enemy walk trail used to do by name now goes through the typed

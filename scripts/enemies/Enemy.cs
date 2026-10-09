@@ -20,7 +20,8 @@ public partial class Enemy : Combatant
 {
 	protected virtual string FramesPath => "res://resources/enemies/{0}.tres";  // WardenEnemy overrides -> resources/wardens/
 	private const string GlowMaterial = "res://resources/enemy_glow.tres";
-	private static readonly Vector2 DefaultMuzzle = new(20, -46);
+	private static readonly Color MagnetStunTint = new(0.6f, 0.4f, 1.0f, 0.6f);   // the flash when a magnet pull lands
+	private const float NoCloseAttackRange = 30.0f;   // how near an enemy with no close attack walks up to its target
 
 	[Signal] public delegate void DiedEventHandler();
 	[Signal] public delegate void DamagedEventHandler(float amount, Node? source);
@@ -28,10 +29,6 @@ public partial class Enemy : Combatant
 	[Export] public string EnemyId { get; set; } = "kebus";
 	[Export] public string DisplayName { get; set; } = "Kebus";
 	[Export] public bool Optional { get; set; }
-	[Export] public string CloseType { get; set; } = "";
-	[Export] public string FarType { get; set; } = "";
-	[Export] public bool ConformGround { get; set; } // a ground AoE (Matat/Nasen) hugs the terrain surface on spawn
-
 	[ExportGroup("Stats")]
 	[Export] public float MaxHealth { get; set; } = 60.0f;
 	[Export] public float Gravity { get; set; } = 900.0f;
@@ -51,37 +48,18 @@ public partial class Enemy : Combatant
 	[Export] public int IdleLoopFrom { get; set; } = 1;
 	[Export] public int IdleLoopTo { get; set; }
 
-	[ExportGroup("Combat ranges")]
-	[Export] public float CloseRange { get; set; } = 30.0f;
-	[Export] public float FarRange { get; set; } = 300.0f;
+	[ExportGroup("Attacking")]
+	/// <summary>The target must be within this many px of the enemy's height for it to attack (or hold its ground).</summary>
 	[Export] public float AttackAlignY { get; set; } = 40.0f;
 	[Export] public float AttackCooldown { get; set; } = 1.1f;
-	[Export] public bool AttackLoops { get; set; }
-	[Export] public float CloseDamage { get; set; } = 12.0f;
-	[Export] public float FarDamage { get; set; } = 8.0f;
-	[Export] public float CloseKnockback { get; set; } = 90.0f;
-	[Export] public float CloseGust { get; set; }  // > 0 = the close attack is a GUST (Hit.Gust): no damage, flings the player
-	[Export] public float CloseStun { get; set; }
-	[Export] public float FarKnockback { get; set; }
-	[Export] public float FarStun { get; set; }
-	[Export] public float CloseHitboxX { get; set; } = 20.0f;
-	[Export] public Vector2 CloseHitboxExtents { get; set; } = new(16, 16);
-	[Export] public float CloseStrikeLifetime { get; set; } = 0.15f;
-	[Export] public float CloseLunge { get; set; }  // forward impulse on the hit frame (0 = none); a lunge-type attack (Kroj) slides in
-	[Export] public float ProjectileSpeed { get; set; } = 260.0f;
-	[Export] public FarMode FarMode { get; set; } = FarMode.Aimed;
-	[Export] public float FarTravel { get; set; } = 100.0f;
-	[Export] public float FarAimCap { get; set; } = 0.0f; // aimed mode: cap the shot's tilt to ±this° off horizontal (0 = no cap); keeps it off vertical
-	[Export] public Vector2 FarHitboxExtents { get; set; } = new(5, 5);
-	[Export] public Vector2 FarHitboxOffset { get; set; } = Vector2.Zero;
+	/// <summary>An enemy with NO far attack walks in on a lined-up target within this distance, even before it has
+	/// noticed him (one with a far attack uses that attack's range instead).</summary>
+	[Export] public float EngageRange { get; set; } = 300.0f;
 
-	[ExportSubgroup("Lob (far_mode = lob)")]
-	[Export] public float LobArcTime { get; set; } = 0.9f;
-	[Export] public float LobGravity { get; set; } = 900.0f;
-	[Export] public float LobDwell { get; set; } = 1.0f;
-	[Export] public float LobMaxLife { get; set; } = 3.0f;
-	[Export] public Vector2 LobExplosionExtents { get; set; } = new(48, 26);
-	[Export] public float LobLandOffset { get; set; } = 22.0f;
+	/// <summary>The close-range attack, if the kit gives one (see <see cref="EnemyAttack"/>).</summary>
+	public EnemyAttack? Close { get; set; }
+	/// <summary>The far attack, if the kit gives one. Tried when the target is beyond <see cref="Close"/>'s range.</summary>
+	public EnemyAttack? Far { get; set; }
 
 	[ExportGroup("Behaviour")]
 	[Export] public bool Aggro { get; set; } = true;
@@ -102,28 +80,24 @@ public partial class Enemy : Combatant
 	[Export] public float AttackHitstop { get; set; } = 0.18f;
 	[Export] public float AttackShake { get; set; } = 2.5f;
 
-	protected enum EState { Idle, Patrol, Close, Far, Stun, Dead, Rage, Charge }
+	protected enum EState { Idle, Patrol, Attack, Stun, Dead, Rage, Charge }
 
 	protected float Health;
 	protected EState State = EState.Idle;
-	protected int Facing = -1;
-	protected bool HasClose, HasFar, HasDeath, HasWalk;
-	protected string CloseAnim = "", FarAnim = "";
+	/// <summary>Which way it faces: +1 right, -1 left.</summary>
+	public int Facing { get; private set; } = -1;
+	protected bool HasDeath, HasWalk;
+	private EnemyAttack? _attack;   // the attack in progress (State == Attack)
 	private readonly List<Node> _patrolTrailEmitters = new();
-	private readonly Dictionary<string, Dictionary<int, string>> _frameSfx = new(); // anim -> { emitted frame -> cue }
 	protected float AttackCd;
-	protected bool AttackFired;
 	protected float PointA, PointB, PatrolTarget;
 	private float _idleTimer;
 	protected float StunLeft;
 	private BlastStrike? _activeChannel;
-	private bool _isChannel;
-	private readonly List<AudioStreamPlayer2D> _attackSfx = new();
 	private float _dotLeft, _dotTick, _dotAccum;
 	private Node? _dotSource;
 	private bool _reaped;
-	private Node2D? _magnetAnchor;
-	private float _magnetArrive = 60.0f, _magnetSpeed = 320.0f, _magnetStun = 3.0f;
+	private readonly MagnetPull _magnet = new();
 	private float _frenemyLeft;
 	private float _contactCd;
 	private Hitbox? _contactHitbox;
@@ -138,12 +112,10 @@ public partial class Enemy : Combatant
 	protected AnimatedSprite2D Sprite = null!;
 	protected Hurtbox Hurt = null!;
 	protected FloatingHealthBar Bar = null!;
-	private StatusOverlay _status = null!;
-	private StatusIcons _statusIcons = null!;
-	private OverheadStatus _overhead = null!;
+	private StatusDisplay _statusDisplay = null!;
+	private EdgeSensor _edges = null!;
+	protected AttackSounds Sounds = null!;
 	protected float HeadY;
-	private int _shownStatus;   // the reap / stun / charm flags currently displayed (RefreshStatusIcons)
-	private RayCast2D _edgeRayLeft = null!, _edgeRayRight = null!;
 
 	public bool LastHitFromSpecial;
 
@@ -160,38 +132,15 @@ public partial class Enemy : Combatant
 		BuildHurtbox();
 		BuildContactHitbox();
 		BuildHealthBar();
-		BuildEdgeRays();
+		_edges = new EdgeSensor(this, EdgeCheckX);
+		_statusDisplay = new StatusDisplay(this, Sprite, Bar, HeadY);
 
-		_status = new StatusOverlay();
-		AddChild(_status);
-		_status.Setup(Sprite);
-
-		_statusIcons = new StatusIcons();
-		AddChild(_statusIcons);
-		float barW = Bar.BarWidth;
-		float barH = Bar.BarHeight;
-		_statusIcons.Position = Bar.Position + new Vector2(barW / 2.0f + 3.0f, -barH / 2.0f);
-
-		_overhead = new OverheadStatus();
-		AddChild(_overhead);
-		_overhead.Setup(HeadY);
-
-		CloseAnim = CloseType != "" ? "attack_" + CloseType : "";
-		FarAnim = FarType != "" ? "attack_" + FarType : "";
-		HasClose = CloseAnim != "" && Sprite.SpriteFrames.HasAnimation(CloseAnim);
-		HasFar = FarAnim != "" && Sprite.SpriteFrames.HasAnimation(FarAnim);
 		HasDeath = Sprite.SpriteFrames.HasAnimation("death");
 		HasWalk = Sprite.SpriteFrames.HasAnimation("walk");
-		BuildFrameSfx();
+		Sounds = new AttackSounds(this, EnemyId, Sprite.SpriteFrames);
 		BuildPatrolTrail();
-		if (HasClose)
-		{
-			float reach = MeleeReach();
-			if (reach > 0.0f)
-				CloseRange = reach;
-		}
-		if (HasFar && (FarMode == FarMode.Forward || FarMode == FarMode.GroundWave))
-			FarRange = Mathf.Min(FarRange, FarTravel);
+		Close?.Attach(this);
+		Far?.Attach(this);
 
 		Health = MaxHealth;
 		Bar.SetRatio(1.0f);
@@ -250,36 +199,6 @@ public partial class Enemy : Combatant
 		AddChild(_contactHitbox);
 	}
 
-	private void BuildEdgeRays()
-	{
-		_edgeRayLeft = MakeEdgeRay(-EdgeCheckX);
-		_edgeRayRight = MakeEdgeRay(EdgeCheckX);
-	}
-
-	private RayCast2D MakeEdgeRay(float x)
-	{
-		// Tall vertical span so a SLOPE isn't mistaken for a cliff. Reaches UP 14px (an upslope's rising floor;
-		// HitFromInside also catches steep climbs where the origin embeds in terrain) and DOWN ~a tile (28px) so a
-		// DESCENDING floor is still "ahead" and the enemy keeps chasing down instead of stopping at the lip. A true
-		// drop deeper than ~a tile still reads as a cliff and halts it (no diving off high platforms).
-		var ray = new RayCast2D
-		{
-			Position = new Vector2(x, -14),
-			TargetPosition = new Vector2(0, 42),
-			HitFromInside = true,
-			CollisionMask = Combat.GroundMask, // platforms count as footing too
-		};
-		AddChild(ray);
-		return ray;
-	}
-
-	protected bool FloorAhead(int dir)
-	{
-		var ray = dir < 0 ? _edgeRayLeft : _edgeRayRight;
-		ray.ForceRaycastUpdate();
-		return ray.IsColliding();
-	}
-
 	private void BuildHealthBar()
 	{
 		Bar = new FloatingHealthBar { RatioColors = true };
@@ -309,7 +228,7 @@ public partial class Enemy : Combatant
 		TickDot(d);
 		if (State == EState.Dead)
 			return;
-		RefreshStatusIcons();
+		_statusDisplay.Show(_dotLeft > 0.0f, State == EState.Stun || StunLeft > 0.0f, _frenemyLeft > 0.0f);
 		if (_patrolTrailEmitters.Count > 0)
 		{
 			bool moving = Mathf.Abs(Velocity.X) > 5.0f;
@@ -338,32 +257,23 @@ public partial class Enemy : Combatant
 			return;
 		}
 
-		if (_magnetAnchor != null)
+		if (_magnet.Step(GlobalPosition.X) is float pull)
 		{
-			if (!IsInstanceValid(_magnetAnchor))
+			if (pull == 0.0f)
 			{
-				_magnetAnchor = null;
+				// Arrived at the anchor: held there, stunned.
+				Velocity = new Vector2(0.0f, Velocity.Y);
+				StunLeft = Mathf.Max(StunLeft, _magnet.StunTime);
+				SetState(EState.Stun);
+				CancelChannel();
+				_statusDisplay.Flash(MagnetStunTint, _magnet.StunTime);
 			}
 			else
 			{
-				float dx = _magnetAnchor.GlobalPosition.X - GlobalPosition.X;
-				if (Mathf.Abs(dx) <= _magnetArrive)
-				{
-					Velocity = new Vector2(0.0f, Velocity.Y);
-					StunLeft = Mathf.Max(StunLeft, _magnetStun);
-					SetState(EState.Stun);
-					CancelChannel();
-					_status.ShowFor(new Color(0.6f, 0.4f, 1.0f, 0.6f), _magnetStun);
-					_magnetAnchor = null;
-				}
-				else
-				{
-					float speed = _magnetSpeed * Mathf.Clamp(Mathf.Abs(dx) / (_magnetArrive * 2.0f), 0.25f, 1.0f);
-					Velocity = new Vector2(Mathf.Sign(dx) * speed, Velocity.Y);
-					Face(Mathf.Sign(dx));
-					MoveAndSlide();
-					return;
-				}
+				Velocity = new Vector2(pull, Velocity.Y);
+				Face(Mathf.Sign(pull));
+				MoveAndSlide();
+				return;
 			}
 		}
 
@@ -374,7 +284,7 @@ public partial class Enemy : Combatant
 			if (StunLeft <= 0.0f)
 				SetState(EState.Idle);
 		}
-		else if (State == EState.Close || State == EState.Far)
+		else if (State == EState.Attack)
 		{
 			Velocity = new Vector2(Mathf.MoveToward(Velocity.X, 0.0f, 600.0f * d), Velocity.Y);
 		}
@@ -450,29 +360,31 @@ public partial class Enemy : Combatant
 			float toPlayer = player.GlobalPosition.X - GlobalPosition.X;
 			float dist = Mathf.Abs(toPlayer);
 			bool aligned = Mathf.Abs(player.GlobalPosition.Y - GlobalPosition.Y) <= AttackAlignY;
+			EnemyAttack? close = Close is { Usable: true } ? Close : null;
+			EnemyAttack? far = Far is { Usable: true } ? Far : null;
 			if (aligned && AttackCd <= 0.0f)
 			{
-				if (HasClose && dist <= CloseRange)
+				if (close != null && dist <= close.Range)
 				{
-					StartAttack(EState.Close, CloseAnim, player);
+					StartAttack(close, player);
 					return;
 				}
-				if (HasFar && dist <= FarRange)
+				if (far != null && dist <= far.Range)
 				{
-					StartAttack(EState.Far, FarAnim, player);
+					StartAttack(far, player);
 					return;
 				}
 			}
 			int dir = Mathf.Sign(toPlayer);
 			bool pursue = _hunting || _alertLeft > 0.0f
 				|| (Aggro && GlobalPosition.DistanceTo(player.GlobalPosition) <= AggroRange);
-			bool hold = aligned && dist <= FarRange;
-			bool closeIn = pursue || (hold && HasClose && !HasFar);
-			float reach = (HasFar ? FarRange : CloseRange) - 4.0f;
+			bool hold = aligned && dist <= (Far?.Range ?? EngageRange);
+			bool closeIn = pursue || (hold && close != null && far == null);
+			float reach = (far != null ? far.Range : Close?.Range ?? NoCloseAttackRange) - 4.0f;
 			if (pursue || hold)
 			{
 				Engaged = true;
-				if (closeIn && dist > reach && FloorAhead(dir))
+				if (closeIn && dist > reach && _edges.FloorAhead(dir))
 				{
 					Velocity = new Vector2(dir * MoveSpeed * _huntSpeedMult, Velocity.Y);
 					Face(dir);
@@ -504,7 +416,7 @@ public partial class Enemy : Combatant
 
 		int dir = Mathf.Sign(PatrolTarget - GlobalPosition.X);
 		bool arrived = dir == 0 || Mathf.Abs(PatrolTarget - GlobalPosition.X) <= 2.0f;
-		if (arrived || !FloorAhead(dir))
+		if (arrived || !_edges.FloorAhead(dir))
 		{
 			Velocity = new Vector2(0.0f, Velocity.Y);
 			_idleTimer = (float)GD.RandRange(IdleTimeMin, IdleTimeMax);
@@ -520,111 +432,38 @@ public partial class Enemy : Combatant
 
 	// --- attacks ------------------------------------------------------------
 
-	protected void StartAttack(EState state, StringName anim, Node2D player)
+	private void StartAttack(EnemyAttack attack, Node2D target)
 	{
-		SetState(state);
-		PlayAttackStartSfx(anim);
+		_attack = attack;
+		SetState(EState.Attack);
+		Sounds.PlayStart(attack.Key, attack.Channels);
 		Velocity = new Vector2(0.0f, Velocity.Y);
-		AttackFired = false;
 		Impacted = false;
 		Engaged = true;
-		Face(Mathf.Sign(player.GlobalPosition.X - GlobalPosition.X));
-		Play(anim);
-	}
-
-	private void BuildFrameSfx()
-	{
-		_frameSfx.Clear();
-		var sf = Sprite.SpriteFrames;
-		foreach (var (anim, frames) in SfxEnemies.FramesFor(EnemyId))
-		{
-			if (!sf.HasAnimation(anim))
-				continue;
-			int start = SheetStart(anim);
-			var map = new Dictionary<int, string>();
-			foreach (var (sheetFrame, cue) in frames)
-				map[sheetFrame - start] = cue;
-			_frameSfx[anim] = map;
-		}
-	}
-
-	protected void PlayAttackStartSfx(StringName anim)
-	{
-		string kind = (FarAnim != "" && anim == FarAnim) ? FarType : CloseType;
-		StopAttackSfx();
-		PlayAttackSfx($"{EnemyId}.{kind}");
-	}
-
-	protected void PlayFrameSfx()
-	{
-		if (_frameSfx.Count == 0)
-			return;
-		if (_frameSfx.TryGetValue(Sprite.Animation, out var map) && map.TryGetValue(Sprite.Frame, out string? cue))
-			PlayAttackSfx(cue);
-	}
-
-	private void PlayAttackSfx(string cue)
-	{
-		if (cue == "")
-			return;
-		if (!_isChannel)
-		{
-			SfxPlayAt(cue, GlobalPosition);
-			return;
-		}
-		var pl = SfxMakeOneshot2d(cue);
-		if (pl == null)
-			return;
-		AddChild(pl);
-		_attackSfx.Add(pl);
-		pl.Finished += () =>
-		{
-			_attackSfx.Remove(pl);
-			pl.QueueFree();
-		};
-		pl.Play();
-	}
-
-	protected void StopAttackSfx()
-	{
-		foreach (var pl in _attackSfx)
-			if (IsInstanceValid(pl))
-			{
-				pl.Stop();
-				pl.QueueFree();
-			}
-		_attackSfx.Clear();
+		Face(Mathf.Sign(target.GlobalPosition.X - GlobalPosition.X));
+		attack.Begin();
+		Play(attack.Animation);
 	}
 
 	protected virtual void OnFrameChanged()
 	{
-		PlayFrameSfx();
-		if (State == EState.Close && HitFramesOf(CloseAnim).Contains(Sprite.Frame))
-		{
-			SpawnMeleeStrike(MeleeVfxKey(Sprite.Frame));
-			if (CloseLunge > 0.0f)
-				// Lunge forward on the commit frame; slides to a stop via the Close-state deceleration.
-				// No hitstop — it would zero the velocity and freeze the slide (this IS the Zahluq pattern).
-				Velocity = new Vector2(CloseLunge * Facing, Velocity.Y);
-			else
-			{
-				float hold = IsInstanceValid(_activeChannel) ? _activeChannel!.EmitDuration : AttackHitstop;
-				BeginHitstop(hold);
-			}
-		}
-		else if (State == EState.Far && !AttackFired && Sprite.Frame >= FireFrame())
-		{
-			AttackFired = true;
-			FireProjectile();
-			BeginHitstop();
-		}
+		Sounds.PlayFrame(Sprite.Animation, Sprite.Frame);
+		if (State == EState.Attack)
+			_attack?.OnFrame(Sprite.Frame);
 		else if (State == EState.Idle)
-		{
 			IdleBounce();
-		}
 	}
 
-	protected void BeginHitstop(float dur = -1.0f)
+	/// <summary>Slide forward at <paramref name="impulse"/> px/s, the way it faces (a lunging attack's commit frame).</summary>
+	public void Lunge(float impulse) => Velocity = new Vector2(impulse * Facing, Velocity.Y);
+
+	/// <summary>Freeze on a melee hit: for as long as the held blast it just started emits, else the usual hitstop.</summary>
+	public void BeginStrikeHitstop() =>
+		BeginHitstop(IsInstanceValid(_activeChannel) ? _activeChannel!.EmitDuration : AttackHitstop);
+
+	/// <summary>Freeze the animation (and shake) for <paramref name="dur"/> seconds — the default is
+	/// <see cref="AttackHitstop"/>. Once per attack: a second call before it ends is ignored.</summary>
+	public void BeginHitstop(float dur = -1.0f)
 	{
 		if (dur < 0.0f)
 			dur = AttackHitstop;
@@ -641,7 +480,7 @@ public partial class Enemy : Combatant
 		_hitstopLeft = 0.0f;
 		Impacted = false;
 		Sprite.Position = Vector2.Zero;
-		if (State == EState.Close || State == EState.Far || State == EState.Rage)
+		if (State == EState.Attack || State == EState.Rage)
 			Sprite.Play();
 	}
 
@@ -663,37 +502,40 @@ public partial class Enemy : Combatant
 			QueueFree();
 			return;
 		}
-		if (State == EState.Close && AttackLoops && InCloseReach())
+		if (State == EState.Attack && _attack is { Repeats: true } looping && InReach(looping))
 		{
-			AttackFired = false;
+			looping.Begin();
 			Impacted = false;
-			ReplayFrom(CloseAnim, LoopFrom(CloseAnim));
+			ReplayFrom(looping.Animation, LoopFrom(looping.Animation));
 			return;
 		}
-		if (State == EState.Close || State == EState.Far)
+		if (State == EState.Attack)
 		{
 			AttackCd = AttackCooldown;
 			SetState(EState.Idle);
 		}
 	}
 
-	protected Vector2 VfxPos(string effect, Vector2 fallback = default)
+	/// <summary>Where the effect row <paramref name="effect"/> sits, relative to the enemy and mirrored by its facing
+	/// (<paramref name="fallback"/> if this enemy has no such row).</summary>
+	public Vector2 EffectPos(string effect, Vector2 fallback = default)
 	{
-		Vector2 p = EnemyEffect(effect)?.Pos ?? fallback;
+		Vector2 p = Effect(effect)?.Pos ?? fallback;
 		return new Vector2(p.X * Facing, p.Y);
 	}
 
-	protected PackedScene? VfxScene(string effect) => EnemyEffect(effect)?.Scene;
+	/// <summary>The scene of this enemy's effect row <paramref name="effect"/>, or null if it has none.</summary>
+	public PackedScene? EffectScene(string effect) => Effect(effect)?.Scene;
 
 	private void BuildPatrolTrail()
 	{
-		var scene = VfxScene("walk_trail");
+		var scene = EffectScene("walk_trail");
 		if (scene == null)
 			return;
 		var trail = scene.Instantiate();
 		AddChild(trail);
 		if (trail is Node2D n)
-			n.Position = VfxPos("walk_trail");
+			n.Position = EffectPos("walk_trail");
 		if (trail is CpuParticles2D || trail is GpuParticles2D)
 			_patrolTrailEmitters.Add(trail);
 		foreach (var e in trail.FindChildren("*", "CpuParticles2D", true, false))
@@ -706,12 +548,12 @@ public partial class Enemy : Combatant
 
 	protected Node2D? MakeVfx(string effect)
 	{
-		var scene = VfxScene(effect);
+		var scene = EffectScene(effect);
 		if (scene == null)
 			return null;
 		var node = scene.Instantiate();
 		if (node is Node2D n)
-			n.Position = VfxPos(effect);
+			n.Position = EffectPos(effect);
 		return node as Node2D;
 	}
 
@@ -726,17 +568,17 @@ public partial class Enemy : Combatant
 		Sprite.Play();
 	}
 
-	private bool InCloseReach()
+	private bool InReach(EnemyAttack attack)
 	{
 		var t = Target();
 		if (t == null)
 			return false;
 		Vector2 to = t.GlobalPosition - GlobalPosition;
-		return Mathf.Abs(to.Y) <= AttackAlignY && Mathf.Abs(to.X) <= CloseRange;
+		return Mathf.Abs(to.Y) <= AttackAlignY && Mathf.Abs(to.X) <= attack.Range;
 	}
 
 	/// <summary>Spawn a self-contained attack SCENE (Strike or Projectile), mirror by facing, inject tuning, arm it.</summary>
-	protected Node2D? SpawnAttack(PackedScene? scene, SegmentData tuning, bool toWorld = false, Vector2 at = default)
+	public Node2D? SpawnAttack(PackedScene? scene, SegmentData tuning, bool toWorld = false, Vector2 at = default)
 	{
 		if (scene == null)
 			return null;
@@ -773,195 +615,17 @@ public partial class Enemy : Combatant
 		{
 			_activeChannel.Cancel();
 			_activeChannel = null;
-			StopAttackSfx();
+			Sounds.Stop();
 		}
 	}
 
-	protected void SpawnMeleeStrike(string vfxKey = "")
-	{
-		string key = vfxKey != "" ? vfxKey : (CloseType != "" ? CloseType : "aoe");
-		var scene = VfxScene(key);
-		if (scene != null)
-		{
-			var node = SpawnAttack(scene, new SegmentData
-			{
-				Damage = CloseDamage,
-				Knockback = CloseKnockback,
-				Gust = CloseGust,
-				Stun = CloseStun,
-			}, false, VfxPos(key));
-			if (ConformGround && node != null)
-				GroundContour.Conform(node, GetWorld2D()?.DirectSpaceState);
-			return;
-		}
-		// No authored close-attack SCENE (e.g. Kebus's point-blank jab -- a far-attack enemy with a close
-		// anim but no close VFX): build a bare CODE hitbox from close_hitbox_x/extents so the swing still connects.
-		// These exports were dead before, so a scene-less enemy's melee dealt no damage at all.
-		SpawnCodeMeleeStrike();
-	}
-
-	/// <summary>A visual-less melee hitbox for an enemy with no authored melee scene — sized/placed from
-	/// <see cref="CloseHitboxX"/> + <see cref="CloseHitboxExtents"/> (half-size), armed with our melee
-	/// tuning, and freed after <see cref="CloseStrikeLifetime"/>. Built like the contact hitbox.</summary>
-	private void SpawnCodeMeleeStrike()
-	{
-		bool hostile = !IsFrenemy();
-		var hb = new Hitbox
-		{
-			CollisionLayer = Combat.HitLayer(hostile),
-			CollisionMask = Combat.HurtMask(hostile, FriendlyFire),
-			Damage = CloseDamage,
-			Knockback = CloseKnockback,
-			Stun = CloseStun,
-			Source = this,
-		};
-		hb.AddChild(MakeBox(CloseHitboxExtents * 2.0f, new Vector2(CloseHitboxX * Facing, -HurtboxSize.Y / 2.0f)));
-		AddChild(hb);
-		hb.Activate();
-		GetTree().CreateTimer(CloseStrikeLifetime).Timeout += hb.QueueFree;
-	}
-
-	private string MeleeVfxKey(int emittedFrame)
-	{
-		string @base = CloseType != "" ? CloseType : "aoe";
-		int sheetFrame = emittedFrame + SheetStart(CloseAnim);
-		string framed = $"{@base}_{sheetFrame}";
-		return VfxScene(framed) != null ? framed : @base;
-	}
-
-	private float MeleeReach()
-	{
-		string key = CloseType != "" ? CloseType : "aoe";
-		var hits = HitFramesOf(CloseAnim);
-		if (hits.Count > 0)
-			key = MeleeVfxKey(hits[0]);
-		var scene = VfxScene(key);
-		if (scene == null)
-			return 0.0f;
-		var inst = scene.Instantiate();
-		_isChannel = inst is BlastStrike;
-		float far = 0.0f;
-		foreach (var node in inst.FindChildren("*", "CollisionShape2D", true, false))
-			if (node is CollisionShape2D cs && cs.Shape is RectangleShape2D rect)
-				far = Mathf.Max(far, cs.Position.X + rect.Size.X * 0.5f);
-		inst.Free();
-		if (far <= 0.0f)
-			return 0.0f;
-		return far + (EnemyEffect(key)?.Pos.X ?? 0.0f);
-	}
-
-	private void FireProjectile()
-	{
-		if (FarMode == FarMode.Lob)
-		{
-			FireLob();
-			return;
-		}
-		Vector2 muzzle = GlobalPosition + VfxPos("projectile", DefaultMuzzle);
-		var scene = VfxScene(FarType != "" ? FarType : "projectile");
-		if (scene == null)
-			return;
-		if (scene.Instantiate() is not Projectile proj)
-			return;
-		proj.Hostile = !IsFrenemy();
-		proj.FriendlyFire = FriendlyFire;
-		proj.Homing = 0.0f;
-		proj.RotateToHeading = false;
-		proj.Source = this;
-
-		if (FarMode == FarMode.GroundWave)
-		{
-			// Baghel's floor surge: rolls forward horizontally and hugs the terrain surface as it goes.
-			proj.Velocity = new Vector2(ProjectileSpeed * Facing, 0.0f);
-			proj.MaxRange = FarTravel;
-			proj.GroundTrail = true;
-			proj.GroundFollow = true;
-		}
-		else if (FarMode == FarMode.Forward)
-		{
-			// A straight, non-tracking bolt: flies forward in the facing direction for FarTravel px.
-			proj.Velocity = new Vector2(ProjectileSpeed * Facing, 0.0f);
-			proj.MaxRange = FarTravel;
-		}
-		else
-		{
-			// Aimed (default): fire at the player's BODY and track their elevation, but cap the tilt at
-			// ±FarAimCap off horizontal so a player far above/below never makes the shot near-vertical.
-			var aim = Target();
-			Vector2 target = aim != null ? aim.GlobalPosition + new Vector2(0, -15) : muzzle + new Vector2(Facing, 0);
-			Vector2 to = target - muzzle;
-			if (FarAimCap > 0.0f && to.LengthSquared() > 0.0001f)
-			{
-				float cap = Mathf.DegToRad(FarAimCap);
-				float ang = Mathf.Clamp(Mathf.Atan2(to.Y, Mathf.Abs(to.X)), -cap, cap); // tilt off horizontal
-				float sign = Mathf.Abs(to.X) < 0.001f ? Facing : Mathf.Sign(to.X);
-				to = new Vector2(sign * Mathf.Cos(ang), Mathf.Sin(ang));
-			}
-			proj.Velocity = to.Normalized() * ProjectileSpeed;
-			proj.MaxLife = 3.0f;
-			proj.CanFlyUp = true;        // aim up/down at an elevated player instead of being flattened to the floor
-			proj.RotateToHeading = true; // point the bolt along its flight
-		}
-
-		GetParent().AddChild(proj);
-		Nodes.PlaceAt(proj, muzzle);
-		proj.ApplyTuning(new SegmentData
-		{
-			Damage = FarDamage,
-			Knockback = FarKnockback,
-			Stun = FarStun,
-		}, this);
-	}
-
-	private void FireLob()
-	{
-		Vector2 muzzle = GlobalPosition + VfxPos("delayed_projectile", DefaultMuzzle);
-		var lob = new LobProjectile
-		{
-			Hostile = !IsFrenemy(),
-			FriendlyFire = FriendlyFire,
-			Source = this,
-			ArcTime = LobArcTime,
-			Gravity = LobGravity,
-			DwellTime = LobDwell,
-			MaxLife = LobMaxLife,
-			ExplosionExtents = LobExplosionExtents,
-			ExplosionDamage = FarDamage,
-			ExplosionKnockback = FarKnockback,
-			ExplosionStun = FarStun,
-			ExplosionEffect = VfxScene("delayed_projectile_burst"),
-			ExplosionSfx = $"{EnemyId}.delayed_projectile_burst",
-		};
-		lob.ExplosionEffectPos = EnemyEffect("delayed_projectile_burst")?.Pos ?? Vector2.Zero;
-		var vis = VfxScene("delayed_projectile");
-		if (vis != null)
-			lob.AddChild(vis.Instantiate());
-
-		var aim = Target();
-		Vector2 land = muzzle + new Vector2(Facing * 90.0f, 30.0f);
-		if (aim != null)
-		{
-			float side = -Mathf.Sign(aim.GlobalPosition.X - GlobalPosition.X);
-			land = aim.GlobalPosition + new Vector2(side * LobLandOffset, 0.0f);
-		}
-		lob.Target = land;
-
-		GetParent().AddChild(lob);
-		Nodes.PlaceAt(lob, muzzle);
-	}
-
-	private int FireFrame()
-	{
-		var hits = HitFramesOf(FarAnim);
-		if (hits.Count > 0)
-			return hits[0];
-		return Mathf.Max(1, Sprite.SpriteFrames.GetFrameCount(FarAnim) / 2);
-	}
-
-	protected IReadOnlyList<int> HitFramesOf(StringName anim) =>
+	public IReadOnlyList<int> HitFramesOf(StringName anim) =>
 		AnimMeta.HitFrames(Sprite.SpriteFrames, anim);
 
-	protected string CurrentAttackType() => State == EState.Far ? FarType : CloseType;
+	public bool HasAnimation(StringName anim) => Sprite.SpriteFrames.HasAnimation(anim);
+
+	public int FrameCount(StringName anim) => Sprite.SpriteFrames.GetFrameCount(anim);
+
 
 	// --- damage / death -----------------------------------------------------
 
@@ -1013,7 +677,7 @@ public partial class Enemy : Combatant
 			SetState(EState.Stun);
 			CancelChannel();
 			if (hit.StatusColor.A > 0.0f)
-				_status.ShowFor(hit.StatusColor, hit.StatusTime);
+				_statusDisplay.Flash(hit.StatusColor, hit.StatusTime);
 		}
 	}
 
@@ -1024,16 +688,14 @@ public partial class Enemy : Combatant
 	{
 		SetState(EState.Dead);
 		CancelChannel();
-		StopAttackSfx();
+		Sounds.Stop();
 		SfxPlayAt(DeathSfxKey(), GlobalPosition);
 		EmitSignal(SignalName.Died);
 		RemoveFromGroup("enemies");
 		Hurt.SetDeferred(Area2D.PropertyName.Monitorable, false);
 		SetDeferred(CollisionObject2D.PropertyName.CollisionLayer, 0);
 		Bar.Visible = false;
-		_statusIcons.SetActive(new List<StatusType>());
-		_overhead.SetActive(new List<StatusType>());
-		_status.Clear();
+		_statusDisplay.Clear();
 		if (HasDeath)
 			Play("death");
 		else
@@ -1085,27 +747,6 @@ public partial class Enemy : Combatant
 		}
 	}
 
-	// --- status pips --------------------------------------------------------
-
-	/// <summary>Show the statuses this enemy is under (pips beside the health bar + the overhead halo). Runs every
-	/// tick, so it compares three flags and only builds the list when one of them changed.</summary>
-	private void RefreshStatusIcons()
-	{
-		bool reap = _dotLeft > 0.0f;
-		bool stun = State == EState.Stun || StunLeft > 0.0f;
-		bool charm = _frenemyLeft > 0.0f;
-		int shown = (reap ? 1 : 0) | (stun ? 2 : 0) | (charm ? 4 : 0);
-		if (shown == _shownStatus)
-			return;
-		_shownStatus = shown;
-		var ids = new List<StatusType>();
-		if (reap) ids.Add(StatusType.Reap);
-		if (stun) ids.Add(StatusType.Stun);
-		if (charm) ids.Add(StatusType.Charm);
-		_statusIcons.SetActive(ids);
-		_overhead.SetActive(ids);
-	}
-
 	// --- helpers ------------------------------------------------------------
 
 	protected Node2D? Player()
@@ -1116,7 +757,8 @@ public partial class Enemy : Combatant
 
 	public bool IsFrenemy() => _frenemyLeft > 0.0f;
 
-	protected Node2D? Target() => IsFrenemy() ? NearestHostileEnemy() : Player();
+	/// <summary>Who it is fighting: the player — or, while charmed, the nearest enemy that is not. Null if there is none.</summary>
+	public Node2D? Target() => IsFrenemy() ? NearestHostileEnemy() : Player();
 
 	private Node2D? NearestHostileEnemy()
 	{
@@ -1150,10 +792,7 @@ public partial class Enemy : Combatant
 	{
 		if (State == EState.Dead || anchor == null)
 			return;
-		_magnetAnchor = anchor;
-		_magnetArrive = arriveDist;
-		_magnetSpeed = speed;
-		_magnetStun = stunTime;
+		_magnet.Start(anchor, arriveDist, speed, stunTime);
 	}
 
 	public void ApplyHit(Hit hit) => Hurt?.TakeHit(hit);
@@ -1207,19 +846,17 @@ public partial class Enemy : Combatant
 			Sprite.Play(anim);
 	}
 
-	// --- bridges (GDScript configs / UI / autoload / util) ------------------
+	// --- lookups -------------------------------------------------------------
 
-	private EmitterDef? EnemyEffect(string effect) => Emitters.EnemyEffect(EnemyId, effect);
+	/// <summary>This enemy's row <paramref name="effect"/> in <see cref="EmittersEnemies"/>, or null.</summary>
+	public EmitterDef? Effect(string effect) => Emitters.EnemyEffect(EnemyId, effect);
 
-	private int SheetStart(StringName anim) =>
+	public int SheetStart(StringName anim) =>
 		AnimMeta.SheetStart(Sprite.SpriteFrames, anim);
 
 	protected void SfxPlayAt(string cue, Vector2 pos) =>
 		GetNodeOrNull<Sfx>("/root/Sfx")?.PlayAt(cue, pos);
 
-	private AudioStreamPlayer2D? SfxMakeOneshot2d(string cue) =>
-		GetNodeOrNull<Sfx>("/root/Sfx")?.MakeOneshot2D(cue);
-
-	protected static CollisionShape2D MakeBox(Vector2 size, Vector2 offset = default) =>
+	public static CollisionShape2D MakeBox(Vector2 size, Vector2 offset = default) =>
 		new() { Position = offset, Shape = new RectangleShape2D { Size = size } };
 }

@@ -42,7 +42,7 @@ public partial class NeedlePointMenu : StallMenu
         row.AddChild(Cell(rank == 0 ? "" : Shot.EffectText(def, rank), NowWidth));
         row.AddChild(Cell(maxed ? "" : $"→ {Shot.FormatValue(def, rank + 1)}", NextWidth, UiStyle.Muted));
         row.AddChild(ActionButton(maxed ? "MAXED" : $"BUY {_ledger.Price(id)}", BuyWidth,
-            !maxed && Player.Lira >= _ledger.Price(id), () => _ledger.Buy(id)));
+            !maxed && Player.Wallet.Lira >= _ledger.Price(id), () => _ledger.Buy(id)));
         return strip;
     }
 }

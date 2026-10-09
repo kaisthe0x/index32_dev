@@ -13,44 +13,29 @@ public static class EnemyKits
 {
 	public static readonly EnemyKit Kebus = new(EnemyIds.Kebus, "Kebus", EnemyTier.Strong, EnemyMovement.Ground, e =>
 	{
-		e.CloseType = StrikeType.Melee.Key();
-		e.FarType = StrikeType.Projectile.Key();
-		// FarMode stays Aimed: tracks the player + aims at the body, tilt capped to ±45° (never vertical);
-		// AttackAlignY is wide so he'll engage you a level up/down.
-		e.FarAimCap = 45.0f;
-		e.AttackAlignY = 120.0f;
-		e.FarHitboxExtents = new Vector2(7, 10);
-		e.ProjectileSpeed = 200.0f;
+		e.Close = new MeleeAttack();   // a point-blank jab — no effect scene, a bare hitbox
+		// Aimed (the default path): tracks the player and aims at his body, tilt capped to ±45° (never vertical).
+		e.Far = new ShotAttack { Speed = 200.0f, AimCap = 45.0f };
+		e.AttackAlignY = 120.0f;   // wide, so he'll engage you a level up or down
 		e.FigChance = 0.25f; // the hardest grunt — better fig odds than the 10 % default
 	});
 
 	public static readonly EnemyKit Baghel = new(EnemyIds.Baghel, "Baghel", EnemyTier.Chip, EnemyMovement.Ground, e =>
 	{
-		e.FarType = StrikeType.Projectile.Key();
-		e.FarMode = FarMode.GroundWave;
-		e.FarRange = 130.0f;
-		e.FarTravel = 100.0f;
-		e.ProjectileSpeed = 200.0f;
-		e.FarHitboxExtents = new Vector2(4, 15);
-		e.FarHitboxOffset = new Vector2(0, -9);
-		e.FarDamage = 7.0f;
+		e.Far = new ShotAttack { Path = ShotPath.GroundWave, Range = 130.0f, Travel = 100.0f, Speed = 200.0f, Damage = 7.0f };
 		e.IdleTimeMin = 5.0f;
 		e.IdleTimeMax = 7.0f;
 	});
 
 	public static readonly EnemyKit Mazab = new(EnemyIds.Mazab, "Mazab", EnemyTier.Mid, EnemyMovement.Ground, e =>
 	{
-		e.FarType = StrikeType.DelayedProjectile.Key();
-		e.FarMode = FarMode.Lob;
-		e.FarRange = 260.0f;
+		e.Far = new LobAttack
+		{
+			Range = 260.0f, Damage = 16.0f, Knockback = 160.0f, Stun = 0.25f,
+			ArcTime = 0.9f, Dwell = 1.0f, ExplosionExtents = new Vector2(48, 26),
+		};
 		e.AttackAlignY = 120.0f;
 		e.AttackCooldown = 2.2f;
-		e.FarDamage = 16.0f;
-		e.FarKnockback = 160.0f;
-		e.FarStun = 0.25f;
-		e.LobArcTime = 0.9f;
-		e.LobDwell = 1.0f;
-		e.LobExplosionExtents = new Vector2(48, 26);
 	});
 
 	// The stationary sleeper. Optional: it needn't be killed to clear a round.
@@ -59,8 +44,6 @@ public static class EnemyKits
 	{
 		e.MaxHealth = 90.0f;
 		e.Optional = true;
-		e.CloseType = StrikeType.Aoe.Key();
-		e.ConformGround = true;
 		// The rage AoE hits OTHER enemies too — it still only TRIGGERS on player detection (SleeperEnemy.RageZone).
 		e.FriendlyFire = true;
 	}) with { SpawnCap = 1 };
@@ -71,7 +54,6 @@ public static class EnemyKits
 		EnemyMovement.Flying, "res://scenes/diver_enemy.tscn", e =>
 	{
 		e.MaxHealth = 28.0f;
-		e.CloseType = StrikeType.Kamikaze.Key();
 		e.Optional = true;
 		e.FigChance = 0.0f;
 		e.DetectRange = 320.0f;
@@ -87,82 +69,60 @@ public static class EnemyKits
 	// Like Tarri, the blast fires on the LAST attack frame and he holds + vibrates there (the blast's EmitDuration).
 	public static readonly EnemyKit Ventilator = new(EnemyIds.Ventilator, "Ventilator", EnemyTier.Mid, EnemyMovement.Ground, e =>
 	{
-		e.CloseType = StrikeType.Blast.Key();
+		// A held gust: no damage — it flings the player (tuned so an air jump within ~0.3 s or a dash recovers).
+		e.Close = new MeleeAttack(StrikeType.Blast) { Range = 150.0f, Damage = 0.0f, Knockback = 0.0f, Gust = 540.0f };
 		e.Optional = true;
 		e.MaxHealth = 60.0f;
 		e.BodySize = new Vector2(18, 36);
 		e.HurtboxSize = new Vector2(22, 42);
 		e.MoveSpeed = 40.0f;
 		e.PatrolDistance = 80.0f;
-		e.CloseRange = 150.0f;
 		e.AttackAlignY = 52.0f;
 		e.AttackCooldown = 2.4f;
-		e.CloseDamage = 0.0f;
-		e.CloseKnockback = 0.0f;
-		e.CloseStun = 0.0f;
-		e.CloseGust = 540.0f;
 		e.AttackHitstop = 2.0f;
 		e.AttackShake = 1.5f;
 	});
 
 	public static readonly EnemyKit Matat = new(EnemyIds.Matat, "Matat", EnemyTier.Strong, EnemyMovement.Ground, e =>
 	{
-		e.CloseType = StrikeType.Aoe.Key();
-		e.ConformGround = true;
+		e.Close = new MeleeAttack(StrikeType.Aoe)
+		{
+			Range = 52.0f, Damage = 11.0f, Knockback = 150.0f, Stun = 0.25f, Loops = true, ConformGround = true,
+		};
 		e.MaxHealth = 95.0f;
 		e.BodySize = new Vector2(20, 34);
 		e.HurtboxSize = new Vector2(24, 40);
 		e.MoveSpeed = 40.0f;
 		e.PatrolDistance = 90.0f;
-		e.FarRange = 300.0f;
-		e.CloseRange = 52.0f;
 		e.AttackAlignY = 44.0f;
 		e.AttackCooldown = 1.2f;
-		e.AttackLoops = true;
 		e.AttackHitstop = 0.0f;
-		e.CloseDamage = 11.0f;
-		e.CloseKnockback = 150.0f;
-		e.CloseStun = 0.25f;
-		e.CloseHitboxX = 0.0f;
-		e.CloseHitboxExtents = new Vector2(46, 30);
-		e.CloseStrikeLifetime = 0.35f;
 	});
 
 	public static readonly EnemyKit Tarri = new(EnemyIds.Tarri, "Tarri", EnemyTier.Mid, EnemyMovement.Ground, e =>
 	{
-		e.CloseType = StrikeType.Blast.Key();
+		e.Close = new MeleeAttack(StrikeType.Blast) { Range = 140.0f, Damage = 16.0f, Knockback = 120.0f, Stun = 0.3f };
 		e.MaxHealth = 70.0f;
 		e.BodySize = new Vector2(18, 24);
 		e.HurtboxSize = new Vector2(22, 28);
 		e.MoveSpeed = 34.0f;
 		e.PatrolDistance = 100.0f;
-		e.CloseRange = 140.0f;
 		e.AttackAlignY = 52.0f;
 		e.AttackCooldown = 2.6f;
-		e.CloseHitboxX = 70.0f;
-		e.CloseHitboxExtents = new Vector2(70, 22);
-		e.CloseStrikeLifetime = 2.0f;
-		e.CloseDamage = 16.0f;
-		e.CloseKnockback = 120.0f;
-		e.CloseStun = 0.3f;
 		e.AttackHitstop = 2.0f;
 		e.AttackShake = 1.5f;
 	});
 
 	public static readonly EnemyKit Breski = new(EnemyIds.Breski, "Breski", EnemyTier.Strong, EnemyMovement.Ground, e =>
 	{
-		e.CloseType = StrikeType.Melee.Key();
+		e.Close = new MeleeAttack { Range = 56.0f, Damage = 10.0f, Knockback = 130.0f, Stun = 0.2f };   // a two-hit combo
 		e.MaxHealth = 110.0f;
 		e.BodySize = new Vector2(18, 28);
 		e.HurtboxSize = new Vector2(22, 34);
 		e.MoveSpeed = 46.0f;
 		e.PatrolDistance = 90.0f;
-		e.CloseRange = 56.0f;
 		e.AttackAlignY = 44.0f;
 		e.AttackCooldown = 1.8f;
-		e.CloseDamage = 10.0f;
-		e.CloseKnockback = 130.0f;
-		e.CloseStun = 0.2f;
 		e.AttackHitstop = 0.12f;
 		e.AttackShake = 1.0f;
 	});
@@ -171,22 +131,17 @@ public static class EnemyKits
 	public static readonly EnemyKit Kroj = EnemyKit.Of<WardenEnemy>(EnemyIds.Kroj, "Kroj", EnemyTier.Strong,
 		EnemyMovement.Ground, "res://scenes/warden.tscn", e =>
 	{
+		// A LUNGE: he closes and body-checks; Lunge is the forward impulse on the hit frame.
+		e.Close = new MeleeAttack(StrikeType.Lunge)
+		{
+			Range = 130.0f, Damage = 22.0f, Knockback = 190.0f, Stun = 0.3f, Lunge = 460.0f,
+		};
 		e.MaxHealth = 300.0f;
 		e.BodySize = new Vector2(28, 44);
 		e.HurtboxSize = new Vector2(34, 52);
 		e.MoveSpeed = 55.0f;
 		e.Aggro = true;
 		e.AggroRange = 640.0f;
-		// Attack = a LUNGE: he closes and body-checks; CloseLunge is the forward impulse.
-		e.CloseType = StrikeType.Lunge.Key();
-		e.CloseRange = 130.0f;
-		e.CloseLunge = 460.0f;
-		e.CloseDamage = 22.0f;
-		e.CloseKnockback = 190.0f;
-		e.CloseStun = 0.3f;
-		e.CloseHitboxX = 30.0f;
-		e.CloseHitboxExtents = new Vector2(40, 40);
-		e.CloseStrikeLifetime = 0.3f;
 		e.AttackCooldown = 2.0f;
 		e.AttackAlignY = 54.0f;
 		e.AttackHitstop = 0.0f;
