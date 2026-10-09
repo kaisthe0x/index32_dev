@@ -11,4 +11,22 @@
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
+
+  <!-- Compile-time log. Times the C# compile step itself (CoreCompile) and appends one line per build to
+       build_times.log (git-ignored: timings are per machine): when, configuration, seconds, source files.
+       Runs for every build, from the command line or the Godot editor. A build with nothing to recompile logs ~0 s. -->
+  <Target Name="StampCompileStart" BeforeTargets="CoreCompile">
+    <PropertyGroup>
+      <CompileStartTicks>$([System.DateTime]::UtcNow.Ticks)</CompileStartTicks>
+    </PropertyGroup>
+  </Target>
+  <Target Name="LogCompileTime" AfterTargets="CoreCompile">
+    <PropertyGroup>
+      <CompileTicks>$([MSBuild]::Subtract($([System.DateTime]::UtcNow.Ticks), $(CompileStartTicks)))</CompileTicks>
+      <CompileSeconds>$([System.TimeSpan]::FromTicks($(CompileTicks)).TotalSeconds.ToString("F2"))</CompileSeconds>
+      <CompileLogLine>$([System.DateTime]::Now.ToString("yyyy-MM-dd HH:mm:ss"))  $(Configuration)  $(CompileSeconds) s  @(Compile->Count()) files</CompileLogLine>
+    </PropertyGroup>
+    <Message Importance="high" Text="Compile time: $(CompileSeconds) s (@(Compile->Count()) files, $(Configuration))" />
+    <WriteLinesToFile File="$(MSBuildProjectDirectory)/build_times.log" Lines="$(CompileLogLine)" Overwrite="false" />
+  </Target>
 </Project>

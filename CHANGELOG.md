@@ -6,6 +6,29 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-09 — `new-shit` — compile-time log
+
+### Every build logs how long the C# compile took
+
+- **What:** two small build targets in `mygamedev.csproj` time the compile step and (1) print
+  `Compile time: 1.40 s (144 files, Debug)` in the build output, (2) append a line to `build_times.log` in the repo
+  root — date and time, configuration, seconds, number of source files. The log is git-ignored: timings depend on
+  the machine.
+- **Why:** the owner asked for data on compile time while the cleanup goes on.
+- **How:** the targets hook `CoreCompile` (the compiler run itself), not the whole build, so the number is not
+  blurred by restore, asset copying or the build's fixed start-up cost. They run for every build, including the ones
+  the Godot editor starts. A build with nothing to recompile logs about 0 s.
+- **What the numbers say so far:** a full build of the code as it was before the cleanup (`744ec1f`, 133 files,
+  15,192 lines) took 2.02 s; today's code (141 files, 15,169 lines) takes 1.90 s — the average of four clean
+  builds each, whole build, same machine. The difference is within noise. **The cleanup is not a compile-time
+  win and was never going to be:** the game is ~15,000 lines and compiles in under a second and a half. What the
+  cleanup buys is errors caught at compile time instead of in play. Compile time will matter if the code grows
+  10× or a slow source generator is added; the log is there to show it if that happens.
+- **Could affect:** nothing in the game. If the repo folder is read-only the build fails at the log write.
+- **Tested:** a clean build, a no-change build (0.03 s) and a one-file-touched build (1.32 s) each wrote one line.
+
+---
+
 ## 2026-10-09 — `new-shit` — cleanup, part 3 (zero compiler warnings)
 
 Step E. The project has had nullable reference checking switched on since the C# port, and the build printed 196
