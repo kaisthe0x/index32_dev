@@ -92,7 +92,7 @@ public partial class SleeperEnemy : Enemy
     {
         if (State == EState.Dead)
             return;
-        Health = Mathf.Max(Health - hit.amount, 0.0f);
+        Health = Mathf.Max(Health - hit.Amount, 0.0f);
         Bar.SetRatio(Health / max_health);
         Flash(Sprite);
         if (Health <= 0.0f)
@@ -100,7 +100,7 @@ public partial class SleeperEnemy : Enemy
             Die();
             return;
         }
-        if (!hit.ranged)
+        if (!hit.Ranged)
         {
             StunLeft = rage_stun_time;
             SetState(EState.Stun);

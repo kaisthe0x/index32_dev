@@ -8,7 +8,7 @@ namespace MyGame;
 /// Central ICON registry for things without their own icon field — buffs + status pips. UI asks HERE, so when real
 /// art lands you swap a PATH and nothing else changes. Keys are namespaced ("buff:&lt;id&gt;", "status:&lt;id&gt;");
 /// textures load lazily + cache. A buff with no entry shows the fallback. C# port of <c>configs/icons.gd</c>.
-/// >>> TODO(art): every path is a TEMP placeholder (reused pngs). <<<
+/// PLACEHOLDER: every path is a stand-in (reused pngs) until the real icons are drawn.
 /// </summary>
 public static class Icons
 {

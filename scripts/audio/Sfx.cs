@@ -76,13 +76,7 @@ public partial class Sfx : Node
     /// waveforms — two identical copies ≈ +6 dB), so busy moments spike far past a single cue's authored level. The
     /// limiter caps the summed output at <see cref="LimiterCeilingDb"/>: inaudible under light load, only clamping the
     /// heat-of-battle peaks. Added in CODE (not the .tres bus layout) so it can't be clobbered by an open editor.
-    ///
-    /// TODO(sfx-loudness): the limiter is a safety net, not a full fix. Ways to improve later —
-    ///   1. A gentle COMPRESSOR before it (AudioEffectCompressor, ~-18 dB threshold / ~4:1) so loud moments duck
-    ///      smoothly instead of hard-clamping — more polished dynamics.
-    ///   2. Per-cue CONCURRENCY CAP / dedupe: skip or duck a cue already playing N copies (or fired within a few ms),
-    ///      which tackles the ROOT (the same sound stacking) rather than the summed symptom.
-    ///   3. Expose the ceiling / limiter on-off to the options menu for players who want it off.
+    /// It is a safety net, not a mix: see docs/future-enhancements-and-fixes.md for what would do it properly.</summary>
     private void InstallLimiter()
     {
         if (AudioServer.GetBusIndex(_bus) == -1)

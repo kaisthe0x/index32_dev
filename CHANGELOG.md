@@ -40,6 +40,23 @@ handoff). No behaviour is meant to change in either commit.
   nothing in the game turns that effect on (`set_dash_effect` has no caller). It looks like a planned box buff's
   hook; the owner should say whether it stays.
 
+### Leftovers removed
+
+- **What:** deletes the snake_case alias block on `Hit` (13 duplicate properties marked "delete once no GDScript
+  uses a Hit") and switches its last users (`Enemy`, `SleeperEnemy`, `DiverEnemy`) to the real names; deletes two
+  dead `Player` fields (`attack_projectile_bonus`, `special_radius_mult`) that were only ever reset; moves the
+  "why this buff can't be built yet" notes out of `BuffCatalog` and the sound-improvement list out of `Sfx` into
+  `docs/future-enhancements-and-fixes.md`; relabels the icon table's note as `PLACEHOLDER`.
+- **Why:** rules `C1` (no dead code) and `C3` (no TODO stubs in code); `C4` for the label. The GDScript port
+  finished long ago, so the aliases had no reader left.
+- **Could affect:** enemy damage, stun, charm and damage-over-time read the hit through the renamed properties.
+- **Tested:** covered by the same 10 checks. **A mistake caught by them:** the first rename pass emptied
+  `SleeperEnemy.cs` and `DiverEnemy.cs` (the script opened each file for writing before reading it). The build still
+  passed, because an empty file compiles; the headless run failed loudly when a Sleeper tried to spawn. Both files
+  were restored from git and the rename redone. This is the argument for the permanent test suite that comes next.
+- **Left as is:** `vfx/shaders/sprite_tint.gdshader` is unused by Khalid but belongs to the code path that tints a
+  non-Khalid character; removing it is a decision about whether other characters return.
+
 ---
 
 ## 2026-10-09 — `new-shit`

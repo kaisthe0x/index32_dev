@@ -46,18 +46,6 @@ public static class BuffCatalog
 
         // --- attack ramp: Momentum (OnHitDealt → stacking damage; resets when a full swing/combo whiffs, via OnAnimEnd) ---
         [BuffIds.Momentum] = () => new MomentumBuff(BuffIds.Momentum, 1.40f) { AppliesTo = { "attack" } },
-
-        // TODO(slam_feast): no enemy kill-count is available at OnSlamLand — the slam's damage Strike (slam_default)
-        //   is a burst the ParticleDirector spawns on the slam anim frames 3/4, i.e. AFTER SlamRelease dispatches
-        //   OnSlamLand, so no kills are counted yet at the hook — defer until a slam-kill tally lands.
-        // TODO(backstab): needs the victim's position vs the player's facing at CONTACT; damage is baked into the
-        //   Hitbox at activate time and applied in Hitbox.OnAreaEntered (amount already fixed), with no pre-contact
-        //   per-victim tuning hook — defer until an on-contact tuning seam exists.
-        // TODO(pd_haste/pd_fury/pd_aegis): a dash dodge can't be detected cleanly — dash i-frames work by making the
-        //   player's Hurtbox non-Monitorable during the active dash (Player._PhysicsProcess), so an incoming hit
-        //   never reaches OnHurt (no Area overlap fires) and there is no "avoided due to dash" event. Emitting would
-        //   require flipping that hurtbox logic and guessing intent — risks breaking the dodge — defer until a clean
-        //   perfect-dodge window is added.
     };
 
     /// <summary>Player-facing name + one-line description per buff id (HUD + offers). Complements the per-tier

@@ -990,16 +990,16 @@ public partial class Enemy : Combatant
 			CancelChannel();
 			return;
 		}
-		last_hit_from_special = hit.from_special;
+		last_hit_from_special = hit.FromSpecial;
 		float before = Health;
-		Health = Mathf.Max(Health - hit.amount, 0.0f);
-		EmitSignal(SignalName.damaged, before - Health, hit.source);
+		Health = Mathf.Max(Health - hit.Amount, 0.0f);
+		EmitSignal(SignalName.damaged, before - Health, hit.Source);
 		Bar.SetRatio(Health / max_health);
-		HitReact(Sprite, hit.amount);
+		HitReact(Sprite, hit.Amount);
 		if (alert_duration > 0.0f)
 		{
 			_alertLeft = alert_duration;
-			if (hit.source is Node2D src)
+			if (hit.Source is Node2D src)
 				Face(Mathf.Sign(src.GlobalPosition.X - GlobalPosition.X));
 		}
 		if (Health <= 0.0f)
@@ -1007,16 +1007,16 @@ public partial class Enemy : Combatant
 			Die();
 			return;
 		}
-		if (hit.victim_vfx != null)
-			SpawnVictimVfx(hit.victim_vfx, hit.victim_vfx_time, hurtbox_size.Y, true);
-		if (hit.frenemy_time > 0.0f)
-			become_frenemy(hit.frenemy_time);
-		if (hit.dot_percent > 0.0f && hit.dot_time > 0.0f && !_reaped)
+		if (hit.VictimVfx != null)
+			SpawnVictimVfx(hit.VictimVfx, hit.VictimVfxTime, hurtbox_size.Y, true);
+		if (hit.FrenemyTime > 0.0f)
+			become_frenemy(hit.FrenemyTime);
+		if (hit.DotPercent > 0.0f && hit.DotTime > 0.0f && !_reaped)
 		{
 			_reaped = true;
-			_dotTick = max_health * hit.dot_percent;
-			_dotLeft = hit.dot_time;
-			_dotSource = hit.source;
+			_dotTick = max_health * hit.DotPercent;
+			_dotLeft = hit.DotTime;
+			_dotSource = hit.Source;
 		}
 		float stagger = ApplyKnockback(hit, Facing);
 		if (stagger > 0.0f)
@@ -1024,8 +1024,8 @@ public partial class Enemy : Combatant
 			StunLeft = Mathf.Max(StunLeft, stagger);
 			SetState(EState.Stun);
 			CancelChannel();
-			if (hit.status_color.A > 0.0f)
-				_status.ShowFor(hit.status_color, hit.status_time);
+			if (hit.StatusColor.A > 0.0f)
+				_status.ShowFor(hit.StatusColor, hit.StatusTime);
 		}
 	}
 

@@ -1021,7 +1021,7 @@ PLACEHOLDERS (`SfxWorld`).
   `MaxStacks`, applied via `ModifyTuning`), and `OnAnimEnd` resets it when a full swing/combo recovered having
   connected nothing (per-swing whiff, sidestepping the per-hitbox `OnMiss`). `MaxStacks` is a placeholder — tune at playtest.
 
-**Deferred** (left out of `FACTORIES`, with a `// TODO(id)` in `BuffCatalog.cs`): *Slam Feast* (the slam damage
+**Deferred** (left out of `FACTORIES`; the reasons are kept in `docs/future-enhancements-and-fixes.md`): *Slam Feast* (the slam damage
 Strike spawns AFTER `OnSlamLand`, so no kill-count is available at the hook), *Backstab* (damage is baked into the
 `Hitbox` at activate time and applied before the victim is known — no on-contact tuning seam), and *Perfect-Dodge
 Haste/Fury/Aegis* (dash i-frames disable the hurtbox, so a dash-avoided hit fires no event to hang

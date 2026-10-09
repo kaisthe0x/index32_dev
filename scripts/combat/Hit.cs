@@ -37,23 +37,4 @@ public partial class Hit : RefCounted
     public float DotPercent { get; set; }
     /// <summary>How long the reap lasts (re-applying refreshes, never shortens). 0 = no DoT.</summary>
     public float DotTime { get; set; }
-
-    // ----------------------------------------------------------------------------------------------------
-    // TRANSITION-ONLY snake_case aliases. GDScript addresses C# members by their exact name, so these let
-    // the still-GDScript consumers (player/enemy/abilities/hitbox/projectile) keep using `hit.amount` etc.
-    // UNCHANGED until they are ported. DELETE this whole block once no .gd touches a Hit. (See docs/csharp-migration.md.)
-    // ----------------------------------------------------------------------------------------------------
-    public float amount { get => Amount; set => Amount = value; }
-    public float knockback { get => Knockback; set => Knockback = value; }
-    public float stun { get => Stun; set => Stun = value; }
-    public Node? source { get => Source; set => Source = value; }
-    public bool ranged { get => Ranged; set => Ranged = value; }
-    public bool from_special { get => FromSpecial; set => FromSpecial = value; }
-    public float frenemy_time { get => FrenemyTime; set => FrenemyTime = value; }
-    public Color status_color { get => StatusColor; set => StatusColor = value; }
-    public float status_time { get => StatusTime; set => StatusTime = value; }
-    public PackedScene? victim_vfx { get => VictimVfx; set => VictimVfx = value; }
-    public float victim_vfx_time { get => VictimVfxTime; set => VictimVfxTime = value; }
-    public float dot_percent { get => DotPercent; set => DotPercent = value; }
-    public float dot_time { get => DotTime; set => DotTime = value; }
 }

@@ -119,8 +119,6 @@ public partial class Player : Combatant, IStrikeWielder
     public int dash_bonus = 0;                // extra dash CHARGES on top of the one you always have
     public float slam_damage_mult = 1.0f;    // Slam Damage shot
     public float attack_reach_mult = 1.0f;   // Long Arm
-    public int attack_projectile_bonus = 0;  // Split Shot (WIP)
-    public float special_radius_mult = 1.0f;  // Wide Impact (WIP)
     public float special_invuln_bonus = 0.0f; // Fortitude: extends any surge window
     public float jump_velocity_bonus = 1.0f;  // Jump Height shot: multiplies applied jump velocity (all jumps)
     public int magnet_target_bonus = 0;        // Wider Pull perk: extra Come Closer magnet targets
@@ -1254,8 +1252,6 @@ public partial class Player : Combatant, IStrikeWielder
         dash_bonus = 0;
         slam_damage_mult = 1.0f;
         attack_reach_mult = 1.0f;
-        attack_projectile_bonus = 0;
-        special_radius_mult = 1.0f;
         _dashEffect = StartingDashEffect;
         special_invuln_bonus = 0.0f;
         _iframesLeft = 0.0f;
