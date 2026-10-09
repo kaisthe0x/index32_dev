@@ -6,6 +6,39 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-09 — `new-shit` — `Enemy` redesign, step 2: its self-contained parts
+
+### Attack sounds, status display, edge sensing and the magnet pull are classes
+
+- **What:** four pieces of `Enemy` that each had their own state and a narrow job moved to the new
+  `scripts/enemies/parts/`:
+
+  | Class | Job |
+  |---|---|
+  | `AttackSounds` | An attack's start cue and its per-frame cues; a held channel's sounds on stoppable players. |
+  | `StatusDisplay` | The pips beside the health bar, the halo overhead, the coloured flash over the sprite. |
+  | `EdgeSensor` | The two rays that tell a walking enemy there is floor ahead. |
+  | `MagnetPull` | Being dragged to a point by Come Closer, and stunned on arrival. |
+
+  `Enemy.cs` is now 864 lines (1,225 before the redesign). What is left is what an enemy *is*: its stats, its
+  body, the loop that decides between patrolling, chasing and attacking, taking damage, and dying.
+- **Why:** the owner's redesign decision; rule `S3`. Each of these could be read, and changed, without knowing the
+  enemy's state machine.
+- **How:** code moved as it was. `MagnetPull.Step` returns what the enemy should do (nothing, "you have arrived",
+  or a velocity) instead of setting the enemy's fields, so the enemy still owns its own movement and stun.
+  Subclasses reach the sounds through `Sounds` instead of three forwarding methods.
+- **Left in `Enemy` on purpose:** stun, charm and the reap damage-over-time. They change what the enemy does each
+  tick (its state, its target, its health), so they are the state machine, not a part beside it. Hit-stop likewise
+  — thirty lines that freeze and shake the enemy's own sprite.
+- **Could affect:** enemy attack sounds (including a blast's sounds stopping when it is staggered); status pips,
+  halo and flash; enemies stopping at ledges and following slopes; Come Closer.
+- **Tested:** the attack recorder again matches the original baseline line for line (104 lines — it includes
+  every sound file each enemy plays). The 10 seam checks (Come Closer among them), the 8 run-loop checks and the 4
+  status checks pass. Build 0 warnings. **Not tested:** an enemy at a real ledge (the checks run on flat ground and
+  the stage's slopes only by chance); a blast interrupted mid-sound.
+
+---
+
 ## 2026-10-09 — `new-shit` — `Enemy` redesign, step 1: attacks are objects
 
 The owner approved redesigning `Enemy` and `Player` rather than only moving code. This is the first step for

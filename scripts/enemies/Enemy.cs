@@ -20,6 +20,7 @@ public partial class Enemy : Combatant
 {
 	protected virtual string FramesPath => "res://resources/enemies/{0}.tres";  // WardenEnemy overrides -> resources/wardens/
 	private const string GlowMaterial = "res://resources/enemy_glow.tres";
+	private static readonly Color MagnetStunTint = new(0.6f, 0.4f, 1.0f, 0.6f);   // the flash when a magnet pull lands
 	private const float NoCloseAttackRange = 30.0f;   // how near an enemy with no close attack walks up to its target
 
 	[Signal] public delegate void DiedEventHandler();
@@ -88,19 +89,15 @@ public partial class Enemy : Combatant
 	protected bool HasDeath, HasWalk;
 	private EnemyAttack? _attack;   // the attack in progress (State == Attack)
 	private readonly List<Node> _patrolTrailEmitters = new();
-	private readonly Dictionary<string, Dictionary<int, string>> _frameSfx = new(); // anim -> { emitted frame -> cue }
 	protected float AttackCd;
 	protected float PointA, PointB, PatrolTarget;
 	private float _idleTimer;
 	protected float StunLeft;
 	private BlastStrike? _activeChannel;
-	private readonly List<AudioStreamPlayer2D> _attackSfx = new();
-	private bool _channelSfx;   // the attack in progress is a held channel (PlayAttackStartSfx)
 	private float _dotLeft, _dotTick, _dotAccum;
 	private Node? _dotSource;
 	private bool _reaped;
-	private Node2D? _magnetAnchor;
-	private float _magnetArrive = 60.0f, _magnetSpeed = 320.0f, _magnetStun = 3.0f;
+	private readonly MagnetPull _magnet = new();
 	private float _frenemyLeft;
 	private float _contactCd;
 	private Hitbox? _contactHitbox;
@@ -115,12 +112,10 @@ public partial class Enemy : Combatant
 	protected AnimatedSprite2D Sprite = null!;
 	protected Hurtbox Hurt = null!;
 	protected FloatingHealthBar Bar = null!;
-	private StatusOverlay _status = null!;
-	private StatusIcons _statusIcons = null!;
-	private OverheadStatus _overhead = null!;
+	private StatusDisplay _statusDisplay = null!;
+	private EdgeSensor _edges = null!;
+	protected AttackSounds Sounds = null!;
 	protected float HeadY;
-	private int _shownStatus;   // the reap / stun / charm flags currently displayed (RefreshStatusIcons)
-	private RayCast2D _edgeRayLeft = null!, _edgeRayRight = null!;
 
 	public bool LastHitFromSpecial;
 
@@ -137,25 +132,12 @@ public partial class Enemy : Combatant
 		BuildHurtbox();
 		BuildContactHitbox();
 		BuildHealthBar();
-		BuildEdgeRays();
-
-		_status = new StatusOverlay();
-		AddChild(_status);
-		_status.Setup(Sprite);
-
-		_statusIcons = new StatusIcons();
-		AddChild(_statusIcons);
-		float barW = Bar.BarWidth;
-		float barH = Bar.BarHeight;
-		_statusIcons.Position = Bar.Position + new Vector2(barW / 2.0f + 3.0f, -barH / 2.0f);
-
-		_overhead = new OverheadStatus();
-		AddChild(_overhead);
-		_overhead.Setup(HeadY);
+		_edges = new EdgeSensor(this, EdgeCheckX);
+		_statusDisplay = new StatusDisplay(this, Sprite, Bar, HeadY);
 
 		HasDeath = Sprite.SpriteFrames.HasAnimation("death");
 		HasWalk = Sprite.SpriteFrames.HasAnimation("walk");
-		BuildFrameSfx();
+		Sounds = new AttackSounds(this, EnemyId, Sprite.SpriteFrames);
 		BuildPatrolTrail();
 		Close?.Attach(this);
 		Far?.Attach(this);
@@ -217,36 +199,6 @@ public partial class Enemy : Combatant
 		AddChild(_contactHitbox);
 	}
 
-	private void BuildEdgeRays()
-	{
-		_edgeRayLeft = MakeEdgeRay(-EdgeCheckX);
-		_edgeRayRight = MakeEdgeRay(EdgeCheckX);
-	}
-
-	private RayCast2D MakeEdgeRay(float x)
-	{
-		// Tall vertical span so a SLOPE isn't mistaken for a cliff. Reaches UP 14px (an upslope's rising floor;
-		// HitFromInside also catches steep climbs where the origin embeds in terrain) and DOWN ~a tile (28px) so a
-		// DESCENDING floor is still "ahead" and the enemy keeps chasing down instead of stopping at the lip. A true
-		// drop deeper than ~a tile still reads as a cliff and halts it (no diving off high platforms).
-		var ray = new RayCast2D
-		{
-			Position = new Vector2(x, -14),
-			TargetPosition = new Vector2(0, 42),
-			HitFromInside = true,
-			CollisionMask = Combat.GroundMask, // platforms count as footing too
-		};
-		AddChild(ray);
-		return ray;
-	}
-
-	protected bool FloorAhead(int dir)
-	{
-		var ray = dir < 0 ? _edgeRayLeft : _edgeRayRight;
-		ray.ForceRaycastUpdate();
-		return ray.IsColliding();
-	}
-
 	private void BuildHealthBar()
 	{
 		Bar = new FloatingHealthBar { RatioColors = true };
@@ -276,7 +228,7 @@ public partial class Enemy : Combatant
 		TickDot(d);
 		if (State == EState.Dead)
 			return;
-		RefreshStatusIcons();
+		_statusDisplay.Show(_dotLeft > 0.0f, State == EState.Stun || StunLeft > 0.0f, _frenemyLeft > 0.0f);
 		if (_patrolTrailEmitters.Count > 0)
 		{
 			bool moving = Mathf.Abs(Velocity.X) > 5.0f;
@@ -305,32 +257,23 @@ public partial class Enemy : Combatant
 			return;
 		}
 
-		if (_magnetAnchor != null)
+		if (_magnet.Step(GlobalPosition.X) is float pull)
 		{
-			if (!IsInstanceValid(_magnetAnchor))
+			if (pull == 0.0f)
 			{
-				_magnetAnchor = null;
+				// Arrived at the anchor: held there, stunned.
+				Velocity = new Vector2(0.0f, Velocity.Y);
+				StunLeft = Mathf.Max(StunLeft, _magnet.StunTime);
+				SetState(EState.Stun);
+				CancelChannel();
+				_statusDisplay.Flash(MagnetStunTint, _magnet.StunTime);
 			}
 			else
 			{
-				float dx = _magnetAnchor.GlobalPosition.X - GlobalPosition.X;
-				if (Mathf.Abs(dx) <= _magnetArrive)
-				{
-					Velocity = new Vector2(0.0f, Velocity.Y);
-					StunLeft = Mathf.Max(StunLeft, _magnetStun);
-					SetState(EState.Stun);
-					CancelChannel();
-					_status.ShowFor(new Color(0.6f, 0.4f, 1.0f, 0.6f), _magnetStun);
-					_magnetAnchor = null;
-				}
-				else
-				{
-					float speed = _magnetSpeed * Mathf.Clamp(Mathf.Abs(dx) / (_magnetArrive * 2.0f), 0.25f, 1.0f);
-					Velocity = new Vector2(Mathf.Sign(dx) * speed, Velocity.Y);
-					Face(Mathf.Sign(dx));
-					MoveAndSlide();
-					return;
-				}
+				Velocity = new Vector2(pull, Velocity.Y);
+				Face(Mathf.Sign(pull));
+				MoveAndSlide();
+				return;
 			}
 		}
 
@@ -441,7 +384,7 @@ public partial class Enemy : Combatant
 			if (pursue || hold)
 			{
 				Engaged = true;
-				if (closeIn && dist > reach && FloorAhead(dir))
+				if (closeIn && dist > reach && _edges.FloorAhead(dir))
 				{
 					Velocity = new Vector2(dir * MoveSpeed * _huntSpeedMult, Velocity.Y);
 					Face(dir);
@@ -473,7 +416,7 @@ public partial class Enemy : Combatant
 
 		int dir = Mathf.Sign(PatrolTarget - GlobalPosition.X);
 		bool arrived = dir == 0 || Mathf.Abs(PatrolTarget - GlobalPosition.X) <= 2.0f;
-		if (arrived || !FloorAhead(dir))
+		if (arrived || !_edges.FloorAhead(dir))
 		{
 			Velocity = new Vector2(0.0f, Velocity.Y);
 			_idleTimer = (float)GD.RandRange(IdleTimeMin, IdleTimeMax);
@@ -493,7 +436,7 @@ public partial class Enemy : Combatant
 	{
 		_attack = attack;
 		SetState(EState.Attack);
-		PlayAttackStartSfx(attack.Key, attack.Channels);
+		Sounds.PlayStart(attack.Key, attack.Channels);
 		Velocity = new Vector2(0.0f, Velocity.Y);
 		Impacted = false;
 		Engaged = true;
@@ -502,76 +445,9 @@ public partial class Enemy : Combatant
 		Play(attack.Animation);
 	}
 
-	private void BuildFrameSfx()
-	{
-		_frameSfx.Clear();
-		var sf = Sprite.SpriteFrames;
-		foreach (var (anim, frames) in SfxEnemies.FramesFor(EnemyId))
-		{
-			if (!sf.HasAnimation(anim))
-				continue;
-			int start = SheetStart(anim);
-			var map = new Dictionary<int, string>();
-			foreach (var (sheetFrame, cue) in frames)
-				map[sheetFrame - start] = cue;
-			_frameSfx[anim] = map;
-		}
-	}
-
-	/// <summary>Play the start cue of the attack type <paramref name="typeKey"/> (<c>&lt;enemy&gt;.&lt;type&gt;</c>),
-	/// cutting off any attack sound still playing. <paramref name="channel"/> = the attack is a held channel: its
-	/// sounds (this one and the per-frame ones) play on players a stagger can stop.</summary>
-	protected void PlayAttackStartSfx(string typeKey, bool channel = false)
-	{
-		_channelSfx = channel;
-		StopAttackSfx();
-		PlayAttackSfx($"{EnemyId}.{typeKey}");
-	}
-
-	protected void PlayFrameSfx()
-	{
-		if (_frameSfx.Count == 0)
-			return;
-		if (_frameSfx.TryGetValue(Sprite.Animation, out var map) && map.TryGetValue(Sprite.Frame, out string? cue))
-			PlayAttackSfx(cue);
-	}
-
-	private void PlayAttackSfx(string cue)
-	{
-		if (cue == "")
-			return;
-		if (!_channelSfx)
-		{
-			SfxPlayAt(cue, GlobalPosition);
-			return;
-		}
-		var pl = SfxMakeOneshot2d(cue);
-		if (pl == null)
-			return;
-		AddChild(pl);
-		_attackSfx.Add(pl);
-		pl.Finished += () =>
-		{
-			_attackSfx.Remove(pl);
-			pl.QueueFree();
-		};
-		pl.Play();
-	}
-
-	protected void StopAttackSfx()
-	{
-		foreach (var pl in _attackSfx)
-			if (IsInstanceValid(pl))
-			{
-				pl.Stop();
-				pl.QueueFree();
-			}
-		_attackSfx.Clear();
-	}
-
 	protected virtual void OnFrameChanged()
 	{
-		PlayFrameSfx();
+		Sounds.PlayFrame(Sprite.Animation, Sprite.Frame);
 		if (State == EState.Attack)
 			_attack?.OnFrame(Sprite.Frame);
 		else if (State == EState.Idle)
@@ -739,7 +615,7 @@ public partial class Enemy : Combatant
 		{
 			_activeChannel.Cancel();
 			_activeChannel = null;
-			StopAttackSfx();
+			Sounds.Stop();
 		}
 	}
 
@@ -801,7 +677,7 @@ public partial class Enemy : Combatant
 			SetState(EState.Stun);
 			CancelChannel();
 			if (hit.StatusColor.A > 0.0f)
-				_status.ShowFor(hit.StatusColor, hit.StatusTime);
+				_statusDisplay.Flash(hit.StatusColor, hit.StatusTime);
 		}
 	}
 
@@ -812,16 +688,14 @@ public partial class Enemy : Combatant
 	{
 		SetState(EState.Dead);
 		CancelChannel();
-		StopAttackSfx();
+		Sounds.Stop();
 		SfxPlayAt(DeathSfxKey(), GlobalPosition);
 		EmitSignal(SignalName.Died);
 		RemoveFromGroup("enemies");
 		Hurt.SetDeferred(Area2D.PropertyName.Monitorable, false);
 		SetDeferred(CollisionObject2D.PropertyName.CollisionLayer, 0);
 		Bar.Visible = false;
-		_statusIcons.SetActive(new List<StatusType>());
-		_overhead.SetActive(new List<StatusType>());
-		_status.Clear();
+		_statusDisplay.Clear();
 		if (HasDeath)
 			Play("death");
 		else
@@ -873,27 +747,6 @@ public partial class Enemy : Combatant
 		}
 	}
 
-	// --- status pips --------------------------------------------------------
-
-	/// <summary>Show the statuses this enemy is under (pips beside the health bar + the overhead halo). Runs every
-	/// tick, so it compares three flags and only builds the list when one of them changed.</summary>
-	private void RefreshStatusIcons()
-	{
-		bool reap = _dotLeft > 0.0f;
-		bool stun = State == EState.Stun || StunLeft > 0.0f;
-		bool charm = _frenemyLeft > 0.0f;
-		int shown = (reap ? 1 : 0) | (stun ? 2 : 0) | (charm ? 4 : 0);
-		if (shown == _shownStatus)
-			return;
-		_shownStatus = shown;
-		var ids = new List<StatusType>();
-		if (reap) ids.Add(StatusType.Reap);
-		if (stun) ids.Add(StatusType.Stun);
-		if (charm) ids.Add(StatusType.Charm);
-		_statusIcons.SetActive(ids);
-		_overhead.SetActive(ids);
-	}
-
 	// --- helpers ------------------------------------------------------------
 
 	protected Node2D? Player()
@@ -939,10 +792,7 @@ public partial class Enemy : Combatant
 	{
 		if (State == EState.Dead || anchor == null)
 			return;
-		_magnetAnchor = anchor;
-		_magnetArrive = arriveDist;
-		_magnetSpeed = speed;
-		_magnetStun = stunTime;
+		_magnet.Start(anchor, arriveDist, speed, stunTime);
 	}
 
 	public void ApplyHit(Hit hit) => Hurt?.TakeHit(hit);
@@ -996,7 +846,7 @@ public partial class Enemy : Combatant
 			Sprite.Play(anim);
 	}
 
-	// --- bridges (GDScript configs / UI / autoload / util) ------------------
+	// --- lookups -------------------------------------------------------------
 
 	/// <summary>This enemy's row <paramref name="effect"/> in <see cref="EmittersEnemies"/>, or null.</summary>
 	public EmitterDef? Effect(string effect) => Emitters.EnemyEffect(EnemyId, effect);
@@ -1006,9 +856,6 @@ public partial class Enemy : Combatant
 
 	protected void SfxPlayAt(string cue, Vector2 pos) =>
 		GetNodeOrNull<Sfx>("/root/Sfx")?.PlayAt(cue, pos);
-
-	private AudioStreamPlayer2D? SfxMakeOneshot2d(string cue) =>
-		GetNodeOrNull<Sfx>("/root/Sfx")?.MakeOneshot2D(cue);
 
 	public static CollisionShape2D MakeBox(Vector2 size, Vector2 offset = default) =>
 		new() { Position = offset, Shape = new RectangleShape2D { Size = size } };

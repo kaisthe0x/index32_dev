@@ -55,7 +55,7 @@ public partial class SleeperEnemy : Enemy
     {
         SetState(EState.Rage);
         if (fromFrame == 0)
-            PlayAttackStartSfx(RageKey); // the wake/attack cue -- once per rage, not every yell loop
+            Sounds.PlayStart(RageKey); // the wake/attack cue -- once per rage, not every yell loop
         _eruptedThisYell = false;
         Impacted = false;
         ReplayFrom(RageAnim, fromFrame);
@@ -63,7 +63,7 @@ public partial class SleeperEnemy : Enemy
 
     protected override void OnFrameChanged()
     {
-        PlayFrameSfx();
+        Sounds.PlayFrame(Sprite.Animation, Sprite.Frame);
         if (State == EState.Rage && !_eruptedThisYell && HitFramesOf(RageAnim).Contains(Sprite.Frame))
         {
             _eruptedThisYell = true;
