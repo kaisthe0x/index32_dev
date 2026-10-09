@@ -45,6 +45,11 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 - **Could affect:** only that prop. At 1.4 the pixels are slightly uneven, as they were at 0.7.
 - **Tested:** the arena boots clean. **Not tested:** how it looks in game.
 
+### Notes for later
+
+- `docs/game-loop.md` records the "build-gated places" idea (areas locked behind jumps, dashes, both, or attack
+  power) and Dekken upgrades through experience points. No code.
+
 ---
 
 ## 2026-10-04 — `new-shit`

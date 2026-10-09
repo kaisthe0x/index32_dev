@@ -226,10 +226,19 @@ run that keeps getting harder).
 
 ### Later ideas — noted, not in this build
 
-- **The Vial:** Khalid carries **one vial** that can hold a **Dekken perk** for later — at Dekken you either *use it
-  now* or *store it in the vial*, then trigger it whenever you choose (a mid-round heal, a Shield for a hard round) and
-  refill it with another. (It was first pitched for shots; those are permanent now, so it moved to perks.) Build it
-  only if the shop feels too stiff without it. Candidate for a **main-menu unlock** (see § Meta-progression).
+- ~~**The Vial**~~ — **built 2026-10-04** as Dekken's drink-now-or-keep vials (two carry slots, § Dekken).
+- **Build-gated places (noted 2026-10-05).** Today one stall already works this way: Dekken sits on a platform you
+  can only reach with enough **air jumps / jump height** from Needle Point. Extend that into a general idea — parts of
+  the map, and what's on them, are locked behind what your **build** can do, each by a different stat:
+  - **Mobility — jumps:** high or far platforms (what Dekken is now).
+  - **Mobility — dashes:** a run of **traps / hazards** you can only cross with enough **dash charges**.
+  - **Both:** routes that need buffed jumps **and** dashes together.
+  - **Attack power:** something that only opens to enough **damage** (a barrier or door with a health bar, a guard
+    that shrugs off weak hits).
+  - …and so on for other stats (run speed against a timer, slam damage against a breakable floor).
+  The point is that Needle Point ranks stop being only numbers — each one is also a **key**, and different builds open
+  different parts of the map. Open: what waits in each place (see the far-platform rewards discussion — permanent
+  unlocks were the suggestion), and whether a gate should ever lock something a run *needs* (a stall) or only extras.
 - **Shop relocation** (the CoD teddy bear, but for the stalls).
 - **HP-cost altars** (Risk of Rain blood shrine): pay health for power.
 - **Per-purchase price growth** for shots (see Prices).
@@ -247,7 +256,8 @@ best round, or a persistent meta-currency) is undecided.
 
 - **Longer perks / deeper shots:** certain Dekken perks last **more rounds**, or Needle Point shots get a higher max
   rank / a cheaper rank I — permanently.
-- **The Vial** (see § Economy → Later ideas) as an unlockable.
+- **Dekken upgrades through experience** (owner, 2026-10-04): the more you play, the more experience points you
+  earn, and they upgrade Dekken's vials for all future runs (e.g. more carry slots, stronger or longer vials).
 - **Sigils** — pre-run run-rule modifiers with tradeoffs (the long-standing idea in the glossary).
 
 ---
