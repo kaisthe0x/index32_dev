@@ -149,7 +149,7 @@ public partial class DiverEnemy : Enemy
             new SegmentData { Damage = ExplosionDamage, Knockback = ExplosionKnockback, Stun = ExplosionStun },
             true);
         if (strike != null)
-            PlaceAt(strike, GlobalPosition);
+            Nodes.PlaceAt(strike, GlobalPosition);
     }
 
     /// <summary>Wear the trail for `effect` (config key), or "" to clear it. The old trail dissipates in the level.</summary>

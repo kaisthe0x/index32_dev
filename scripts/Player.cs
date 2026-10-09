@@ -678,7 +678,7 @@ public partial class Player : Combatant, IStrikeWielder
             _specialCd = 0.0f;
     }
 
-    // --- DEBUG: playtest the buff catalog (triggered from RunManager's input; REMOVE before release) -------
+    // --- DEBUG: playtest the buff catalog (triggered from RunManager's DEBUG keys; REMOVE before release) -------
     private int _debugBuffIdx = 0;
 
     /// <summary>DEBUG: grant the next wired catalog buff, cycling through the whole set.</summary>

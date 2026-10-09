@@ -13,8 +13,15 @@ implements is [`docs/game-loop.md`](../../docs/game-loop.md) — **endless CoD-Z
 
 | File | What it is |
 |---|---|
-| `RunManager.cs` (`RunManager`) | The brain + the arena root. Builds ONE arena and runs the **round loop** (a hidden quota per round, trickled in from a mixed roster at the layout's spawn spots, under a concurrent cap; the last few hunt the player, and from round 5 standing still draws kamikazes — then straight into the next round with a ROUND banner — no break), **awards Ruh per damaging hit landed** (via `GainRuhOnHit`, skipping a special's own hits — not per kill), **pays Lira on every kill** (coins that fly to the player) **plus a per-kit chance of one Fada Fig**, **spawns a mystery box** (spend figs for a stingy powerful-buff gamble — a win rarely offers a **special-swap** instead) **and the stalls** (Needle Point, Dekken — placed in the layout), ticks the run's `PerkLedger` at each round clear, and restarts the run on death. Owns the camera/death/spawn flair. |
-| `EnemyKits.cs` (`EnemyKits`) | **The enemy roster** — one typed `EnemyKit` per type (id, name, tier, movement, which scene, and a `Tune` function that sets its combat stats). `RunManager.SpawnPool` draws from these. Edit here to change *who* the enemies are. |
+| `RunManager.cs` (`RunManager`) | The brain + the arena root. Owns the ORDER of things and the **round loop**: the quota, the concurrent cap and the spawn interval per round, the clear on the last kill and the next round at once, the stragglers' hunt. Pays **Lira** on every kill (+ a per-kit chance of one **Fada Fig**) and Ruh orbs on hits, wires the stalls to the run's ledgers, and restarts the run on death. The parts below are its own classes. |
+| `EnemySpawner.cs` (`EnemySpawner`) | **Who spawns and where.** The roster (`SpawnPool`), each kit's per-type cap, the free-spawn-spot choice that spreads enemies over the map, near-player spawns from a later round, building an enemy from its kit, and the list of the living. Reports `Spawned` / `Died` / `Damaged`. Rebuilt per arena. |
+| `PressureSpawns.cs` (`PressureSpawns`) | **The two anti-camping spawns**, outside the quota: stand still → kamikazes (Ein); hug an end of the arena → a Ventilator on the inland side. Each has its own clock. Rebuilt per arena. |
+| `ArenaGround.cs` (`ArenaGround`) | **Where things can stand**: a tile on the floor under a point, whether a spot is clear of solid props, headroom, inside-a-wall — physics probes plus the layout's walkable tiles. |
+| `RunCamera.cs` (`RunCamera`) | **The camera**: the follow spring, the eased drift during spawn / death, the three zoom levels. |
+| `DeathSequence.cs` (`DeathSequence`) | **Between dying and the restart**: the death cinematic (zoom, black overlay, held death frame, the hold) or, for a fall, just the wait for the fall sound. |
+| `ArenaBackdrop.cs` (`ArenaBackdrop`) | **Behind the arena**: the stage's background image, scaled to the window, under a dark tint. |
+| `VialControls.cs` (`VialControls`) | **Carried vials in the player's hands**: Q / RB drinks, Tab / LB cycles, and the HUD's vial row. The rules stay in `PerkLedger`. |
+| `EnemyKits.cs` (`EnemyKits`) | **The enemy roster** — one typed `EnemyKit` per type (id, name, tier, movement, which scene, and a `Tune` function that sets its combat stats). `EnemySpawner.SpawnPool` draws from these. Edit here to change *who* the enemies are. |
 | `ShotLedger.cs` (`ShotLedger`) | **Needle Point's rules** for one run: the ranks owned of each shot (as `Shot` passives). BUY (break only) raises a shot one rank, permanently, at a rising price. Data in `configs/NeedlePoint.cs`; see the main README § Needle Point shots. |
 | `PerkLedger.cs` (`PerkLedger`) | **Dekken's rules** for one run: the round's stock (5 random perks, rerolled every round), active/owned perks (as `Perk` passives), BUY (break only) + `OnRoundClear`. Data in `configs/Dekken.cs`; see the main README § Dekken perks. |
 | `DekkenStall.cs` (`DekkenStall`, in `scripts/things/`) | The perk shop — a triangular VENDING MACHINE of vials (`assets/things/dekken.png`, 128×128, from `index32_art/art/stages/stage1/Dekken.png` — the mossy stage-1 version), placed in the layout. Its vials are tinted Khalid's hair colour (`vial_recolor.gdshader`). Press **E** at it to open the `DekkenMenu` (`scripts/ui/`). |
@@ -42,43 +49,43 @@ spawns every `SpawnInterval(r)` (shortens per round, floored at `IntervalMin`) a
 `C(r)` (`CapBase`, +1 every `CapGrowthRounds`, max `CapMax`) quota enemies are alive; once `Q(r)` have spawned,
 spawning **stops**, and the round **clears** on the last kill (`OnEnemyDied` → `ClearRound`) → `StartRound(r+1)` at
 once — **no break, no countdown**; the HUD plays the **ROUND n** intro (big at screen centre, then it flies up into the round block). The roster is drawn uniformly from
-`RunManager.SpawnPool` (the grunts + Nasen — Ein is the stand-still kamikaze and Ventilator the edge enemy, below; Wardens are for the future Warden rounds). **Only non-optional enemies
+`EnemySpawner.SpawnPool` (the grunts + Nasen — Ein is the stand-still kamikaze and Ventilator the edge enemy, below; Wardens are for the future Warden rounds). **Only non-optional enemies
 are quota enemies** — the sleeper Nasen (`optional`, as are kamikazes and the Ventilator) spawns on its own cap but never counts or blocks a clear.
-**Per-type caps:** a kit with a `spawn_cap` (Nasen = 1) can't have more than that many alive at once — `PickSpawnKit`
-only rolls kits under their cap (`LivingOfType` vs `EffectiveCap`), and that cap grows +1 every `KitCapGrowthRounds`.
+**Per-type caps:** a kit with a `spawn_cap` (Nasen = 1) can't have more than that many alive at once — `EnemySpawner.PickKit`
+only rolls kits under their cap (`EnemySpawner.LivingOfType` vs `EnemySpawner.EffectiveCap`), and that cap grows +1 every `KitCapGrowthRounds`.
 Each enemy appears at a **spawn spot** — a `Marker2D` under the layout's `EnemySpawns` node (`LevelLayout.EnemySpawns`).
-**One enemy per spot** (`_spotOf`, freed on death), spread over the map: `PickSpawnSpot` takes the free spot farthest
+**One enemy per spot** (`EnemySpawner._spotOf`, freed on death), spread over the map: `EnemySpawner.PickSpawnSpot` takes the free spot farthest
 from the spots already held, among those at least `Rounds.SpawnMinDistance` (320 px) from the player (so nothing lands
-on top of him); with every spot held the spawn waits (`SpawnOne` returns false, `TickRound` retries). `SpawnAt` puffs, spawns, wires `died`/`damaged`, tracks it in `_enemies`
+on top of him); with every spot held the spawn waits (`EnemySpawner.SpawnFromPool` returns false, `TickRound` retries). `EnemySpawner.SpawnAt` puffs, spawns, wires `died`/`damaged`, tracks it in `EnemySpawner.Living`
 and counts it toward the quota unless the kit is `optional`. The enemy **patrols** around its spot until the player
 comes within its `AggroRange` (320 px), so the player has to go **find** enemies (the off-screen arrows help).
 A layout with no markers logs an error and spawns nothing.
 
-**Near-player spawns** (from `Rounds.NearSpawnFromRound`, 10): `NearShare(r)` of the grunts — 20% at r10, +10% a round,
+**Near-player spawns** (from `Rounds.NearSpawnFromRound`, 10): `EnemySpawner.NearShare(r)` of the grunts — 20% at r10, +10% a round,
 max 70%; never a stationary kit — spawn on the player's floor, BEHIND him (opposite `Player.Facing`),
-`NearSpawnMin..NearSpawnMax` (100–240 px) away: `NearPlayerSpot` → `PickGroundSurface`. That only uses the floor the
+`NearSpawnMin..NearSpawnMax` (100–240 px) away: `EnemySpawner.NearPlayerSpot` → `ArenaGround.PickSurface`. That only uses the floor the
 player stands on: `LevelLayout` splits the Terrain's exposed tops into connected **floor regions** (tops join where
 their surfaces meet — side by side, or along a ramp, `LevelLayout.Linked`; a block step or a sawtooth splits them),
-`SpawnSurfacesNear` returns the region under him (`GroundBelow`, a ray down, so a jump doesn't change it) limited to
-flat runs of `MinSpawnFloorTiles` (3)+, and `SpotIsClear` drops tiles under something solid (Needle Point's dais).
+`SpawnSurfacesNear` returns the region under him (`ArenaGround.GroundBelow`, a ray down, so a jump doesn't change it) limited to
+flat runs of `MinSpawnFloorTiles` (3)+, and `ArenaGround.SpotIsClear` drops tiles under something solid (Needle Point's dais).
 From round 10, all spots held also falls back to a near spawn instead of waiting.
 
 **Stragglers:** once the quota has fully spawned and ≤ `Rounds.StragglerCount` (3) remain, `UpdateStragglers` calls
 `Enemy.Hunt(Rounds.StragglerSpeedMult)` on each — they chase the player anywhere, no leash, **1.6× faster** (walk
 animation sped up to match) — so a round never stalls on one he can't find.
 
-**Stand-still kamikazes** (`TickPressure`): from `Rounds.KamikazeFromRound` (5), a player who stays within
+**Stand-still kamikazes** (`PressureSpawns.TickStandStill`): from `Rounds.KamikazeFromRound` (5), a player who stays within
 `StillRadius` (50 px) for `StillTime` (2 s) gets an **Ein** (`EnemyKits.Ein` — `optional`, no Lira, no figs; NOT in
-`SpawnPool`) `KamikazeDistance` (220 px) to a random side (`KamikazeSpot` — the other side if that one is inside a
-wall) and up to `KamikazeHeight` (110 px) above, under any ceiling (`HeadroomAbove`); then another every
+`EnemySpawner.SpawnPool`) `KamikazeDistance` (220 px) to a random side (`PressureSpawns.KamikazeSpot` — the other side if that one is inside a
+wall) and up to `KamikazeHeight` (110 px) above, under any ceiling (`ArenaGround.HeadroomAbove`); then another every
 `KamikazeInterval(r)` (2 s at r5, ×0.95 a round, min 0.75 s) while he stays put, at most `KamikazeMax(r)` alive (5 at
 r5, +1 every 5 rounds, max 8). Moving away resets the clock; Nem's sleep pauses it (`Player.IsChannelingSurge`) —
 kamikazes already diving still come.
 
-**The edge enemy** (`TickEdge`): from `Rounds.VentilatorFromRound` (3), a player who stays within `EdgeZone` (300 px)
+**The edge enemy** (`PressureSpawns.TickEdge`): from `Rounds.VentilatorFromRound` (3), a player who stays within `EdgeZone` (300 px)
 of either end of the arena (`LevelLayout.HorizontalSpan`, cached as `_arenaLeft/_arenaRight`) for `EdgeDwell` (1 s)
-gets a **Ventilator** (`EnemyKits.Ventilator` — `optional`, not in `SpawnPool`, drops Lira + figs normally) on his
-floor on the INLAND side, 140–260 px away (`EdgeInland` + `PickGroundSurface`; a tile on the outer side is rejected and
+gets a **Ventilator** (`EnemyKits.Ventilator` — `optional`, not in `EnemySpawner.SpawnPool`, drops Lira + figs normally) on his
+floor on the INLAND side, 140–260 px away (`PressureSpawns.EdgeInland` + `ArenaGround.PickSurface`; a tile on the outer side is rejected and
 retried next tick). Its wind gust (`Hit.Gust`, no damage) blows him OUTWARD — off the edge unless he air-jumps or
 dashes back. One alive at most; the next waits `VentilatorCooldown` (10 s) after one dies (`OnEnemyDied`).
 
@@ -139,12 +146,12 @@ Related, but not in this folder:
 ## Tuning cheatsheet
 
 - **Change the round curve** → `configs/Rounds.cs`: `Quota*` (enemies per round), `Cap*` (concurrent alive),
-  `Interval*` (seconds between spawns), `ShowLeftAt`. `RunManager.SpawnPool` is the
+  `Interval*` (seconds between spawns), `ShowLeftAt`. `EnemySpawner.SpawnPool` is the
   roster drawn from. Anti-camp: `OffscreenDespawnTime` (how long off-screen before an enemy is silently culled) /
   `OffscreenMargin`.
 - **Cap a specific enemy type** → set `SpawnCap = N` on its kit in `EnemyKits` (e.g. Nasen: `with { SpawnCap = 1 }`). The cap grows
   +1 every `Rounds.KitCapGrowthRounds` rounds. Kits with no `SpawnCap` are unlimited.
-- **Change the drops** → Lira per kill: `RunManager.LiraForTier` (by advisory tier) or a kit's `LiraDrop`; fig
+- **Change the drops** → Lira per kill: `EnemySpawner.LiraForTier` (by advisory tier) or a kit's `LiraDrop`; fig
   odds: `FigChance` in the kit's `Tune` (default `Enemy.FigChance` = 0.1). Pickup cues `lira_collect` / `fada_fig_collect` in
   `SfxWorld` (PLACEHOLDERS). The ROUND n intro's timing is `IntroFadeIn` / `IntroHold` / `IntroFly` in `HUD.cs`.
 - **Change the mystery box** → `configs/BoxRules.cs`: `Cost`, `SpinTime`, `OfferTime`, `TeddyChance`, `HardSpotChance`,

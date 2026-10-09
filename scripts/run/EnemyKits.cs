@@ -3,8 +3,8 @@ using Godot;
 namespace MyGame;
 
 /// <summary>
-/// The enemy roster — one <see cref="EnemyKit"/> per enemy TYPE. RunManager's spawn pool draws from these, and its
-/// pressure spawns (the kamikaze, the Ventilator) name them directly. Each kit's <c>Tune</c> sets only what differs
+/// The enemy roster — one <see cref="EnemyKit"/> per enemy TYPE. <see cref="EnemySpawner.SpawnPool"/> draws from these, and
+/// <see cref="PressureSpawns"/> (the kamikaze, the Ventilator) names its two directly. Each kit's <c>Tune</c> sets only what differs
 /// from the defaults declared on <see cref="Enemy"/>. <c>CloseType</c> / <c>FarType</c> (the close-range and
 /// far-range attack) use the <see cref="StrikeType"/> taxonomy's keys, which also name the attack's animation, effect
 /// and sound.
@@ -65,7 +65,7 @@ public static class EnemyKits
 		e.FriendlyFire = true;
 	}) with { SpawnCap = 1 };
 
-	// The stand-still KAMIKAZE (RunManager's pressure spawn — not in the round's spawn pool): optional (not part of the
+	// The stand-still KAMIKAZE (<see cref="PressureSpawns"/> — not in the round's spawn pool): optional (not part of the
 	// round), drops nothing (no farming by standing still), and notices from far enough to dive at once.
 	public static readonly EnemyKit Ein = EnemyKit.Of<DiverEnemy>(EnemyIds.Ein, "Ein", EnemyTier.Mid,
 		EnemyMovement.Flying, "res://scenes/diver_enemy.tscn", e =>
@@ -81,7 +81,7 @@ public static class EnemyKits
 		e.PatrolDistance = 70.0f;
 	}) with { LiraDrop = 0 };
 
-	// The EDGE enemy (RunManager's edge spawn — not in the round's spawn pool): appears on the inland side when the
+	// The EDGE enemy (<see cref="PressureSpawns"/> — not in the round's spawn pool): appears on the inland side when the
 	// player is near either end of the arena, and blasts WIND (CloseGust) that does no damage but flings him outward
 	// — off the edge unless he air-jumps / dashes back. Optional (not part of the round) but drops Lira + figs as usual.
 	// Like Tarri, the blast fires on the LAST attack frame and he holds + vibrates there (the blast's EmitDuration).

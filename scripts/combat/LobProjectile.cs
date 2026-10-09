@@ -160,7 +160,7 @@ public partial class LobProjectile : Node2D
             strike.FriendlyFire = FriendlyFire;
             strike.Source = src;
             parent.AddChild(strike);
-            PlaceAt(strike, GlobalPosition);
+            Nodes.PlaceAt(strike, GlobalPosition);
             strike.ApplyTuning(tuning, src);
             foreach (var a in strike.FindChildren("*", "Area2D", true, false))
                 if (a is Hitbox hb)
@@ -189,7 +189,7 @@ public partial class LobProjectile : Node2D
                 codeStrike.AddChild(vis);
             }
             parent.AddChild(codeStrike); // _Ready: team layers + self-free timer
-            PlaceAt(codeStrike, GlobalPosition);
+            Nodes.PlaceAt(codeStrike, GlobalPosition);
             hb.Activate();
         }
         QueueFree();
@@ -205,11 +205,6 @@ public partial class LobProjectile : Node2D
     }
 
     // Inlined Nodes.place_at / Shapes.make_box (GDScript static helpers C# can't call).
-    private static void PlaceAt(Node2D node, Vector2 pos)
-    {
-        node.GlobalPosition = pos;
-        node.ResetPhysicsInterpolation();
-    }
 
     private static CollisionShape2D MakeBox(Vector2 size, Vector2 offset) =>
         new() { Position = offset, Shape = new RectangleShape2D { Size = size } };

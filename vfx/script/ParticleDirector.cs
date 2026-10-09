@@ -321,7 +321,7 @@ public partial class ParticleDirector : Node2D
 			AddChild(node);
 		else
 			world.AddChild(node);
-		PlaceAt(node, target);
+		Nodes.PlaceAt(node, target);
 		var hitboxes = HitboxesOf(node);
 		if (row.ConformToGround &&
 			!GroundContour.Conform(node, IsInsideTree() ? GetWorld2D().DirectSpaceState : null))
@@ -370,7 +370,7 @@ public partial class ParticleDirector : Node2D
 			world.AddChild(lob);
 		else
 			AddChild(lob);
-		PlaceAt(lob, muzzle);
+		Nodes.PlaceAt(lob, muzzle);
 	}
 
 	private Vector2 NearestEnemyPos(Vector2 from, float m)
@@ -411,11 +411,5 @@ public partial class ParticleDirector : Node2D
 		foreach (var entry in _sustained)
 			if (IsInstanceValid(entry.Root))
 				Face(entry.Root, entry.BasePose, entry.Pos, m);
-	}
-
-	private static void PlaceAt(Node2D node, Vector2 pos)
-	{
-		node.GlobalPosition = pos;
-		node.ResetPhysicsInterpolation();
 	}
 }

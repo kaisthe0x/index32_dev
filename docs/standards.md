@@ -181,14 +181,14 @@ A QA pass does not raise these as findings. They were chosen on purpose.
 These predate the standards. A QA pass does not report them as new findings, but **does** report a change that makes
 any of them worse, and says so when a change is a cheap chance to reduce one.
 
-- **Oversized classes:** `Player.cs` (~2,270 lines), `Enemy.cs` (~1,240), `RunManager.cs` (~1,090), `HUD.cs` (~620).
-  Direction: carve out subsystems as their own classes (S3) when they are next touched.
+- **Oversized classes:** `Player.cs` (~2,220 lines), `Enemy.cs` (~1,220), `HUD.cs` (~620). (`RunManager.cs` was split on
+  2026-10-09: ~1,090 → ~420.) Direction: carve out subsystems as their own classes (S3).
 - **By-name access to engine nodes, in one place:** `VfxPalette.RecolorNode` reads and sets `texture` by property
   name, because any node type may carry a gradient texture. The particle `emitting` / `one_shot` / `finished`
   access that `ParticleDirector` and the enemy walk trail used to do by name now goes through the typed
   `helpers/ParticleNodes.cs` — extend that, do not add new by-name access. (Calls between the game's *own* classes
   are all typed since 2026-10-09 — keep it that way: rule `T4`.)
-- **Per-call allocations in spawn-time code:** `RunManager.SpotIsClear` and the point / ray queries build their
+- **Per-call allocations in spawn-time code:** `ArenaGround.SpotIsClear` and the point / ray queries build their
   shape and parameters on each call. Not per-frame today; must not move onto the per-frame path as-is.
 - **No automated tests.** Behaviour is checked by throwaway headless scenes that are deleted afterwards. Direction:
   keep the valuable ones as a permanent suite.

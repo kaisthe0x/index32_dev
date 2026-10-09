@@ -6,6 +6,66 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-09 — `new-shit` — cleanup, part 6 (splitting the big classes: `RunManager`)
+
+Step F, first class. `RunManager` was 1,087 lines doing eight jobs. It is now 421 lines that own the order of
+things and the round loop; seven parts are their own classes. One commit. Nothing is meant to play differently.
+
+### `RunManager` is the round loop; its parts are classes
+
+- **What:** new classes in `scripts/run/`, each with one job:
+
+  | Class | Lines | Job |
+  |---|---|---|
+  | `EnemySpawner` | 215 | Who spawns and where: the roster, per-type caps, spawn-spot choice, near-player spawns, building an enemy from its kit, the living list. Events `Spawned` / `Died` / `Damaged`. |
+  | `PressureSpawns` | 124 | The stand-still kamikazes and the edge Ventilator, each with its clock. |
+  | `ArenaGround` | 125 | Where things can stand: floor tile under a point, clear of props, headroom, inside a wall. |
+  | `DeathSequence` | 132 | What plays between dying and the restart (cinematic, or the fall wait). A child node. |
+  | `RunCamera` | 91 | Follow spring, spawn / death drift, the three zoom levels. |
+  | `ArenaBackdrop` | 65 | The background image and tint. A `CanvasLayer`. |
+  | `VialControls` | 82 | Drink / cycle keys for carried vials and the HUD's vial row. A child node. |
+
+  `RunManager` keeps: building the arena, the round counters and curve, the stragglers' hunt, drops and Ruh orbs,
+  the attack picker, the restart, and the `DEBUG` keys.
+- **Why:** rule `S3` and the "oversized classes" item under Known debt. A change to how the camera follows used to
+  mean opening the same file as the spawn rules and the death fade, with all their fields in one list.
+- **How:**
+  - The method bodies were moved as they were (lifted by a script, not retyped); what changed is how the pieces
+    reach each other. The spawner no longer bumps the round's counters itself: it raises `Spawned` / `Died` /
+    `Damaged`, and `RunManager` and `PressureSpawns` listen.
+  - The spawner, the ground and the pressure spawns are **rebuilt with each arena**, so their state resets by
+    construction — `BuildArena` used to zero eleven fields by hand.
+  - `ArenaGround.HeadroomAbove` takes its height limit as a parameter instead of reading the kamikaze's constant, so
+    the ground knows nothing about kamikazes.
+  - **Shared helper:** `PlaceAt` (set a position + reset interpolation) existed as four identical private copies
+    (`RunManager`, `Enemy`, `LobProjectile`, `ParticleDirector`). It is now `helpers/Nodes.cs`, used by all (rule `O2`).
+  - **Dead code removed:** the arena scene still carried a legacy `Floor` body that `RunManager.BuildFloor` switched
+    off on every start ("the painted layout is the terrain now"). The node is deleted from `scenes/arena.tscn`, and
+    `BuildFloor` with it. Also gone: about twenty `_player == null` / `_player?.` checks in `RunManager` — the player is required
+    and fetched once.
+  - The backdrop now unsubscribes from the window's resize signal when it leaves the tree (it never did).
+  - `helpers/README.md` described four GDScript files that no longer exist; rewritten for what is there.
+- **Could affect:** the whole run loop — spawning and its caps, where enemies appear, rounds clearing, the two
+  pressure spawns, drops, the camera in play / spawn / death, the death cinematic and fall death, the restart, the
+  background, vial keys, Fast Travel.
+- **Tested:**
+  - A new 8-check headless scene of the run loop, written and passed on the code **before** the split, then on the
+    split code with the same results: round 1 starts and enemies spawn at separate spots; the camera stays on the
+    player; killing the quota starts the next round; standing still draws a kamikaze after 2.0 s at the same offset;
+    standing at the arena's end draws a Ventilator on the inland side after 1.0 s; kills pay Lira; death restarts
+    the run; the new run spawns enemies.
+  - The earlier 15 checks, plus a new one — a kept Heal vial is drunk with the vial key (3 → 5 half-hearts, pocket
+    empty). All 24 pass.
+  - Two screenshots from a windowed run: in play (background image, tint, arena, HUD all drawn) and 1.3 s into the
+    death cinematic (zoomed on Khalid, world faded to black behind him).
+  - Build 0 warnings; clean boot of the colour screen and the arena.
+  - **Not tested:** the fall death (walking off the arena); Fast Travel; the feel of the camera (the follow maths
+    is unchanged, the check only confirms it tracks); a window resize.
+- **Left as is:** `RunManager` still builds the glow environment and holds the drop code (~50 lines). The drop code
+  is the next thing to carve when drops grow (round drops are planned).
+
+---
+
 ## 2026-10-09 — `new-shit` — cleanup, part 5 (no more SCREAMING_CASE)
 
 ### Constants, tables and `Player.State` have C# names

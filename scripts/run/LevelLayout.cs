@@ -14,7 +14,7 @@ namespace MyGame;
 /// node (<see cref="EnemySpawns"/>) — spread them around the arena, since the player has to go find what spawns there.
 /// From a later round some grunts also spawn near the player, on the floor he's standing on (<see cref="SpawnSurfacesNear"/>).
 /// The three stall scenes (<c>scenes/things/</c>) are required. Optional launch-orb spots go in the <b>orb</b> group.
-/// WHICH enemies appear is RunManager's spawn pool (kits in <see cref="EnemyKits"/>).</para>
+/// WHICH enemies appear is <see cref="EnemySpawner.SpawnPool"/> (kits in <see cref="EnemyKits"/>).</para>
 /// </summary>
 [GlobalClass, Tool]
 public partial class LevelLayout : Node2D

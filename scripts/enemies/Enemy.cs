@@ -904,7 +904,7 @@ public partial class Enemy : Combatant
 		}
 
 		GetParent().AddChild(proj);
-		PlaceAt(proj, muzzle);
+		Nodes.PlaceAt(proj, muzzle);
 		proj.ApplyTuning(new SegmentData
 		{
 			Damage = FarDamage,
@@ -947,7 +947,7 @@ public partial class Enemy : Combatant
 		lob.Target = land;
 
 		GetParent().AddChild(lob);
-		PlaceAt(lob, muzzle);
+		Nodes.PlaceAt(lob, muzzle);
 	}
 
 	private int FireFrame()
@@ -1217,10 +1217,4 @@ public partial class Enemy : Combatant
 
 	protected static CollisionShape2D MakeBox(Vector2 size, Vector2 offset = default) =>
 		new() { Position = offset, Shape = new RectangleShape2D { Size = size } };
-
-	protected static void PlaceAt(Node2D node, Vector2 pos)
-	{
-		node.GlobalPosition = pos;
-		node.ResetPhysicsInterpolation();
-	}
 }

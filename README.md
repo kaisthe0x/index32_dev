@@ -162,7 +162,7 @@ spawner, the enemy roster, the buff pools, the box, the attack picker — lives 
 clobbers it, so the level content is built in code from that data. The **look** of the terrain itself is the
 hand-painted `TileMapLayer` in each stage layout (see the run README); the old procedural tileset/plant/tree
 "skin" is **retired**, and `configs/Terrain.cs` now only holds the backdrop config.
-The **background** (`RunManager.BuildBg`/`LayoutBg`, on a `-100` CanvasLayer) is a **single** star image
+The **background** (`ArenaBackdrop`/`ArenaBackdrop.Layout`, on a `-100` CanvasLayer) is a **single** star image
 (`assets/terrain/stage1/bg1.png`, no tiling) centred and scaled to `Terrain.BackgroundZoom` of the viewport
 (**1.0 = fills**, lower = zoomed out a little, over a dark backing sampled from the image's own edge so the
 gap never reads as a cut). It lives in `Terrain.cs`, re-layouts on viewport resize, under the per-level colour
@@ -172,7 +172,7 @@ tint (`BackgroundTintAlpha`). (The old animated orbiting planet was removed; its
 `SpawnDrops`, and `Player.BeginRun` zeroes both.
 
 - **Lira** — the common currency: **every kill** pays `Enemy.LiraDrop` coins (defaults by advisory `EnemyTier`,
-  `RunManager.LiraForTier`: Chip 1 / Mid 2 / Strong 3, overridable per kit — **Wardens drop 12**, `Kroj`). Each coin
+  `EnemySpawner.LiraForTier`: Chip 1 / Mid 2 / Strong 3, overridable per kit — **Wardens drop 12**, `Kroj`). Each coin
   ([`scenes/lira.tscn`](scenes/lira.tscn), [`scripts/collectibles/Lira.cs`](scripts/collectibles/Lira.cs), art
   `assets/things/lira.png`) pops off the corpse and **flies to Khalid on the Ruh soul's curve** — both extend
   [`ArcFlight`](scripts/collectibles/ArcFlight.cs), the shared quadratic-Bezier flight with an absorb at the end —
@@ -972,7 +972,7 @@ Closer +2 targets; only stocked with Come Closer). All placeholders.
   DRINK ONLY / HELD / POCKETS FULL), the carried vials (`Held`, `Selected`, `CycleHeld`, `DrinkHeld` — a vial that
   would do nothing stays in the pocket), timed perks spending a round per clear, whole-run perks leaving the pool.
   One-use perks just happen (`Player.Heal`, `RunManager.FastTravelToBox`). `RunManager` owns the two keys
-  (`EnsureVialActions`, `DrinkVial`) and pushes the carried vials to the HUD (`PushVialHud` → `HUD.SetVials`: two
+  (`VialControls.EnsureActions`, `VialControls.Drink`) and pushes the carried vials to the HUD (`VialControls.ShowVials` → `HUD.SetVials`: two
   framed slots under the currency counters, the selected one in the accent colour — PLACEHOLDER text until the vial
   icons exist).
 - **The effect** of a lasting perk is a `Perk` (`scripts/abilities/`), a `Passive`: Setup/Teardown set and undo a
@@ -1888,43 +1888,43 @@ the build basics:
   layout (see the run README + `docs/painting-levels.md`). The layout must place the three stall scenes and an
   `EnemySpawns` node of `Marker2D` spawn spots (`LevelLayout.EnemySpawns`).
 - **Enemies** — each round (`TickRound`) trickles its hidden quota in, one **kit** at a time picked at random from
-  `RunManager.SpawnPool`, under the round's concurrent cap; spawning stops once the quota has spawned and the round
+  `EnemySpawner.SpawnPool`, under the round's concurrent cap; spawning stops once the quota has spawned and the round
   clears on the last kill (only non-optional enemies count). A **kit** (`EnemyKits.Kebus`, …) is a typed `EnemyKit` record: id, display name, tier, movement, which scene (the
   generic `enemy.tscn` by default, or a custom one — `sleeper_enemy.tscn`, `diver_enemy.tscn`) and a `Tune` function
-  that sets the enemy's stats on the typed instance. `RunManager.SpawnEnemy` instantiates and tunes it; the enemy's
+  that sets the enemy's stats on the typed instance. `EnemySpawner.SpawnEnemy` instantiates and tunes it; the enemy's
   `died` signal frees a cap slot and drops Lira (+ a chance of a Fada Fig) — buffs come from the mystery box, not kills.
-- **Spawn spots** — `RunManager.PickSpawnSpot` picks a FREE `EnemySpawns` marker (one enemy per spot; `_spotOf`
+- **Spawn spots** — `EnemySpawner.PickSpawnSpot` picks a FREE `EnemySpawns` marker (one enemy per spot; `EnemySpawner._spotOf`
   frees it on death), spreading them over the map: the free spot farthest from the ones already held, among those at
-  least `Rounds.SpawnMinDistance` (320 px) from the player. All spots held = the spawn waits. `SpawnAt` puffs, spawns,
+  least `Rounds.SpawnMinDistance` (320 px) from the player. All spots held = the spawn waits. `EnemySpawner.SpawnAt` puffs, spawns,
   wires `died`/`damaged` and counts it toward the quota unless the kit is `optional`. The enemy patrols around its
   spot until the player is within its `AggroRange` (320 px, real distance).
-- **Near-player spawns** — from `Rounds.NearSpawnFromRound` (10), `NearShare(r)` of the grunts (20%, +10%/round, max
+- **Near-player spawns** — from `Rounds.NearSpawnFromRound` (10), `EnemySpawner.NearShare(r)` of the grunts (20%, +10%/round, max
   70%; never a stationary kit) spawn on the player's floor, behind him, `NearSpawnMin..Max` (100–240 px) away
-  (`NearPlayerSpot` → `PickGroundSurface`, using `LevelLayout.SpawnSurfacesNear`'s floor regions and `SpotIsClear`);
+  (`EnemySpawner.NearPlayerSpot` → `ArenaGround.PickSurface`, using `LevelLayout.SpawnSurfacesNear`'s floor regions and `ArenaGround.SpotIsClear`);
   from then on, all spots held also falls back to a near spawn instead of waiting.
 - **Stragglers** — `UpdateStragglers`: once the quota has fully spawned and ≤ `Rounds.StragglerCount` (3) are left,
   each calls `Enemy.Hunt(Rounds.StragglerSpeedMult)` and chases the player anywhere (no leash) at **1.6×** its move
   speed, its walk animation sped up to match.
-- **Stand-still kamikazes** — `TickPressure`: from `Rounds.KamikazeFromRound` (5), staying within `StillRadius` (50 px)
-  for `StillTime` (2 s) spawns an Ein (`EnemyKits.Ein` — `optional`, no Lira, no figs; not in `SpawnPool`)
+- **Stand-still kamikazes** — `PressureSpawns.TickStandStill`: from `Rounds.KamikazeFromRound` (5), staying within `StillRadius` (50 px)
+  for `StillTime` (2 s) spawns an Ein (`EnemyKits.Ein` — `optional`, no Lira, no figs; not in `EnemySpawner.SpawnPool`)
   `KamikazeDistance` to a random side (the other side if that's inside a wall) and up to `KamikazeHeight` above
-  (`HeadroomAbove`), then one every `KamikazeInterval(r)` (2 s at r5, ×0.95/round, min 0.75 s) while he stays put,
+  (`ArenaGround.HeadroomAbove`), then one every `KamikazeInterval(r)` (2 s at r5, ×0.95/round, min 0.75 s) while he stays put,
   `KamikazeMax(r)` alive at most (5 at r5, +1 every 5 rounds, max 8). The clock pauses while he's in Nem's sleep
   (`Player.IsChannelingSurge`); kamikazes already diving still come.
-- **The edge enemy (Ventilator)** — `TickEdge`: from `Rounds.VentilatorFromRound` (3), staying within `EdgeZone`
+- **The edge enemy (Ventilator)** — `PressureSpawns.TickEdge`: from `Rounds.VentilatorFromRound` (3), staying within `EdgeZone`
   (300 px) of either END of the arena (`LevelLayout.HorizontalSpan` — the leftmost/rightmost Terrain tile edges) for
-  `EdgeDwell` (1 s) spawns a Ventilator (`EnemyKits.Ventilator` — `optional`, NOT in `SpawnPool`, but drops Lira + figs
-  like any Mid enemy) on the player's floor on the **INLAND** side (`EdgeInland`; `PickGroundSurface` 140–260 px, a
+  `EdgeDwell` (1 s) spawns a Ventilator (`EnemyKits.Ventilator` — `optional`, NOT in `EnemySpawner.SpawnPool`, but drops Lira + figs
+  like any Mid enemy) on the player's floor on the **INLAND** side (`PressureSpawns.EdgeInland`; `ArenaGround.PickSurface` 140–260 px, a
   result on the outer side is rejected), so its wind blows him outward. At most `VentilatorMax` (1) alive; the next
   waits `VentilatorCooldown` (10 s) after one dies.
-- **Per-type caps** — a kit's `spawn_cap` (e.g. Nasen = 1) limits how many of that type are alive at once; `PickSpawnKit`
+- **Per-type caps** — a kit's `spawn_cap` (e.g. Nasen = 1) limits how many of that type are alive at once; `EnemySpawner.PickKit`
   only rolls kits under their cap, and the cap grows +1 every `Rounds.KitCapGrowthRounds` rounds. No `spawn_cap` = unlimited.
 - **Player fall-death** — once Khalid's Y passes `RunManager.DeathY`, `Player.FallToDeath()` kills him outright
   (ignoring i-frames / Aegis — nothing survives the void). It is deliberately NOT the normal death: no death
   animation — he keeps his **fall** animation and free-falls out of control (`Player.ProcessFreefall`) — and it plays
-  its own cue, **`player_fall_death`** (`SfxCharacters`; a PLACEHOLDER reusing the slam whoosh). `RunManager.HandleFallDeath`
+  its own cue, **`player_fall_death`** (`SfxCharacters`; a PLACEHOLDER reusing the slam whoosh). `DeathSequence.TickFall`
   skips the death cinematic: the **camera stops where it is** (no follow, zoom or overlay), the music stops, and once
-  the fall sound has played (at least `FallDeathHold`, 1.2 s) the run records the round and restarts.
+  the fall sound has played (at least `DeathSequence.FallHold`, 1.2 s) the run records the round and restarts.
 - **Fall-death** — any enemy whose world Y passes `Enemy.FallDeathY` (below the platforms) `Die()`s (it walked/was
   knocked off into the void). It still emits `died` so the spawn-cap slot frees, but `RunManager.OnEnemyDied`
   skips its loot (`enemy.FellOff`) — those drops would be unreachable down there.
@@ -1965,10 +1965,10 @@ Fixes, all in `project.godot`:
   > tick, so with interpolation off it steps at 60 Hz while Khalid glides at the monitor's rate — on a 144 Hz
   > display that's a frozen frame + catch-up jump every couple of frames (measured: 42 freezes / 39 jumps in a 2 s
   > run-and-stop vs 0 / 0 interpolated): the "camera snaps into place when he stops" jitter.
-  > The follow is a **critically damped spring** (`RunManager.SmoothDamp`, tuned by `CamSmoothTime`, 0.055 s; tighter
-  > `CamSmoothTimeFast` at high vertical speed): it carries velocity, so a sudden jump (the ~76 px blink dash) makes it
+  > The follow is a **critically damped spring** (`RunCamera.SmoothDamp`, tuned by `RunCamera.SmoothTime`, 0.055 s; tighter
+  > `RunCamera.SmoothTimeFast` at high vertical speed): it carries velocity, so a sudden jump (the ~76 px blink dash) makes it
   > accelerate and decelerate smoothly instead of lurching off at full speed, and a stop eases out with no overshoot
-  > (trail ~14 px while running, settles ~0.23 s after a stop). Lower `CamSmoothTime` = tighter.
+  > (trail ~14 px while running, settles ~0.23 s after a stop). Lower `RunCamera.SmoothTime` = tighter.
   > **Gotcha:** anything `add_child`'d and *then* moved to a spawn point (enemy
   > projectiles / the ground wave, a world-anchored particle burst) must call
   > `reset_physics_interpolation()` after positioning — otherwise it interpolates
@@ -2008,7 +2008,7 @@ instead of a fixed fps that desyncs the moment speed changes. `RunAnimSpeed`
   + `Player.BeginRun()` (full HP / a full 3-charge Ruh meter, run-reward buffs cleared). Death is a real fail state
   now (roguelite), not a free respawn.
 - **Death cinematic** — a staged sequence: the death anim **freezes on its first frame** while the
-  camera **punches in hard** (`CamZoomDeath` 3.0 vs the 0.5 rest zoom, `CamZoomNormal`) and **the whole world fades
+  camera **punches in hard** (`RunCamera.ZoomDeathLevel` 3.0 vs the 0.5 rest zoom, `RunCamera.ZoomPlay`) and **the whole world fades
   to black behind him**; then the collapse **plays out on the void**; then respawn clears the black.
   A **death tune** (`Sfx.Play("player_death")`) fires in `Player._die`, and the level music **ducks out**
   (`Music.Stop`) so it plays clear; the **respawn waits for the whole tune to finish** — `_handle_death`
@@ -2143,7 +2143,7 @@ so it never hides their content.
 **World draw order** has its own table, **`WorldZ`** (`scripts/ui/WorldZ.cs`) — the z_index of everything in the arena,
 lowest first: `Scenery` (-30, the layout's statue / trees) → `Stalls` (-25, the box, Needle Point, Dekken, launch orbs
 — behind the tiles) → `Decor` (-20, the rocks + plants tile layer) → `Terrain` (-10) → `Drops` (-1, figs on the ground) → `Actors` (0,
-Khalid + enemies) → `SpawnFx` (4) → `FlyingPickups` (5, Lira + Ruh souls) → `Impacts` (50) → the death cinematic
+Khalid + enemies) → `EnemySpawner.SpawnFx` (4) → `FlyingPickups` (5, Lira + Ruh souls) → `Impacts` (50) → the death cinematic
 (400 / 500). `LevelLayout` sets its `Aesthetic` / `Decor` / `Terrain` nodes from it (a `[Tool]`, so the editor shows the
 same order), and each piece of code that places something in the world sets its own. Effects parented to a body keep
 small **relative** offsets (±1–2: "just behind / in front of me" — a surge orbit's back half, a swing trail), which is
