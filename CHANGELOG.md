@@ -6,6 +6,23 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-09 — `new-shit` — unused `Player` members removed; the rest written down
+
+### Nine unused members leave `Player`
+
+- **What:** deleted `BaseRunSpeed`, `JumpVelocity`, `DashSpeed`, `Gravity`, `SlamSpeed`, `MaxAirJumps` (read-only views
+  for a HUD debug panel that no longer exists), `GetState`, `CurrentAttack` and `CurrentSpecial`. Nothing called any
+  of them. With `GetState` gone, the `Player.State` enum is `private` — nothing outside the player reads it.
+- **Why:** rule `C1`; the owner picked these from the list in part 4.
+- **The other unused members stay**, by the owner's decision, as groundwork for named features (volume sliders, a
+  dash effect, a character ability, more characters, …). Rule `C3` keeps TODO notes out of the code, so they are
+  listed in `docs/future-enhancements-and-fixes.md` under "Built, not wired up yet", each with the feature it waits
+  for.
+- **Could affect:** nothing — the compiler confirms no caller existed.
+- **Tested:** build 0 warnings; the 10 seam checks and the 6 surge / combo / box / vial checks pass.
+
+---
+
 ## 2026-10-09 — `new-shit` — enemy status display stops allocating every tick
 
 ### `Enemy.RefreshStatusIcons` compares flags instead of building a list and a string

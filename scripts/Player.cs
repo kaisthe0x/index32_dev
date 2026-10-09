@@ -133,20 +133,12 @@ public partial class Player : Combatant, IStrikeWielder
     private float _slamImpactDistance, _slamMinDrop, _slamMaxDrop, _slamMaxDamageMult;
     private float _landMinFallSpeed, _landPredictDistance;
 
-    // Read-only views of the movement runtime values.
-    public float BaseRunSpeed => _runSpeedV;
-    public float JumpVelocity => _jumpVelocity;
-    public float DashSpeed => _dashSpeed;
-    public int MaxAirJumps => _maxAirJumps;
-    public float Gravity => _gravity;
-    public float SlamSpeed => _slamSpeed;
-
     [Export] public float AttackRecovery = 0.12f;
     [Export] public float ComboResetTime = 0.45f;
 
     private const float DoubleJumpLean = 0.6f;
 
-    public enum State { Idle, Run, Jump, Dash, Attack, Special, Land, Slam, Fall, Death, Spawn, Hurt, Surge, Launch }
+    private enum State { Idle, Run, Jump, Dash, Attack, Special, Land, Slam, Fall, Death, Spawn, Hurt, Surge, Launch }
 
     // --- launch orbs (magnet traversal) ---
     private const float LaunchPullRange = 96.0f;
@@ -513,13 +505,10 @@ public partial class Player : Combatant, IStrikeWielder
             p.OnAnimEnd(this);
     }
 
-    public int GetState() => (int)_state;
     public bool IsSpawning() => _state == State.Spawn;
 
     /// <summary>Which way Khalid faces: +1 right, -1 left (RunManager spawns grunts on the other side).</summary>
     public int Facing => _facing;
-    public Action? CurrentAttack() => _currentAttack;
-    public Action? CurrentSpecial() => _currentSpecial;
 
     // =====================================================================================================
     // Action helpers (thin typed accessors over the equipped Action)

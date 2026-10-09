@@ -73,7 +73,7 @@ nothing in an exported game). A full compile of the game is about 1.4 s (2026-10
 |---|---|---|
 | A / D | `move_left` / `move_right` | |
 | S / ↓ | `drop` | Tap to fall through the one-way platform you're on (ground only; a no-op on solid floor). Controller: D-pad down / left-stick down; remappable in the Input Map |
-| Space | `jump` | Press again in the air to **double jump** (`MaxAirJumps`) — the air jump re-boosts and spawns the character's jump particles; the ground jump is silent |
+| Space | `jump` | Press again in the air to **double jump** (`Locomotion.AirJumps`) — the air jump re-boosts and spawns the character's jump particles; the ground jump is silent |
 | Shift | `dash` | Uses a **dash charge** — you hold 1 (the **Extra Dash** shot adds more); a spent charge refills after the dash cooldown, one at a time. **Dash into a launch orb** and it magnets you through and flings you up + forward (see Launch orbs) |
 | Left mouse | `attack` | The current *attack* — **hold to keep attacking** (a flurry loops; a combo chains its hits, then loops); a press advances a combo one hit. **Ground only** by default — an attack whose Action is tagged `"air"` is the exception and can be used mid-air (`Player._air_attack_ok`). *(No shipped attack is currently tagged `"air"`; the tag now lives on the Zahluq **special**.)* |
 | Right mouse | `special` | On the ground: the current *special* (committed full-animation move) — **no Ruh cost, but every special has its own cooldown** (3–12s; shown by the special bar in the HUD gauge). **In the air: performs the ground slam instead** (characters with a `slam` sheet) |
@@ -666,7 +666,7 @@ solid ground **and** one-way platforms; no floor below = clear). Too close to th
 ground and the press just no-ops, so you can't slam with no room to build a plunge. Set
 `SlamMinClearance` to 0 to always allow.
 
-**Double jump.** After the ground jump, `MaxAirJumps` (default 1) extra jumps are
+**Double jump.** After the ground jump, `Locomotion.AirJumps` (Khalid: 1) extra jumps are
 allowed in mid-air; the counter refreshes on every touchdown. The **ground jump is
 silent**; each **air jump** re-boosts *and* spawns the character's jump particles.
 Because the particle director is frame-indexed and can't tell a first jump from a
@@ -886,7 +886,7 @@ Hooks, all optional (override only what you need):
 | `modify_tuning(player, action, seg, tuning) → Dictionary` | Inside `resolve_tuning`, for every swing | **Alter a move's numbers** — damage/knockback/keys; the buff path |
 
 `Physics` runs last on purpose, so a passive can override anything the state machine decided.
-`player.GetState()` exposes the current state, and the whole Player API — `TakeDamage()`,
+The whole Player API — `TakeDamage()`,
 `Velocity`, `AddPassive()`, every tunable — is available. Each rule is "on EVENT, if CONDITION, do
 ACTION"; add new event hooks to `Passive.cs` + fire them from the player as more are needed.
 
