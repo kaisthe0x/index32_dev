@@ -64,7 +64,7 @@ public abstract partial class StallMenu : CanvasLayer
     /// <summary>Rebuild the balance line and every row.</summary>
     protected void Refresh()
     {
-        _balance.Text = $"LIRA {Player.Lira}    FIGS {Player.FadaFigs}";
+        _balance.Text = $"LIRA {Player.Wallet.Lira}    FIGS {Player.Wallet.FadaFigs}";
         foreach (Node child in _rows.GetChildren())
             child.QueueFree();
         FillRows(_rows);

@@ -6,6 +6,75 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-09 — `new-shit` — `Player` redesign: one class per state
+
+The second half of the redesign the owner approved. `Player.cs` was 2,213 lines: one class holding fourteen states'
+logic and every state's data in one list of ~110 fields. Nothing is meant to play differently.
+
+### What he is doing is a state class; `Player` is what the states share
+
+- **What:** ten state classes in the new `scripts/player/states/`, each with the data only it needs, an `Enter()`
+  (its one-off entry effects) and a `Tick()`:
+
+  | Class | Lines | What it is |
+  |---|---|---|
+  | `FreeState` | 198 | Idle / run / jump / fall (one state — `FreeMode` only picks the animation). Every action starts here. |
+  | `SurgeState` | 219 | All of surges: firing, the effect while it lasts, the aura, Nem's sleep, Wara's armed counter. |
+  | `AttackState` | 171 | Combos (segment by segment) and flurries (looped while held); the buffered special. |
+  | `LaunchState` | 127 | Launch orbs: the orb in range, the pull, the fling, the lock-out. |
+  | `DashState` | 112 | The dash / blink and its recovery; the buffered attack. |
+  | `SpecialState` | 96 | Casting the special; its cooldown; held specials; the parry window. |
+  | `LandState` | 88 | The landing animation and everything that cancels it. |
+  | `SlamState` | 84 | The drop and the impact. |
+  | `DeathState`, `SpawnState` | 49, 25 | The two animations he cannot act in. |
+  | `PlayerState` | 46 | The base: `Animation`, `Enter()`, `Tick()`, and the helpers the states share. |
+
+  Two plain classes in `scripts/player/parts/`: **`Wallet`** (Lira and Fada Figs, with a `Changed` event the HUD
+  listens to — callers now write `player.Wallet.SpendLira(…)`) and **`BodyTint`** (the body shader and the hair's
+  flare on absorbing Ruh).
+  `Player.cs` is 1,180 lines: health and Ruh, the loadout, passives and the tuning seam, taking damage and dying,
+  the per-tick pipeline, and the three ways to change state.
+- **Why:** the owner's redesign decision. Before, the dash's four timers sat in the same list as the combo's seven
+  flags and the surge's thirteen fields, and any of them could be touched from anywhere. Now a state's data is
+  private to it; what another state may do to it is a named method (`_attack.StopSwing()`,
+  `_launch.Release(lockOut: true)`, `_surge.End()`).
+- **How:**
+  - The state classes are **nested in `Player`**, which is a `partial` class spread over those files. Nested classes
+    can use the player's private members, so nothing had to be made public for them — the shared data is still the
+    player's own, but each state's data is no longer everybody's.
+  - The fourteen-value `State` enum is gone. `Enter(state)` replaced the old `Enter` and its `switch` (each case
+    moved into that state's `Enter()`); `SetFree(mode)` replaced the plain `_state = …` assignments, which
+    deliberately skipped those entry effects; `EnterFree(mode)` is the first with a free-movement look.
+  - Idle, run, jump, fall and hurt were five enum values that all ran the same code. They are one state.
+  - The code inside each state is the old method body, moved by hand and reading the player through `P`.
+- **Removed as dead:** `_blinkPhaseWalls` (a flag nothing ever set — the blink always stops at walls), six one-line
+  wrappers (`Anim`, `HasTag`, `CooldownOf`, `IsFlurry`, `HasSlam`, `IsShielding`), and `HUD.SetLira` /
+  `SetFadaFigs` (the HUD reads the wallet itself now).
+- **Could affect:** everything Khalid does.
+- **Tested:**
+  - **A recorder, run before and after** (`handoff_files/PlayerTrace.cs`). It plays a fixed 52-part script of inputs
+    at a fixed frame rate — running, jumping, double jump, ground / air / held dash, a dash with a buffered attack,
+    the slam, each of the 5 attacks three ways (one press, held, repeated presses), an attack in the air, an attack
+    with a buffered special, each of the 7 specials, the shield held and released, a parry and a block, each of the
+    5 surges, a surge with no Ruh, Wara triggered by an enemy's hit, Nem interrupted, a flinch, a knockback, a hit
+    mid-attack, a hit during dash i-frames, a gust recovered by air jump and by dash, a launch orb, the wallet,
+    death and the restart — and writes one line per physics tick: animation and frame, position, velocity, health,
+    Ruh, facing, whether he can be hit, whether he is visible, plus every strike / projectile he produces with its
+    values and every sound. Three runs on the old code agreed on all 10,700 tick lines.
+    **The redesigned player produces the same file: 0 differing lines**, same attack nodes, same sounds.
+  - The other 42 headless checks pass (seam 10, surge / combo / box / vial 6, run loop 8, HUD 14, status 4), with
+    the checks' own peeks at private fields updated for the new classes.
+  - Applying a character to a player outside the scene tree (the editor's case) logs no error.
+  - Build 0 warnings; clean boot of the colour screen and the arena.
+  - **Not tested:** real play — the recorder proves the same inputs give the same result, tick for tick, on flat
+    ground; it does not cover platforms (drop-through), slopes, or a real fight's timing. The hair flare and the
+    HUD's counter pop were not seen.
+- **Found, not changed:** jumping at the exact moment of landing (from the land animation) makes no jump sound and
+  does not tell passives a ground jump happened, unlike every other ground jump. It was like that before; the
+  recorder would flag the fix as a difference, so it is left for the owner to confirm.
+
+---
+
 ## 2026-10-09 — `new-shit` — `Enemy` redesign, step 2: its self-contained parts
 
 ### Attack sounds, status display, edge sensing and the magnet pull are classes

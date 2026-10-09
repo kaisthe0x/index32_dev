@@ -181,11 +181,13 @@ A QA pass does not raise these as findings. They were chosen on purpose.
 These predate the standards. A QA pass does not report them as new findings, but **does** report a change that makes
 any of them worse, and says so when a change is a cheap chance to reduce one.
 
-- **Oversized classes:** `Player.cs` (~2,210 lines), one state machine whose fourteen states share its fields.
-  Direction (approved by the owner, 2026-10-09): one class per state with enter / tick / exit, and surges, launch
-  orbs, the wallet and the body tint as components — done state by state, each behind a before-and-after check.
-  (Already done: `RunManager.cs` ~1,090 → ~420 and `HUD.cs` ~620 → ~180 by splitting; `Enemy.cs` ~1,225 → ~860 by
-  redesign — attacks are objects in `scripts/enemies/attacks/`, its parts are in `scripts/enemies/parts/`.)
+- **Still large:** `Player.cs` (~1,180 lines) and `Enemy.cs` (~860), after the 2026-10-09 redesign (`Player`: one
+  class per state in `scripts/player/states/`, parts in `scripts/player/parts/`; `Enemy`: attacks as objects in
+  `scripts/enemies/attacks/`, parts in `scripts/enemies/parts/`; before that `RunManager.cs` ~1,090 → ~420 and
+  `HUD.cs` ~620 → ~180). What is left in each is its shared core. `Player`'s could shrink further: the damage path
+  (`OnHurt` and what a hit interrupts, ~120 lines), the passive list and its dispatch loops (~90), the loadout
+  (~70). Direction: take those when the loadout picker or a buff feature next touches them — and do not grow
+  either file: a new behaviour is a new state, attack or part (rule `S3`).
 - **By-name access to engine nodes, in one place:** `VfxPalette.RecolorNode` reads and sets `texture` by property
   name, because any node type may carry a gradient texture. The particle `emitting` / `one_shot` / `finished`
   access that `ParticleDirector` and the enemy walk trail used to do by name now goes through the typed

@@ -66,7 +66,7 @@ public partial class FadaFig : RigidBody2D
         if (_collected || body is not Player p)
             return;
         _collected = true;
-        p.CollectFadaFig(1);
+        p.Wallet.CollectFadaFigs(1);
         GetNodeOrNull<Sfx>("/root/Sfx")?.PlayAt("fada_fig_collect", GlobalPosition);
         QueueFree();
     }

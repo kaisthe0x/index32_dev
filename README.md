@@ -99,7 +99,7 @@ mouse cursor does **not** steer facing or aim (a previous mouse-look experiment 
 removed). If you want cursor-aim back for keyboard+mouse without breaking controller
 play, the clean way is "last input device wins" — ask and I'll wire it.
 
-**Launch orbs — magnet traversal (`State.Launch`).** Layouts place **launch orbs**
+**Launch orbs — magnet traversal (`LaunchState`).** Layouts place **launch orbs**
 (`scripts/things/LaunchOrb.cs`, `LaunchOrb`) — levitating orbs above/between platforms. **Dash into (or
 near) one** and it acts as a **magnet**: it sucks Khalid through and flings him out the far side with the
 orb's **own set impulse** — a strong **up + forward** along his facing (`SwingOrb.LaunchUp` /
@@ -128,7 +128,7 @@ platform. Fully automatic — no aiming, no pumping. (This replaced an earlier c
   `sfx/things/traversal/launch_orb/`.
 - **Level layout.** Level 1 (*The Shallows*) is a large testbed: small HIGH platforms ~800px apart over a
   wide floor (falling just drops you to the ground). The `khalid_swing_frames` sheet is currently unused
-  (the swing animation was discarded); `State.Launch` plays the `dash` anim through the magnet.
+  (the swing animation was discarded); `LaunchState` plays the `dash` anim through the magnet.
 
 **Which character you play is chosen in code.** In-game Q/E switching is **gone** — set the
 **`START_CHARACTER`** constant near the top of `scripts/run/RunManager.cs` to any id in
@@ -177,15 +177,15 @@ tint (`BackgroundTintAlpha`). (The old animated orbiting planet was removed; its
   `assets/things/lira.png`) pops off the corpse and **flies to Khalid on the Ruh soul's curve** — both extend
   [`ArcFlight`](scripts/collectibles/ArcFlight.cs), the shared quadratic-Bezier flight with an absorb at the end —
   with its arc and flight time jittered so a multi-coin drop fans out. It's **banked on arrival**
-  (`Player.CollectLira` → `HUD.SetLira`) with the `lira_collect` cue (**PLACEHOLDER** — the fig pickup sound,
-  pitch-varied upward only, 0 … +8 %). Needle Point spends it (`Player.SpendLira`).
+  (`Wallet.CollectLira` → `HUD.SetLira`) with the `lira_collect` cue (**PLACEHOLDER** — the fig pickup sound,
+  pitch-varied upward only, 0 … +8 %). Needle Point spends it (`Wallet.SpendLira`).
 - **Fada Figs** — the rare currency: a kill also drops **one** fig at the enemy's `Enemy.FigChance` (**10 %**
   default; per-kit override — **Kebus 25 %**, the hardest grunt). A fig
   ([`scenes/fada_fig.tscn`](scenes/fada_fig.tscn), [`scripts/collectibles/FadaFig.cs`](scripts/collectibles/FadaFig.cs),
   a `RigidBody2D`) pops out, bounces/tumbles, and settles on the terrain; the player collects it by **physically
-  touching** it (the child `Pickup` Area → `Player.CollectFadaFig`, `fada_fig_collect` placeholder sfx).
+  touching** it (the child `Pickup` Area → `Wallet.CollectFadaFigs`, `fada_fig_collect` placeholder sfx).
   `FadaFig.Magnetize(target)` is a ready hook for a future perk that pulls loose figs in. The mystery box spends
-  them (`Player.SpendFadaFigs`).
+  them (`Wallet.SpendFadaFigs`).
 
 Both balances show top-left on the HUD. The fig sprite wears a shared **`vfx/shaders/world/pulse_glow.gdshader`**
 material (one instance for all figs; the Lira coins share their own) that breathes its brightness above 1.0 so it
@@ -452,8 +452,28 @@ and a matching case in `_animation_for()` in `Player.cs`.
 
 ## Player
 
-`scripts/Player.cs` — a `CharacterBody2D` (extends the C# `Combatant`) with a small state machine
-(`IDLE / RUN / JUMP / FALL / DASH / ATTACK / SPECIAL / LAND / SLAM / DEATH / SPAWN / HURT / SURGE / LAUNCH`).
+`scripts/Player.cs` — a `CharacterBody2D` (extends the C# `Combatant`). The file holds what every state shares and
+what the rest of the game talks to: health and Ruh, the loadout, passives and the tuning seam, taking damage and
+dying, and the per-tick pipeline. **What he is doing is a state — one class per state** in `scripts/player/states/`,
+each with its own data, an `Enter()` and a `Tick()`:
+
+| State class | What it is |
+|---|---|
+| `FreeState` | Free movement — idle / run / jump / fall (and the tail of a flinch). Every action starts here. |
+| `DashState` | The dash (Khalid's is a blink) and its recovery; a buffered attack comes out of it. |
+| `AttackState` | The equipped attack: a combo played segment by segment, or a flurry looped while held. |
+| `SpecialState` | The special being cast; its cooldown; held specials; the shield's parry window. |
+| `SurgeState` | All of surges: firing one, its effect while it lasts, the aura, Nem's sleep, Wara's armed counter. |
+| `SlamState` | The slam: the drop, and the impact scaled by the fall. |
+| `LandState` | The landing animation, cancellable into anything. |
+| `LaunchState` | Launch-orb traversal: the orb in range, the pull, the fling, the lock-out. |
+| `DeathState` / `SpawnState` | The death animation (held on its first frame until released) and the spawn animation. |
+
+The state classes are nested in `Player` (it is a `partial` class), so they work on his shared data directly.
+`Player.Enter(state)` changes state with the new state's entry effects; `Player.SetFree(mode)` only relabels free
+movement. A flinch / stagger (`_stunLeft`) takes control away from whatever state he is in. Self-contained pieces
+are plain classes in `scripts/player/parts/`: `Wallet` (Lira and Fada Figs — `player.Wallet`) and `BodyTint` (the
+body shader and the hair's Ruh flare).
 
 **Movement stats live in typed config, not the inspector.** Every movement/physics knob is a
 `Locomotion` (`configs/Locomotion.cs`, the shared baseline) attached to a **movement Action**
@@ -727,8 +747,8 @@ a big hit on a cooldown is a *special* (Bakshen moved there for that reason).
 
 **Special cooldowns.** Every special is unique and strong, so **every special has its own `Cooldown`**
 (`ActionsKhalid.Specials`): Ground Breaker 6s · Frenemy 12s (longer than its 8s charm) · Come Closer 5s ·
-Redere Shield 3s · Redere Frisbee 3s · Zahluq 5s · Bakshen 3s. `Player.StartSpecial` arms `_specialCd` from it; a **held**
-special (Redere Shield) doesn't tick its cooldown while it's up (`HoldingSpecial`) — it starts on release, so
+Redere Shield 3s · Redere Frisbee 3s · Zahluq 5s · Bakshen 3s. `SpecialState.Start` arms `_specialCd` from it; a **held**
+special (Redere Shield) doesn't tick its cooldown while it's up (`SpecialState.Holding`) — it starts on release, so
 holding isn't free. The cooldown carries over if you swap specials. It has its **own bar in the HUD gauge**
 (`scripts/ui/SpecialBar.cs`, under the Ruh orbs, fed by `Player.SpecialReady()` 0..1): always shown, fills as
 it recharges, and when ready it pops, then **pulses and glows** (HDR) until used; becoming ready wakes the gauge.
@@ -740,7 +760,7 @@ centrally, so no exit can leave a stale `_flurry` that swallows later attack pre
 
 **Dash moves (the `lunge` seam).** **`zahluq`** *bursts the wielder forward* — a heavy hit that slides him
 a long way. It is now a **rare special** (see below), but the dash mechanic is a shared move trait, honoured
-by **both** the attack state (`ProcessAttack`) and the special state (`ProcessSpecial`). Its tuning keys,
+by **both** the attack state (`AttackState.Tick`) and the special state (`SpecialState.Tick`). Its tuning keys,
 read by the state processor and by the `Strike` at spawn:
 - **`lunge`** — the burst speed. `Strike.ApplyTuning` → `Player.ApplyLunge` (through `IStrikeWielder`) sets `velocity.x`. Whenever the
   active hit carries a `lunge`, the state processor holds `velocity.y = 0` and **skips friction** so the
@@ -1951,10 +1971,10 @@ the build basics:
 - **Drop through a platform** — tap **`drop` (S / ↓ by default)** while standing on
   a one-way platform to fall through it; on the solid floor it's a no-op. `drop` is
   its own remappable action (controller: D-pad down / left-stick down), so jump is
-  now purely jump. `DropThroughPlatform()` checks the floor contact's collision layer —
+  now purely jump. `FreeState.DropThroughPlatform()` checks the floor contact's collision layer —
   one-way tiles (e.g. tileset2) live on `Combat.Layer.Platform`, solid ground on `World` —
   and only for a platform clears the Platform bit from the player's mask for
-  `DropThroughTime` (solid ground can never be fallen through).
+  `FreeState.DropThroughTime` (solid ground can never be fallen through).
 
 #### Pixel-crisp motion (why running isn't blurry)
 

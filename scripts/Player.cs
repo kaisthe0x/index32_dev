@@ -4,25 +4,26 @@ using System.Collections.Generic;
 namespace MyGame;
 
 /// <summary>
-/// A character-agnostic player. Every character shares the same animation set + normalised sprite canvas, so
-/// switching is just swapping the SpriteFrames resource. C# port of <c>scripts/player.gd</c> (Phase 4b of the
-/// migration) — the state machine, combat seam, surges, launch orbs, and the passive/buff dispatch.
+/// The player's body. A character-agnostic one: every character shares the same animation set + normalised sprite
+/// canvas, so switching is just swapping the SpriteFrames resource.
 ///
-/// <para>What a strike asks of its wielder goes through <see cref="IStrikeWielder"/>.
-/// Config is fully typed C#: the equipped move is an <see cref="Action"/> record, its tuning a <see cref="SegmentData"/>.</para>
+/// <para>This file is what every state shares and what the rest of the game talks to: health and Ruh, the loadout
+/// (the equipped <see cref="Action"/>s and the movement numbers they carry), passives and the tuning seam, taking
+/// damage and dying, and the per-tick pipeline. WHAT HE IS DOING is a state — one class each, nested here and kept in
+/// <c>scripts/player/states/</c> (<see cref="PlayerState"/>): free movement, dash, attack, special, surge, slam, land,
+/// launch, death, spawn. Self-contained pieces are in <c>scripts/player/parts/</c> (<see cref="Wallet"/>,
+/// <see cref="BodyTint"/>). What a strike asks of its wielder goes through <see cref="IStrikeWielder"/>.</para>
 /// </summary>
 [Tool]
 [GlobalClass]
 public partial class Player : Combatant, IStrikeWielder
 {
-    // --- signals (the HUD connects by these exact names) ---
+    // --- signals (the HUD listens to these) ---
     [Signal] public delegate void HealthChangedEventHandler(double current, double maximum);
     [Signal] public delegate void RuhChangedEventHandler(double current, double maximum);
 
-    // --- path templates (mirror CharacterConfig; hardcoded so C# needn't read GDScript consts) ---
     private const string FramesPathTmpl = "res://resources/characters/{0}.tres";
 
-    // --- bridged GDScript statics/singletons (cached in _Ready) ---
     private Sfx _sfx = null!;
 
     // =====================================================================================================
@@ -102,7 +103,6 @@ public partial class Player : Combatant, IStrikeWielder
     private const int HealthBlocks = 3;
     private const float BaseMaxHealth = HealthBlocks * 2.0f; // 3 blocks × 2 half-blocks = 6
     private const float HitCost = 1.0f;                      // one hit = half a block
-    private const float SurgeHealHalfBlocks = 2.0f;          // the Nem surge restores one block
     private const float ShieldGraceTime = 0.4f;              // i-frames after the Shield perk eats a hit
     private const float HealthWarnHalf = 0.5f;               // "health_half" cue at 1.5 blocks left
     private const float HealthWarnLow = 0.34f;               // "health_low" cue at ~1 block left
@@ -136,24 +136,35 @@ public partial class Player : Combatant, IStrikeWielder
     [Export] public float AttackRecovery = 0.12f;
     [Export] public float ComboResetTime = 0.45f;
 
-    private const float DoubleJumpLean = 0.6f;
+    // --- the state machine: one instance of each state, and which one he is in (scripts/player/states/) ---
+    private readonly FreeState _free;
+    private readonly DashState _dash;
+    private readonly AttackState _attack;
+    private readonly SpecialState _special;
+    private readonly SurgeState _surge;
+    private readonly SlamState _slam;
+    private readonly LandState _land;
+    private readonly LaunchState _launch;
+    private readonly DeathState _death;
+    private readonly SpawnState _spawn;
+    private PlayerState _current;
 
-    private enum State { Idle, Run, Jump, Dash, Attack, Special, Land, Slam, Fall, Death, Spawn, Hurt, Surge, Launch }
+    public Player()
+    {
+        _free = new FreeState(this);
+        _dash = new DashState(this);
+        _attack = new AttackState(this);
+        _special = new SpecialState(this);
+        _surge = new SurgeState(this);
+        _slam = new SlamState(this);
+        _land = new LandState(this);
+        _launch = new LaunchState(this);
+        _death = new DeathState(this);
+        _spawn = new SpawnState(this);
+        _current = _free;
+        _tint = new BodyTint(this);
+    }
 
-    // --- launch orbs (magnet traversal) ---
-    private const float LaunchPullRange = 96.0f;
-    private static readonly Vector2 LaunchBody = new(0.0f, -20.0f);
-    private const float LaunchMagnetTime = 0.08f;
-    private const float LaunchCd = 0.45f;
-
-    private LaunchOrb? _launchOrb;
-    private Vector2 _launchFrom = Vector2.Zero;
-    private float _launchT = 0.0f;
-    private Vector2 _launchVel = Vector2.Zero;
-    private float _launchCdLeft = 0.0f;
-    private LaunchOrb? _nearOrb;
-
-    private State _state = State.Idle;
     private int _facing = 1;
     // The equipped actions. Null until a character with that slot is applied -- in the editor (this is a [Tool]
     // script) and for a character whose sprite frames are missing, ApplyCharacter stops before the loadout.
@@ -162,59 +173,25 @@ public partial class Player : Combatant, IStrikeWielder
     private Action? _currentSurge;
     private readonly System.Collections.Generic.Dictionary<LoadoutCategory, string> _loadout = new();
     private SegmentData _activeHit = new();
-    private float _dashLeft = 0.0f;
-    private float _dashAnimLeft = 0.0f;
     private float _dashCd = 0.0f;         // time until the next dash charge refills (runs while below max)
     private int _dashCharges = 1;
-    private bool _dashCustom = false;
     private bool _blinkDash = false;
-    private bool _blinkPhaseWalls = false;
     private bool _wasOnFloor = true;
     private float _fallPeak = 0.0f;
     private float _apexY = 0.0f;
-    private int _airJumpsUsed = 0;
-    private float _slamSpringBonus = 1.0f;   // Slam Spring: one-shot next-ground-jump height mult (consumed on use)
-    private bool _jumpLaunch = false;
     private bool _dead = false;
-    private bool _deathFinished = false;
-    private bool _deathFrozen = false;
     private bool _fellOut = false;   // died by falling out of the arena — free-falls off-screen, no death animation
-    private bool _slamImpacting = false;
-    private float _slamStartY = 0.0f;
     private bool _justLanded = false;
-    private int _comboStep = 0;
-    private int _segEnd = 0;
-    private bool _comboPlaying = false;
-    private float _comboWindow = 0.0f;
-    private float _recoveryLeft = 0.0f;
-    private bool _bufferedSpecial = false;
-    private bool _bufferedAttack = false;
-    private bool _flurry = false;
-    private float _stunLeft = 0.0f;
+    private float _stunLeft = 0.0f;   // a flinch / stagger in progress: no control until it runs out (any state but death / spawn)
     private float _gustLeft = 0.0f; // a gust is carrying him (Combat.GustCarryTime): weak steering, no air brake
     private float _armorLeft = 0.0f;
     private float _holdLeft = 0.0f;
     private BlastStrike? _channel;
     private readonly List<Passive> _passives = new();
 
-    // --- surge window ---
-    private float _surgeLeft = 0.0f;
     private float _iframesLeft = 0.0f;  // generic invulnerability window (GrantInvuln) — the immunity buffs
-    private bool _surgeInvuln = false;
-    private float _surgeDmgMult = 1.0f;
-    private float _surgeSpeedMult = 1.0f;
-    private bool _surgeChannel = false;
-    private bool _surgeAsleep = false;
-    private float _surgeHealTarget = 0.0f;
-    private float _surgeHealRate = 0.0f;
-    private int _surgeSleepFrame = 0;
-    private float _surgeSleepTime = 0.0f;   // how long a channelled surge sleeps once it reaches the sleep frame
-    private bool _surgeArmed = false;
-    private SurgeSpec? _armedSurge;
-    private Node2D? _specialAura;
 
     // --- shield / parry ---
-    private float _parryLeft = 0.0f;
     [Export] public float ParryWindow = 0.25f;
     [Export] public float ShieldReflectMult = 1.0f;
     private float _shakeLeft = 0.0f, _shakeDur = 0.0f, _shakeAmp = 0.0f;
@@ -222,18 +199,9 @@ public partial class Player : Combatant, IStrikeWielder
     [Export] public float ShieldShakeTime = 0.18f;
     [Export] public bool FlinchOnAllDamage = true;
 
-    private float _specialCd = 0.0f;
     private AudioStreamPlayer? _runSfx;
     private AudioStreamPlayer? _slamDownSfx;
-    private const float RuhFlashRefractory = 0.2f;
-    private float _ruhFlashCd = 0.0f;
-    private Tween? _hairTween;
-    private ShaderMaterial? _tintMat;
-    private bool _bodyIsLut = false;
-    private (Color Base, Color AccentA, Color AccentB)? _hairBase;   // the tint shader's own colours (non-LUT body only)
-    private static readonly Color HairAbsorbBase = new(2.6f, 1.7f, 0.5f);
-    private static readonly Color HairAbsorbA = new(2.3f, 1.0f, 0.35f);
-    private static readonly Color HairAbsorbB = new(1.9f, 0.6f, 0.25f);
+    private readonly BodyTint _tint;
 
     private ParticleDirector _particles = null!;
     private Hurtbox _hurtbox = null!;
@@ -281,51 +249,17 @@ public partial class Player : Combatant, IStrikeWielder
             return;
         }
         sprite.SpriteFrames = GD.Load<SpriteFrames>(path);
-        string matPath = $"res://resources/{Character}_tint.tres";
-        if (Character == "khalid")
-        {
-            // Khalid wears the material-aware palette LUT (recolour + glow / hair-flow effects).
-            _tintMat = PaletteConfig.MakeMaterial();
-            _bodyIsLut = true;
-            sprite.Material = _tintMat;
-            _hairBase = null;
-        }
-        else
-        {
-            var mat = ResourceLoader.Exists(matPath) ? GD.Load<Material>(matPath) : null;
-            _bodyIsLut = false;
-            if (mat is ShaderMaterial sm)
-            {
-                _tintMat = (ShaderMaterial)sm.Duplicate();
-                sprite.Material = _tintMat;
-                Variant br = _tintMat.GetShaderParameter("base_red");
-                Variant aa = _tintMat.GetShaderParameter("accent_a");
-                Variant ab = _tintMat.GetShaderParameter("accent_b");
-                _hairBase = (br.VariantType == Variant.Type.Color && aa.VariantType == Variant.Type.Color && ab.VariantType == Variant.Type.Color)
-                    ? (br.AsColor(), aa.AsColor(), ab.AsColor())
-                    : null;
-            }
-            else
-            {
-                _tintMat = null;
-                _hairBase = null;
-                sprite.Material = mat;
-            }
-        }
+        _tint.Apply(sprite, Character);
         ApplyLoadout();
         AnchorToFeet(sprite);
-        _comboStep = 0;
-        _comboWindow = 0.0f;
-        _comboPlaying = false;
-        _bufferedSpecial = false;
-        _bufferedAttack = false;
-        _flurry = false;
+        _attack.Reset();
+        _dash.ClearBuffer();
         _dashCd = 0.0f;
         _dashCharges = MaxDashCharges;
         if (!Engine.IsEditorHint())
-            _state = State.Idle;
+            SetFree(FreeMode.Idle);
         sprite.SpeedScale = 1.0f;
-        sprite.Play(AnimationFor(_state));
+        sprite.Play(_current.Animation);
         SeedPassives();
         _particles?.SetCharacter(Character);
     }
@@ -454,35 +388,8 @@ public partial class Player : Combatant, IStrikeWielder
     /// rounds-left changed without the list changing.</summary>
     public void RefreshBuffHud() => Hud?.RefreshBuffs(_passives);
 
-    /// <summary>Lira banked this run — the common currency (docs/game-loop.md § Economy). Reset by <see cref="BeginRun"/>.</summary>
-    public int Lira { get; private set; } = 0;
-
-    /// <summary>Collect <paramref name="n"/> Lira (a <see cref="MyGame.Lira"/> coin reached the player) — bank it + update the HUD.</summary>
-    public void CollectLira(int n)
-    {
-        Lira += n;
-        Hud?.SetLira(Lira);
-    }
-
-    /// <summary>FadaFigs banked this run — the rare currency (the mystery box spends it). Reset by <see cref="BeginRun"/>.</summary>
-    public int FadaFigs { get; private set; } = 0;
-
-    /// <summary>Collect <paramref name="n"/> fada_fig(s) (a FadaFig touched the player) — bank them + update the HUD.</summary>
-    public void CollectFadaFig(int n = 1)
-    {
-        FadaFigs += n;
-        Hud?.SetFadaFigs(FadaFigs);
-    }
-
-    /// <summary>Try to spend <paramref name="cost"/> FadaFigs (the mystery box). True + deducts if affordable; else false.</summary>
-    public bool SpendFadaFigs(int cost)
-    {
-        if (cost <= 0 || FadaFigs < cost)
-            return false;
-        FadaFigs -= cost;
-        Hud?.SetFadaFigs(FadaFigs);
-        return true;
-    }
+    /// <summary>The Lira and Fada Figs he has banked this run.</summary>
+    public Wallet Wallet { get; } = new();
 
     public void NotifyHitDealt(float amount, Node target)
     {
@@ -505,7 +412,7 @@ public partial class Player : Combatant, IStrikeWielder
             p.OnAnimEnd(this);
     }
 
-    public bool IsSpawning() => _state == State.Spawn;
+    public bool IsSpawning() => _current == _spawn;
 
     /// <summary>Which way Khalid faces: +1 right, -1 left (RunManager spawns grunts on the other side).</summary>
     public int Facing => _facing;
@@ -513,15 +420,10 @@ public partial class Player : Combatant, IStrikeWielder
     // =====================================================================================================
     // Action helpers (thin typed accessors over the equipped Action)
     // =====================================================================================================
-    private static StringName Anim(Action a) => a.Animation;
-    private static bool HasTag(Action a, string t) => a.HasTag(t);
-    private static float CooldownOf(Action a) => a.Cooldown;
-    private static bool IsFlurry(Action a) => a.IsFlurry;
-
     private bool HasAnim(StringName anim) =>
         _sprite != null && _sprite.SpriteFrames != null && _sprite.SpriteFrames.HasAnimation(anim);
 
-    private bool AirAttackOk() => _currentAttack != null && HasTag(_currentAttack, "air");
+    private bool AirAttackOk() => _currentAttack != null && _currentAttack.HasTag("air");
 
     private float AnimDuration(StringName anim)
     {
@@ -538,20 +440,6 @@ public partial class Player : Combatant, IStrikeWielder
     }
 
     private void FireEffect(string anim, float tilt = 0.0f) => _particles?.FireEffect(anim, tilt);
-
-    private void DoBlink()
-    {
-        var motion = new Vector2(_dashSpeed * _dashTime * _facing, 0.0f);
-        FireEffect("blink_out");
-        if (_blinkPhaseWalls)
-            GlobalPosition += motion;
-        else
-            MoveAndCollide(motion);
-        SetVelX(0.0f);
-        FireEffect("blink_in");
-        Modulate = new Color(2.2f, 2.2f, 2.2f);
-        CreateTween().TweenProperty(this, "modulate", new Color(1, 1, 1), 0.18);
-    }
 
     // =====================================================================================================
     // Damage / health
@@ -616,16 +504,16 @@ public partial class Player : Combatant, IStrikeWielder
     public void AddAirJumps(int n) { AirJumpBonus += n; _maxAirJumps += n; }
 
     /// <summary>Prime the NEXT ground jump with a height multiplier (Slam Spring) — one-shot, consumed on that jump.</summary>
-    public void SetJumpSpring(float mult) => _slamSpringBonus = mult;
+    public void SetJumpSpring(float mult) => _free.SpringBonus = mult;
 
     /// <summary>Shave <paramref name="seconds"/> off the special's cooldown (clamped at ready).</summary>
-    public void ReduceSpecialCooldown(float seconds) => _specialCd = Mathf.Max(_specialCd - seconds, 0.0f);
+    public void ReduceSpecialCooldown(float seconds) => _special.Cooldown = Mathf.Max(_special.Cooldown - seconds, 0.0f);
 
     /// <summary>How recharged the special is, 0..1 (1 = ready to cast) — drives the HUD's special bar.</summary>
     public float SpecialReady()
     {
-        float cd = _currentSpecial != null ? CooldownOf(_currentSpecial) : 0.0f;
-        return cd > 0.0f ? 1.0f - _specialCd / cd : 1.0f;
+        float cd = _currentSpecial != null ? _currentSpecial.Cooldown : 0.0f;
+        return cd > 0.0f ? 1.0f - _special.Cooldown / cd : 1.0f;
     }
 
     /// <summary>How many dashes are banked now vs. the most you can hold (1 + <see cref="DashBonus"/>).</summary>
@@ -645,16 +533,6 @@ public partial class Player : Combatant, IStrikeWielder
         _runSpeedV *= f;
     }
 
-    /// <summary>Try to spend <paramref name="cost"/> Lira (the stalls). True + deducts if affordable; else false.</summary>
-    public bool SpendLira(int cost)
-    {
-        if (cost < 0 || Lira < cost)
-            return false;
-        Lira -= cost;
-        Hud?.SetLira(Lira);
-        return true;
-    }
-
     /// <summary>Global cooldown fairness: an action whose windup is interrupted by a stagger BEFORE its hit came out
     /// never actually fired, so it shouldn't burn its cooldown. An ATTACK still short of its hit frame
     /// (<see cref="_segEnd"/>) or a SPECIAL short of its strike frame is "uncommitted" → zero the matching cooldown.
@@ -663,8 +541,8 @@ public partial class Player : Combatant, IStrikeWielder
     {
         if (_sprite == null)
             return;
-        if (_state == State.Special && _sprite.Frame < SpecialStrikeFrame())
-            _specialCd = 0.0f;
+        if (_current == _special && _sprite.Frame < _special.StrikeFrame())
+            _special.Cooldown = 0.0f;
     }
 
     // --- DEBUG: playtest the buff catalog (triggered from RunManager's DEBUG keys; REMOVE before release) -------
@@ -717,18 +595,6 @@ public partial class Player : Combatant, IStrikeWielder
         }
     }
 
-    /// <summary>The jump velocity to apply, folding in the Jump Height shot (all jumps) and, for a GROUND jump, a one-shot Slam Spring (consumed here).</summary>
-    private float AppliedJumpVelocity(bool ground)
-    {
-        float v = _jumpVelocity * JumpVelocityBonus;
-        if (ground && !Mathf.IsEqualApprox(_slamSpringBonus, 1.0f))
-        {
-            v *= _slamSpringBonus;
-            _slamSpringBonus = 1.0f;
-        }
-        return v;
-    }
-
     public bool GainRuhOnHit()
     {
         float before = Ruh;
@@ -738,38 +604,8 @@ public partial class Player : Combatant, IStrikeWielder
 
     public void OnRuhAbsorbed(bool completedCharge)
     {
-        if (!completedCharge && _ruhFlashCd > 0.0f)
-            return;
-        _ruhFlashCd = RuhFlashRefractory;
-        HairSurge(completedCharge ? 1.0f : 0.6f, completedCharge ? 0.6f : 0.35f);
-        _sfx.Play("ruh_absorb", 0.0f, completedCharge ? 1.12f : 1.0f);
-    }
-
-    private void HairSurge(float strength, float dur)
-    {
-        if (_tintMat == null || (!_bodyIsLut && _hairBase == null))
-            return;
-        if (_hairTween != null && _hairTween.IsValid())
-            _hairTween.Kill();
-        _hairTween = CreateTween();
-        _hairTween.TweenMethod(Callable.From<float>(SetHairMix), 0.0f, strength, dur * 0.35f).SetEase(Tween.EaseType.Out);
-        _hairTween.TweenMethod(Callable.From<float>(SetHairMix), strength, 0.0f, dur * 0.65f).SetEase(Tween.EaseType.In);
-    }
-
-    private void SetHairMix(float f)
-    {
-        if (_tintMat == null)
-            return;
-        if (_bodyIsLut)
-        {
-            _tintMat.SetShaderParameter("hair_surge", f);
-            return;
-        }
-        if (_hairBase is not var (baseCol, accentA, accentB))
-            return;
-        _tintMat.SetShaderParameter("base_red", baseCol.Lerp(HairAbsorbBase, f));
-        _tintMat.SetShaderParameter("accent_a", accentA.Lerp(HairAbsorbA, f));
-        _tintMat.SetShaderParameter("accent_b", accentB.Lerp(HairAbsorbB, f));
+        if (_tint.FlareOnRuh(completedCharge))
+            _sfx.Play("ruh_absorb", 0.0f, completedCharge ? 1.12f : 1.0f);
     }
 
     // =====================================================================================================
@@ -810,7 +646,7 @@ public partial class Player : Combatant, IStrikeWielder
         if (action == null)
             return new SegmentData();
         SegmentData baseT = action.Segment(seg).Clone();
-        float dmgMult = DamageMult * _surgeDmgMult;
+        float dmgMult = DamageMult * _surge.DamageMult;
         if (!Mathf.IsEqualApprox(dmgMult, 1.0f) && baseT.Damage.HasValue)
             baseT.Damage *= dmgMult;
         if (!Mathf.IsEqualApprox(AttackReachMult, 1.0f))
@@ -827,20 +663,17 @@ public partial class Player : Combatant, IStrikeWielder
 
     public SegmentData ActiveHit() => _activeHit;
 
-    private bool IsShielding() =>
-        _state == State.Special && _currentSpecial != null && HasTag(_currentSpecial, "shield");
-
     private void OnHurt(Hit hit)
     {
         if (_iframesLeft > 0.0f)
             return;  // generic i-frames (immunity buffs) — ignore the hit entirely
-        if (IsShielding())
+        if (_special.Shielding)
         {
             bool fromBehind = hit.Source is Node2D src2
                 && Mathf.Sign(src2.GlobalPosition.X - GlobalPosition.X) == -_facing;
             if (!fromBehind)
             {
-                if (_parryLeft > 0.0f)
+                if (_special.ParryLeft > 0.0f)
                 {
                     if (ShieldReflectMult > 0.0f && hit.Source is Enemy reflEnemy && hit.Amount > 0.0f)
                     {
@@ -865,9 +698,9 @@ public partial class Player : Combatant, IStrikeWielder
             BlownAway(hit);
             return;
         }
-        if (_surgeArmed && hit.Source is Enemy)
+        if (_surge.Armed && hit.Source is Enemy)
         {
-            TriggerWara();
+            _surge.TriggerArmed();
             return;
         }
         if (HitShields > 0)
@@ -891,14 +724,14 @@ public partial class Player : Combatant, IStrikeWielder
         {
             RefundUncommittedCooldown(); // staggered mid-windup: read state BEFORE we leave ATTACK/SPECIAL for HURT
             float flinch = Mathf.Max(stagger, AnimDuration("hurt"));
-            if (_state == State.Hurt)
+            if (_current == _free && _free.Mode == FreeMode.Hurt)
                 _stunLeft = Mathf.Max(_stunLeft, flinch);
             else
             {
                 _stunLeft = flinch;
-                Enter(State.Hurt);
+                EnterFree(FreeMode.Hurt);
             }
-            _bufferedSpecial = false;
+            _attack.DropBufferedSpecial();
         }
         if (hit.StatusColor.A > 0.0f)
             _status.ShowFor(hit.StatusColor, hit.StatusTime);
@@ -910,11 +743,8 @@ public partial class Player : Combatant, IStrikeWielder
     /// channelled surge (Nem's sleep wakes).</summary>
     private void BreakOffForHit()
     {
-        if (_state == State.Launch)
-        {
-            _launchOrb = null;
-            _launchCdLeft = LaunchCd;
-        }
+        if (_current == _launch)
+            _launch.Release(lockOut: true);
         if (_channel != null && IsInstanceValid(_channel) && _channel.InterruptOnHurt)
         {
             _channel.Cancel();
@@ -922,11 +752,11 @@ public partial class Player : Combatant, IStrikeWielder
             _sprite.Play();
         }
         _channel = null;
-        if (_surgeChannel)
+        if (_surge.Channelling)
         {
-            EndSurge();
-            if (_state == State.Surge)
-                Enter(State.Idle);
+            _surge.End();
+            if (_current == _surge)
+                EnterFree(FreeMode.Idle);
         }
     }
 
@@ -940,11 +770,11 @@ public partial class Player : Combatant, IStrikeWielder
         RefundUncommittedCooldown(); // blown out of a wind-up: read state BEFORE we leave ATTACK/SPECIAL
         _stunLeft = 0.0f;
         _holdLeft = 0.0f;
-        _bufferedSpecial = false;
+        _attack.DropBufferedSpecial();
         Velocity = GustVelocity(hit, _facing);
         _gustLeft = Combat.GustCarryTime;
-        _jumpLaunch = false;
-        Enter(AirborneDefault());
+        _free.JumpLaunch = false;
+        EnterFree(_free.AirborneDefault());
     }
 
     public void ApplyLunge(float impulse) => SetVelX(impulse * _facing);
@@ -953,149 +783,17 @@ public partial class Player : Combatant, IStrikeWielder
 
     public void SetDashEffect(string effect) => _dashEffect = effect;
 
-    private float RunSpeed() => _runSpeedV * _surgeSpeedMult;
-
-    // =====================================================================================================
-    // Surges
-    // =====================================================================================================
-    private void BeginSurge(Action surge, SurgeSpec s)
-    {
-        EndSurge();
-        _surgeInvuln = s.Invuln;
-        _surgeDmgMult = s.DamageMult;
-        _surgeSpeedMult = s.SpeedMult;
-        _surgeChannel = s.Channel;
-        _surgeArmed = s.Trigger == "hit";
-        if (_surgeArmed)
-        {
-            _armedSurge = s;
-            _surgeLeft = 0.0f;
-        }
-        else if (_surgeChannel)
-        {
-            _surgeAsleep = false;
-            _surgeLeft = 0.0f;
-            // Slot health: a healing surge (HealFrac > 0, i.e. Nem) restores ONE block over its channel.
-            _surgeHealTarget = Mathf.Min(Health + SurgeHealHalfBlocks, MaxHealth);
-            _surgeHealRate = (_surgeHealTarget - Health) / Mathf.Max(s.Duration, 0.01f);
-            var anim = Anim(surge);
-            int fcount = (_sprite.SpriteFrames != null && _sprite.SpriteFrames.HasAnimation(anim))
-                ? _sprite.SpriteFrames.GetFrameCount(anim) : 0;
-            _surgeSleepFrame = Mathf.Max(fcount - 2, 0);
-            _surgeSleepTime = s.Duration;
-        }
-        else
-        {
-            _surgeLeft = s.Duration + SpecialInvulnBonus;
-        }
-        string aura = s.Aura;
-        if (aura != "" && ResourceLoader.Exists(aura))
-        {
-            var scene = GD.Load<PackedScene>(aura);
-            _specialAura = scene?.Instantiate() as Node2D;
-            if (_specialAura != null)
-            {
-                if (_specialAura is OrbitAura orbit)
-                    orbit.MoonColor = VfxPalette.Recolor(orbit.MoonColor);
-                VfxPalette.RecolorTree(_specialAura);
-                AddChild(_specialAura);
-            }
-        }
-    }
-
-    private void TrySurge()
-    {
-        if (!Input.IsActionJustPressed("surge") || ReadySurge() is not var (surge, spec) || Ruh < spec.Cost)
-            return;
-        Ruh -= spec.Cost;
-        FireSurge(surge, spec);
-    }
-
-    /// <summary>The equipped surge and its spec, if one can fire now (alive, none channelling or armed); else null.</summary>
-    private (Action Surge, SurgeSpec Spec)? ReadySurge() =>
-        !_dead && !_surgeChannel && !_surgeArmed && _currentSurge is { Surge: { } spec } surge ? (surge, spec) : null;
+    private float RunSpeed() => _runSpeedV * _surge.SpeedMult;
 
     /// <summary>Fire the equipped surge WITHOUT spending Ruh (the Prepared perk, at round start). No-op if one is
     /// already going.</summary>
-    public void SurgeFree()
-    {
-        if (ReadySurge() is var (surge, spec))
-            FireSurge(surge, spec);
-    }
+    public void SurgeFree() => _surge.FireFree();
 
     /// <summary>Tell every passive a round began (RunManager.StartRound) — see <see cref="Passive.OnRoundStart"/>.</summary>
     public void NotifyRoundStart()
     {
         foreach (var p in new List<Passive>(_passives))
             p.OnRoundStart(this);
-    }
-
-    private void FireSurge(Action surge, SurgeSpec s)
-    {
-        BeginSurge(surge, s);
-        Flash(_sprite);
-        _sfx.Play(Anim(surge).ToString());
-        if (_state != State.Spawn && HasAnim(Anim(surge)))
-            Enter(State.Surge);
-    }
-
-    private void TickSurge(float delta)
-    {
-        if (_surgeLeft <= 0.0f)
-            return;
-        _surgeLeft -= delta;
-        if (_surgeLeft <= 0.0f)
-            EndSurge();
-    }
-
-    private void EndSurge()
-    {
-        _surgeLeft = 0.0f;
-        _surgeInvuln = false;
-        _surgeDmgMult = 1.0f;
-        _surgeSpeedMult = 1.0f;
-        _surgeArmed = false;
-        _armedSurge = null;
-        if (_surgeChannel)
-        {
-            _surgeChannel = false;
-            _surgeAsleep = false;
-            _sprite?.Play();
-        }
-        if (IsInstanceValid(_specialAura))
-        {
-            var aura = _specialAura;
-            var tw = aura.CreateTween();
-            tw.TweenProperty(aura, "modulate:a", 0.0, 0.3);
-            tw.TweenCallback(Callable.From(aura.QueueFree));
-        }
-        _specialAura = null;
-    }
-
-    private void TriggerWara()
-    {
-        var s = _armedSurge;
-        if (s == null)
-        {
-            EndSurge();
-            return;
-        }
-        StunNearby(s.StunRadius, s.StunTime);
-        string burst = s.Burst;
-        if (burst != "" && ResourceLoader.Exists(burst))
-        {
-            var scene = GD.Load<PackedScene>(burst);
-            var b = scene?.Instantiate() as Node2D;
-            if (b != null)
-            {
-                VfxPalette.RecolorTree(b);
-                AddChild(b);
-                GetTree().CreateTimer(1.5).Timeout += b.QueueFree;
-            }
-        }
-        _sfx.Play("surge_wara_trigger");
-        Flash(_sprite);
-        EndSurge();
     }
 
     public void HoldAnimation(double duration, BlastStrike effect)
@@ -1109,9 +807,9 @@ public partial class Player : Combatant, IStrikeWielder
 
     private void OnFrameChanged()
     {
-        if (_state == State.Special)
+        if (_current == _special)
         {
-            if (_sprite.Frame == SpecialStrikeFrame())
+            if (_sprite.Frame == _special.StrikeFrame())
                 foreach (var p in _passives)
                     p.OnSpecialStrike(this);
             return;
@@ -1121,28 +819,13 @@ public partial class Player : Combatant, IStrikeWielder
             _sprite.SetFrameAndProgress(Mathf.Max(AnimMeta.LoopFrom(_sprite.SpriteFrames, _sprite.Animation), 0), 0.0f);
     }
 
-    private int SpecialStrikeFrame()
-    {
-        if (_currentSpecial is not { } special)
-            return 0;
-        var hits = AnimMeta.HitFrames(_sprite.SpriteFrames, Anim(special));
-        if (hits.Count > 0)
-            return hits[0];
-        return _sprite.SpriteFrames.GetFrameCount(Anim(special)) / 2;
-    }
-
     public bool IsDead() => _dead;
     /// <summary>In a channelled surge (Nem's sleep) — the stand-still kamikaze clock pauses for it.</summary>
-    public bool IsChannelingSurge() => _surgeChannel;
-    public bool DeathComplete() => _dead && _deathFinished;
+    public bool IsChannelingSurge() => _surge.Channelling;
+    public bool DeathComplete() => _dead && _death.Finished;
 
-    public void ReleaseDeath()
-    {
-        if (!_deathFrozen)
-            return;
-        _deathFrozen = false;
-        _sprite?.Play();
-    }
+    /// <summary>Let the death animation's held first frame go (the run's death sequence calls this after its beat).</summary>
+    public void ReleaseDeath() => _death.Release();
 
     /// <summary>Common death: stop everything in progress and disable the hurtbox. A normal death then plays the death
     /// animation; a <paramref name="fell"/> death (out of the arena) skips it and free-falls in the fall animation.</summary>
@@ -1151,17 +834,16 @@ public partial class Player : Combatant, IStrikeWielder
         if (_dead)
             return;
         _dead = true;
-        _deathFinished = false;
+        _death.Finished = false;
         _sfx.Play(fell ? "player_fall_death" : "player_death");
         _stunLeft = 0.0f;
-        _comboPlaying = false;
-        _flurry = false;
+        _attack.StopSwing();
         _holdLeft = 0.0f;
-        EndSurge();
+        _surge.End();
         if (_channel != null && IsInstanceValid(_channel))
             _channel.Cancel();
         _channel = null;
-        _launchOrb = null;
+        _launch.Release(lockOut: false);
         if (_hurtbox != null)
             // Die() runs inside the hurtbox's hit-signal flush; a direct set is blocked while physics
             // queries flush ("Function blocked during in/out signal"), so defer it to after the flush.
@@ -1169,15 +851,15 @@ public partial class Player : Combatant, IStrikeWielder
         if (fell)
         {
             _fellOut = true;
-            _deathFinished = true; // no death animation to wait for
+            _death.Finished = true; // no death animation to wait for
             if (HasFall())
                 _sprite.Play("fall");
             return;
         }
         if (HasAnim("death"))
-            Enter(State.Death);
+            Enter(_death);
         else
-            _deathFinished = true;
+            _death.Finished = true;
     }
 
     /// <summary>Fell out of the arena: no input, no state machine — gravity just carries him down in the fall animation.</summary>
@@ -1187,34 +869,16 @@ public partial class Player : Combatant, IStrikeWielder
         MoveAndSlide();
     }
 
-    private void ProcessDeath(float delta)
-    {
-        SetVelX(Mathf.MoveToward(Velocity.X, 0.0f, _friction * delta));
-        if (IsOnFloor())
-            SetVelY(0.0f);
-        else
-            AddVelY(_gravity * delta);
-    }
-
-    private void ProcessSpawn(float delta)
-    {
-        SetVelX(Mathf.MoveToward(Velocity.X, 0.0f, _friction * delta));
-        if (IsOnFloor())
-            SetVelY(0.0f);
-        else
-            AddVelY(_gravity * delta);
-    }
-
     public void Spawn()
     {
         Velocity = Vector2.Zero;
         if (HasAnim("spawn"))
-            Enter(State.Spawn);
+            Enter(_spawn);
         else
         {
             if (_hurtbox != null)
                 _hurtbox.Monitorable = true;
-            Enter(State.Idle);
+            EnterFree(FreeMode.Idle);
         }
     }
 
@@ -1224,17 +888,14 @@ public partial class Player : Combatant, IStrikeWielder
         // those changes are still in place — resetting the stats below first made every undo apply twice.
         ClearPassives();
         _dead = false;
-        _deathFinished = false;
+        _death.Finished = false;
         _fellOut = false;
-        Lira = 0;
-        FadaFigs = 0;
-        Hud?.SetLira(0);
-        Hud?.SetFadaFigs(0);
-        EndSurge();
+        Wallet.Empty();
+        _surge.End();
         _shakeLeft = 0.0f;
         if (_sprite != null)
             _sprite.Position = Vector2.Zero;
-        _parryLeft = 0.0f;
+        _special.ParryLeft = 0.0f;
         DamageMult = 1.0f;
         RunMult = 1.0f;
         DashBonus = 0;
@@ -1244,7 +905,7 @@ public partial class Player : Combatant, IStrikeWielder
         SpecialInvulnBonus = 0.0f;
         _iframesLeft = 0.0f;
         JumpVelocityBonus = 1.0f;
-        _slamSpringBonus = 1.0f;
+        _free.SpringBonus = 1.0f;
         MagnetTargetBonus = 0;
         FigChanceBonus = 0.0f;
         FigMagnetRange = 0.0f;
@@ -1279,12 +940,11 @@ public partial class Player : Combatant, IStrikeWielder
             _dashCharges += 1; // one charge back per cooldown; keep timing if more are still missing
             _dashCd = _dashCharges < MaxDashCharges ? _dashCooldown : 0.0f;
         }
-        if (!HoldingSpecial())
-            _specialCd = Mathf.Max(_specialCd - delta, 0.0f); // a held special's cooldown starts on release
-        _launchCdLeft = Mathf.Max(_launchCdLeft - delta, 0.0f);
-        UpdateOrbProximity();
-        TrySurge();
-        _ruhFlashCd = Mathf.Max(_ruhFlashCd - delta, 0.0f);
+        if (!_special.Holding)
+            _special.Cooldown = Mathf.Max(_special.Cooldown - delta, 0.0f); // a held special's cooldown starts on release
+        _launch.Update(delta);
+        _surge.TryFireFromInput();
+        _tint.Tick(delta);
         _armorLeft = Mathf.Max(_armorLeft - delta, 0.0f);
         _iframesLeft = Mathf.Max(_iframesLeft - delta, 0.0f);
         if (_holdLeft > 0.0f)
@@ -1316,41 +976,28 @@ public partial class Player : Combatant, IStrikeWielder
         if (onFloor)
         {
             _fallPeak = 0.0f;
-            _airJumpsUsed = 0;
+            _free.AirJumpsUsed = 0;
         }
         _wasOnFloor = onFloor;
 
-        if (_state == State.Death)
-            ProcessDeath(delta);
-        else if (_state == State.Spawn)
-            ProcessSpawn(delta);
+        // Death and spawn run regardless; a stagger takes control away from any other state; otherwise the
+        // current state has the tick.
+        if (_current == _death || _current == _spawn)
+            _current.Tick(delta);
         else if (_stunLeft > 0.0f)
             ProcessStun(delta);
-        else if (_state == State.Dash)
-            ProcessDash(delta);
-        else if (_state == State.Attack)
-            ProcessAttack(delta);
-        else if (_state == State.Special)
-            ProcessSpecial(delta);
-        else if (_state == State.Surge)
-            ProcessSurge(delta);
-        else if (_state == State.Slam)
-            ProcessSlam(delta);
-        else if (_state == State.Land)
-            ProcessLand(delta);
-        else if (_state == State.Launch)
-            ProcessLaunch(delta);
         else
         {
-            _comboWindow = Mathf.Max(_comboWindow - delta, 0.0f);
-            ProcessNormal(delta);
+            if (_current == _free)
+                _attack.ComboWindow = Mathf.Max(_attack.ComboWindow - delta, 0.0f);
+            _current.Tick(delta);
         }
 
         foreach (var p in _passives)
             p.Physics(this, delta);
 
-        TickSurge(delta);
-        _parryLeft = Mathf.Max(_parryLeft - delta, 0.0f);
+        _surge.Update(delta);
+        _special.ParryLeft = Mathf.Max(_special.ParryLeft - delta, 0.0f);
         if (_shakeLeft > 0.0f)
         {
             _shakeLeft = Mathf.Max(_shakeLeft - delta, 0.0f);
@@ -1361,9 +1008,9 @@ public partial class Player : Combatant, IStrikeWielder
         }
 
         if (_hurtbox != null)
-            _hurtbox.Monitorable = !_dead && _state != State.Spawn && _state != State.Launch
-                && !(_state == State.Dash && _dashLeft > 0.0f)
-                && !(_surgeInvuln && _surgeLeft > 0.0f);
+            _hurtbox.Monitorable = !_dead && _current != _spawn && _current != _launch
+                && !(_current == _dash && _dash.Left > 0.0f)
+                && !_surge.Invulnerable;
 
         MoveAndSlide();
         UpdateAnimation(delta);
@@ -1375,357 +1022,8 @@ public partial class Player : Combatant, IStrikeWielder
         if (!IsOnFloor())
             AddVelY(_gravity * delta);
         SetVelX(Mathf.MoveToward(Velocity.X, 0.0f, _friction * 0.5f * delta));
-        if (_state != State.Hurt)
-            _state = State.Idle;
-    }
-
-    private void ProcessDash(float delta)
-    {
-        if (_launchCdLeft <= 0.0f)
-        {
-            var orb = OrbInPullRange();
-            if (orb != null)
-            {
-                BeginLaunch(orb);
-                return;
-            }
-        }
-        _dashAnimLeft -= delta;
-        float input = Input.GetAxis("move_left", "move_right");
-        bool holdingDashDir = input != 0.0f && Mathf.Sign(input) == _facing;
-
-        if (Input.IsActionJustPressed("attack"))
-            _bufferedAttack = true;
-        if (_bufferedAttack && _dashLeft <= 0.0f && (IsOnFloor() || AirAttackOk()))
-        {
-            _bufferedAttack = false;
-            AdvanceCombo();
-            if (_state != State.Dash)
-                return;
-        }
-
-        if (_dashCustom)
-        {
-            _dashLeft = Mathf.Max(_dashLeft - delta, 0.0f);
-            float target = holdingDashDir ? RunSpeed() * _facing : 0.0f;
-            SetVelX(Mathf.MoveToward(Velocity.X, target, (_dashSpeed / _dashTime) * delta));
-        }
-        else if (_dashLeft > 0.0f)
-        {
-            _dashLeft -= delta;
-            SetVelX(_dashSpeed * _facing);
-        }
-        else
-        {
-            float target = holdingDashDir ? RunSpeed() * _facing : 0.0f;
-            float recovery = Mathf.Max(_dashAnimTime - _dashTime, 0.001f);
-            SetVelX(Mathf.MoveToward(Velocity.X, target, (_dashSpeed / recovery) * delta));
-        }
-        if (IsOnFloor())
-            SetVelY(0.0f);
-        else
-            AddVelY(_gravity * _dashGravityScale * delta);
-        if (_dashAnimLeft <= 0.0f)
-            Enter(holdingDashDir && IsOnFloor() ? State.Run : State.Idle);
-    }
-
-    private void ProcessNormal(float delta)
-    {
-        float input = Input.GetAxis("move_left", "move_right");
-
-        if (!IsOnFloor())
-        {
-            float gScale = Velocity.Y > 0.0f ? _fallGravityScale : 1.0f;
-            AddVelY(_gravity * gScale * delta);
-        }
-
-        bool gusted = _gustLeft > 0.0f && !IsOnFloor();
-        if (gusted)
-        {
-            // Riding a gust: no air brake, and steering only pushes back AGAINST the fling, weakly — holding the way
-            // he's blown can't slow him to run speed either.
-            if (input != 0.0f)
-                _facing = input > 0.0f ? 1 : -1;
-            if (input != 0.0f && Mathf.Sign(input) != Mathf.Sign(Velocity.X))
-                SetVelX(Mathf.MoveToward(Velocity.X, input * RunSpeed(), _acceleration * Combat.GustControl * delta));
-        }
-        else if (input != 0.0f)
-        {
-            _facing = input > 0.0f ? 1 : -1;
-            SetVelX(Mathf.MoveToward(Velocity.X, input * RunSpeed(), _acceleration * delta));
-        }
-        else
-        {
-            SetVelX(Mathf.MoveToward(Velocity.X, 0.0f, _friction * delta));
-        }
-
-        if (Input.IsActionJustPressed("special"))
-        {
-            if (IsOnFloor() && _currentSpecial != null)
-            {
-                StartSpecial();
-                return;
-            }
-            if (!IsOnFloor() && HasSlam() && SlamHasClearance())
-            {
-                Enter(State.Slam);
-                return;
-            }
-        }
-        if (AttackHeld() && !gusted && (IsOnFloor() || AirAttackOk())) // no swinging while blown (it would halt the fling)
-        {
-            AdvanceCombo();
-            return;
-        }
-        if (Input.IsActionJustPressed("dash"))
-        {
-            if (_launchCdLeft <= 0.0f)
-            {
-                var orb = OrbInPullRange();
-                if (orb != null)
-                {
-                    BeginLaunch(orb);
-                    return;
-                }
-            }
-            if (_dashCharges > 0)
-            {
-                Enter(State.Dash);
-                return;
-            }
-        }
-        if (Input.IsActionJustPressed("drop") && IsOnFloor())
-            DropThroughPlatform();
-        if (Input.IsActionJustPressed("jump"))
-        {
-            if (IsOnFloor())
-            {
-                SetVelY(AppliedJumpVelocity(true));
-                _jumpLaunch = true;
-                _sfx.Play("jump");
-                foreach (var p in _passives)
-                    p.OnGroundJump(this);
-            }
-            else if (_airJumpsUsed < _maxAirJumps)
-            {
-                AirJump();
-            }
-        }
-
-        if (!IsOnFloor())
-            SetAirborneState();
-        else if (_justLanded && HasLand())
-            Enter(State.Land);
-        else if (input != 0.0f && Mathf.Abs(Velocity.X) > 5.0f)
-            _state = State.Run;
-        else
-            _state = State.Idle;
-    }
-
-    private void SetAirborneState()
-    {
-        if (Velocity.Y >= _landMinFallSpeed && HasLand() && NearGround())
-        {
-            Enter(State.Land);
-            return;
-        }
-        if (_state == State.Jump || _state == State.Fall)
-            return;
-        _state = _jumpLaunch ? State.Jump : AirborneDefault();
-    }
-
-    private State AirborneDefault() => HasFall() ? State.Fall : State.Jump;
-
-    // --- launch orbs ---
-    private LaunchOrb? OrbInPullRange()
-    {
-        var body = GlobalPosition + LaunchBody;
-        LaunchOrb? best = null;
-        float bestD = LaunchPullRange * LaunchPullRange;
-        foreach (Node o in GetTree().GetNodesInGroup("orbs"))
-        {
-            if (o is not LaunchOrb orb)
-                continue;
-            float d = body.DistanceSquaredTo(orb.GlobalPosition);
-            if (d < bestD)
-            {
-                bestD = d;
-                best = orb;
-            }
-        }
-        return best;
-    }
-
-    private void UpdateOrbProximity()
-    {
-        LaunchOrb? near = null;
-        if (!_dead && _state != State.Spawn && _state != State.Launch)
-            near = OrbInPullRange();
-        if (near == _nearOrb)
-            return;
-        if (_nearOrb != null && IsInstanceValid(_nearOrb))
-            _nearOrb.SetNear(false);
-        near?.SetNear(true);
-        _nearOrb = near;
-    }
-
-    private void BeginLaunch(LaunchOrb orb)
-    {
-        _launchOrb = orb;
-        _launchFrom = GlobalPosition;
-        _launchT = 0.0f;
-        _launchVel = new Vector2(_facing * orb.LaunchForward, -orb.LaunchUp);
-        Velocity = Vector2.Zero;
-        Enter(State.Launch);
-        orb.PlayUse();
-    }
-
-    private void ProcessLaunch(float delta)
-    {
-        if (!IsInstanceValid(_launchOrb))
-        {
-            _launchOrb = null;
-            Enter(AirborneDefault());
-            return;
-        }
-        _launchT += delta;
-        float t = Mathf.Clamp(_launchT / LaunchMagnetTime, 0.0f, 1.0f);
-        Vector2 target = _launchOrb.GlobalPosition - LaunchBody;
-        GlobalPosition = _launchFrom.Lerp(target, Ease(t, 0.35f));
-        UpdateAnimation(delta);
-        if (t >= 1.0f)
-        {
-            _launchOrb = null;
-            _launchCdLeft = LaunchCd;
-            Velocity = _launchVel;
-            if (Mathf.Abs(Velocity.X) > 5.0f)
-                _facing = Velocity.X > 0.0f ? 1 : -1;
-            _dashLeft = Mathf.Max(_dashLeft, 0.12f);
-            _jumpLaunch = true;
-            Enter(AirborneDefault());
-        }
-    }
-
-    private const float DropThroughTime = 0.3f;
-
-    /// <summary>Drop down through the one-way platform he's standing on: stop colliding with the Platform layer for
-    /// <see cref="DropThroughTime"/> (solid ground stays solid). Only when the floor under him IS a platform — the
-    /// tile bodies of a TileMapLayer carry their physics layer's collision layer, so the floor contact tells us.</summary>
-    private void DropThroughPlatform()
-    {
-        const uint platform = (uint)Combat.Layer.Platform;
-        for (int i = 0; i < GetSlideCollisionCount(); i++)
-        {
-            var c = GetSlideCollision(i);
-            if (c.GetNormal().Dot(UpDirection) < 0.5f || (PhysicsServer2D.BodyGetCollisionLayer(c.GetColliderRid()) & platform) == 0)
-                continue; // not a floor contact with a platform
-            CollisionMask &= ~platform;
-            SetVelY(Mathf.Max(Velocity.Y, 60.0f));
-            GetTree().CreateTimer(DropThroughTime).Timeout += () =>
-            {
-                if (IsInstanceValid(this))
-                    CollisionMask |= platform;
-            };
-            return;
-        }
-    }
-
-    private void AirJump()
-    {
-        _gustLeft = 0.0f; // an air jump catches him out of a gust — full air control back (a recovery move)
-        SetVelY(AppliedJumpVelocity(false));
-        _airJumpsUsed += 1;
-        _sfx.Play("jump");
-        _apexY = GlobalPosition.Y;
-        _fallPeak = 0.0f;
-        _jumpLaunch = true;
-        Enter(State.Jump);
-        _sprite.Play("jump");
-        _sprite.SetFrameAndProgress(0, 0.0f);
-        if (_particles != null)
-        {
-            float lean = Mathf.Clamp(Velocity.X / Mathf.Max(_runSpeedV, 1.0f), -1.0f, 1.0f);
-            _particles.FireEffect("double_jump", lean * DoubleJumpLean);
-        }
-        foreach (var p in _passives)
-            p.OnAirJump(this);
-    }
-
-    private void ProcessLand(float delta)
-    {
-        if (!IsOnFloor())
-        {
-            if (Velocity.Y <= 0.0f || !NearGround())
-            {
-                Enter(AirborneDefault());
-                return;
-            }
-            AddVelY(_gravity * _fallGravityScale * delta);
-            SetVelX(Mathf.MoveToward(Velocity.X, 0.0f, _friction * delta));
-            if (Input.IsActionJustPressed("special") && HasSlam() && SlamHasClearance())
-            {
-                Enter(State.Slam);
-                return;
-            }
-            if (AttackHeld() && AirAttackOk())
-            {
-                AdvanceCombo();
-                return;
-            }
-            if (Input.IsActionJustPressed("dash"))
-            {
-                if (_launchCdLeft <= 0.0f)
-                {
-                    var orb = OrbInPullRange();
-                    if (orb != null)
-                    {
-                        BeginLaunch(orb);
-                        return;
-                    }
-                }
-                if (_dashCharges > 0)
-                {
-                    Enter(State.Dash);
-                    return;
-                }
-            }
-            if (Input.IsActionJustPressed("jump") && _airJumpsUsed < _maxAirJumps)
-                AirJump();
-            return;
-        }
-
-        if (Input.IsActionJustPressed("special") && _currentSpecial != null)
-        {
-            StartSpecial();
-            return;
-        }
-        if (AttackHeld())
-        {
-            AdvanceCombo();
-            return;
-        }
-        if (Input.IsActionJustPressed("dash") && _dashCharges > 0)
-        {
-            Enter(State.Dash);
-            return;
-        }
-        if (Input.IsActionJustPressed("jump"))
-        {
-            SetVelY(AppliedJumpVelocity(true));
-            _jumpLaunch = true;
-            _state = State.Jump;
-            return;
-        }
-
-        float input = Input.GetAxis("move_left", "move_right");
-        if (input != 0.0f)
-        {
-            _facing = input > 0.0f ? 1 : -1;
-            SetVelX(Mathf.MoveToward(Velocity.X, input * RunSpeed(), _acceleration * delta));
-            _state = State.Run;
-            return;
-        }
-        SetVelX(Mathf.MoveToward(Velocity.X, 0.0f, _friction * delta));
+        if (!(_current == _free && _free.Mode == FreeMode.Hurt))
+            SetFree(FreeMode.Idle);
     }
 
     private bool HasLand() => _sprite.SpriteFrames != null && _sprite.SpriteFrames.HasAnimation("land");
@@ -1746,377 +1044,12 @@ public partial class Player : Combatant, IStrikeWielder
         return space.IntersectRay(q).Count > 0;
     }
 
-    private void ProcessAttack(float delta)
-    {
-        bool dashing = _activeHit.Lunge.HasValue && _recoveryLeft > 0.0f;
-        if (dashing)
-        {
-            SetVelY(0.0f);
-        }
-        else
-        {
-            SetVelX(Mathf.MoveToward(Velocity.X, 0.0f, _friction * delta));
-            if (!IsOnFloor())
-                AddVelY(_gravity * delta);
-        }
-
-        if (Input.IsActionJustPressed("special") && _specialCd <= 0.0f)
-            _bufferedSpecial = true; // only a READY special — one on cooldown would stall the attack until it recharged
-
-        if (_flurry)
-        {
-            if (_bufferedSpecial)
-                StartSpecial();
-            else if (!Input.IsActionPressed("attack"))
-            {
-                NotifyAttackAnimEnd();
-                Enter(State.Idle);
-            }
-            return;
-        }
-
-        if (_comboPlaying)
-        {
-            if (_sprite.Frame >= _segEnd)
-            {
-                _sprite.SetFrameAndProgress(_segEnd, 0.0f);
-                _sprite.Pause();
-                _comboPlaying = false;
-                _recoveryLeft = Mathf.Max(AttackRecovery, _activeHit.Hold ?? 0.0f);
-                _comboWindow = ComboResetTime;
-                if (_bufferedSpecial)
-                    StartSpecial();
-            }
-            return;
-        }
-
-        if (_bufferedSpecial)
-        {
-            StartSpecial();
-            return;
-        }
-        // A press chains the next hit; HOLDING chains it too — except after the combo's last hit, which keeps its
-        // recovery beat before holding loops the combo back to its first hit (via IDLE).
-        if (Input.IsActionJustPressed("attack") || (AttackHeld() && _currentAttack is { } held && _comboStep < AttackHits(held).Count))
-        {
-            AdvanceCombo();
-            return;
-        }
-        _comboWindow = Mathf.Max(_comboWindow - delta, 0.0f);
-        _recoveryLeft -= delta;
-        if (_recoveryLeft <= 0.0f)
-        {
-            if (_activeHit.Lunge.HasValue)
-                SetVelX(0.0f);
-            NotifyAttackAnimEnd();
-            Enter(State.Idle);
-        }
-    }
-
-    /// <summary>The attack button is down — every attack keeps going while it's held (flurries loop, combos chain).</summary>
-    private static bool AttackHeld() => Input.IsActionPressed("attack");
-
-    /// <summary>A "held" special (Redere Shield) is up right now — its cooldown waits until it's released.</summary>
-    private bool HoldingSpecial() => _state == State.Special && _currentSpecial != null && HasTag(_currentSpecial, "held");
-
-    private void StartSpecial()
-    {
-        if (_specialCd > 0.0f || _currentSpecial is not { } special)
-            return;
-        _specialCd = CooldownOf(special); // every special has its own cooldown
-        bool isShield = HasTag(special, "shield");
-        foreach (var p in _passives)
-            p.OnSpecialCast(this, special);
-        if (isShield)
-            _parryLeft = ParryWindow;
-        _comboStep = 0;
-        _comboWindow = 0.0f;
-        _comboPlaying = false;
-        _bufferedSpecial = false;
-        _activeHit = ResolveTuning(special, 0);
-        _activeHit.FromSpecial = true;
-        Enter(State.Special);
-        if (HasAnim(Anim(special)))
-        {
-            _sprite.Play(Anim(special));
-            _sprite.SetFrameAndProgress(0, 0.0f);
-        }
-    }
-
-    private void ProcessSpecial(float delta)
-    {
-        // A special that carries Lunge (e.g. Zahluq) dashes through: hold vertical and let the lunge impulse
-        // ride instead of friction-damping it (mirrors the dash branch in ProcessAttack). SetArmor is already
-        // honoured globally, so super-armor works for specials without extra handling here.
-        if (_activeHit.Lunge.HasValue)
-        {
-            SetVelY(0.0f);
-        }
-        else
-        {
-            SetVelX(Mathf.MoveToward(Velocity.X, 0.0f, _friction * delta));
-            if (!IsOnFloor())
-                AddVelY(_gravity * delta);
-        }
-        if (_currentSpecial != null && HasTag(_currentSpecial, "held"))
-        {
-            int last = _sprite.SpriteFrames.GetFrameCount(Anim(_currentSpecial)) - 1;
-            if (_sprite.Frame >= last)
-            {
-                if (Input.IsActionPressed("special"))
-                {
-                    if (_sprite.IsPlaying())
-                        _sprite.Pause();
-                }
-                else
-                {
-                    _activeHit = new SegmentData();
-                    Enter(State.Idle);
-                }
-            }
-        }
-    }
-
-    private void ProcessSurge(float delta)
-    {
-        SetVelX(Mathf.MoveToward(Velocity.X, 0.0f, _friction * delta));
-        if (!IsOnFloor())
-            AddVelY(_gravity * delta);
-        if (_surgeChannel)
-        {
-            if (!_surgeAsleep)
-            {
-                if (_sprite.Frame >= _surgeSleepFrame)
-                {
-                    _surgeAsleep = true;
-                    _sprite.SetFrameAndProgress(_surgeSleepFrame, 0.0f);
-                    _sprite.Pause();
-                    _surgeLeft = _surgeSleepTime;
-                }
-            }
-            else
-            {
-                Health = Mathf.Min(Health + _surgeHealRate * delta, _surgeHealTarget);
-                _surgeLeft -= delta;
-                if (_surgeLeft <= 0.0f)
-                {
-                    EndSurge();
-                    Enter(State.Idle);
-                }
-            }
-        }
-    }
-
-    private void ProcessSlam(float delta)
-    {
-        SetVelX(Mathf.MoveToward(Velocity.X, 0.0f, _friction * delta));
-        if (_slamImpacting)
-        {
-            SetVelY(IsOnFloor() ? 0.0f : Mathf.Max(Velocity.Y, _slamSpeed));
-            return;
-        }
-        if (IsOnFloor() || NearGround(_slamImpactDistance))
-        {
-            SlamRelease();
-            return;
-        }
-        SetVelY(Mathf.Max(Velocity.Y, _slamSpeed));
-        int hold = Mathf.Max(0, _slamHoldFrame - AnimMeta.SheetStart(_sprite.SpriteFrames, "slam"));
-        if (_sprite.Frame >= hold)
-        {
-            _sprite.SetFrameAndProgress(hold, 0.0f);
-            _sprite.SpeedScale = 0.0f;
-            _sprite.Visible = false;
-        }
-    }
-
-    private void SlamRelease()
-    {
-        _slamImpacting = true;
-        _sprite.Visible = true;
-        _sprite.SpeedScale = 1.0f;
-        _slamDownSfx?.Stop();
-        _sfx.Play("slam");
-        float drop = GlobalPosition.Y - _slamStartY;
-        float t = Mathf.Clamp((drop - _slamMinDrop) / Mathf.Max(_slamMaxDrop - _slamMinDrop, 1.0f), 0.0f, 1.0f);
-        _activeHit = new SegmentData { DamageScale = Mathf.Lerp(1.0f, _slamMaxDamageMult, t) * SlamDamageMult };
-        foreach (var p in _passives)
-            p.OnSlamLand(this, drop, Mathf.Max(Velocity.Y, _slamSpeed));
-    }
-
-    private bool HasSlam() => _sprite.SpriteFrames != null && _sprite.SpriteFrames.HasAnimation("slam");
-
-    private bool SlamHasClearance()
-    {
-        if (_slamMinClearance <= 0.0f)
-            return true;
-        var space = GetWorld2D().DirectSpaceState;
-        if (space == null)
-            return true;
-        var q = PhysicsRayQueryParameters2D.Create(
-            GlobalPosition, GlobalPosition + new Vector2(0.0f, _slamMinClearance), CollisionMask);
-        q.Exclude = new Godot.Collections.Array<Rid> { GetRid() };
-        return space.IntersectRay(q).Count == 0;
-    }
-
-    private void AdvanceCombo()
-    {
-        if (_currentAttack is not { } attack)
-            return;
-        if (IsFlurry(attack))
-        {
-            if (!_flurry)
-                StartFlurry(attack);
-            return;
-        }
-        var hits = AttackHits(attack);
-        if (hits.Count == 0)
-            return;
-        _bufferedSpecial = false;
-
-        if (_comboWindow <= 0.0f || _comboStep >= hits.Count)
-            _comboStep = 0;
-        int segStart = _comboStep == 0 ? 0 : hits[_comboStep - 1] + 1;
-        _segEnd = hits[_comboStep];
-        _comboStep += 1;
-        _activeHit = ResolveTuning(attack, _comboStep - 1);
-
-        _comboWindow = ComboResetTime;
-        _comboPlaying = true;
-        Enter(State.Attack);
-        _sprite.SpeedScale = 1.0f;
-        _sprite.Play(Anim(attack));
-        _sprite.SetFrameAndProgress(segStart, 0.0f);
-    }
-
-    private void StartFlurry(Action attack)
-    {
-        _bufferedSpecial = false;
-        _flurry = true;
-        _activeHit = ResolveTuning(attack, 0);
-        Enter(State.Attack);
-        _sprite.SpeedScale = 1.0f;
-        _sprite.Play(Anim(attack));
-    }
-
-    /// <summary>The frames that end each combo segment: the authored hit frames, or every frame when none are authored.</summary>
-    private IReadOnlyList<int> AttackHits(Action attack) => AnimMeta.HitFramesOrAll(_sprite.SpriteFrames, Anim(attack));
-
-    private void Enter(State state)
-    {
-        _state = state;
-        if (state != State.Attack)
-        {
-            // Leaving an attack by ANY route (release, special, surge, hurt, …) ends its flurry / combo segment. Done
-            // here, centrally, because a stale _flurry makes AdvanceCombo swallow every later attack press.
-            _flurry = false;
-            _comboPlaying = false;
-        }
-        _sprite.SpeedScale = 1.0f;
-        _sprite.Visible = true;
-        switch (state)
-        {
-            case State.Dash:
-                _gustLeft = 0.0f; // dashing breaks out of a gust (a recovery move)
-                _dashLeft = _dashTime;
-                _dashAnimLeft = Mathf.Max(_dashAnimTime, _dashTime);
-                if (_dashCharges == MaxDashCharges)
-                    _dashCd = _dashCooldown; // the refill clock starts with the first charge spent
-                _dashCharges -= 1;
-                _bufferedAttack = false;
-                _sfx.Play("dash");
-                foreach (var p in _passives)
-                    p.OnDash(this);
-                if (_dashEffect != "")
-                {
-                    _activeHit = new SegmentData();
-                    FireEffect(_dashEffect);
-                }
-                var frames = _sprite.SpriteFrames;
-                float fps = (float)frames.GetAnimationSpeed("dash");
-                if (fps > 0.0f)
-                {
-                    float animTime = frames.GetFrameCount("dash") / fps;
-                    _sprite.SpeedScale = animTime / Mathf.Max(_dashAnimTime, _dashTime);
-                }
-                _dashCustom = _blinkDash;
-                if (_dashCustom)
-                    DoBlink();
-                break;
-            case State.Attack:
-                SetVelX(0.0f);
-                break;
-            case State.Hurt:
-                if (HasAnim("hurt"))
-                {
-                    _sprite.Play("hurt");
-                    _sprite.SetFrameAndProgress(0, 0.0f);
-                }
-                else
-                {
-                    _state = State.Idle;
-                }
-                break;
-            case State.Surge:
-                SetVelX(0.0f);
-                if (_currentSurge != null && HasAnim(Anim(_currentSurge)))
-                {
-                    _sprite.Play(Anim(_currentSurge));
-                    _sprite.SetFrameAndProgress(0, 0.0f);
-                }
-                else
-                {
-                    _state = State.Idle;
-                }
-                break;
-            case State.Death:
-                SetVelX(0.0f);
-                _deathFrozen = true;
-                _sprite.Play("death");
-                _sprite.SetFrameAndProgress(0, 0.0f);
-                _sprite.Pause();
-                break;
-            case State.Spawn:
-                SetVelX(0.0f);
-                break;
-            case State.Slam:
-                Velocity = new Vector2(0.0f, _slamSpeed);
-                _slamImpacting = false;
-                _slamStartY = GlobalPosition.Y;
-                _slamDownSfx?.Play();
-                foreach (var p in _passives)
-                    p.OnSlamTrigger(this);
-                break;
-            case State.Launch:
-                _sprite.Play("dash");
-                break;
-        }
-    }
-
-    private StringName AnimationFor(State state) => state switch
-    {
-        State.Run => "run",
-        State.Jump => "jump",
-        State.Fall => "fall",
-        State.Dash => "dash",
-        State.Attack => _currentAttack != null ? Anim(_currentAttack) : "idle",
-        State.Special => _currentSpecial != null ? Anim(_currentSpecial) : "idle",
-        State.Land => "land",
-        State.Slam => "slam",
-        State.Death => "death",
-        State.Spawn => "spawn",
-        State.Hurt => "hurt",
-        State.Surge => _currentSurge != null ? Anim(_currentSurge) : "idle",
-        State.Launch => "dash",
-        _ => "idle",
-    };
-
     private void UpdateAnimation(float delta)
     {
         _sprite.FlipH = _facing < 0;
         if (_runSfx != null)
         {
-            bool running = _state == State.Run;
+            bool running = _current == _free && _free.Mode == FreeMode.Run;
             if (running != _runSfx.Playing)
             {
                 if (running)
@@ -2125,11 +1058,11 @@ public partial class Player : Combatant, IStrikeWielder
                     _runSfx.Stop();
             }
         }
-        var next = AnimationFor(_state);
+        var next = _current.Animation;
         if (_sprite.Animation != next)
         {
             _sprite.Play(next);
-            if (next == "jump" && !_jumpLaunch)
+            if (next == "jump" && !_free.JumpLaunch)
             {
                 int jn = _sprite.SpriteFrames.GetFrameCount("jump");
                 if (jn > 0)
@@ -2137,22 +1070,20 @@ public partial class Player : Combatant, IStrikeWielder
             }
         }
         if (next == "jump")
-            _jumpLaunch = false;
+            _free.JumpLaunch = false;
 
-        switch (_state)
+        // The run animation (and its footsteps) keep pace with his real speed; the other movement loops play at 1x.
+        // Every other state sets its own speed when it starts.
+        if (_current == _free && _free.Mode == FreeMode.Run)
         {
-            case State.Run:
-                float speedRatio = Mathf.Abs(Velocity.X) / Mathf.Max(_runSpeedV, 1.0f);
-                _sprite.SpeedScale = Mathf.Clamp(speedRatio * _runAnimSpeed, 0.4f, 3.0f);
-                if (_runSfx != null)
-                    _runSfx.PitchScale = Mathf.Clamp(speedRatio, 0.6f, 3.0f);
-                break;
-            case State.Idle:
-            case State.Jump:
-            case State.Fall:
-            case State.Land:
-                _sprite.SpeedScale = 1.0f;
-                break;
+            float speedRatio = Mathf.Abs(Velocity.X) / Mathf.Max(_runSpeedV, 1.0f);
+            _sprite.SpeedScale = Mathf.Clamp(speedRatio * _runAnimSpeed, 0.4f, 3.0f);
+            if (_runSfx != null)
+                _runSfx.PitchScale = Mathf.Clamp(speedRatio, 0.6f, 3.0f);
+        }
+        else if ((_current == _free && _free.Mode != FreeMode.Hurt) || _current == _land)
+        {
+            _sprite.SpeedScale = 1.0f;
         }
     }
 
@@ -2165,34 +1096,78 @@ public partial class Player : Combatant, IStrikeWielder
 
     private void OnAnimationFinished()
     {
-        if (_state == State.Death)
+        if (_current == _death)
         {
             _sprite.Visible = false;
-            _deathFinished = true;
+            _death.Finished = true;
             return;
         }
-        if (_state == State.Spawn)
+        if (_current == _spawn)
         {
-            Enter(State.Idle);
+            EnterFree(FreeMode.Idle);
             return;
         }
-        if (_state == State.Jump && !IsOnFloor() && HasFall())
+        if (_current == _free && _free.Mode == FreeMode.Jump && !IsOnFloor() && HasFall())
         {
-            Enter(State.Fall);
+            EnterFree(FreeMode.Fall);
             return;
         }
-        if (_state == State.Land && !IsOnFloor())
+        if (_current == _land && !IsOnFloor())
         {
-            Enter(AirborneDefault());
+            EnterFree(_free.AirborneDefault());
             return;
         }
-        if (_state == State.Dash || _state == State.Special || _state == State.Land || _state == State.Slam)
+        if (_current == _dash || _current == _special || _current == _land || _current == _slam)
         {
             _activeHit = new SegmentData();
-            Enter(State.Idle);
+            EnterFree(FreeMode.Idle);
         }
-        if (_state == State.Surge)
-            Enter(!IsOnFloor() ? AirborneDefault() : State.Idle);
+        if (_current == _surge)
+            EnterFree(!IsOnFloor() ? _free.AirborneDefault() : FreeMode.Idle);
+    }
+
+    // =====================================================================================================
+    // State changes
+    // =====================================================================================================
+
+    /// <summary>Change state: the sprite is reset to normal speed and shown, any swing in progress ends, and the new
+    /// state's <see cref="PlayerState.Enter"/> runs.</summary>
+    private void Enter(PlayerState next)
+    {
+        _current = next;
+        if (next != _attack)
+            _attack.StopSwing();
+        _sprite.SpeedScale = 1.0f;
+        _sprite.Visible = true;
+        next.Enter();
+    }
+
+    /// <summary>Change to free movement looking like <paramref name="mode"/>, as a real state change (see
+    /// <see cref="Enter"/>). Entering a flinch plays the hurt animation from its start — or, for a character with
+    /// none, just stands.</summary>
+    private void EnterFree(FreeMode mode)
+    {
+        _free.Mode = mode;
+        Enter(_free);
+        if (mode != FreeMode.Hurt)
+            return;
+        if (HasAnim("hurt"))
+        {
+            _sprite.Play("hurt");
+            _sprite.SetFrameAndProgress(0, 0.0f);
+        }
+        else
+        {
+            _free.Mode = FreeMode.Idle;
+        }
+    }
+
+    /// <summary>Relabel free movement as <paramref name="mode"/> with NO side effect — the per-tick idle / run / jump
+    /// / fall bookkeeping, which must not reset the sprite or end a swing.</summary>
+    private void SetFree(FreeMode mode)
+    {
+        _current = _free;
+        _free.Mode = mode;
     }
 
     // =====================================================================================================
@@ -2202,12 +1177,4 @@ public partial class Player : Combatant, IStrikeWielder
     private void SetVelY(float y) { var v = Velocity; v.Y = y; Velocity = v; }
     private void AddVelY(float dy) { var v = Velocity; v.Y += dy; Velocity = v; }
 
-    /// <summary>Replicates GDScript's <c>ease(x, curve)</c> for 0 &lt; curve &lt; 1 (ease-out), used by the launch magnet.</summary>
-    private static float Ease(float x, float curve)
-    {
-        x = Mathf.Clamp(x, 0.0f, 1.0f);
-        if (curve > 0.0f)
-            return curve < 1.0f ? 1.0f - Mathf.Pow(1.0f - x, 1.0f / curve) : Mathf.Pow(x, curve);
-        return x;
-    }
 }

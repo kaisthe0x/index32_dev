@@ -81,12 +81,6 @@ public partial class HUD : CanvasLayer
 	/// remaining (0 = hidden — RunManager only passes it once few remain), and the <paramref name="best"/> round record.</summary>
 	public void SetRound(int round, int left, int best) => _roundBanner.SetRound(round, left, best);
 
-	/// <summary>Show the Lira balance (pushed by <c>Player</c>).</summary>
-	public void SetLira(int count) => _liraCounter.SetCount(count);
-
-	/// <summary>Show the fada_fig balance (pushed by <c>Player</c>).</summary>
-	public void SetFadaFigs(int count) => _figCounter.SetCount(count);
-
 	/// <summary>Show the carried Dekken vials: a held vial's name per slot, the <paramref name="selected"/> one (what the
 	/// drink key drinks) framed in the accent colour.</summary>
 	public void SetVials(IReadOnlyList<string> names, int selected) => _vialRow.SetVials(names, selected);
@@ -124,6 +118,8 @@ public partial class HUD : CanvasLayer
 		_player.HealthChanged += OnHealthChanged;
 		_player.RuhChanged += OnRuhChanged;
 		_player.TreeExiting += Unbind;
+		_player.Wallet.Changed += ShowWallet;
+		ShowWallet();
 		_gauge.Bind(player);
 		SyncHealth((float)_player.Health, (float)_player.MaxHealth, false); // seed silently — no pop-in on bind
 		_gauge.SetRuh((float)_player.Ruh, (float)_player.RuhCap, false);
@@ -137,6 +133,7 @@ public partial class HUD : CanvasLayer
 			_player.HealthChanged -= OnHealthChanged;
 			_player.RuhChanged -= OnRuhChanged;
 			_player.TreeExiting -= Unbind;
+			_player.Wallet.Changed -= ShowWallet;
 		}
 		_player = null;
 		_gauge.Bind(null);
@@ -165,6 +162,15 @@ public partial class HUD : CanvasLayer
 		}
 		_lowHealth.Tick(delta);
 		_gauge.Tick(delta, _player.SpecialReady(), _lowHealth.Active);
+	}
+
+	/// <summary>The bound player's Lira or Fada Figs changed (a gain pops its icon).</summary>
+	private void ShowWallet()
+	{
+		if (_player == null)
+			return;
+		_liraCounter.SetCount(_player.Wallet.Lira);
+		_figCounter.SetCount(_player.Wallet.FadaFigs);
 	}
 
 	private void OnHealthChanged(double current, double maximum) => SyncHealth((float)current, (float)maximum, true);
