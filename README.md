@@ -99,7 +99,7 @@ mouse cursor does **not** steer facing or aim (a previous mouse-look experiment 
 removed). If you want cursor-aim back for keyboard+mouse without breaking controller
 play, the clean way is "last input device wins" — ask and I'll wire it.
 
-**Launch orbs — magnet traversal (`State.LAUNCH`).** Layouts place **launch orbs**
+**Launch orbs — magnet traversal (`State.Launch`).** Layouts place **launch orbs**
 (`scripts/things/LaunchOrb.cs`, `LaunchOrb`) — levitating orbs above/between platforms. **Dash into (or
 near) one** and it acts as a **magnet**: it sucks Khalid through and flings him out the far side with the
 orb's **own set impulse** — a strong **up + forward** along his facing (`SwingOrb.LaunchUp` /
@@ -128,11 +128,11 @@ platform. Fully automatic — no aiming, no pumping. (This replaced an earlier c
   `sfx/things/traversal/launch_orb/`.
 - **Level layout.** Level 1 (*The Shallows*) is a large testbed: small HIGH platforms ~800px apart over a
   wide floor (falling just drops you to the ground). The `khalid_swing_frames` sheet is currently unused
-  (the swing animation was discarded); `State.LAUNCH` plays the `dash` anim through the magnet.
+  (the swing animation was discarded); `State.Launch` plays the `dash` anim through the magnet.
 
 **Which character you play is chosen in code.** In-game Q/E switching is **gone** — set the
 **`START_CHARACTER`** constant near the top of `scripts/run/RunManager.cs` to any id in
-`CharacterConfig.IDS` (`khalid` — the others are parked in `playground/`). The dev keys (Z/X
+`CharacterConfig.Ids` (`khalid` — the others are parked in `playground/`). The dev keys (Z/X
 debug damage/heal, `0` rebuild-level) live in that same file.
 
 **The game is a roguelite run** (premise: [`docs/game-design.md`](docs/game-design.md)). At run start
@@ -172,7 +172,7 @@ tint (`BackgroundTintAlpha`). (The old animated orbiting planet was removed; its
 `SpawnDrops`, and `Player.BeginRun` zeroes both.
 
 - **Lira** — the common currency: **every kill** pays `Enemy.LiraDrop` coins (defaults by advisory `EnemyTier`,
-  `RunManager.LiraForTier`: Chip 1 / Mid 2 / Strong 3, overridable per kit — **Wardens drop 12**, `KROJ`). Each coin
+  `RunManager.LiraForTier`: Chip 1 / Mid 2 / Strong 3, overridable per kit — **Wardens drop 12**, `Kroj`). Each coin
   ([`scenes/lira.tscn`](scenes/lira.tscn), [`scripts/collectibles/Lira.cs`](scripts/collectibles/Lira.cs), art
   `assets/things/lira.png`) pops off the corpse and **flies to Khalid on the Ruh soul's curve** — both extend
   [`ArcFlight`](scripts/collectibles/ArcFlight.cs), the shared quadratic-Bezier flight with an absorb at the end —
@@ -457,7 +457,7 @@ and a matching case in `_animation_for()` in `Player.cs`.
 
 **Movement stats live in typed config, not the inspector.** Every movement/physics knob is a
 `Locomotion` (`configs/Locomotion.cs`, the shared baseline) attached to a **movement Action**
-(run/jump/dash/slam), with per-character deviations in each character's `MOVEMENTS` catalog
+(run/jump/dash/slam), with per-character deviations in each character's `Movements` catalog
 (`configs/actions_<char>.gd`). The Player seeds its runtime movement vars from the equipped movement
 Actions on every character change / swap (`_apply_movement`). Only non-movement feel (health/ruh,
 attack pacing, hit-stop juice) stays as inspector `@export`s.
@@ -479,7 +479,7 @@ jumps via `AirJumpBonus` (each re-applies its category on grant).
 
 **Blink dash (per character).** A character's dash can be a **blink** (instant teleport)
 instead of the glide-lunge — set by the equipped dash Action's `move.blink` (Khalid's `blink_dash`
-option is `true`; the baseline glides). When on, `_enter(State.DASH)` calls
+option is `true`; the baseline glides). When on, `_enter(State.Dash)` calls
 `Player._do_blink()`: it displaces `DashSpeed × DashTime` ahead (the *same* reach the
 glide would cover, just instant) via `move_and_collide` so it **stops at walls** and
 **passes through enemies**, fires the character's own `other/blink_out.tscn` /
@@ -510,13 +510,13 @@ on character swap.
 
 **Airborne arc: `JUMP → FALL → LAND`.** The full sequence when a character has the
 sheets for it:
-- **`JUMP`** plays the launch/rise once (its launch only replays on a *real* jump —
+- **`Jump`** plays the launch/rise once (its launch only replays on a *real* jump —
   see the fall-pose note above).
-- **`FALL`** (looping) takes over the moment the jump animation finishes while still
+- **`Fall`** (looping) takes over the moment the jump animation finishes while still
   airborne, or whenever you enter the air any other way (walk off a ledge, an air
   action ends). A character with no `fall` sheet just holds the last jump frame, as
   before.
-- **`LAND`** starts **predictively** — a downward ray (`LandPredictDistance`, 22px,
+- **`Land`** starts **predictively** — a downward ray (`LandPredictDistance`, 22px,
   against the body's `collision_mask` so it catches solid ground *and* one-way
   platforms) fires it while falling at ≥ `LandMinFallSpeed`, so the squash plays
   *through* touchdown instead of after it. It also still triggers on touchdown
@@ -561,14 +561,14 @@ light **attack** still lacks an effect scene, so it deals no damage for now.)
 one press (Ctrl / RT) that applies a **timed self-buff** which runs independently for its full duration.
 There is **no cooldown** — **Ruh is the only gate**: each use spends its `SurgeSpec.Cost` (100 Ruh = one
 charge), so you surge as long as you have the Ruh (re-triggering, if you can pay, refreshes it). On trigger it plays a **brief activation flex**
-(`State.SURGE`, the `surge_<id>` sprite anim, ~0.5s) — a short commit — while the buff carries on
+(`State.Surge`, the `surge_<id>` sprite anim, ~0.5s) — a short commit — while the buff carries on
 regardless; the SFX plays on trigger and each surge names its **own** aura scene (`SurgeSpec.Aura`,
 recoloured by the power picks) spawned for the buff's duration. `Player._try_surge()` runs every frame in
 `_physics_process` (any state, no-op while dead or spawning) and gates on `if ruh < s.Cost: return` then
 `ruh -= s.Cost`. `Player._begin_surge(s)` applies the effect flags on the `_surge_left` timer; `_end_surge`
-clears them together. The data lives as `Action.Category.SURGE` rows carrying a **`SurgeSpec`**
+clears them together. The data lives as `Action.Category.Surge` rows carrying a **`SurgeSpec`**
 (`configs/SurgeSpec.cs`: `cost` + `duration` + `invuln` + `DamageMult` + `DamageTakenMult` + `aura`)
-in the `ActionsKhalid.SURGES` catalog (`DEFAULT_SURGE = "aegis"`). Two ship:
+in the `ActionsKhalid.Surges` catalog (`DefaultSurge = "aegis"`). Two ship:
 - **Aegis** (`aegis`) — full damage **immunity for 5s** (`invuln`; drops the hurtbox, same channel as dash
   i-frames). The old `special_default` "Flex/Impervious" promoted out of the specials pool.
 - **Jnoon** (`jnoon`) — for 5s Khalid **deals ×2 damage** (`DamageMult 2.0`). Its damage-*reduction* is
@@ -578,7 +578,7 @@ in the `ActionsKhalid.SURGES` catalog (`DEFAULT_SURGE = "aegis"`). Two ship:
   at the run/dash-blend movement sites; the anim-rate calc keeps base `RunSpeed`, so the run animation
   speeds up on its own instead of sliding). The looping run **footsteps** pitch up by the same
   `speed_ratio` (velocity ÷ base `RunSpeed`) so their tempo tracks his real speed — normal run stays 1.0,
-  Asra ≈ 2.0 (`_update_animation`, `State.RUN`).
+  Asra ≈ 2.0 (`_update_animation`, `State.Run`).
 
 - **Nem** (`nem`) — a committed **sleep/heal CHANNEL** (not a passive buff, `channel: true`): Khalid locks
   in place, the flex plays to its **second-to-last frame** (head down, asleep) and **pauses** there, then
@@ -601,7 +601,7 @@ Both **cost 100 Ruh / 1 charge, no cooldown — Ruh-gated**, and last the same 5
 `SpecialInvulnBonus`, which now extends any surge). Having two Surges makes the category **swappable** — a
 gate reward offers the trade (loadout convention: a category with >1 option becomes a swap).
 
-**Ground slam (`SLAM`).** A universal air move on the **`special` button**: in the
+**Ground slam (`Slam`).** A universal air move on the **`special` button**: in the
 air, press `special` to plunge straight down at `SlamSpeed` (1200 — far faster than
 a normal fall, so it reads as committed). Like a special it's committed (no cancel
 mid-plunge), and the `special` button is context-sensitive: **on the ground it does
@@ -620,7 +620,7 @@ the sprite reappears and the remaining impact frames play into the ground, so th
 Ends via `_on_animation_finished` → idle.
 
 *Damage scales with the plunge.* On release the player measures the drop (from the y
-where `SLAM` began to impact) and sets `_active_hit = {"damage_scale": mult}` —
+where `Slam` began to impact) and sets `_active_hit = {"damage_scale": mult}` —
 **1.0×** up to `SlamMinDrop` (120px), lerping to `SlamMaxDamageMult` (**2.5×**) at
 `SlamMaxDrop` (700px). The director *multiplies* the slam hitboxes' baked damage by it
 (a new `damage_scale` path in `_inject_tuning`, applied over `damage`), so **both**
@@ -644,7 +644,7 @@ first gap each side so an effect doesn't leap a pit). Used three ways:
   perpendicular to the slope); each box **hitbox** swaps its rect for a `CollisionPolygon2D` **band**
   following the contour (as tall as the rect). No ground → the burst is discarded. (Replaced the old
   horizontal-only `clip_to_ground`, a no-op on the TileMapLayer.)
-- **Nasen's rage AoE is FRIENDLY FIRE** (`FriendlyFire` kit flag on `EnemyKits.NASEN`) — the eruption also
+- **Nasen's rage AoE is FRIENDLY FIRE** (`FriendlyFire` kit flag on `EnemyKits.Nasen`) — the eruption also
   damages other enemies caught in it (the Hitbox still skips its own `source`), so herding grunts onto a raging
   sleeper hurts them. It still only *triggers* on player detection (the `SleeperEnemy` rage_zone), never on
   enemies. The flag flows generically: `Enemy.SpawnAttack` copies it to the Strike, whose mask uses
@@ -726,7 +726,7 @@ beat before holding loops back to the first. A press still works exactly as befo
 a big hit on a cooldown is a *special* (Bakshen moved there for that reason).
 
 **Special cooldowns.** Every special is unique and strong, so **every special has its own `Cooldown`**
-(`ActionsKhalid.SPECIALS`): Ground Breaker 6s · Frenemy 12s (longer than its 8s charm) · Come Closer 5s ·
+(`ActionsKhalid.Specials`): Ground Breaker 6s · Frenemy 12s (longer than its 8s charm) · Come Closer 5s ·
 Redere Shield 3s · Redere Frisbee 3s · Zahluq 5s · Bakshen 3s. `Player.StartSpecial` arms `_specialCd` from it; a **held**
 special (Redere Shield) doesn't tick its cooldown while it's up (`HoldingSpecial`) — it starts on release, so
 holding isn't free. The cooldown carries over if you swap specials. It has its **own bar in the HUD gauge**
@@ -761,7 +761,7 @@ keeping the box live the entire dash — you connect no matter how far from an e
 any dash move: `lunge` + `hold` + `super_armor` in the tuning, `follow: true` on the emitter.
 
 **Zahluq is a box-only special (not an attack).** It was retired from the attack roster — too strong to pick
-freely — and lives in `ActionsKhalid.SPECIALS` under `SpecialIds.Zahluq`. It is offered **only** by the
+freely — and lives in `ActionsKhalid.Specials` under `SpecialIds.Zahluq`. It is offered **only** by the
 mystery box, at a low `SpecialOfferChance` (`RunManager.RollBoxSpecial`), and choosing it **replaces your
 current special** (`OnBuffChosen` equips it via `Player.Equip(LoadoutCategory.Special, …)`) rather than
 adding a passive buff. It keeps its old presentation through `AnimationOverride = "attack_zahluq"` (sprite,
@@ -772,7 +772,7 @@ air allow-list (`Player._air_attack_ok`). Zahluq is tagged `"air"`, so as a spec
 it flies **level** in the air because, while a lunge is active, the state processor pins `velocity.y = 0`
 (gravity off) so it goes straight instead of arcing down; gravity resumes the instant the dash ends.
 
-**RUN needs input.** `_process_normal` enters `State.RUN` only when a move key is *actually held* (not
+**RUN needs input.** `_process_normal` enters `State.Run` only when a move key is *actually held* (not
 merely `velocity.x > 5`), so residual momentum from a dash-attack slide or a knockback decelerates in
 IDLE instead of reading as a phantom run.
 
@@ -816,7 +816,7 @@ the **Aegis surge**'s effect), `BeginRun()`, `IsDead()`, `DeathComplete()`, `spa
 by landing hits (no decay) and is **spent on surges** (specials cost no Ruh — they're gated by cooldowns); it never shields HP. (Enemies deal real damage;
 a lethal hit runs the full death lifecycle — see **Death** / **Spawn** below.)
 
-**Getting hit.** A landed hit (past the shield/super-armor/death guards) drops Khalid into a brief `HURT`
+**Getting hit.** A landed hit (past the shield/super-armor/death guards) drops Khalid into a brief `Hurt`
 state that plays his `hurt` flinch animation, then hands back to idle/run. **Flinch policy** is a toggle,
 `FlinchOnAllDamage` on the Player (default **on**): on = react to *every* hit; off = only hits that
 **stagger** (knockback > 0 — mazab/ein/nasen) flinch, while no-knockback chip/ranged hits (baghel, kebus,
@@ -929,11 +929,11 @@ the box catalog below.
 
 The **stat stall** (`docs/game-loop.md` § Economy): **permanent** numbers on Khalid's body, bought rank by rank with
 Lira. The whole catalog is always on sale — **Extra Dash, Extra Jump, Jump Height, Run Speed, Reach, Attack Damage,
-Slam Damage** — each a `ShotDef` (`records/shots/`) in `NeedlePoint.SHOTS`: which `ShotStat` it changes, its value at
+Slam Damage** — each a `ShotDef` (`records/shots/`) in `NeedlePoint.Shots`: which `ShotStat` it changes, its value at
 each **rank** (index 0 = rank I; the array length = the max rank — III for dashes / air jumps, V for the rest), and
 rank I's Lira price — **priced by worth**: Jump Height / Run Speed 15, Extra Jump 25, Extra Dash / Reach / Slam Damage
 30, Attack Damage 60. Every rank after costs `PriceGrowth` (×1.6) more — Attack Damage 60 / 96 / 154 / 246 / 393. Rank colours
-(grey / green / blue / purple / gold) are `RANK_COLORS`. All placeholders.
+(grey / green / blue / purple / gold) are `RankColors`. All placeholders.
 
 - **The rules** live in `ShotLedger` (`scripts/run/`, one per run, owned by `RunManager`): **BUY** raises a shot one
   rank for the rest of the run, at its next price; at the max rank the button reads **MAXED**. Figs play no part.
@@ -955,7 +955,7 @@ rank I's Lira price — **priced by worth**: Jump Height / Run Speed 15, Extra J
 #### Dekken perks (`configs/Dekken.cs`)
 
 The **perk shop** (`docs/game-loop.md` § Economy): utility and tactics, bought with Lira. Each round it stocks
-`Dekken.StockSize` (5) perks drawn at random from `Dekken.PERKS` — each a `PerkDef` (`records/perks/`): name, text, a
+`Dekken.StockSize` (5) perks drawn at random from `Dekken.Perks` — each a `PerkDef` (`records/perks/`): name, text, a
 `PerkDuration` (`Rounds` / `OneUse` / `Run`), rounds, Lira price, one tuning `Value`, and optionally the special it
 needs equipped. The pool: **Heal** (a block, one use), **Fast Travel** (beside the mystery box, one use), **Fig
 Chance** (+5 % fig odds on every kill, whole run), **Magnet** (figs within 400 px fly to you), **Shield** (blocks the
@@ -1005,15 +1005,15 @@ The box sells **permanent, build-defining mechanics** for **figs** — in **real
 
 **What it gives:** one buff from `BuffCatalog.Pool(player)` — every implemented, un-parked buff he **doesn't hold yet**
 (so no duplicates; a buff tied to one move, like Overcharge → Bakshen, only while that move is equipped) — or, at
-`SpecialChance` (6 %), a **special-swap** from `BoxRules.SPECIALS` (Zahluq, Bakshen; never the equipped one).
+`SpecialChance` (6 %), a **special-swap** from `BoxRules.Specials` (Zahluq, Bakshen; never the equipped one).
 
 **Box spots** are the layout's `BoxSpots/Easy` and `BoxSpots/Hard` markers (`LevelLayout.BoxSpots`); `MysteryBox.Setup`
 puts the box on a random easy one at run start. SFX cues `box_spin` / `box_result` / `box_teddy` / `buff_select` are
 PLACEHOLDERS (`SfxWorld`).
 
-**The catalog** (`docs/buff-catalog.md`) is a data registry: `BuffCatalog.FACTORIES` maps a `BuffIds.*` id → a
+**The catalog** (`docs/buff-catalog.md`) is a data registry: `BuffCatalog.Factories` maps a `BuffIds.*` id → a
 `Func<Buff>` that builds the buff with its **one value** (the old five-tier arrays collapsed to their Hot value);
-`INFO` holds its name + description. Most entries reuse a **generic buff class** rather than a bespoke one:
+`Info` holds its name + description. Most entries reuse a **generic buff class** rather than a bespoke one:
 
 - **`LifestealBuff`** — each landed hit has a chance to restore half a block, via `OnHitDealt` (Bloodrush 8 %, Skim 3 %).
 - **`InvulnBuff`** — grants an i-frame window on its bound `Trigger` (Dash 1.5 s / Jump 1 s / Slam 2 s / Hit 0.4 s
@@ -1030,7 +1030,7 @@ PLACEHOLDERS (`SfxWorld`).
   `MaxStacks`, applied via `ModifyTuning`), and `OnAnimEnd` resets it when a full swing/combo recovered having
   connected nothing (per-swing whiff, sidestepping the per-hitbox `OnMiss`). `MaxStacks` is a placeholder — tune at playtest.
 
-**Deferred** (left out of `FACTORIES`; the reasons are kept in `docs/future-enhancements-and-fixes.md`): *Slam Feast* (the slam damage
+**Deferred** (left out of `Factories`; the reasons are kept in `docs/future-enhancements-and-fixes.md`): *Slam Feast* (the slam damage
 Strike spawns AFTER `OnSlamLand`, so no kill-count is available at the hook), *Backstab* (damage is baked into the
 `Hitbox` at activate time and applied before the victim is known — no on-contact tuning seam), and *Perfect-Dodge
 Haste/Fury/Aegis* (dash i-frames disable the hurtbox, so a dash-avoided hit fires no event to hang
@@ -1140,13 +1140,13 @@ but it showed deeper"), the light→dark shading survives, and a dark pick doesn
 the part to black (the nearest-shade anchor keeps the shift small).
 
 **Where to tweak:**
-- **Glow / vibrance / flow** — the `VIBRANCY`/`FLOW_*` consts + the per-material `MATERIAL_GLOW`
+- **Glow / vibrance / flow** — the `Vibrancy`/`FLOW_*` consts + the per-material `MaterialGlow`
   defaults in `PaletteConfig.cs` (fed to the shader by `PaletteConfig.MakeMaterial()`). The flow
   maths itself is in `sprite_palette.gdshader`.
 - **"Colour chosen == colour shown" (accuracy)** — `PaletteConfig.Derive()`. It anchors the
   pick to its natural shade; adjust how the ramp shifts there if you want a different feel.
 - **Gauntlets vs boots** — still one `metal` material; split it into two materials (add a
-  seventh to `MATERIALS`/`DEFAULT`, re-swatch the sprite) to pick them independently. TODO.
+  seventh to `Materials`/`DefaultShades`, re-swatch the sprite) to pick them independently. TODO.
 
 > **Wired into the run.** The preview screen is now the **boot scene** (`project.godot`
 > `main_scene`), and its **Start run** button stamps the picks into `PaletteConfig`
@@ -1156,7 +1156,7 @@ the part to black (the nearest-shade anchor keeps the shift small).
 > the Ruh-absorb hair flare now drives the LUT's `hair_surge` uniform. The old tint shader
 > (`sprite_tint.gdshader`, via a `<char>_tint.tres`) is retained only as a legacy path for non-Khalid characters.
 >
-> **Scheme slots (saved across sessions).** The selector is **Default + up to `SaveData.MAX_SCHEMES`
+> **Scheme slots (saved across sessions).** The selector is **Default + up to `SaveData.MaxSchemes`
 > (5) slots**, plus an **active** index, persisted to `user://save.cfg` (`[colors]` section, alongside
 > the run record; ConfigFile serialises `Color`/`Dictionary`/`Array` natively — but engine dictionaries stop at
 > `SaveData`'s read/write helpers: the rest of the game sees a typed `ColorScheme` record, `SaveData.Scheme(i)`). **Default** (active
@@ -1193,7 +1193,7 @@ the trim pick. `PaletteConfig.make_portrait_material()` maps picks → colour un
 
 **Ruh-absorb hair flare follows the scheme.** The flare (`Player.cs` `_hair_surge`) drives the body
 LUT's `hair_surge` uniform toward `hair_surge_color`, which `make_material()` sets to
-`VfxPalette.recolor(PaletteConfig.RUH_CORE)` — the Ruh orb's core colour run through the *power* picks.
+`VfxPalette.recolor(PaletteConfig.RuhCore)` — the Ruh orb's core colour run through the *power* picks.
 So it matches the recoloured Ruh soul (pick Power 1 = blue → blue orb **and** blue flare) instead of a
 fixed gold. No picks → the default red flare (matching the default red Ruh).
 
@@ -1214,8 +1214,8 @@ classifies it by hue into a family and swaps **only the hue** to the player's pi
 keeping saturation, brightness (incl. HDR `>1` for bloom) and alpha. Gradients / process
 materials are **copied before edit** (scene sub-resources are shared across instances, so an
 in-place swap would compound across spawns). So "blue attacks" is today's red effect rotated in
-hue: glow, fade and HDR bloom all survive. Neutrals (below `SAT_FLOOR`) and unmatched hues (the
-purple, `> HUE_TOL`) are left untouched.
+hue: glow, fade and HDR bloom all survive. Neutrals (below `SatFloor`) and unmatched hues (the
+purple, `> HueTol`) are left untouched.
 
 - **The power picks** — `family -> Color` (`Dictionary<string, Color>`), set once per run (`VfxPalette.SetPicks`); empty = the
   default red/gold/teal look. **Dedicated to VFX**, independent of the body pickers.
@@ -1228,7 +1228,7 @@ purple, `> HUE_TOL`) are left untouched.
   (`scripts/enemies/Enemy.cs`) so an enemy effect landing on the *player* keeps its own colour. Everything a
   Khalid power emits lives under `vfx/character/` and is recoloured; a regression test
   instantiates all 37 `.tscn` there under picks and asserts no red survives.
-- **Where to tweak** — family hue centres, `SAT_FLOOR`, `HUE_TOL` in `configs/VfxPalette.cs`.
+- **Where to tweak** — family hue centres, `SatFloor`, `HueTol` in `configs/VfxPalette.cs`.
 
 ---
 
@@ -1252,12 +1252,12 @@ the DAW (just not clipping). Move the whole SFX mix against the music by changin
 for WAVs (`project.godot` `[importer_defaults]`), so new files get it automatically; the SFX are small, so it costs
 nothing. A cue that can't be measured (a compressed import, or silence) warns once and plays un-normalized.
 
-**Per-cue mix offset**: each config's **`VOLUMES`** dict (dB, negative = quieter) is now only for **deliberate** mix
+**Per-cue mix offset**: each config's **`Volumes`** dict (dB, negative = quieter) is now only for **deliberate** mix
 choices on top of the normalization — a cue that should sit under or over the rest — never to fix a hot/quiet file.
 Today: the looping footsteps (`run`, −15) and the orb hum (`launch_orb`, −16) are beds under the action. (There's
 also a brick-wall limiter on the whole SFX bus for summed peaks.)
 
-**Per-cue pitch variation**: each config also has a **`PITCH`** dict — a random range as **(min, max) offsets** from
+**Per-cue pitch variation**: each config also has a **`Pitch`** dict — a random range as **(min, max) offsets** from
 normal pitch (`new Vector2(-0.06f, 0.06f)` = ±6 %; `new Vector2(0f, 0.08f)` = same-or-higher, up to +8 %), re-rolled on
 every play (`Sfx.Play` / `PlayAt`), so repeated sounds don't sound copy-pasted and a swarm firing one cue doesn't
 phase into a robotic drone. A key can name a **group**: a cue with no entry of its own uses its nearest dotted prefix
@@ -1284,15 +1284,15 @@ Plays on a `"Music"` bus if present (else Master); an empty stage folder warns +
 code at startup and stays **disabled** except while muffled/sweeping back, so it costs nothing in normal play.
 *(Levels are retired, so there's no per-level bed or clear/rest crossfade anymore — one continuous stage playlist.)*
 
-- **The one place to check what sounds we use:** each config's **`CUES`** dict — a `key → path`
+- **The one place to check what sounds we use:** each config's **`Cues`** dict — a `key → path`
   master list per area. **Paths live only there**; nothing else hardcodes a `res://sfx/…` path.
-- **Add a sound:** drop the file in `sfx/`, add one `CUES` line to the right config, then reference
+- **Add a sound:** drop the file in `sfx/`, add one `Cues` line to the right config, then reference
   it by **key** — never a path.
 - **Trigger it two ways:**
   - **Code event** — `Sfx.Play("dash")` / `Sfx.PlayAt("enemy_death", pos)` (one-shots, pooled so
     overlaps don't cut off) or `Sfx.MakeLoop("run")` (a looping player the caller owns). The
     *trigger* lives in the script (that's where the event is); the *file* lives in the config.
-  - **Frame-synced hit** — declare `anim → { sheet_frame: cue }` in the config's **`FRAMES`** dict;
+  - **Frame-synced hit** — declare `anim → { sheet_frame: cue }` in the config's **`Frames`** dict;
     the presentation driver plays it when the animation reaches that frame (the audio twin of the
     particle bursts). This is symmetric to VFX — the **Emitters config stays particles-only**.
 - **Enemy sound keys** follow conventions the code composes: `enemy_death` / `enemy_spawn` (shared,
@@ -1300,7 +1300,7 @@ code at startup and stays **disabled** except while muffled/sweeping back, so it
   (attack start, `type` = the enemy's `CloseType` / `FarType` — the StrikeType of its close-range /
   far-range attack, picked by which attack fired),
   `<id>.delayed_projectile_burst` (a lob's delayed explosion), and per-frame
-  hits in `SfxEnemies.FRAMES` — all in `SfxEnemies`, keyed by `EnemyId`.
+  hits in `SfxEnemies.Frames` — all in `SfxEnemies`, keyed by `EnemyId`.
 - **Unregistered key = silent** (an `<id>.<type>` with no cue just plays nothing); a **registered
   key whose file is missing = one warning** — so a cue can be listed before its audio lands.
 - **Buses & mixing:** the mixer is split **Master → SFX + Music** (`default_bus_layout.tres`), so the
@@ -1312,8 +1312,8 @@ code at startup and stays **disabled** except while muffled/sweeping back, so it
   permanent, or add/tweak them live from code (`AudioBus.add_effect(&"SFX", AudioEffectEQ.new())`,
   `AudioBus.get_effect`/`set_effect_enabled`) for dynamic changes (an underwater muffle, boss-room
   reverb). Music also has its own per-track fade envelope on top of its bus volume.
-- **The rule:** *what* sounds exist is declared in the `CUES` configs (checkable in one place per
-  area); *when* they fire is either a `Sfx.Play(key)` at a code event or a `FRAMES` entry for a
+- **The rule:** *what* sounds exist is declared in the `Cues` configs (checkable in one place per
+  area); *when* they fire is either a `Sfx.Play(key)` at a code event or a `Frames` entry for a
   frame-synced hit. `sfx/ruh_absorb.wav` is a synthesized **placeholder** (replace freely).
 
 ---
@@ -1378,7 +1378,7 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
 - **Close jab vs. AoE.** The close attack's hit frame(s) fire the strike scene (`EmittersEnemies` `<id> -> aoe`
   / `CloseType`); its **Hitbox is authored in that scene** — a jab is a small box in front, an **AoE swing**
   a wide box centred on the body with a long lifetime (it still hits once — `Hitbox` dedups). **Matat** is the worked example: a
-  chasing bruiser who sweeps his arms for a wide orange shockwave (kit `EnemyKits.MATAT`; VFX
+  chasing bruiser who sweeps his arms for a wide orange shockwave (kit `EnemyKits.Matat`; VFX
   `vfx/enemy/matat/attack/matat_aoe.tscn`; the AoE erupts on attack frame 4). His `AttackLoops = true`
   so the whole swing **cycles continuously** (re-erupting the AoE) while you stay in reach — no
   one-swing-then-freeze-on-cooldown — and `AttackHitstop = 0` keeps that loop smooth; damage is low
@@ -1396,7 +1396,7 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
   plain `AttackHitstop`. His `CloseType = "blast"` keys both the SFX (`tarri.blast`
   at the start, `tarri.blast.3` on the fire frame) **and** the strike VFX — `_spawn_melee_strike` looks up
   the effect under the enemy's `CloseType` (falling back to `aoe`), so a typed strike (Matat's `aoe`, Tarri's `blast`) finds its scene
-  under that key. Kit `EnemyKits.TARRI`; VFX `vfx/enemy/tarri/attack/tarri_blast.tscn`.
+  under that key. Kit `EnemyKits.Tarri`; VFX `vfx/enemy/tarri/attack/tarri_blast.tscn`.
   **Getting hit mid-channel cancels it — visuals AND audio.** A channeled Strike (`EmitDuration > 0`) is
   remembered as `Enemy._active_channel` when it spawns; if a hit **staggers or stuns** us before the window
   ends (`_on_hurt`, the magnet stun, Nasen's rage-break — and `_die`), `_cancel_channel()` calls the Strike's
@@ -1422,7 +1422,7 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
   (full control back) — those are the recoveries; landing ends it too. Shields that block a hit (Redere from the front,
   i-frames, a dash) block a gust. An enemy caught by one (a charmed Ventilator) is flung and held in stun
   (`Combat.GustEnemyStagger`) instead of damaged. **Ventilator** is the user: a red creature riding a whirlwind
-  (kit `EnemyKits.VENTILATOR`, `CloseType = "blast"`, `CloseGust` 540 — tuned so an air jump within ~0.3 s or any
+  (kit `EnemyKits.Ventilator`, `CloseType = "blast"`, `CloseGust` 540 — tuned so an air jump within ~0.3 s or any
   dash back saves you, and doing nothing doesn't). Like Tarri, the wind fires on his **last attack frame (5)** and he
   holds + vibrates there for the blast's `EmitDuration` (0.6 s); VFX `vfx/enemy/ventilator/attack/ventilator_blast.tscn`
   (a `BlastStrike`: pale-cyan gust/streak/swirl emitters + a 150×40 forward hitbox), SFX `ventilator.blast` (wind-up) +
@@ -1430,13 +1430,13 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
 - **Multi-hit melee combo (per-hit VFX + SFX).** A close attack (e.g. `attack_melee`) with **several `HIT_FRAMES`** fires one
   strike **per hit frame** — each an independent self-contained Strike scene, so a combo's swings can look
   and sound different. **Breski** is the worked example: a blood-red bruiser whose `attack_melee` hits on frames
-  **4 (a jab)** and **9 (a heavier follow-up)** (kit `EnemyKits.BRESKI`; `CloseType = "melee"`). The
+  **4 (a jab)** and **9 (a heavier follow-up)** (kit `EnemyKits.Breski`; `CloseType = "melee"`). The
   per-hit scene is keyed by the **frame it fires on** — `_melee_vfx_key(_sprite.frame)` names the
   `EmittersEnemies` row `<type>_<sheet-frame>`: **`melee_4`** (the jab) and **`melee_9`** (the heavy),
   matching `HIT_FRAMES` and the SFX cue numbers so a hit's scene, sound, and frame all read the same number.
   (`_sprite` reports emitted frames, so `AnimMeta.sheet_start` is added back to name the row; a single-hit
   attack has no framed row and falls back to the bare close/far type, so Matat's `aoe` / Tarri's `blast`
-  still work.) SFX follow the standard per-frame path (`SfxEnemies.FRAMES` → `breski.melee.4` /
+  still work.) SFX follow the standard per-frame path (`SfxEnemies.Frames` → `breski.melee.4` /
   `breski.melee.9`) plus the shared start cue (`breski.melee`). Each hit also gets **its own hit-stop** —
   `_end_hitstop` re-arms `_impacted`, so the 2nd swing freezes/shakes too instead of only the 1st. VFX:
   `vfx/enemy/breski/attack/breski_melee_4.tscn` (jab) + `breski_melee_9.tscn` (heavy).
@@ -1599,7 +1599,7 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
   **charm** (frenemy); **slow** is reserved for a future effect. `Enemy._refresh_status_icons()`
   recomputes the active set each frame from the enemy's own timers and only redraws when the set
   changes (a joined-key compare). Icon **art** comes from the shared `Icons` registry under
-  `status:<id>` keys and the tint/label from `configs/StatusTypes.cs` (`StatusTypes.DEFS` + `ORDER`
+  `status:<id>` keys and the tint/label from `configs/StatusTypes.cs` (`StatusTypes.Defs` + `Order`
   for the fixed left→right slot order), so all four are **temp placeholders** today — swap the paths
   in `configs/Icons.cs` (one line each) when real pips are drawn, no code change. Add a status by an
   entry in `StatusTypes`, a `status:<id>` path in `Icons`, and one line in `_refresh_status_icons`.
@@ -1609,8 +1609,8 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
   skull **dying halo** for a reaped enemy (`sprites/things/state/dying.png`, 768×64 / 12 frames — only
   Twin Reaper's `reap` DoT applies it for now). Built in code (no scene), it's fed the **same
   active-status set** as `StatusIcons` from `_refresh_status_icons()` and shows the highest-priority status
-  (by `StatusTypes.ORDER`, so `reap` beats `stun`) that has an over-head anim — one at a time — bobbing
-  gently. The anim/scale/`y_off` come from `StatusTypes.OVERHEAD` (sliced once into a shared, cached
+  (by `StatusTypes.Order`, so `reap` beats `stun`) that has an over-head anim — one at a time — bobbing
+  gently. The anim/scale/`y_off` come from `StatusTypes.Overhead` (sliced once into a shared, cached
   `SpriteFrames`), so giving another status its own halo is a config line + art — no code change. Anchored
   at the enemy's head line (just under the floating bar); pixel-filtered like the rest of the art.
 - **Floating text** (`scripts/combat/FloatingText.cs`, Risk-of-Rain style): a general, config-driven
@@ -1875,7 +1875,7 @@ lunge/armor. A **null** `hit` (empty `segments`) means "the effect scene carries
 ### Dash i-frames
 
 Dashing is **invulnerable** — the player's hurtbox stops being detectable for the
-dash's duration (`_hurtbox.monitorable` is off while in `DASH`), so you can dash
+dash's duration (`_hurtbox.monitorable` is off while in `Dash`), so you can dash
 through projectiles and attacks unharmed.
 
 ### Spawning & the run
@@ -1889,7 +1889,7 @@ the build basics:
   `EnemySpawns` node of `Marker2D` spawn spots (`LevelLayout.EnemySpawns`).
 - **Enemies** — each round (`TickRound`) trickles its hidden quota in, one **kit** at a time picked at random from
   `RunManager.SpawnPool`, under the round's concurrent cap; spawning stops once the quota has spawned and the round
-  clears on the last kill (only non-optional enemies count). A **kit** (`EnemyKits.KEBUS`, …) is a typed `EnemyKit` record: id, display name, tier, movement, which scene (the
+  clears on the last kill (only non-optional enemies count). A **kit** (`EnemyKits.Kebus`, …) is a typed `EnemyKit` record: id, display name, tier, movement, which scene (the
   generic `enemy.tscn` by default, or a custom one — `sleeper_enemy.tscn`, `diver_enemy.tscn`) and a `Tune` function
   that sets the enemy's stats on the typed instance. `RunManager.SpawnEnemy` instantiates and tunes it; the enemy's
   `died` signal frees a cap slot and drops Lira (+ a chance of a Fada Fig) — buffs come from the mystery box, not kills.
@@ -1906,14 +1906,14 @@ the build basics:
   each calls `Enemy.Hunt(Rounds.StragglerSpeedMult)` and chases the player anywhere (no leash) at **1.6×** its move
   speed, its walk animation sped up to match.
 - **Stand-still kamikazes** — `TickPressure`: from `Rounds.KamikazeFromRound` (5), staying within `StillRadius` (50 px)
-  for `StillTime` (2 s) spawns an Ein (`EnemyKits.EIN` — `optional`, no Lira, no figs; not in `SpawnPool`)
+  for `StillTime` (2 s) spawns an Ein (`EnemyKits.Ein` — `optional`, no Lira, no figs; not in `SpawnPool`)
   `KamikazeDistance` to a random side (the other side if that's inside a wall) and up to `KamikazeHeight` above
   (`HeadroomAbove`), then one every `KamikazeInterval(r)` (2 s at r5, ×0.95/round, min 0.75 s) while he stays put,
   `KamikazeMax(r)` alive at most (5 at r5, +1 every 5 rounds, max 8). The clock pauses while he's in Nem's sleep
   (`Player.IsChannelingSurge`); kamikazes already diving still come.
 - **The edge enemy (Ventilator)** — `TickEdge`: from `Rounds.VentilatorFromRound` (3), staying within `EdgeZone`
   (300 px) of either END of the arena (`LevelLayout.HorizontalSpan` — the leftmost/rightmost Terrain tile edges) for
-  `EdgeDwell` (1 s) spawns a Ventilator (`EnemyKits.VENTILATOR` — `optional`, NOT in `SpawnPool`, but drops Lira + figs
+  `EdgeDwell` (1 s) spawns a Ventilator (`EnemyKits.Ventilator` — `optional`, NOT in `SpawnPool`, but drops Lira + figs
   like any Mid enemy) on the player's floor on the **INLAND** side (`EdgeInland`; `PickGroundSurface` 140–260 px, a
   result on the outer side is rejected), so its wind blows him outward. At most `VentilatorMax` (1) alive; the next
   waits `VentilatorCooldown` (10 s) after one dies.
@@ -1995,7 +1995,7 @@ run's playback speed to actual ground speed (`speed / RunSpeed × RunAnimSpeed`,
 clamped), so the legs keep pace — busier when sprinting, slower when starting —
 instead of a fixed fps that desyncs the moment speed changes. `RunAnimSpeed`
 (default 1.5) is the tuning knob.
-- **Death (0 HP)** — a lethal hit puts the player in the **`DEATH`** state (via
+- **Death (0 HP)** — a lethal hit puts the player in the **`Death`** state (via
   `_die()` from `TakeDamage`): input is frozen, the hurtbox turns **off**, any
   swing/channel is cancelled, and the `death` animation plays once. It auto-fires the
   character's own `death/default/` particle (tinted to their dash palette) from
@@ -2015,7 +2015,7 @@ instead of a fixed fps that desyncs the moment speed changes. `RunAnimSpeed`
   gates the restart on `_death_tune_left` (seeded from the stream's `get_length()`) *and* `DeathComplete`,
   so a long death jingle is never cut off (the level music fades back in when the fresh level restarts it).
   Mechanism: `_die` →
-  `_enter(State.DEATH)` **plays + pauses** `death` on frame 0 (`_death_frozen`; `_update_animation`
+  `_enter(State.Death)` **plays + pauses** `death` on frame 0 (`_death_frozen`; `_update_animation`
   won't re-play it, so the pause holds). `RunManager._begin_death_cinematic` lifts Khalid's `z_index`
   to `DEATH_PLAYER_Z` (500) and fades in a huge black `Polygon2D` at `DEATH_OVERLAY_Z` (400) — above
   every world node (z ≤ 0), below him — parented to the camera; after `DEATH_FREEZE` (0.5s) it calls
@@ -2026,14 +2026,14 @@ instead of a fixed fps that desyncs the moment speed changes. `RunAnimSpeed`
 - **Falling off** — dropping below `DEATH_Y` (alive) just **repositions** you to the level's
   spawn point — no life lost, no death anim. Only a lethal *hit* ends the run.
 - **Spawn (materialize)** — every (re)spawn — the initial game start *and* every respawn —
-  enters the **`SPAWN`** state: input is frozen and the hurtbox is **off** (spawn
+  enters the **`Spawn`** state: input is frozen and the hurtbox is **off** (spawn
   protection, so it always plays fully) while the `spawn` animation plays, auto-firing the
   character's own `spawn/default/` particle (tinted to their dash palette) on its **first**
   frame; `_on_animation_finished` hands off to idle. `Player.Spawn()` drives it (called by
   `RunManager._ready` for the initial spawn and by `BeginRun()` on a run restart); a
   character with no `spawn` sheet just drops straight to idle.
 - **Spawn flair** — the camera **zooms in** (`CAM_ZOOM_SPAWN`, same 2.25 as the death
-  punch-in) and centres on the materializing character while `SPAWN` plays, then **pulls
+  punch-in) and centres on the materializing character while `Spawn` plays, then **pulls
   back out** to normal the instant it ends. Because the spawn and death zooms match, a
   death → respawn → spawn stays smoothly zoomed the whole way and only reveals the level
   once you have control. Also in `RunManager` — tune/disable there.

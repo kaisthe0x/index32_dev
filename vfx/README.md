@@ -77,7 +77,7 @@ frames. Adding an effect is a scene + a table row, no code.
    the `Action`'s `hit` (`configs/actions_<char>.gd`) at spawn (see the damage section below) — nothing is baked here.
 
    **How a scene is referenced.** A row names its scene with **`preload("res://…")`** in
-   `EmittersCharacters.TABLE` — so it's validated at parse time and resident before the game
+   `EmittersCharacters.Table` — so it's validated at parse time and resident before the game
    runs (no runtime `load`, no folder-scan index). Reusable building blocks are declared once as
    named consts and referenced across rows (e.g. `WIND_STREAKS`). Files still live under
    `vfx/character/<id>/…` / `vfx/shared/` — that's just where they sit on disk; the table points
@@ -86,7 +86,7 @@ frames. Adding an effect is a scene + a table row, no code.
    `script/build_particles.gd` scaffolds a starter scene (it **skips files that
    already exist**, so it never clobbers editor tweaks); shared textures come from
    `script/gen_particle_textures.py`.
-2. **Config** — `EmittersCharacters.TABLE` (`vfx/config/EmittersCharacters.cs`), keyed
+2. **Config** — `EmittersCharacters.Table` (`vfx/config/EmittersCharacters.cs`), keyed
    `character -> animation -> EmitterDef[]`. A row is a typed **`EmitterDef`** record
    (`records/vfx/EmitterDef.cs`): `new EmitterDef(scene, pos) { Mode, Frames, AllFrames, ConformToGround,
    Follow, Configure }` — the scene and position are required, the rest default to a plain burst. The fields are
@@ -154,7 +154,7 @@ frames. Adding an effect is a scene + a table row, no code.
      `set` and `node` row keys were removed on 2026-10-09 — no row used `boost` or `node`.)
 
    > **Sounds are NOT here.** This config is particles only. Frame-synced hit sounds live in the
-   > parallel **`SfxCharacters.FRAMES`** (same `anim → {frame: cue}` shape, sheet-relative) and are
+   > parallel **`SfxCharacters.Frames`** (same `anim → {frame: cue}` shape, sheet-relative) and are
    > played by the same director in `_refresh`, symmetrically to the bursts. See the Audio section
    > in the top-level README.
 
@@ -300,7 +300,7 @@ passive movement trail is `<state>_trail`. Two ranged examples:
   patrols with no trail.
   The trails are `local_coords = false` so they rake out behind the orb as it moves.
 
-### Enemy emitters — `EmittersEnemies.TABLE` (THE one place)
+### Enemy emitters — `EmittersEnemies.Table` (THE one place)
 
 Every enemy's particle emitters live in one table, `vfx/config/EmittersEnemies.cs` — the enemy
 counterpart to `EmittersCharacters`, but simpler: enemy effects are attached in **code** by

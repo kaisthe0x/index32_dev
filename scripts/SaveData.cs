@@ -12,7 +12,7 @@ namespace MyGame;
 /// </summary>
 public static class SaveData
 {
-    private const string PATH = "user://save.cfg";
+    private const string SavePath = "user://save.cfg";
 
     private static int _record = -1;   // lazy-loaded best-ever round reached (-1 = not read from disk yet)
 
@@ -22,7 +22,7 @@ public static class SaveData
         if (_record < 0)
         {
             var cfg = new ConfigFile();
-            _record = cfg.Load(PATH) == Error.Ok ? cfg.GetValue("run", "rounds_record", 0).As<int>() : 0;
+            _record = cfg.Load(SavePath) == Error.Ok ? cfg.GetValue("run", "rounds_record", 0).As<int>() : 0;
         }
         return _record;
     }
@@ -34,18 +34,18 @@ public static class SaveData
             return false;
         _record = round;
         var cfg = new ConfigFile();
-        cfg.Load(PATH); // keep any other keys already saved
+        cfg.Load(SavePath); // keep any other keys already saved
         cfg.SetValue("run", "rounds_record", _record);
-        cfg.Save(PATH);
+        cfg.Save(SavePath);
         return true;
     }
 
     // --- colour schemes (from the picker) -----------------------------------
-    // Up to MAX_SCHEMES slots + an "active" index. On disk each scheme is {"body": {material→Color}, "power":
+    // Up to MaxSchemes slots + an "active" index. On disk each scheme is {"body": {material→Color}, "power":
     // {family→Color}, "ui": {UiStyle.PickFrame/PickAccent→Color}} -- ConfigFile serialises Color/Dictionary/Array
     // natively. Engine dictionaries exist ONLY in ReadScheme/WriteScheme; the rest of the game sees ColorScheme.
-    public const int MAX_SCHEMES = 5;
-    private static readonly ColorScheme[] _schemes = new ColorScheme[MAX_SCHEMES];
+    public const int MaxSchemes = 5;
+    private static readonly ColorScheme[] _schemes = new ColorScheme[MaxSchemes];
     private static int _active = -1;
     private static bool _colorsLoaded = false;
 
@@ -55,20 +55,20 @@ public static class SaveData
             return;
         var cfg = new ConfigFile();
         var saved = new GArr();
-        if (cfg.Load(PATH) == Error.Ok)
+        if (cfg.Load(SavePath) == Error.Ok)
         {
             saved = cfg.GetValue("colors", "schemes", new GArr()).As<GArr>();
             _active = cfg.GetValue("colors", "active", -1).As<int>();
         }
-        // Always exactly MAX_SCHEMES slots, so the UI can index them freely.
-        for (int i = 0; i < MAX_SCHEMES; i++)
+        // Always exactly MaxSchemes slots, so the UI can index them freely.
+        for (int i = 0; i < MaxSchemes; i++)
             _schemes[i] = i < saved.Count ? ReadScheme(saved[i].As<GDict>()) : ColorScheme.Empty;
         // -1 == the built-in DEFAULT look (always available, never overwritten); 0..MAX-1 == a saved slot.
-        _active = Mathf.Clamp(_active, -1, MAX_SCHEMES - 1);
+        _active = Mathf.Clamp(_active, -1, MaxSchemes - 1);
         _colorsLoaded = true;
     }
 
-    /// <summary>The scheme saved in slot `i` (0..MAX_SCHEMES-1); an unused slot is <see cref="ColorScheme.Empty"/>.</summary>
+    /// <summary>The scheme saved in slot `i` (0..MaxSchemes-1); an unused slot is <see cref="ColorScheme.Empty"/>.</summary>
     public static ColorScheme Scheme(int i)
     {
         LoadColors();
@@ -97,7 +97,7 @@ public static class SaveData
     public static void SetActive(int i)
     {
         LoadColors();
-        _active = Mathf.Clamp(i, -1, MAX_SCHEMES - 1);
+        _active = Mathf.Clamp(i, -1, MaxSchemes - 1);
         PersistColors();
     }
 
@@ -107,10 +107,10 @@ public static class SaveData
         foreach (var scheme in _schemes)
             saved.Add(WriteScheme(scheme));
         var cfg = new ConfigFile();
-        cfg.Load(PATH); // keep the run record + anything else already saved
+        cfg.Load(SavePath); // keep the run record + anything else already saved
         cfg.SetValue("colors", "schemes", saved);
         cfg.SetValue("colors", "active", _active);
-        cfg.Save(PATH);
+        cfg.Save(SavePath);
     }
 
     private static ColorScheme ReadScheme(GDict saved) =>
@@ -148,7 +148,7 @@ public static class SaveData
         if (_gaugePlacement == null)
         {
             var cfg = new ConfigFile();
-            string name = cfg.Load(PATH) == Error.Ok ? cfg.GetValue("settings", "gauge_placement", "").AsString() : "";
+            string name = cfg.Load(SavePath) == Error.Ok ? cfg.GetValue("settings", "gauge_placement", "").AsString() : "";
             _gaugePlacement = System.Enum.TryParse(name, out GaugePlacement g) ? g : GaugePlacement.Screen;
         }
         return _gaugePlacement.Value;
@@ -158,8 +158,8 @@ public static class SaveData
     {
         _gaugePlacement = g;
         var cfg = new ConfigFile();
-        cfg.Load(PATH); // keep the run record + colours + anything else already saved
+        cfg.Load(SavePath); // keep the run record + colours + anything else already saved
         cfg.SetValue("settings", "gauge_placement", g.ToString());
-        cfg.Save(PATH);
+        cfg.Save(SavePath);
     }
 }

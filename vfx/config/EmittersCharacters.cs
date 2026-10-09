@@ -20,7 +20,7 @@ public static class EmittersCharacters
 		shot.CanFlyUp = true;
 	}
 
-	public static readonly Dictionary<string, Dictionary<string, EmitterDef[]>> TABLE = new()
+	public static readonly Dictionary<string, Dictionary<string, EmitterDef[]>> Table = new()
 	{
 		["khalid"] = new()
 		{
@@ -36,7 +36,7 @@ public static class EmittersCharacters
 			["double_jump"] = new[] { new EmitterDef(S("res://vfx/character/khalid/jump/default/jump_default.tscn"), new Vector2(0, -3)) },
 			["blink_out"] = new[] { new EmitterDef(S("res://vfx/character/khalid/other/blink_out.tscn"), new Vector2(0, -18)) },
 			["blink_in"] = new[] { new EmitterDef(S("res://vfx/character/khalid/other/blink_in.tscn"), new Vector2(0, -18)) },
-			// Ora ora: fist burst on the two punch frames (sheet 2 & 4). Per-punch SOUNDS in SfxCharacters.FRAMES.
+			// Ora ora: fist burst on the two punch frames (sheet 2 & 4). Per-punch SOUNDS in SfxCharacters.Frames.
 			["attack_ora_ora"] = new[] { new EmitterDef(S("res://vfx/character/khalid/attack/ora_ora/attack_ora_ora.tscn"), new Vector2(23, -22)) { Frames = new[] { 2, 4 } } },
 			// Bakshen: one charged slash — the Strike (hitbox + red burst) fires on the last frame.
 			["attack_bakshen"] = new[] { new EmitterDef(S("res://vfx/character/khalid/attack/bakshen/attack_bakshen.tscn"), new Vector2(15, -18)) { Frames = new[] { 3 } } },

@@ -1,7 +1,7 @@
 namespace MyGame;
 
 /// <summary>Stable string IDs for the Needle Point shots (see <see cref="AttackIds"/> for why const string, not enum):
-/// the id is the key into <see cref="NeedlePoint.SHOTS"/>.</summary>
+/// the id is the key into <see cref="NeedlePoint.Shots"/>.</summary>
 public static class ShotIds
 {
     public const string Dash = "dash";

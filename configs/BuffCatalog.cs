@@ -16,7 +16,7 @@ namespace MyGame;
 /// </summary>
 public static class BuffCatalog
 {
-    public static readonly Dictionary<string, Func<Buff>> FACTORIES = new()
+    public static readonly Dictionary<string, Func<Buff>> Factories = new()
     {
         // --- lifesteal (LifestealBuff via OnHitDealt): chance per hit to restore half a block ---
         [BuffIds.Bloodrush] = () => new LifestealBuff(BuffIds.Bloodrush, 0.08f),
@@ -50,7 +50,7 @@ public static class BuffCatalog
 
     /// <summary>Player-facing name + one-line description per buff id (HUD + offers). Complements the per-tier
     /// scaling in FACTORIES. Keep in sync with FACTORIES as buffs are added.</summary>
-    public static readonly Dictionary<string, (string Name, string Desc)> INFO = new()
+    public static readonly Dictionary<string, (string Name, string Desc)> Info = new()
     {
         [BuffIds.Bloodrush] = ("Bloodrush", "Landing a hit has a good chance to restore half a health block."),
         [BuffIds.Skim] = ("Skim", "Landing a hit has a small chance to restore half a health block."),
@@ -71,13 +71,13 @@ public static class BuffCatalog
     public static readonly HashSet<string> Parked = new() { BuffIds.InstantReset };
 
     /// <summary>Build the <see cref="Buff"/> for <paramref name="id"/> (null if it isn't implemented), with its Name +
-    /// Description filled from <see cref="INFO"/>.</summary>
+    /// Description filled from <see cref="Info"/>.</summary>
     public static Buff? Make(string id)
     {
-        if (!FACTORIES.TryGetValue(id, out var f))
+        if (!Factories.TryGetValue(id, out var f))
             return null;
         var buff = f();
-        if (INFO.TryGetValue(id, out var info))
+        if (Info.TryGetValue(id, out var info))
         {
             buff.Name = info.Name;
             buff.Description = info.Desc;
@@ -95,7 +95,7 @@ public static class BuffCatalog
             player.LoadoutId(LoadoutCategory.Attack), player.LoadoutId(LoadoutCategory.Special),
         };
         var ids = new List<string>();
-        foreach (string id in FACTORIES.Keys)
+        foreach (string id in Factories.Keys)
         {
             if (Parked.Contains(id) || player.HasPassive(id))
                 continue;

@@ -7,7 +7,7 @@ namespace MyGame;
 /// Spawns 2D particle effects at authored positions during authored animation frames, so VFX layer over the
 /// drawn sprites. Driven by the Emitters config (character table keyed id → animation → [rows]); a row is
 /// sustained (emit while a listed frame shows) or burst (a one-shot on frame entry). Also fires frame-synced
-/// SFX (SfxCharacters.FRAMES) and injects the player's resolved hit tuning into an effect's Hitbox. C# port of
+/// SFX (SfxCharacters.Frames) and injects the player's resolved hit tuning into an effect's Hitbox. C# port of
 /// <c>vfx/script/particle_director.gd</c>. Reads <see cref="Emitters"/>/<see cref="SfxCharacters"/>/<see cref="VfxPalette"/>/
 /// <see cref="Combat"/> directly — no GDScript bridges.
 /// </summary>
@@ -91,7 +91,7 @@ public partial class ParticleDirector : Node2D
 	private void BuildSfxFrames(string id)
 	{
 		_sfxFrames.Clear();
-		if (!SfxCharacters.FRAMES.TryGetValue(id, out var byAnim))
+		if (!SfxCharacters.Frames.TryGetValue(id, out var byAnim))
 			return;
 		foreach (var (anim, frames) in byAnim)
 		{

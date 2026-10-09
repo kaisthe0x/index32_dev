@@ -9,7 +9,7 @@ namespace MyGame;
 /// </summary>
 public static class SfxWorld
 {
-	public static readonly Dictionary<string, string> CUES = new()
+	public static readonly Dictionary<string, string> Cues = new()
 	{
 		["fada_fig_collect"] = "res://sfx/character/fada_fig_pickup.wav",  // PLACEHOLDER — player touches a fada_fig (FadaFig.OnBodyEntered)
 		["lira_collect"] = "res://sfx/character/lira_pickup.wav",  // a Lira coin reaches Khalid (Lira.OnArrived)
@@ -28,7 +28,7 @@ public static class SfxWorld
 	/// <summary>Per-cue MIX offset in decibels (negative = quieter), on top of the automatic loudness normalization
 	/// (every cue already plays at <see cref="Sfx.TargetLoudness"/>). Only for DELIBERATE choices — a cue that should
 	/// sit under or over the rest — never to fix a hot or quiet file. Unlisted = 0.</summary>
-	public static readonly Dictionary<string, float> VOLUMES = new()
+	public static readonly Dictionary<string, float> Volumes = new()
 	{
 		["launch_orb"] = -16.0f, // the orb's looping hum is an ambient bed, well under the action
 	};
@@ -36,7 +36,7 @@ public static class SfxWorld
 	/// <summary>Per-cue random PITCH range as (min, max) offsets from normal pitch — <c>new(-0.06f, 0.06f)</c> = ±6%,
 	/// <c>new(0f, 0.08f)</c> = same-or-up to +8% — re-rolled every play so repeated sounds don't sound copy-pasted. A key
 	/// may name a GROUP: a cue with no entry of its own uses its nearest dotted prefix. Unlisted = fixed pitch.</summary>
-	public static readonly Dictionary<string, Vector2> PITCH = new()
+	public static readonly Dictionary<string, Vector2> Pitch = new()
 	{
 		["lira_collect"] = new Vector2(0.0f, 0.08f), // coins land in bursts — vary them, but never below the real pitch
 	};

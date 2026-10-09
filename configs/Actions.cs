@@ -13,10 +13,10 @@ public static class Actions
     {
         if (character == "khalid")
         {
-            var mv = ActionsKhalid.MOVEMENTS;
+            var mv = ActionsKhalid.Movements;
             return new Dictionary<string, Dictionary<string, Action>>
             {
-                { "attacks", ActionsKhalid.ATTACKS }, { "specials", ActionsKhalid.SPECIALS }, { "surges", ActionsKhalid.SURGES },
+                { "attacks", ActionsKhalid.Attacks }, { "specials", ActionsKhalid.Specials }, { "surges", ActionsKhalid.Surges },
                 { MovementIds.Run, mv[MovementIds.Run] }, { MovementIds.Jump, mv[MovementIds.Jump] },
                 { MovementIds.Dash, mv[MovementIds.Dash] }, { MovementIds.Slam, mv[MovementIds.Slam] },
             };
@@ -29,10 +29,10 @@ public static class Actions
         if (character == "khalid")
             return kind switch
             {
-                "attacks" => ActionsKhalid.DEFAULT_ATTACK,
-                "specials" => ActionsKhalid.DEFAULT_SPECIAL,
-                "surges" => ActionsKhalid.DEFAULT_SURGE,
-                _ => ActionsKhalid.DEFAULT_MOVEMENTS.GetValueOrDefault(kind, ""),
+                "attacks" => ActionsKhalid.DefaultAttack,
+                "specials" => ActionsKhalid.DefaultSpecial,
+                "surges" => ActionsKhalid.DefaultSurge,
+                _ => ActionsKhalid.DefaultMovements.GetValueOrDefault(kind, ""),
             };
         return "";
     }

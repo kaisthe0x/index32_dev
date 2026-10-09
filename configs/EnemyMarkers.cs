@@ -9,7 +9,7 @@ namespace MyGame;
 /// </summary>
 public static class EnemyMarkers
 {
-    private static readonly Dictionary<string, Color> COLORS = new()
+    private static readonly Dictionary<string, Color> Colors = new()
     {
         { EnemyIds.Kebus, new Color(0.90f, 0.68f, 0.24f) },   // tan / gold
         { EnemyIds.Baghel, new Color(0.72f, 0.48f, 0.98f) },  // purple
@@ -23,5 +23,5 @@ public static class EnemyMarkers
     };
     private static readonly Color Fallback = new(1.0f, 0.30f, 0.30f);
 
-    public static Color ColorFor(string enemyId) => COLORS.GetValueOrDefault(enemyId, Fallback);
+    public static Color ColorFor(string enemyId) => Colors.GetValueOrDefault(enemyId, Fallback);
 }

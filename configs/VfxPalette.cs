@@ -15,9 +15,9 @@ namespace MyGame;
 public static class VfxPalette
 {
     /// <summary>Family hue centres, Godot hue units (0..1 == 0..360°). Far apart so Classify is unambiguous.</summary>
-    private static readonly Dictionary<string, float> FAMILIES = new() { ["red"] = 0.0f, ["gold"] = 0.14f, ["teal"] = 0.49f };
-    public const float SAT_FLOOR = 0.28f;  // below this a pixel is a NEUTRAL (white/grey core, smoke) — never recoloured
-    public const float HUE_TOL = 0.11f;    // a stop must sit within this of a family centre, else it's left untouched
+    private static readonly Dictionary<string, float> Families = new() { ["red"] = 0.0f, ["gold"] = 0.14f, ["teal"] = 0.49f };
+    public const float SatFloor = 0.28f;  // below this a pixel is a NEUTRAL (white/grey core, smoke) — never recoloured
+    public const float HueTol = 0.11f;    // a stop must sit within this of a family centre, else it's left untouched
 
     /// <summary>The player's picks: family name → chosen Color. Empty == no change (identity). Static so any spawn
     /// path can honour it without threading state; set from the picker / run profile at run start.</summary>
@@ -28,11 +28,11 @@ public static class VfxPalette
     /// <summary>Which family a colour belongs to ("" = neutral/unmatched → leave as-is).</summary>
     public static string Classify(Color c)
     {
-        if (c.S < SAT_FLOOR)
+        if (c.S < SatFloor)
             return "";
         string best = "";
         float bestd = 999.0f;
-        foreach (var (family, hue) in FAMILIES)
+        foreach (var (family, hue) in Families)
         {
             float d = HueDist(c.H, hue);
             if (d < bestd)
@@ -41,7 +41,7 @@ public static class VfxPalette
                 best = family;
             }
         }
-        return bestd <= HUE_TOL ? best : "";
+        return bestd <= HueTol ? best : "";
     }
 
     private static float HueDist(float a, float b)

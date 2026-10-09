@@ -29,7 +29,7 @@ public sealed class BoxLedger
     {
         var names = new List<string>();
         foreach (string id in BuffCatalog.Pool(_player))
-            names.Add(BuffCatalog.INFO[id].Name);
+            names.Add(BuffCatalog.Info[id].Name);
         return names;
     }
 
@@ -50,7 +50,7 @@ public sealed class BoxLedger
             return new BoxRoll(BoxOutcome.Special, id, special?.Name ?? id, $"SPECIAL — replaces yours. {special?.Description}");
         }
         string buffId = buffs[(int)(GD.Randi() % (uint)buffs.Count)];
-        var info = BuffCatalog.INFO[buffId];
+        var info = BuffCatalog.Info[buffId];
         return new BoxRoll(BoxOutcome.Buff, buffId, info.Name, info.Desc);
     }
 
@@ -71,7 +71,7 @@ public sealed class BoxLedger
     {
         string current = _player.LoadoutId(LoadoutCategory.Special);
         var pool = new List<string>();
-        foreach (string id in BoxRules.SPECIALS)
+        foreach (string id in BoxRules.Specials)
             if (id != current)
                 pool.Add(id);
         return pool;

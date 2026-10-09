@@ -5,7 +5,7 @@ namespace MyGame;
 
 /// <summary>
 /// One saved colour scheme from the picker: three sets of picks, each key → the chosen colour. <see cref="Body"/>
-/// is keyed by <see cref="PaletteConfig.MATERIALS"/>, <see cref="Power"/> by the <see cref="VfxPalette"/> family,
+/// is keyed by <see cref="PaletteConfig.Materials"/>, <see cref="Power"/> by the <see cref="VfxPalette"/> family,
 /// <see cref="Ui"/> by <see cref="UiStyle.PickFrame"/> / <see cref="UiStyle.PickAccent"/>. A missing key means
 /// "the default"; a scheme with no picks at all is an unused slot.
 /// </summary>

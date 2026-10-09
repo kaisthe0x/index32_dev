@@ -40,9 +40,9 @@ public partial class Sfx : Node
 
     public override void _Ready()
     {
-        Merge(_cues, SfxCharacters.CUES, SfxEnemies.CUES, SfxWorld.CUES);
-        Merge(_vol, SfxCharacters.VOLUMES, SfxEnemies.VOLUMES, SfxWorld.VOLUMES);
-        Merge(_pitch, SfxCharacters.PITCH, SfxEnemies.PITCH, SfxWorld.PITCH);
+        Merge(_cues, SfxCharacters.Cues, SfxEnemies.Cues, SfxWorld.Cues);
+        Merge(_vol, SfxCharacters.Volumes, SfxEnemies.Volumes, SfxWorld.Volumes);
+        Merge(_pitch, SfxCharacters.Pitch, SfxEnemies.Pitch, SfxWorld.Pitch);
         if (PreferredOutput != "" && System.Array.IndexOf(AudioServer.GetOutputDeviceList(), PreferredOutput) != -1)
             AudioServer.OutputDevice = PreferredOutput;
         _bus = AudioServer.GetBusIndex(Bus) != -1 ? Bus : "Master";

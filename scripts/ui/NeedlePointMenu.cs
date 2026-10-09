@@ -24,7 +24,7 @@ public partial class NeedlePointMenu : StallMenu
 
     protected override void FillRows(VBoxContainer rows)
     {
-        foreach (ShotDef def in NeedlePoint.SHOTS)
+        foreach (ShotDef def in NeedlePoint.Shots)
             rows.AddChild(Row(def));
     }
 

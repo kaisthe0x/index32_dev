@@ -16,7 +16,7 @@ public static class ActionsKhalid
 	private const string SoftDot = "res://vfx/shared/textures/soft_dot.png";
 	private const string Shield = "res://vfx/shared/impervious/shield.png";
 
-	public static readonly Dictionary<string, Action> ATTACKS = new()
+	public static readonly Dictionary<string, Action> Attacks = new()
 	{
 		[AttackIds.OraOra] = new Action
 		{
@@ -65,7 +65,7 @@ public static class ActionsKhalid
 		},
 	};
 
-	public static readonly Dictionary<string, Action> SPECIALS = new()
+	public static readonly Dictionary<string, Action> Specials = new()
 	{
 		[SpecialIds.GroundBreaker] = new Action
 		{
@@ -140,7 +140,7 @@ public static class ActionsKhalid
 		},
 	};
 
-	public static readonly Dictionary<string, Action> SURGES = new()
+	public static readonly Dictionary<string, Action> Surges = new()
 	{
 		[SurgeIds.Aegis] = new Action
 		{
@@ -183,7 +183,7 @@ public static class ActionsKhalid
 		},
 	};
 
-	public static readonly Dictionary<string, Dictionary<string, Action>> MOVEMENTS = new()
+	public static readonly Dictionary<string, Dictionary<string, Action>> Movements = new()
 	{
 		[MovementIds.Run] = new() { [MovementIds.StandardStride] = new Action { Name = "Standard Stride", Icon = Ember, Move = new Locomotion { RunSpeed = 230.0f } } },
 		[MovementIds.Jump] = new() { [MovementIds.StandardLeap] = new Action { Name = "Standard Leap", Icon = SoftDot, Move = new Locomotion { AirJumps = 1 } } },
@@ -191,10 +191,10 @@ public static class ActionsKhalid
 		[MovementIds.Slam] = new() { [MovementIds.StandardSlam] = new Action { Name = "Standard Slam", Icon = Blast1, Move = new Locomotion() } },
 	};
 
-	public const string DEFAULT_ATTACK = AttackIds.OraOra;
-	public const string DEFAULT_SPECIAL = SpecialIds.RedereFrisbee;
-	public const string DEFAULT_SURGE = SurgeIds.Aegis;
-	public static readonly Dictionary<string, string> DEFAULT_MOVEMENTS = new()
+	public const string DefaultAttack = AttackIds.OraOra;
+	public const string DefaultSpecial = SpecialIds.RedereFrisbee;
+	public const string DefaultSurge = SurgeIds.Aegis;
+	public static readonly Dictionary<string, string> DefaultMovements = new()
 	{
 		[MovementIds.Run] = MovementIds.StandardStride,
 		[MovementIds.Jump] = MovementIds.StandardLeap,

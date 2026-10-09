@@ -7,7 +7,7 @@ namespace MyGame;
 /// </summary>
 public static class CharacterConfig
 {
-    public static readonly string[] IDS = { "khalid" };
+    public static readonly string[] Ids = { "khalid" };
     public const string FramesPath = "res://resources/characters/{0}.tres";
     public const string PortraitPath = "res://assets/portraits/{0}.png";
     public const string AbilityPath = "res://scripts/abilities/{0}.gd";

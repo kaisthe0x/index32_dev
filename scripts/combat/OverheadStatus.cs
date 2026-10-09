@@ -6,7 +6,7 @@ namespace MyGame;
 /// <summary>
 /// A looping animation hovering over an enemy's head while a status is active — e.g. the swirling "halo" of a
 /// STUN. Built in code; the over-head twin of <see cref="StatusIcons"/>. Shows the highest-PRIORITY active
-/// status that has an over-head anim (StatusTypes.OVERHEAD), bobs it, hides when none. C# port of
+/// status that has an over-head anim (StatusTypes.Overhead), bobs it, hides when none. C# port of
 /// <c>scripts/combat/overhead_status.gd</c>. C#-only consumer (Enemy); bridges the GDScript StatusTypes config.
 /// </summary>
 public partial class OverheadStatus : Node2D
@@ -42,9 +42,9 @@ public partial class OverheadStatus : Node2D
     public void SetActive(List<StatusType> ids)
     {
         StatusType? pick = null;
-        foreach (StatusType id in StatusTypes.ORDER)
+        foreach (StatusType id in StatusTypes.Order)
         {
-            if (ids.Contains(id) && StatusTypes.OVERHEAD.ContainsKey(id))
+            if (ids.Contains(id) && StatusTypes.Overhead.ContainsKey(id))
             {
                 pick = id;
                 break;
@@ -59,7 +59,7 @@ public partial class OverheadStatus : Node2D
             SetProcess(false);
             return;
         }
-        var spec = StatusTypes.OVERHEAD[status];
+        var spec = StatusTypes.Overhead[status];
         _sprite.SpriteFrames = FramesFor(spec);
         _sprite.Scale = Vector2.One * spec.Scale;
         _yOff = spec.YOff;

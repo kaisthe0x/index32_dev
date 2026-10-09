@@ -6,6 +6,27 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-09 — `new-shit` — cleanup, part 5 (no more SCREAMING_CASE)
+
+### Constants, tables and `Player.State` have C# names
+
+- **What:** the last GDScript-style names — 88 `SCREAMING_CASE` constants, static tables and enum members — are
+  `PascalCase`: `SfxCharacters.CUES` → `Cues`, `EmittersCharacters.TABLE` → `Table`, `EnemyKits.KEBUS` → `Kebus`,
+  `ActionsKhalid.ATTACKS` → `Attacks`, `SaveData.MAX_SCHEMES` → `MaxSchemes`, `Player.State.ATTACK` →
+  `State.Attack`. Two got a clearer name instead of a literal one: `SaveData.PATH` → `SavePath`,
+  `PaletteConfig.DEFAULT` → `DefaultShades`.
+- **Why:** rule `G6` (one naming style), and rule `T1` already said enum members are PascalCase. The owner asked for
+  it after part 4.
+- **How:** the same compiler-driven rename as part 4. None of these names is exported or stored in a scene, so no
+  scene file changed. Comments and the backticked names in the docs follow. `G6` now covers constants; the
+  `SCREAMING_CASE` item is gone from Known debt.
+- **Could affect:** nothing at run time — an enum member's name is not stored anywhere (scenes and the save file
+  hold numbers and strings, and the settings saved by name use `GaugePlacement`, which was already PascalCase).
+- **Tested:** build 0 warnings; the 15 headless checks pass; the colour screen and the arena boot clean.
+- **Left as is:** words in capitals inside comments that are emphasis, not names ("the SURGE meter", "by ANY route").
+
+---
+
 ## 2026-10-09 — `new-shit` — fixes from the owner's first run after the cleanup
 
 The owner pressed F5 and reported two things: an engine error in the Output panel, and no compile-time line.

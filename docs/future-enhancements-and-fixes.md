@@ -35,7 +35,7 @@ killing to stay alive.
 
 ## Box buffs that can't be built yet
 
-Catalogued in `ids/BuffIds.cs` and `docs/buff-catalog.md`, left out of `BuffCatalog.FACTORIES` because the hook each
+Catalogued in `ids/BuffIds.cs` and `docs/buff-catalog.md`, left out of `BuffCatalog.Factories` because the hook each
 one needs doesn't exist. (Moved here from comments in the code, 2026-10-09.)
 
 - **Slam Feast** — needs a count of enemies killed by the slam. The slam's damage strike is spawned by the

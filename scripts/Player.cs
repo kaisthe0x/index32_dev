@@ -146,7 +146,7 @@ public partial class Player : Combatant, IStrikeWielder
 
     private const float DoubleJumpLean = 0.6f;
 
-    public enum State { IDLE, RUN, JUMP, DASH, ATTACK, SPECIAL, LAND, SLAM, FALL, DEATH, SPAWN, HURT, SURGE, LAUNCH }
+    public enum State { Idle, Run, Jump, Dash, Attack, Special, Land, Slam, Fall, Death, Spawn, Hurt, Surge, Launch }
 
     // --- launch orbs (magnet traversal) ---
     private const float LaunchPullRange = 96.0f;
@@ -161,7 +161,7 @@ public partial class Player : Combatant, IStrikeWielder
     private float _launchCdLeft = 0.0f;
     private LaunchOrb? _nearOrb;
 
-    private State _state = State.IDLE;
+    private State _state = State.Idle;
     private int _facing = 1;
     // The equipped actions. Null until a character with that slot is applied -- in the editor (this is a [Tool]
     // script) and for a character whose sprite frames are missing, ApplyCharacter stops before the loadout.
@@ -331,7 +331,7 @@ public partial class Player : Combatant, IStrikeWielder
         _dashCd = 0.0f;
         _dashCharges = MaxDashCharges;
         if (!Engine.IsEditorHint())
-            _state = State.IDLE;
+            _state = State.Idle;
         sprite.SpeedScale = 1.0f;
         sprite.Play(AnimationFor(_state));
         SeedPassives();
@@ -514,7 +514,7 @@ public partial class Player : Combatant, IStrikeWielder
     }
 
     public int GetState() => (int)_state;
-    public bool IsSpawning() => _state == State.SPAWN;
+    public bool IsSpawning() => _state == State.Spawn;
 
     /// <summary>Which way Khalid faces: +1 right, -1 left (RunManager spawns grunts on the other side).</summary>
     public int Facing => _facing;
@@ -576,7 +576,7 @@ public partial class Player : Combatant, IStrikeWielder
         float before = Health;
         Health -= HitCost;
         WarnLowHealth(before, Health);
-        _sfx.PlayRandom(HurtCues); // pitch variation comes from SfxCharacters.PITCH
+        _sfx.PlayRandom(HurtCues); // pitch variation comes from SfxCharacters.Pitch
         // Colour flash over the hurt anim, via the palette shader's `flash` uniform (a plain modulate is swallowed).
         FlashSprite(_sprite, Combat.DamageFlash, Combat.DamageFlashTime);
         if (Health <= 0.0f && !_dead)
@@ -674,7 +674,7 @@ public partial class Player : Combatant, IStrikeWielder
     {
         if (_sprite == null)
             return;
-        if (_state == State.SPECIAL && _sprite.Frame < SpecialStrikeFrame())
+        if (_state == State.Special && _sprite.Frame < SpecialStrikeFrame())
             _specialCd = 0.0f;
     }
 
@@ -684,7 +684,7 @@ public partial class Player : Combatant, IStrikeWielder
     /// <summary>DEBUG: grant the next wired catalog buff, cycling through the whole set.</summary>
     public void DebugGrantNextBuff()
     {
-        var ids = new List<string>(BuffCatalog.FACTORIES.Keys);
+        var ids = new List<string>(BuffCatalog.Factories.Keys);
         if (ids.Count == 0)
             return;
         string id = ids[_debugBuffIdx++ % ids.Count];
@@ -839,7 +839,7 @@ public partial class Player : Combatant, IStrikeWielder
     public SegmentData ActiveHit() => _activeHit;
 
     private bool IsShielding() =>
-        _state == State.SPECIAL && _currentSpecial != null && HasTag(_currentSpecial, "shield");
+        _state == State.Special && _currentSpecial != null && HasTag(_currentSpecial, "shield");
 
     private void OnHurt(Hit hit)
     {
@@ -902,12 +902,12 @@ public partial class Player : Combatant, IStrikeWielder
         {
             RefundUncommittedCooldown(); // staggered mid-windup: read state BEFORE we leave ATTACK/SPECIAL for HURT
             float flinch = Mathf.Max(stagger, AnimDuration("hurt"));
-            if (_state == State.HURT)
+            if (_state == State.Hurt)
                 _stunLeft = Mathf.Max(_stunLeft, flinch);
             else
             {
                 _stunLeft = flinch;
-                Enter(State.HURT);
+                Enter(State.Hurt);
             }
             _bufferedSpecial = false;
         }
@@ -921,7 +921,7 @@ public partial class Player : Combatant, IStrikeWielder
     /// channelled surge (Nem's sleep wakes).</summary>
     private void BreakOffForHit()
     {
-        if (_state == State.LAUNCH)
+        if (_state == State.Launch)
         {
             _launchOrb = null;
             _launchCdLeft = LaunchCd;
@@ -936,8 +936,8 @@ public partial class Player : Combatant, IStrikeWielder
         if (_surgeChannel)
         {
             EndSurge();
-            if (_state == State.SURGE)
-                Enter(State.IDLE);
+            if (_state == State.Surge)
+                Enter(State.Idle);
         }
     }
 
@@ -1046,8 +1046,8 @@ public partial class Player : Combatant, IStrikeWielder
         BeginSurge(surge, s);
         Flash(_sprite);
         _sfx.Play(Anim(surge).ToString());
-        if (_state != State.SPAWN && HasAnim(Anim(surge)))
-            Enter(State.SURGE);
+        if (_state != State.Spawn && HasAnim(Anim(surge)))
+            Enter(State.Surge);
     }
 
     private void TickSurge(float delta)
@@ -1120,7 +1120,7 @@ public partial class Player : Combatant, IStrikeWielder
 
     private void OnFrameChanged()
     {
-        if (_state == State.SPECIAL)
+        if (_state == State.Special)
         {
             if (_sprite.Frame == SpecialStrikeFrame())
                 foreach (var p in _passives)
@@ -1186,7 +1186,7 @@ public partial class Player : Combatant, IStrikeWielder
             return;
         }
         if (HasAnim("death"))
-            Enter(State.DEATH);
+            Enter(State.Death);
         else
             _deathFinished = true;
     }
@@ -1220,12 +1220,12 @@ public partial class Player : Combatant, IStrikeWielder
     {
         Velocity = Vector2.Zero;
         if (HasAnim("spawn"))
-            Enter(State.SPAWN);
+            Enter(State.Spawn);
         else
         {
             if (_hurtbox != null)
                 _hurtbox.Monitorable = true;
-            Enter(State.IDLE);
+            Enter(State.Idle);
         }
     }
 
@@ -1331,25 +1331,25 @@ public partial class Player : Combatant, IStrikeWielder
         }
         _wasOnFloor = onFloor;
 
-        if (_state == State.DEATH)
+        if (_state == State.Death)
             ProcessDeath(delta);
-        else if (_state == State.SPAWN)
+        else if (_state == State.Spawn)
             ProcessSpawn(delta);
         else if (_stunLeft > 0.0f)
             ProcessStun(delta);
-        else if (_state == State.DASH)
+        else if (_state == State.Dash)
             ProcessDash(delta);
-        else if (_state == State.ATTACK)
+        else if (_state == State.Attack)
             ProcessAttack(delta);
-        else if (_state == State.SPECIAL)
+        else if (_state == State.Special)
             ProcessSpecial(delta);
-        else if (_state == State.SURGE)
+        else if (_state == State.Surge)
             ProcessSurge(delta);
-        else if (_state == State.SLAM)
+        else if (_state == State.Slam)
             ProcessSlam(delta);
-        else if (_state == State.LAND)
+        else if (_state == State.Land)
             ProcessLand(delta);
-        else if (_state == State.LAUNCH)
+        else if (_state == State.Launch)
             ProcessLaunch(delta);
         else
         {
@@ -1372,8 +1372,8 @@ public partial class Player : Combatant, IStrikeWielder
         }
 
         if (_hurtbox != null)
-            _hurtbox.Monitorable = !_dead && _state != State.SPAWN && _state != State.LAUNCH
-                && !(_state == State.DASH && _dashLeft > 0.0f)
+            _hurtbox.Monitorable = !_dead && _state != State.Spawn && _state != State.Launch
+                && !(_state == State.Dash && _dashLeft > 0.0f)
                 && !(_surgeInvuln && _surgeLeft > 0.0f);
 
         MoveAndSlide();
@@ -1386,8 +1386,8 @@ public partial class Player : Combatant, IStrikeWielder
         if (!IsOnFloor())
             AddVelY(_gravity * delta);
         SetVelX(Mathf.MoveToward(Velocity.X, 0.0f, _friction * 0.5f * delta));
-        if (_state != State.HURT)
-            _state = State.IDLE;
+        if (_state != State.Hurt)
+            _state = State.Idle;
     }
 
     private void ProcessDash(float delta)
@@ -1411,7 +1411,7 @@ public partial class Player : Combatant, IStrikeWielder
         {
             _bufferedAttack = false;
             AdvanceCombo();
-            if (_state != State.DASH)
+            if (_state != State.Dash)
                 return;
         }
 
@@ -1437,7 +1437,7 @@ public partial class Player : Combatant, IStrikeWielder
         else
             AddVelY(_gravity * _dashGravityScale * delta);
         if (_dashAnimLeft <= 0.0f)
-            Enter(holdingDashDir && IsOnFloor() ? State.RUN : State.IDLE);
+            Enter(holdingDashDir && IsOnFloor() ? State.Run : State.Idle);
     }
 
     private void ProcessNormal(float delta)
@@ -1479,7 +1479,7 @@ public partial class Player : Combatant, IStrikeWielder
             }
             if (!IsOnFloor() && HasSlam() && SlamHasClearance())
             {
-                Enter(State.SLAM);
+                Enter(State.Slam);
                 return;
             }
         }
@@ -1501,7 +1501,7 @@ public partial class Player : Combatant, IStrikeWielder
             }
             if (_dashCharges > 0)
             {
-                Enter(State.DASH);
+                Enter(State.Dash);
                 return;
             }
         }
@@ -1526,26 +1526,26 @@ public partial class Player : Combatant, IStrikeWielder
         if (!IsOnFloor())
             SetAirborneState();
         else if (_justLanded && HasLand())
-            Enter(State.LAND);
+            Enter(State.Land);
         else if (input != 0.0f && Mathf.Abs(Velocity.X) > 5.0f)
-            _state = State.RUN;
+            _state = State.Run;
         else
-            _state = State.IDLE;
+            _state = State.Idle;
     }
 
     private void SetAirborneState()
     {
         if (Velocity.Y >= _landMinFallSpeed && HasLand() && NearGround())
         {
-            Enter(State.LAND);
+            Enter(State.Land);
             return;
         }
-        if (_state == State.JUMP || _state == State.FALL)
+        if (_state == State.Jump || _state == State.Fall)
             return;
-        _state = _jumpLaunch ? State.JUMP : AirborneDefault();
+        _state = _jumpLaunch ? State.Jump : AirborneDefault();
     }
 
-    private State AirborneDefault() => HasFall() ? State.FALL : State.JUMP;
+    private State AirborneDefault() => HasFall() ? State.Fall : State.Jump;
 
     // --- launch orbs ---
     private LaunchOrb? OrbInPullRange()
@@ -1570,7 +1570,7 @@ public partial class Player : Combatant, IStrikeWielder
     private void UpdateOrbProximity()
     {
         LaunchOrb? near = null;
-        if (!_dead && _state != State.SPAWN && _state != State.LAUNCH)
+        if (!_dead && _state != State.Spawn && _state != State.Launch)
             near = OrbInPullRange();
         if (near == _nearOrb)
             return;
@@ -1587,7 +1587,7 @@ public partial class Player : Combatant, IStrikeWielder
         _launchT = 0.0f;
         _launchVel = new Vector2(_facing * orb.LaunchForward, -orb.LaunchUp);
         Velocity = Vector2.Zero;
-        Enter(State.LAUNCH);
+        Enter(State.Launch);
         orb.PlayUse();
     }
 
@@ -1650,7 +1650,7 @@ public partial class Player : Combatant, IStrikeWielder
         _apexY = GlobalPosition.Y;
         _fallPeak = 0.0f;
         _jumpLaunch = true;
-        Enter(State.JUMP);
+        Enter(State.Jump);
         _sprite.Play("jump");
         _sprite.SetFrameAndProgress(0, 0.0f);
         if (_particles != null)
@@ -1675,7 +1675,7 @@ public partial class Player : Combatant, IStrikeWielder
             SetVelX(Mathf.MoveToward(Velocity.X, 0.0f, _friction * delta));
             if (Input.IsActionJustPressed("special") && HasSlam() && SlamHasClearance())
             {
-                Enter(State.SLAM);
+                Enter(State.Slam);
                 return;
             }
             if (AttackHeld() && AirAttackOk())
@@ -1696,7 +1696,7 @@ public partial class Player : Combatant, IStrikeWielder
                 }
                 if (_dashCharges > 0)
                 {
-                    Enter(State.DASH);
+                    Enter(State.Dash);
                     return;
                 }
             }
@@ -1717,14 +1717,14 @@ public partial class Player : Combatant, IStrikeWielder
         }
         if (Input.IsActionJustPressed("dash") && _dashCharges > 0)
         {
-            Enter(State.DASH);
+            Enter(State.Dash);
             return;
         }
         if (Input.IsActionJustPressed("jump"))
         {
             SetVelY(AppliedJumpVelocity(true));
             _jumpLaunch = true;
-            _state = State.JUMP;
+            _state = State.Jump;
             return;
         }
 
@@ -1733,7 +1733,7 @@ public partial class Player : Combatant, IStrikeWielder
         {
             _facing = input > 0.0f ? 1 : -1;
             SetVelX(Mathf.MoveToward(Velocity.X, input * RunSpeed(), _acceleration * delta));
-            _state = State.RUN;
+            _state = State.Run;
             return;
         }
         SetVelX(Mathf.MoveToward(Velocity.X, 0.0f, _friction * delta));
@@ -1781,7 +1781,7 @@ public partial class Player : Combatant, IStrikeWielder
             else if (!Input.IsActionPressed("attack"))
             {
                 NotifyAttackAnimEnd();
-                Enter(State.IDLE);
+                Enter(State.Idle);
             }
             return;
         }
@@ -1820,7 +1820,7 @@ public partial class Player : Combatant, IStrikeWielder
             if (_activeHit.Lunge.HasValue)
                 SetVelX(0.0f);
             NotifyAttackAnimEnd();
-            Enter(State.IDLE);
+            Enter(State.Idle);
         }
     }
 
@@ -1828,7 +1828,7 @@ public partial class Player : Combatant, IStrikeWielder
     private static bool AttackHeld() => Input.IsActionPressed("attack");
 
     /// <summary>A "held" special (Redere Shield) is up right now — its cooldown waits until it's released.</summary>
-    private bool HoldingSpecial() => _state == State.SPECIAL && _currentSpecial != null && HasTag(_currentSpecial, "held");
+    private bool HoldingSpecial() => _state == State.Special && _currentSpecial != null && HasTag(_currentSpecial, "held");
 
     private void StartSpecial()
     {
@@ -1846,7 +1846,7 @@ public partial class Player : Combatant, IStrikeWielder
         _bufferedSpecial = false;
         _activeHit = ResolveTuning(special, 0);
         _activeHit.FromSpecial = true;
-        Enter(State.SPECIAL);
+        Enter(State.Special);
         if (HasAnim(Anim(special)))
         {
             _sprite.Play(Anim(special));
@@ -1882,7 +1882,7 @@ public partial class Player : Combatant, IStrikeWielder
                 else
                 {
                     _activeHit = new SegmentData();
-                    Enter(State.IDLE);
+                    Enter(State.Idle);
                 }
             }
         }
@@ -1912,7 +1912,7 @@ public partial class Player : Combatant, IStrikeWielder
                 if (_surgeLeft <= 0.0f)
                 {
                     EndSurge();
-                    Enter(State.IDLE);
+                    Enter(State.Idle);
                 }
             }
         }
@@ -1994,7 +1994,7 @@ public partial class Player : Combatant, IStrikeWielder
 
         _comboWindow = ComboResetTime;
         _comboPlaying = true;
-        Enter(State.ATTACK);
+        Enter(State.Attack);
         _sprite.SpeedScale = 1.0f;
         _sprite.Play(Anim(attack));
         _sprite.SetFrameAndProgress(segStart, 0.0f);
@@ -2005,7 +2005,7 @@ public partial class Player : Combatant, IStrikeWielder
         _bufferedSpecial = false;
         _flurry = true;
         _activeHit = ResolveTuning(attack, 0);
-        Enter(State.ATTACK);
+        Enter(State.Attack);
         _sprite.SpeedScale = 1.0f;
         _sprite.Play(Anim(attack));
     }
@@ -2016,7 +2016,7 @@ public partial class Player : Combatant, IStrikeWielder
     private void Enter(State state)
     {
         _state = state;
-        if (state != State.ATTACK)
+        if (state != State.Attack)
         {
             // Leaving an attack by ANY route (release, special, surge, hurt, …) ends its flurry / combo segment. Done
             // here, centrally, because a stale _flurry makes AdvanceCombo swallow every later attack press.
@@ -2027,7 +2027,7 @@ public partial class Player : Combatant, IStrikeWielder
         _sprite.Visible = true;
         switch (state)
         {
-            case State.DASH:
+            case State.Dash:
                 _gustLeft = 0.0f; // dashing breaks out of a gust (a recovery move)
                 _dashLeft = _dashTime;
                 _dashAnimLeft = Mathf.Max(_dashAnimTime, _dashTime);
@@ -2054,10 +2054,10 @@ public partial class Player : Combatant, IStrikeWielder
                 if (_dashCustom)
                     DoBlink();
                 break;
-            case State.ATTACK:
+            case State.Attack:
                 SetVelX(0.0f);
                 break;
-            case State.HURT:
+            case State.Hurt:
                 if (HasAnim("hurt"))
                 {
                     _sprite.Play("hurt");
@@ -2065,10 +2065,10 @@ public partial class Player : Combatant, IStrikeWielder
                 }
                 else
                 {
-                    _state = State.IDLE;
+                    _state = State.Idle;
                 }
                 break;
-            case State.SURGE:
+            case State.Surge:
                 SetVelX(0.0f);
                 if (_currentSurge != null && HasAnim(Anim(_currentSurge)))
                 {
@@ -2077,20 +2077,20 @@ public partial class Player : Combatant, IStrikeWielder
                 }
                 else
                 {
-                    _state = State.IDLE;
+                    _state = State.Idle;
                 }
                 break;
-            case State.DEATH:
+            case State.Death:
                 SetVelX(0.0f);
                 _deathFrozen = true;
                 _sprite.Play("death");
                 _sprite.SetFrameAndProgress(0, 0.0f);
                 _sprite.Pause();
                 break;
-            case State.SPAWN:
+            case State.Spawn:
                 SetVelX(0.0f);
                 break;
-            case State.SLAM:
+            case State.Slam:
                 Velocity = new Vector2(0.0f, _slamSpeed);
                 _slamImpacting = false;
                 _slamStartY = GlobalPosition.Y;
@@ -2098,7 +2098,7 @@ public partial class Player : Combatant, IStrikeWielder
                 foreach (var p in _passives)
                     p.OnSlamTrigger(this);
                 break;
-            case State.LAUNCH:
+            case State.Launch:
                 _sprite.Play("dash");
                 break;
         }
@@ -2106,19 +2106,19 @@ public partial class Player : Combatant, IStrikeWielder
 
     private StringName AnimationFor(State state) => state switch
     {
-        State.RUN => "run",
-        State.JUMP => "jump",
-        State.FALL => "fall",
-        State.DASH => "dash",
-        State.ATTACK => _currentAttack != null ? Anim(_currentAttack) : "idle",
-        State.SPECIAL => _currentSpecial != null ? Anim(_currentSpecial) : "idle",
-        State.LAND => "land",
-        State.SLAM => "slam",
-        State.DEATH => "death",
-        State.SPAWN => "spawn",
-        State.HURT => "hurt",
-        State.SURGE => _currentSurge != null ? Anim(_currentSurge) : "idle",
-        State.LAUNCH => "dash",
+        State.Run => "run",
+        State.Jump => "jump",
+        State.Fall => "fall",
+        State.Dash => "dash",
+        State.Attack => _currentAttack != null ? Anim(_currentAttack) : "idle",
+        State.Special => _currentSpecial != null ? Anim(_currentSpecial) : "idle",
+        State.Land => "land",
+        State.Slam => "slam",
+        State.Death => "death",
+        State.Spawn => "spawn",
+        State.Hurt => "hurt",
+        State.Surge => _currentSurge != null ? Anim(_currentSurge) : "idle",
+        State.Launch => "dash",
         _ => "idle",
     };
 
@@ -2127,7 +2127,7 @@ public partial class Player : Combatant, IStrikeWielder
         _sprite.FlipH = _facing < 0;
         if (_runSfx != null)
         {
-            bool running = _state == State.RUN;
+            bool running = _state == State.Run;
             if (running != _runSfx.Playing)
             {
                 if (running)
@@ -2152,16 +2152,16 @@ public partial class Player : Combatant, IStrikeWielder
 
         switch (_state)
         {
-            case State.RUN:
+            case State.Run:
                 float speedRatio = Mathf.Abs(Velocity.X) / Mathf.Max(_runSpeedV, 1.0f);
                 _sprite.SpeedScale = Mathf.Clamp(speedRatio * _runAnimSpeed, 0.4f, 3.0f);
                 if (_runSfx != null)
                     _runSfx.PitchScale = Mathf.Clamp(speedRatio, 0.6f, 3.0f);
                 break;
-            case State.IDLE:
-            case State.JUMP:
-            case State.FALL:
-            case State.LAND:
+            case State.Idle:
+            case State.Jump:
+            case State.Fall:
+            case State.Land:
                 _sprite.SpeedScale = 1.0f;
                 break;
         }
@@ -2176,34 +2176,34 @@ public partial class Player : Combatant, IStrikeWielder
 
     private void OnAnimationFinished()
     {
-        if (_state == State.DEATH)
+        if (_state == State.Death)
         {
             _sprite.Visible = false;
             _deathFinished = true;
             return;
         }
-        if (_state == State.SPAWN)
+        if (_state == State.Spawn)
         {
-            Enter(State.IDLE);
+            Enter(State.Idle);
             return;
         }
-        if (_state == State.JUMP && !IsOnFloor() && HasFall())
+        if (_state == State.Jump && !IsOnFloor() && HasFall())
         {
-            Enter(State.FALL);
+            Enter(State.Fall);
             return;
         }
-        if (_state == State.LAND && !IsOnFloor())
+        if (_state == State.Land && !IsOnFloor())
         {
             Enter(AirborneDefault());
             return;
         }
-        if (_state == State.DASH || _state == State.SPECIAL || _state == State.LAND || _state == State.SLAM)
+        if (_state == State.Dash || _state == State.Special || _state == State.Land || _state == State.Slam)
         {
             _activeHit = new SegmentData();
-            Enter(State.IDLE);
+            Enter(State.Idle);
         }
-        if (_state == State.SURGE)
-            Enter(!IsOnFloor() ? AirborneDefault() : State.IDLE);
+        if (_state == State.Surge)
+            Enter(!IsOnFloor() ? AirborneDefault() : State.Idle);
     }
 
     // =====================================================================================================

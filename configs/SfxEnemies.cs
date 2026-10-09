@@ -12,7 +12,7 @@ namespace MyGame;
 /// </summary>
 public static class SfxEnemies
 {
-    public static readonly Dictionary<string, string> CUES = new()
+    public static readonly Dictionary<string, string> Cues = new()
     {
         ["enemy_death"] = "res://sfx/enemy/enemy_death.wav",  // any enemy dies (positional)
         ["enemy_spawn"] = "res://sfx/enemy/enemy_spawn.wav",  // a batch enemy spawns w/ the puff — PLACEHOLDER
@@ -48,14 +48,14 @@ public static class SfxEnemies
     /// <summary>Per-cue MIX offset in decibels (negative = quieter), on top of the automatic loudness normalization
     /// (every cue already plays at <see cref="Sfx.TargetLoudness"/>). Only for DELIBERATE choices — a cue that should
     /// sit under or over the rest — never to fix a hot or quiet file. Unlisted = 0.</summary>
-    public static readonly Dictionary<string, float> VOLUMES = new();
+    public static readonly Dictionary<string, float> Volumes = new();
 
     /// <summary>Per-cue random PITCH range as (min, max) offsets from normal pitch — <c>new(-0.06f, 0.06f)</c> = ±6%,
     /// <c>new(0f, 0.08f)</c> = same-or-up to +8% — re-rolled every play so repeated sounds don't sound copy-pasted. A key
     /// may name a GROUP: a cue with no entry of its own uses its nearest dotted prefix ("kebus.projectile.3" →
     /// "kebus.projectile" → "kebus"). Unlisted = fixed pitch. Keep it subtle (3-8%); signature stingers / alerts /
     /// loops stay unlisted.</summary>
-    public static readonly Dictionary<string, Vector2> PITCH = new()
+    public static readonly Dictionary<string, Vector2> Pitch = new()
     {
         ["enemy_death"] = new Vector2(-0.07f, 0.07f), // fire constantly — the biggest win
         ["enemy_spawn"] = new Vector2(-0.07f, 0.07f),
@@ -67,7 +67,7 @@ public static class SfxEnemies
         ["ventilator"] = new Vector2(-0.06f, 0.06f),
     };
 
-    public static readonly Dictionary<string, Dictionary<string, Dictionary<int, string>>> FRAMES = new()
+    public static readonly Dictionary<string, Dictionary<string, Dictionary<int, string>>> Frames = new()
     {
         ["baghel"] = new() { ["attack_projectile"] = new() { [4] = "baghel.projectile.4" } },
         ["kebus"] = new() { ["attack_projectile"] = new() { [3] = "kebus.projectile.3" } },
@@ -83,5 +83,5 @@ public static class SfxEnemies
 
     /// <summary>The per-frame cue map for one enemy (empty if none) — anim → { sheet_frame: cue_key }.</summary>
     public static Dictionary<string, Dictionary<int, string>> FramesFor(string id) =>
-        FRAMES.TryGetValue(id, out var byAnim) ? byAnim : NoFrames;
+        Frames.TryGetValue(id, out var byAnim) ? byAnim : NoFrames;
 }

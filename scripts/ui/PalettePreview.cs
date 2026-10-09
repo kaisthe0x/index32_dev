@@ -8,41 +8,41 @@ namespace MyGame;
 /// Character colour-customisation preview + SCHEME manager (the pre-game main scene). C# port of
 /// <c>scripts/ui/palette_preview.gd</c>. Runs Khalid's `idle` cycle on an adjustable backdrop with a live-recoloured
 /// portrait, a colour picker per body part + per power family + the UI's two colours (frame / highlight, which recolour
-/// every menu and HUD label live), and up to SaveData.MAX_SCHEMES saved schemes you switch,
+/// every menu and HUD label live), and up to SaveData.MaxSchemes saved schemes you switch,
 /// Save, and Start a run with. BODY recolour uses the material-aware palette LUT (<see cref="PaletteConfig"/>); POWERS
 /// recolour via <see cref="VfxPalette"/>; the portrait follows body picks by hue. Selecting a slot loads + makes it
 /// active; "Save" writes the current picks into the active slot; "Start run" only applies them (Save is the commit).
 /// </summary>
 public partial class PalettePreview : Control
 {
-    private const string FRAMES_PATH = "res://resources/characters/khalid.tres";
-    private const string PORTRAIT_PATH = "res://assets/portraits/Khalid.png";
-    private const string RUN_SCENE = "res://scenes/arena.tscn";
-    private const float SPRITE_SCALE = 5.0f;
-    private const string SAMPLE_FX = "res://vfx/character/khalid/run/default/run_default.tscn";
+    private const string FramesPath = "res://resources/characters/khalid.tres";
+    private const string PortraitPath = "res://assets/portraits/Khalid.png";
+    private const string RunScene = "res://scenes/arena.tscn";
+    private const float SpriteScale = 5.0f;
+    private const string SampleFx = "res://vfx/character/khalid/run/default/run_default.tscn";
 
     // Body pickers, in MATERIALS order -> a friendly label. All six recolour (pants included).
-    private static readonly Dictionary<string, string> BODY_LABELS = new()
+    private static readonly Dictionary<string, string> BodyLabels = new()
     {
         ["hair"] = "Hair (red)", ["skin"] = "Skin (teal)", ["jacket"] = "Coat (brown)",
         ["trim"] = "Trim (yellow)", ["pants"] = "Pants (green)", ["metal"] = "Metal (grey)",
     };
 
     // Power/VFX families (dedicated). Labelled Power 1/2/3 in the UI; internal keys stay red/gold/teal.
-    private static readonly Dictionary<string, Color> POWER_FAMILIES = new()
+    private static readonly Dictionary<string, Color> PowerFamilies = new()
     {
         ["red"] = new Color(0.77f, 0.04f, 0.04f), ["gold"] = new Color(0.82f, 0.75f, 0.08f),
         ["teal"] = new Color(0.08f, 0.53f, 0.49f),
     };
-    private static readonly Dictionary<string, string> POWER_LABELS = new()
+    private static readonly Dictionary<string, string> PowerLabels = new()
         { ["red"] = "Power 1", ["gold"] = "Power 2", ["teal"] = "Power 3" };
-    private static readonly string[] POWER_ORDER = { "red", "gold", "teal" };
+    private static readonly string[] PowerOrder = { "red", "gold", "teal" };
 
     // UI colours: the two picks UiStyle derives the whole menu palette from.
-    private static readonly string[] UI_ORDER = { UiStyle.PickFrame, UiStyle.PickAccent };
-    private static readonly Dictionary<string, string> UI_LABELS = new()
+    private static readonly string[] UiOrder = { UiStyle.PickFrame, UiStyle.PickAccent };
+    private static readonly Dictionary<string, string> UiLabels = new()
         { [UiStyle.PickFrame] = "Frame", [UiStyle.PickAccent] = "Highlight" };
-    private static readonly Dictionary<string, Color> UI_DEFAULTS = new()
+    private static readonly Dictionary<string, Color> UiDefaults = new()
         { [UiStyle.PickFrame] = UiStyle.DefaultFrame, [UiStyle.PickAccent] = UiStyle.DefaultAccent };
 
     private ShaderMaterial _mat = null!, _portraitMat = null!;
@@ -79,8 +79,8 @@ public partial class PalettePreview : Control
 
         // The SAME builder the in-game player uses, so the preview matches the run exactly.
         _mat = PaletteConfig.MakeMaterial(_bodyPicks);
-        _sprite = new AnimatedSprite2D { SpriteFrames = GD.Load<SpriteFrames>(FRAMES_PATH), Material = _mat };
-        _sprite.Scale = new Vector2(SPRITE_SCALE, SPRITE_SCALE);
+        _sprite = new AnimatedSprite2D { SpriteFrames = GD.Load<SpriteFrames>(FramesPath), Material = _mat };
+        _sprite.Scale = new Vector2(SpriteScale, SpriteScale);
         if (_sprite.SpriteFrames != null && _sprite.SpriteFrames.HasAnimation("idle"))
             _sprite.Play("idle");
         AddChild(_sprite);
@@ -89,7 +89,7 @@ public partial class PalettePreview : Control
         _portraitMat = PaletteConfig.MakePortraitMaterial(_bodyPicks);
         _portrait = new TextureRect
         {
-            Texture = GD.Load<Texture2D>(PORTRAIT_PATH), Material = _portraitMat,
+            Texture = GD.Load<Texture2D>(PortraitPath), Material = _portraitMat,
             ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
             StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
             CustomMinimumSize = new Vector2(240, 240),
@@ -134,11 +134,11 @@ public partial class PalettePreview : Control
         foreach (var (material, colour) in scheme.Body)
             _bodyPicks[material] = colour;
         _powerPicks.Clear();
-        foreach (var fam in POWER_ORDER)
-            _powerPicks[fam] = scheme.Power.GetValueOrDefault(fam, POWER_FAMILIES[fam]);
+        foreach (var fam in PowerOrder)
+            _powerPicks[fam] = scheme.Power.GetValueOrDefault(fam, PowerFamilies[fam]);
         _uiPicks.Clear();
-        foreach (var k in UI_ORDER)
-            _uiPicks[k] = scheme.Ui.GetValueOrDefault(k, UI_DEFAULTS[k]);
+        foreach (var k in UiOrder)
+            _uiPicks[k] = scheme.Ui.GetValueOrDefault(k, UiDefaults[k]);
     }
 
     /// <summary>Push the current working picks to every live view.</summary>
@@ -204,7 +204,7 @@ public partial class PalettePreview : Control
         def.ButtonPressed = _activeSlot == -1;
         def.Pressed += () => OnSlot(-1);
         slotRow.AddChild(def);
-        for (int i = 0; i < SaveData.MAX_SCHEMES; i++)
+        for (int i = 0; i < SaveData.MaxSchemes; i++)
         {
             var b = new Button { ToggleMode = true, ButtonGroup = group, CustomMinimumSize = new Vector2(38, 34) };
             b.ButtonPressed = i == _activeSlot;
@@ -217,24 +217,24 @@ public partial class PalettePreview : Control
         RefreshSlotLabels();
 
         col.AddChild(Header("BODY"));
-        foreach (var m in PaletteConfig.MATERIALS)
+        foreach (var m in PaletteConfig.Materials)
         {
             string mat = m;
-            col.AddChild(PickerRow(BODY_LABELS[m], BodyPickFor(m), c => OnBodyColour(c, mat), _bodyPickers, m));
+            col.AddChild(PickerRow(BodyLabels[m], BodyPickFor(m), c => OnBodyColour(c, mat), _bodyPickers, m));
         }
 
         col.AddChild(Header("POWERS / VFX"));
-        foreach (var fam in POWER_ORDER)
+        foreach (var fam in PowerOrder)
         {
             string f = fam;
-            col.AddChild(PickerRow(POWER_LABELS[fam], _powerPicks[fam], c => OnPowerColour(c, f), _powerPickers, fam));
+            col.AddChild(PickerRow(PowerLabels[fam], _powerPicks[fam], c => OnPowerColour(c, f), _powerPickers, fam));
         }
 
         col.AddChild(Header("UI"));
-        foreach (var k in UI_ORDER)
+        foreach (var k in UiOrder)
         {
             string key = k;
-            col.AddChild(PickerRow(UI_LABELS[k], _uiPicks[k], c => OnUiColour(c, key), _uiPickers, k));
+            col.AddChild(PickerRow(UiLabels[k], _uiPicks[k], c => OnUiColour(c, key), _uiPickers, k));
         }
 
         col.AddChild(Header("BACKDROP"));
@@ -261,7 +261,7 @@ public partial class PalettePreview : Control
     }
 
     private Color BodyPickFor(string matName) =>
-        _bodyPicks.GetValueOrDefault(matName, new Color(PaletteConfig.DEFAULT[matName][1]));
+        _bodyPicks.GetValueOrDefault(matName, new Color(PaletteConfig.DefaultShades[matName][1]));
 
     /// <summary>A labelled row holding a new ColorPickerButton seeded to `col`, wired to `onPick`, and kept in
     /// `store[key]` so a scheme switch can update it.</summary>
@@ -372,7 +372,7 @@ public partial class PalettePreview : Control
     private void OnStart()
     {
         PushStatics();
-        GetTree().ChangeSceneToFile(RUN_SCENE);
+        GetTree().ChangeSceneToFile(RunScene);
     }
 
     /// <summary>Spawn a fresh copy of the sample effect and recolour it. Rebuilt on every change (recolor_tree is one-way).</summary>
@@ -380,7 +380,7 @@ public partial class PalettePreview : Control
     {
         if (_sample != null && IsInstanceValid(_sample))
             _sample.QueueFree();
-        var scn = GD.Load<PackedScene>(SAMPLE_FX);
+        var scn = GD.Load<PackedScene>(SampleFx);
         if (scn == null)
             return;
         _sample = scn.Instantiate() as Node2D;

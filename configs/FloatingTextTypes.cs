@@ -11,7 +11,7 @@ public static class FloatingTextTypes
 {
     private const string Font = "res://assets/fonts/Sixtyfour-Regular-VariableFont_BLED,SCAN.ttf";
 
-    public static readonly Dictionary<FloatingTextType, FloatingTextStyle> TYPES = new()
+    public static readonly Dictionary<FloatingTextType, FloatingTextStyle> Types = new()
     {
         // Damage numbers: small white light hits -> big hot-gold heavy hits (ramped by magnitude).
         [FloatingTextType.Damage] = new FloatingTextStyle

@@ -171,7 +171,7 @@ public sealed class PerkLedger
     {
         var pool = new List<string>();
         string special = _player.LoadoutId(LoadoutCategory.Special);
-        foreach (PerkDef d in Dekken.PERKS)
+        foreach (PerkDef d in Dekken.Perks)
             if (!_owned.Contains(d.Id) && (d.RequiresSpecial == null || d.RequiresSpecial == special))
                 pool.Add(d.Id);
         _stock.Clear();
@@ -181,6 +181,6 @@ public sealed class PerkLedger
             _stock.Add(pool[i]);
             pool.RemoveAt(i);
         }
-        _stock.Sort((a, b) => Array.FindIndex(Dekken.PERKS, d => d.Id == a).CompareTo(Array.FindIndex(Dekken.PERKS, d => d.Id == b)));
+        _stock.Sort((a, b) => Array.FindIndex(Dekken.Perks, d => d.Id == a).CompareTo(Array.FindIndex(Dekken.Perks, d => d.Id == b)));
     }
 }

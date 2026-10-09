@@ -199,7 +199,7 @@ that erase that risk top out at **Epic**.
 - **Infighting / "Discord"** — a chaos buff that makes enemy AoEs **trigger on ANY nearby body, not just the
   player** — so a Nasen sleeper rages at whatever's in its zone and the eruption catches other grunts, turning
   a swarm on itself. Half the mechanic already exists: Nasen's AoE **damage** is friendly-fire today
-  (`FriendlyFire` on `EnemyKits.NASEN` → `Combat.HurtMask`). This buff is the **trigger** half — today
+  (`FriendlyFire` on `EnemyKits.Nasen` → `Combat.HurtMask`). This buff is the **trigger** half — today
   `SleeperEnemy` only wakes/rages on the *player* in its `RageZone`; the buff would let it (and any similar
   detect-then-attack enemy) count enemies as valid triggers while owned. Tier/persistence TBD; leans
   control/chaos utility. Needs a per-owner "enemies-provoke-enemies" flag the enemy AI reads.

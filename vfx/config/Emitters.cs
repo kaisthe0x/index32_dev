@@ -14,9 +14,9 @@ public static class Emitters
 
     /// <summary>Every animation's rows for a character id (empty if the character has none).</summary>
     public static IReadOnlyDictionary<string, EmitterDef[]> Character(string id) =>
-        EmittersCharacters.TABLE.TryGetValue(id, out var byAnim) ? byAnim : NoRows;
+        EmittersCharacters.Table.TryGetValue(id, out var byAnim) ? byAnim : NoRows;
 
     /// <summary>One enemy effect's row, or null if unlisted (an absent row = no such emitter).</summary>
     public static EmitterDef? EnemyEffect(string id, string effect) =>
-        EmittersEnemies.TABLE.TryGetValue(id, out var effects) && effects.TryGetValue(effect, out var row) ? row : null;
+        EmittersEnemies.Table.TryGetValue(id, out var effects) && effects.TryGetValue(effect, out var row) ? row : null;
 }

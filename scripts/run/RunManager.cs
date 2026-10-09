@@ -28,8 +28,8 @@ public partial class RunManager : Node2D
     /// stationary sleeper (Nasen). Wardens (Kroj) are elite/pivot-only, not part of the trickle.</summary>
     private static readonly EnemyKit[] SpawnPool =
     {
-        EnemyKits.KEBUS, EnemyKits.BAGHEL, EnemyKits.MAZAB, EnemyKits.MATAT,
-        EnemyKits.TARRI, EnemyKits.BRESKI, EnemyKits.NASEN, // Ein isn't here: it's the stand-still kamikaze (TickPressure)
+        EnemyKits.Kebus, EnemyKits.Baghel, EnemyKits.Mazab, EnemyKits.Matat,
+        EnemyKits.Tarri, EnemyKits.Breski, EnemyKits.Nasen, // Ein isn't here: it's the stand-still kamikaze (TickPressure)
     };
 
     // Camera follow: a CRITICALLY DAMPED SPRING (SmoothDamp) toward Khalid — it has velocity, so after a sudden jump
@@ -459,7 +459,7 @@ public partial class RunManager : Node2D
         if (_stillTime < Rounds.StillTime || _kamikazeCd > 0.0f || LivingOfType(EnemyIds.Ein) >= KamikazeMax(_round))
             return;
         _kamikazeCd = KamikazeInterval(_round);
-        SpawnAt(EnemyKits.EIN, KamikazeSpot(at));
+        SpawnAt(EnemyKits.Ein, KamikazeSpot(at));
     }
 
     /// <summary>THE EDGE ENEMY: from <see cref="Rounds.VentilatorFromRound"/>, a player who stays within
@@ -484,7 +484,7 @@ public partial class RunManager : Node2D
         // Ventilator on the OUTER side would blow him back into the arena. None yet = try again next tick.
         if (PickGroundSurface(player, Rounds.VentilatorSpawnMin, Rounds.VentilatorSpawnMax, inland) is Vector2 at
             && Mathf.Sign(at.X - player.X) == inland)
-            SpawnAt(EnemyKits.VENTILATOR, at);
+            SpawnAt(EnemyKits.Ventilator, at);
     }
 
     /// <summary>+1 if <paramref name="x"/> is within <see cref="Rounds.EdgeZone"/> of the arena's LEFT end (inland is to
@@ -878,7 +878,7 @@ public partial class RunManager : Node2D
     /// <summary>Length in seconds of a character sound cue (0 if the cue or its file is missing).</summary>
     private static float CueLength(string cue)
     {
-        if (!SfxCharacters.CUES.TryGetValue(cue, out string? path) || !ResourceLoader.Exists(path))
+        if (!SfxCharacters.Cues.TryGetValue(cue, out string? path) || !ResourceLoader.Exists(path))
             return 0.0f;
         var s = GD.Load<AudioStream>(path);
         return s != null ? (float)s.GetLength() : 0.0f;

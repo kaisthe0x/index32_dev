@@ -11,7 +11,7 @@ namespace MyGame;
 /// </summary>
 public static class EnemyKits
 {
-	public static readonly EnemyKit KEBUS = new(EnemyIds.Kebus, "Kebus", EnemyTier.Strong, EnemyMovement.Ground, e =>
+	public static readonly EnemyKit Kebus = new(EnemyIds.Kebus, "Kebus", EnemyTier.Strong, EnemyMovement.Ground, e =>
 	{
 		e.CloseType = StrikeType.Melee.Key();
 		e.FarType = StrikeType.Projectile.Key();
@@ -24,7 +24,7 @@ public static class EnemyKits
 		e.FigChance = 0.25f; // the hardest grunt — better fig odds than the 10 % default
 	});
 
-	public static readonly EnemyKit BAGHEL = new(EnemyIds.Baghel, "Baghel", EnemyTier.Chip, EnemyMovement.Ground, e =>
+	public static readonly EnemyKit Baghel = new(EnemyIds.Baghel, "Baghel", EnemyTier.Chip, EnemyMovement.Ground, e =>
 	{
 		e.FarType = StrikeType.Projectile.Key();
 		e.FarMode = FarMode.GroundWave;
@@ -38,7 +38,7 @@ public static class EnemyKits
 		e.IdleTimeMax = 7.0f;
 	});
 
-	public static readonly EnemyKit MAZAB = new(EnemyIds.Mazab, "Mazab", EnemyTier.Mid, EnemyMovement.Ground, e =>
+	public static readonly EnemyKit Mazab = new(EnemyIds.Mazab, "Mazab", EnemyTier.Mid, EnemyMovement.Ground, e =>
 	{
 		e.FarType = StrikeType.DelayedProjectile.Key();
 		e.FarMode = FarMode.Lob;
@@ -54,7 +54,7 @@ public static class EnemyKits
 	});
 
 	// The stationary sleeper. Optional: it needn't be killed to clear a round.
-	public static readonly EnemyKit NASEN = EnemyKit.Of<SleeperEnemy>(EnemyIds.Nasen, "Nasen", EnemyTier.Strong,
+	public static readonly EnemyKit Nasen = EnemyKit.Of<SleeperEnemy>(EnemyIds.Nasen, "Nasen", EnemyTier.Strong,
 		EnemyMovement.Stationary, "res://scenes/sleeper_enemy.tscn", e =>
 	{
 		e.MaxHealth = 90.0f;
@@ -67,7 +67,7 @@ public static class EnemyKits
 
 	// The stand-still KAMIKAZE (RunManager's pressure spawn — not in the round's spawn pool): optional (not part of the
 	// round), drops nothing (no farming by standing still), and notices from far enough to dive at once.
-	public static readonly EnemyKit EIN = EnemyKit.Of<DiverEnemy>(EnemyIds.Ein, "Ein", EnemyTier.Mid,
+	public static readonly EnemyKit Ein = EnemyKit.Of<DiverEnemy>(EnemyIds.Ein, "Ein", EnemyTier.Mid,
 		EnemyMovement.Flying, "res://scenes/diver_enemy.tscn", e =>
 	{
 		e.MaxHealth = 28.0f;
@@ -85,7 +85,7 @@ public static class EnemyKits
 	// player is near either end of the arena, and blasts WIND (CloseGust) that does no damage but flings him outward
 	// — off the edge unless he air-jumps / dashes back. Optional (not part of the round) but drops Lira + figs as usual.
 	// Like Tarri, the blast fires on the LAST attack frame and he holds + vibrates there (the blast's EmitDuration).
-	public static readonly EnemyKit VENTILATOR = new(EnemyIds.Ventilator, "Ventilator", EnemyTier.Mid, EnemyMovement.Ground, e =>
+	public static readonly EnemyKit Ventilator = new(EnemyIds.Ventilator, "Ventilator", EnemyTier.Mid, EnemyMovement.Ground, e =>
 	{
 		e.CloseType = StrikeType.Blast.Key();
 		e.Optional = true;
@@ -105,7 +105,7 @@ public static class EnemyKits
 		e.AttackShake = 1.5f;
 	});
 
-	public static readonly EnemyKit MATAT = new(EnemyIds.Matat, "Matat", EnemyTier.Strong, EnemyMovement.Ground, e =>
+	public static readonly EnemyKit Matat = new(EnemyIds.Matat, "Matat", EnemyTier.Strong, EnemyMovement.Ground, e =>
 	{
 		e.CloseType = StrikeType.Aoe.Key();
 		e.ConformGround = true;
@@ -128,7 +128,7 @@ public static class EnemyKits
 		e.CloseStrikeLifetime = 0.35f;
 	});
 
-	public static readonly EnemyKit TARRI = new(EnemyIds.Tarri, "Tarri", EnemyTier.Mid, EnemyMovement.Ground, e =>
+	public static readonly EnemyKit Tarri = new(EnemyIds.Tarri, "Tarri", EnemyTier.Mid, EnemyMovement.Ground, e =>
 	{
 		e.CloseType = StrikeType.Blast.Key();
 		e.MaxHealth = 70.0f;
@@ -149,7 +149,7 @@ public static class EnemyKits
 		e.AttackShake = 1.5f;
 	});
 
-	public static readonly EnemyKit BRESKI = new(EnemyIds.Breski, "Breski", EnemyTier.Strong, EnemyMovement.Ground, e =>
+	public static readonly EnemyKit Breski = new(EnemyIds.Breski, "Breski", EnemyTier.Strong, EnemyMovement.Ground, e =>
 	{
 		e.CloseType = StrikeType.Melee.Key();
 		e.MaxHealth = 110.0f;
@@ -168,7 +168,7 @@ public static class EnemyKits
 	});
 
 	// --- Wardens (elite tier: WardenEnemy — teleporting lunger, cinematic spawn, persistent corpse) ---
-	public static readonly EnemyKit KROJ = EnemyKit.Of<WardenEnemy>(EnemyIds.Kroj, "Kroj", EnemyTier.Strong,
+	public static readonly EnemyKit Kroj = EnemyKit.Of<WardenEnemy>(EnemyIds.Kroj, "Kroj", EnemyTier.Strong,
 		EnemyMovement.Ground, "res://scenes/warden.tscn", e =>
 	{
 		e.MaxHealth = 300.0f;

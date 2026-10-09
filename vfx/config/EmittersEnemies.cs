@@ -14,7 +14,7 @@ public static class EmittersEnemies
 {
     private static PackedScene S(string path) => GD.Load<PackedScene>(path);
 
-    public static readonly Dictionary<string, Dictionary<string, EmitterDef>> TABLE = new()
+    public static readonly Dictionary<string, Dictionary<string, EmitterDef>> Table = new()
     {
         // --- projectile (a straight/aimed shot) ---
         ["kebus"] = new() { ["projectile"] = new(S("res://vfx/enemy/kebus/attack/kebus_projectile.tscn"), new Vector2(18, -22)) },

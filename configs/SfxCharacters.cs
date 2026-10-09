@@ -5,14 +5,14 @@ namespace MyGame;
 
 /// <summary>
 /// CHARACTER sounds — PURE DATA (the <see cref="Sfx"/> service + <see cref="ParticleDirector"/> read this).
-/// C# port of <c>configs/sfx_characters.gd</c>. <see cref="CUES"/> is the master key→path list (reference by key,
-/// e.g. <c>Sfx.Play("dash")</c>); <see cref="FRAMES"/> is character → animation → { sheet_frame: cue_key }, played by
+/// C# port of <c>configs/sfx_characters.gd</c>. <see cref="Cues"/> is the master key→path list (reference by key,
+/// e.g. <c>Sfx.Play("dash")</c>); <see cref="Frames"/> is character → animation → { sheet_frame: cue_key }, played by
 /// ParticleDirector when an animation reaches that frame (SHEET-relative, same numbering as Emitters / HIT_FRAMES).
 /// Key convention: <c>&lt;name&gt;</c> for a whole cue, <c>&lt;name&gt;.&lt;frame&gt;</c> for a frame-specific hit.
 /// </summary>
 public static class SfxCharacters
 {
-    public static readonly Dictionary<string, string> CUES = new()
+    public static readonly Dictionary<string, string> Cues = new()
     {
         // --- movement / feedback (played by code on an event) ---
         ["dash"] = "res://sfx/character/dash/dash.wav",
@@ -74,7 +74,7 @@ public static class SfxCharacters
     /// <summary>Per-cue MIX offset in decibels (negative = quieter), on top of the automatic loudness normalization
     /// (every cue already plays at <see cref="Sfx.TargetLoudness"/>). Only for DELIBERATE choices — a cue that should
     /// sit under or over the rest — never to fix a hot or quiet file. Unlisted = 0.</summary>
-    public static readonly Dictionary<string, float> VOLUMES = new()
+    public static readonly Dictionary<string, float> Volumes = new()
     {
         ["run"] = -15.0f, // the looping footsteps are a bed under the action, not a hit
 		["dash"] = -15.0f,
@@ -86,7 +86,7 @@ public static class SfxCharacters
     /// may name a GROUP: a cue with no entry of its own uses its nearest dotted prefix ("kebus.projectile.3" →
     /// "kebus.projectile" → "kebus"). Unlisted = fixed pitch. Keep it subtle (3-8%); signature stingers / alerts /
     /// loops stay unlisted.</summary>
-    public static readonly Dictionary<string, Vector2> PITCH = new()
+    public static readonly Dictionary<string, Vector2> Pitch = new()
     {
         ["hurt"] = new Vector2(-0.05f, 0.05f),        // hurt.1-3
         ["dash"] = new Vector2(-0.05f, 0.05f),
@@ -101,7 +101,7 @@ public static class SfxCharacters
         ["redere_frisbee.impact"] = new Vector2(-0.04f, 0.04f),
     };
 
-    public static readonly Dictionary<string, Dictionary<string, Dictionary<int, string>>> FRAMES = new()
+    public static readonly Dictionary<string, Dictionary<string, Dictionary<int, string>>> Frames = new()
     {
         ["khalid"] = new()
         {

@@ -68,7 +68,7 @@ From round 10, all spots held also falls back to a near spawn instead of waiting
 animation sped up to match) — so a round never stalls on one he can't find.
 
 **Stand-still kamikazes** (`TickPressure`): from `Rounds.KamikazeFromRound` (5), a player who stays within
-`StillRadius` (50 px) for `StillTime` (2 s) gets an **Ein** (`EnemyKits.EIN` — `optional`, no Lira, no figs; NOT in
+`StillRadius` (50 px) for `StillTime` (2 s) gets an **Ein** (`EnemyKits.Ein` — `optional`, no Lira, no figs; NOT in
 `SpawnPool`) `KamikazeDistance` (220 px) to a random side (`KamikazeSpot` — the other side if that one is inside a
 wall) and up to `KamikazeHeight` (110 px) above, under any ceiling (`HeadroomAbove`); then another every
 `KamikazeInterval(r)` (2 s at r5, ×0.95 a round, min 0.75 s) while he stays put, at most `KamikazeMax(r)` alive (5 at
@@ -77,7 +77,7 @@ kamikazes already diving still come.
 
 **The edge enemy** (`TickEdge`): from `Rounds.VentilatorFromRound` (3), a player who stays within `EdgeZone` (300 px)
 of either end of the arena (`LevelLayout.HorizontalSpan`, cached as `_arenaLeft/_arenaRight`) for `EdgeDwell` (1 s)
-gets a **Ventilator** (`EnemyKits.VENTILATOR` — `optional`, not in `SpawnPool`, drops Lira + figs normally) on his
+gets a **Ventilator** (`EnemyKits.Ventilator` — `optional`, not in `SpawnPool`, drops Lira + figs normally) on his
 floor on the INLAND side, 140–260 px away (`EdgeInland` + `PickGroundSurface`; a tile on the outer side is rejected and
 retried next tick). Its wind gust (`Hit.Gust`, no damage) blows him OUTWARD — off the edge unless he air-jumps or
 dashes back. One alive at most; the next waits `VentilatorCooldown` (10 s) after one dies (`OnEnemyDied`).
@@ -130,7 +130,7 @@ Related, but not in this folder:
    - **Mystery box (figs, permanent mechanics), real time:** one `MysteryBox` per arena, on one of the layout's box
      spots. **E** spends `BoxRules.Cost` figs → it spins (`SpinTime`) → the result hangs over it (`OfferTime`): **E**
      takes it, leaving it declines (figs spent). The result is a buff the player doesn't hold (`BuffCatalog.Pool`),
-     rarely a **special-swap** (`SpecialChance`, `BoxRules.SPECIALS`), or the **teddy bear** (`TeddyChance`): figs
+     rarely a **special-swap** (`SpecialChance`, `BoxRules.Specials`), or the **teddy bear** (`TeddyChance`): figs
      refunded, the box relocates (a hard spot `HardSpotChance` of the time) under a beam. `BoxLedger` holds the rules.
 6. **Death** (HP hits 0 — the 6th hit) → `SaveData.ReportRun(_round)` records the round reached (new best →
    `rounds_record`), then the whole run restarts via `Player.BeginRun` (buffs cleared, a full 3 blocks of HP / a
@@ -148,19 +148,19 @@ Related, but not in this folder:
   odds: `FigChance` in the kit's `Tune` (default `Enemy.FigChance` = 0.1). Pickup cues `lira_collect` / `fada_fig_collect` in
   `SfxWorld` (PLACEHOLDERS). The ROUND n intro's timing is `IntroFadeIn` / `IntroHold` / `IntroFly` in `HUD.cs`.
 - **Change the mystery box** → `configs/BoxRules.cs`: `Cost`, `SpinTime`, `OfferTime`, `TeddyChance`, `HardSpotChance`,
-  `SpecialChance`, `SPECIALS` (the box-only specials). Where it can stand: the layout's `BoxSpots/Easy` + `BoxSpots/Hard`
+  `SpecialChance`, `Specials` (the box-only specials). Where it can stand: the layout's `BoxSpots/Easy` + `BoxSpots/Hard`
   markers. Its look: `scenes/things/mystery_box.tscn`.
-- **Change the shots** → `configs/NeedlePoint.cs`: each shot's per-rank values and rank-I price in `SHOTS`, plus
-  `PriceGrowth` and `RANK_COLORS`. A new shot = a `ShotIds` id + a `ShotStat` + its
+- **Change the shots** → `configs/NeedlePoint.cs`: each shot's per-rank values and rank-I price in `Shots`, plus
+  `PriceGrowth` and `RankColors`. A new shot = a `ShotIds` id + a `ShotStat` + its
   case in `Shot.Apply`.
 - **Change the perks** → `configs/Dekken.cs`: `StockSize`, `CarrySlots` (vials carried) and each perk's duration, rounds, price and `Value` in
-  `PERKS`. A new perk = a `PerkIds` id + its entry + its effect (`Perk` for lasting ones, `PerkLedger.Buy` for one-use).
-- **Which buffs the box offers** → `BuffCatalog.FACTORIES` (each with its one value) minus `Parked`, minus what the
-  player holds (`BuffCatalog.Pool`); a new buff = a `BuffIds` id + a factory + its `INFO` line.
+  `Perks`. A new perk = a `PerkIds` id + its entry + its effect (`Perk` for lasting ones, `PerkLedger.Buy` for one-use).
+- **Which buffs the box offers** → `BuffCatalog.Factories` (each with its one value) minus `Parked`, minus what the
+  player holds (`BuffCatalog.Pool`); a new buff = a `BuffIds` id + a factory + its `Info` line.
 - **Change an enemy's stats** → its kit's `Tune` in `EnemyKits.cs` (combat).
 - **Change the Ruh / surge economy** → `Player.RUH_PER_HIT` (fill rate per hit), `RuhPerBlock`
   (charge size), `BASE_RUH_CAP` (starting charges), and the Aegis surge's `cost` / `duration` in
-  `configs/actions_khalid.gd` (`SURGES`) for its Ruh price + invuln window. (Specials cost no Ruh — their knob is each special's `Cooldown` in `ActionsKhalid.SPECIALS`.)
+  `configs/actions_khalid.gd` (`Surges`) for its Ruh price + invuln window. (Specials cost no Ruh — their knob is each special's `Cooldown` in `ActionsKhalid.Specials`.)
 
 ## Known template gaps (deliberate, for later)
 
