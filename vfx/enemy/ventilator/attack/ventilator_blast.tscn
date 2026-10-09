@@ -20,8 +20,8 @@ size = Vector2(150, 40)
 
 [node name="VentilatorBlast" type="Node2D" unique_id=605026013]
 script = ExtResource("1_strike")
-emit_duration = 0.6
-lifetime = 0.6
+EmitDuration = 0.6
+Lifetime = 0.6
 
 [node name="Gust" type="CPUParticles2D" parent="." unique_id=2092099716]
 amount = 240

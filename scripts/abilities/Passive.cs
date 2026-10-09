@@ -9,7 +9,7 @@ namespace MyGame;
 /// <c>scripts/abilities/passive.gd</c>.
 ///
 /// <para>Two flavours, same interface: a character's INTRINSIC ability (<see cref="CharacterAbility"/>, seeded
-/// first on equip) and a REWARD-granted passive (added at runtime via <c>Player.add_passive</c> when its reward
+/// first on equip) and a REWARD-granted passive (added at runtime via <c>Player.AddPassive</c> when its reward
 /// is taken, torn down on run restart). <see cref="Buff"/> extends this with move-scope + tier + duration.</para>
 /// </summary>
 [GlobalClass]
@@ -77,7 +77,7 @@ public partial class Passive : RefCounted
     /// attack hitbox; single-box attacks (e.g. Zahluq) get exactly one per swing.</summary>
     public virtual void OnMiss(Player player) { }
 
-    /// <summary>A round begins (dispatched by RunManager through <see cref="Player.notify_round_start"/>) — round-scoped
+    /// <summary>A round begins (dispatched by RunManager through <see cref="Player.NotifyRoundStart"/>) — round-scoped
     /// effects re-arm here (Dekken's Shield, Prepared).</summary>
     public virtual void OnRoundStart(Player player) { }
 }

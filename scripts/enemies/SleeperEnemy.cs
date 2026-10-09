@@ -4,21 +4,21 @@ using System.Linq;
 namespace MyGame;
 
 /// <summary>
-/// Sleeper archetype: dozes in place (idle only, no patrol) until the player enters <see cref="rage_zone"/>,
+/// Sleeper archetype: dozes in place (idle only, no patrol) until the player enters <see cref="RageZone"/>,
 /// then RAGES — a ground AoE erupts on the attack's hit frame and the attack loops; keeps raging for
-/// <see cref="rage_linger"/> after the player leaves. A MELEE hit STUNS it (ranged only chips — see Hit.ranged).
+/// <see cref="RageLinger"/> after the player leaves. A MELEE hit STUNS it (ranged only chips — see Hit.ranged).
 /// Nasen is one instance (an EnemyKits entry). C# port of <c>scripts/enemies/nasen.gd</c>, reframed as a type.
 /// </summary>
 [GlobalClass]
 public partial class SleeperEnemy : Enemy
 {
     [ExportGroup("Sleeper")]
-    [Export] public float rage_zone { get; set; } = 100.0f;
-    [Export] public float rage_linger { get; set; } = 2.0f;
-    [Export] public float rage_stun_time { get; set; } = 1.5f;
-    [Export] public float rage_damage { get; set; } = 14.0f;
-    [Export] public float rage_knockback { get; set; } = 130.0f;
-    [Export] public Vector2 rage_extents { get; set; } = new(52, 22);
+    [Export] public float RageZone { get; set; } = 100.0f;
+    [Export] public float RageLinger { get; set; } = 2.0f;
+    [Export] public float RageStunTime { get; set; } = 1.5f;
+    [Export] public float RageDamage { get; set; } = 14.0f;
+    [Export] public float RageKnockback { get; set; } = 130.0f;
+    [Export] public Vector2 RageExtents { get; set; } = new(52, 22);
 
     private float _rageLeft;
 
@@ -32,9 +32,9 @@ public partial class SleeperEnemy : Enemy
         if (player != null)
         {
             Vector2 to = player.GlobalPosition - GlobalPosition;
-            if (Mathf.Abs(to.Y) <= attack_align_y && Mathf.Abs(to.X) <= rage_zone)
+            if (Mathf.Abs(to.Y) <= AttackAlignY && Mathf.Abs(to.X) <= RageZone)
             {
-                _rageLeft = rage_linger; // disturbed -> (re)fill the linger timer
+                _rageLeft = RageLinger; // disturbed -> (re)fill the linger timer
                 if (to.X != 0.0f)
                     Face(Mathf.Sign(to.X));
             }
@@ -93,7 +93,7 @@ public partial class SleeperEnemy : Enemy
         if (State == EState.Dead)
             return;
         Health = Mathf.Max(Health - hit.Amount, 0.0f);
-        Bar.SetRatio(Health / max_health);
+        Bar.SetRatio(Health / MaxHealth);
         Flash(Sprite);
         if (Health <= 0.0f)
         {
@@ -102,7 +102,7 @@ public partial class SleeperEnemy : Enemy
         }
         if (!hit.Ranged)
         {
-            StunLeft = rage_stun_time;
+            StunLeft = RageStunTime;
             SetState(EState.Stun);
             CancelChannel();
         }
@@ -112,8 +112,8 @@ public partial class SleeperEnemy : Enemy
     private void SpawnRageAoe()
     {
         var node = SpawnAttack(VfxScene("aoe"),
-            new SegmentData { Damage = rage_damage, Knockback = rage_knockback }, false, VfxPos("aoe"));
-        if (conform_ground && node != null)
+            new SegmentData { Damage = RageDamage, Knockback = RageKnockback }, false, VfxPos("aoe"));
+        if (ConformGround && node != null)
             GroundContour.Conform(node, GetWorld2D()?.DirectSpaceState); // ground-band flames hug the slope, like the slam
 
     }

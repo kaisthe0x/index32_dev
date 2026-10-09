@@ -47,5 +47,5 @@ roster → here; an `@export` you tune per-node in the inspector → stays on th
   RefCounted` and your `const`s; reference it as `<Name>.MEMBER`. Pick a class name
   that doesn't collide with an existing one (Player, Enemy, Combat, Actions, …).
 - **`@export_enum` caveat** — the character list is duplicated as a literal in
-  `Player.character`'s `@export_enum(...)` because that hint needs literal strings
+  `Player.Character`'s `@export_enum(...)` because that hint needs literal strings
   (it can't reference `CharacterConfig.IDS`). Keep the two in sync by hand.

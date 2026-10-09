@@ -4,39 +4,38 @@ namespace MyGame;
 
 /// <summary>
 /// A LOBBED / mortar projectile: THROWN in a ballistic arc so it rises, falls, lands next to the target, sits
-/// as a telegraphed bomb for <see cref="dwell_time"/>, then ERUPTS into an AoE. Unlike <see cref="Projectile"/>
+/// as a telegraphed bomb for <see cref="DwellTime"/>, then ERUPTS into an AoE. Unlike <see cref="Projectile"/>
 /// (a linear tracer that hits on contact), a lob deals NO damage in the air — only the explosion hurts, so it
-/// is DODGEABLE. C# port of <c>scripts/combat/lob_projectile.gd</c>. Code-built (no scene) via enemy.gd.
-/// Public surface stays snake_case for the still-GDScript spawner.
+/// is DODGEABLE. C# port of <c>scripts/combat/lob_projectile.gd</c>. Code-built (no scene) by <see cref="Enemy"/>.
 /// </summary>
 [GlobalClass]
 public partial class LobProjectile : Node2D
 {
-    [Export] public bool hostile { get; set; }
-    [Export] public bool friendly_fire { get; set; }
+    [Export] public bool Hostile { get; set; }
+    [Export] public bool FriendlyFire { get; set; }
 
     [ExportGroup("Arc")]
-    [Export] public float arc_time { get; set; } = 0.9f;
-    [Export] public float gravity { get; set; } = 900.0f;
-    [Export] public float spin { get; set; } = 480.0f;
-    [Export] public float max_life { get; set; } = 3.0f;
+    [Export] public float ArcTime { get; set; } = 0.9f;
+    [Export] public float Gravity { get; set; } = 900.0f;
+    [Export] public float Spin { get; set; } = 480.0f;
+    [Export] public float MaxLife { get; set; } = 3.0f;
 
     [ExportGroup("Dwell + explosion")]
-    [Export] public float dwell_time { get; set; } = 1.0f;
-    [Export] public Vector2 explosion_extents { get; set; } = new(48, 26);
-    [Export] public float explosion_damage { get; set; } = 16.0f;
-    [Export] public float explosion_knockback { get; set; } = 160.0f;
-    [Export] public float explosion_stun { get; set; } = 0.25f;
+    [Export] public float DwellTime { get; set; } = 1.0f;
+    [Export] public Vector2 ExplosionExtents { get; set; } = new(48, 26);
+    [Export] public float ExplosionDamage { get; set; } = 16.0f;
+    [Export] public float ExplosionKnockback { get; set; } = 160.0f;
+    [Export] public float ExplosionStun { get; set; } = 0.25f;
     /// <summary>Particle-only scene for the blast look, instanced inside the explosion Strike. null = the Strike's own flash.</summary>
-    [Export] public PackedScene? explosion_effect { get; set; }
-    [Export] public Vector2 explosion_effect_pos { get; set; } = Vector2.Zero;
+    [Export] public PackedScene? ExplosionEffect { get; set; }
+    [Export] public Vector2 ExplosionEffectPos { get; set; } = Vector2.Zero;
     /// <summary>Sfx cue key played positionally at the detonation point when the bomb POPS. "" = none.</summary>
-    [Export] public string explosion_sfx { get; set; } = "";
+    [Export] public string ExplosionSfx { get; set; } = "";
 
     /// <summary>Where to AIM the arc (world space); set by the spawner. Vector2.Inf = a short fallback toss.</summary>
-    public Vector2 target = Vector2.Inf;
+    public Vector2 Target = Vector2.Inf;
     /// <summary>Who threw it (knockback credit + friendly-fire exemption); set by the spawner.</summary>
-    public Node? source;
+    public Node? Source;
 
     private enum Phase { Arc, Dwell, Spent }
     private Phase _phase = Phase.Arc;
@@ -67,10 +66,10 @@ public partial class LobProjectile : Node2D
             case Phase.Arc:
                 _life += d;
                 Vector2 from = GlobalPosition;
-                _vel.Y += gravity * d;
+                _vel.Y += Gravity * d;
                 Vector2 to = from + _vel * d;
-                if (_visual != null && spin != 0.0f)
-                    _visual.Rotation += Mathf.DegToRad(spin) * d;
+                if (_visual != null && Spin != 0.0f)
+                    _visual.Rotation += Mathf.DegToRad(Spin) * d;
                 // Land only when DESCENDING onto a surface (rising, we pass up through one-way platforms).
                 Vector2 surface = _vel.Y > 0.0f ? SurfaceBetween(from, to) : Vector2.Inf;
                 if (surface != Vector2.Inf)
@@ -81,13 +80,13 @@ public partial class LobProjectile : Node2D
                 else
                 {
                     GlobalPosition = to;
-                    if (_life >= max_life)
+                    if (_life >= MaxLife)
                         Explode(); // never found ground -> blow mid-air
                 }
                 break;
             case Phase.Dwell:
                 _t += d;
-                if (_t >= dwell_time)
+                if (_t >= DwellTime)
                     Explode();
                 break;
             case Phase.Spent:
@@ -95,13 +94,13 @@ public partial class LobProjectile : Node2D
         }
     }
 
-    /// <summary>Solve the launch velocity so the arc is AIMED at `target` (reaching it at ~arc_time under gravity).</summary>
+    /// <summary>Solve the launch velocity so the arc is AIMED at `target` (reaching it at ~ArcTime under gravity).</summary>
     private void Launch()
     {
-        if (target == Vector2.Inf)
-            target = GlobalPosition + new Vector2(60.0f, 40.0f);
-        Vector2 to = target - GlobalPosition;
-        _vel = new Vector2(to.X / arc_time, to.Y / arc_time - 0.5f * gravity * arc_time);
+        if (Target == Vector2.Inf)
+            Target = GlobalPosition + new Vector2(60.0f, 40.0f);
+        Vector2 to = Target - GlobalPosition;
+        _vel = new Vector2(to.X / ArcTime, to.Y / ArcTime - 0.5f * Gravity * ArcTime);
     }
 
     /// <summary>First L_WORLD surface crossed by the segment, or Vector2.Inf. Ray ignores one-way; caller gates on descending.</summary>
@@ -129,15 +128,15 @@ public partial class LobProjectile : Node2D
     }
 
     /// <summary>
-    /// Erupt: a hostile AoE Strike (from <see cref="explosion_effect"/>, a self-contained AoeStrike scene) built
+    /// Erupt: a hostile AoE Strike (from <see cref="ExplosionEffect"/>, a self-contained AoeStrike scene) built
     /// from this bomb's tuning, plus a code fallback for a visual-only/missing effect. Same activation pattern
     /// as the enemy melee strike.
     /// </summary>
     private void Explode()
     {
         _phase = Phase.Spent;
-        if (explosion_sfx != "")
-            GetNodeOrNull<Sfx>("/root/Sfx")?.play_at(explosion_sfx, GlobalPosition); // the delayed POP
+        if (ExplosionSfx != "")
+            GetNodeOrNull<Sfx>("/root/Sfx")?.PlayAt(ExplosionSfx, GlobalPosition); // the delayed POP
         Node parent = GetParent();
         if (parent == null)
         {
@@ -145,53 +144,53 @@ public partial class LobProjectile : Node2D
             return;
         }
         // The thrower may have DIED while the bomb flew (a lob outlives its owner) -> drop a freed `source` to null.
-        Node? src = GodotObject.IsInstanceValid(source) ? source : null;
-        Node? effect = explosion_effect != null ? explosion_effect.Instantiate() : null;
+        Node? src = GodotObject.IsInstanceValid(Source) ? Source : null;
+        Node? effect = ExplosionEffect != null ? ExplosionEffect.Instantiate() : null;
 
         var tuning = new SegmentData
         {
-            Damage = explosion_damage,
-            Knockback = explosion_knockback,
-            Stun = explosion_stun,
+            Damage = ExplosionDamage,
+            Knockback = ExplosionKnockback,
+            Stun = ExplosionStun,
         };
         if (effect is Strike strike)
         {
-            // The explosion_effect scene IS a self-contained AoeStrike (own Hitbox + visual) — call it TYPED.
-            strike.hostile = hostile;
-            strike.friendly_fire = friendly_fire;
-            strike.source = src;
+            // The ExplosionEffect scene IS a self-contained AoeStrike (own Hitbox + visual) — call it TYPED.
+            strike.Hostile = Hostile;
+            strike.FriendlyFire = FriendlyFire;
+            strike.Source = src;
             parent.AddChild(strike);
             PlaceAt(strike, GlobalPosition);
-            strike.apply_tuning(tuning, src);
+            strike.ApplyTuning(tuning, src);
             foreach (var a in strike.FindChildren("*", "Area2D", true, false))
                 if (a is Hitbox hb)
                 {
-                    hb.source = src; // credit the blast (knockback + `hit.source is Enemy` checks)
-                    hb.activate();
+                    hb.Source = src; // credit the blast (knockback + `hit.source is Enemy` checks)
+                    hb.Activate();
                 }
         }
         else
         {
             // Fallback for a visual-only (or missing) effect: build the AoeStrike + Hitbox in code.
-            var codeStrike = new AoeStrike { hostile = hostile, friendly_fire = friendly_fire, lifetime = 0.4f, source = src };
+            var codeStrike = new AoeStrike { Hostile = Hostile, FriendlyFire = FriendlyFire, Lifetime = 0.4f, Source = src };
             var hb = new Hitbox
             {
-                damage = explosion_damage,
-                knockback = explosion_knockback,
-                stun = explosion_stun,
-                ranged = true, // a thrown-bomb blast reads as ranged (nasen etc. react by type)
-                source = src,
+                Damage = ExplosionDamage,
+                Knockback = ExplosionKnockback,
+                Stun = ExplosionStun,
+                Ranged = true, // a thrown-bomb blast reads as ranged (nasen etc. react by type)
+                Source = src,
             };
-            hb.AddChild(MakeBox(explosion_extents * 2.0f, new Vector2(0, -explosion_extents.Y)));
+            hb.AddChild(MakeBox(ExplosionExtents * 2.0f, new Vector2(0, -ExplosionExtents.Y)));
             codeStrike.AddChild(hb);
             if (effect is Node2D vis)
             {
-                vis.Position = explosion_effect_pos;
+                vis.Position = ExplosionEffectPos;
                 codeStrike.AddChild(vis);
             }
             parent.AddChild(codeStrike); // _Ready: team layers + self-free timer
             PlaceAt(codeStrike, GlobalPosition);
-            hb.activate();
+            hb.Activate();
         }
         QueueFree();
     }

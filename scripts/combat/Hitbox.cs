@@ -9,34 +9,32 @@ namespace MyGame;
 /// it can hit again. Melee-style boxes toggle on for their active frames via <c>activate()</c>/<c>deactivate()</c>;
 /// a projectile just leaves it active for its whole life. C# port of <c>scripts/combat/hitbox.gd</c>.
 ///
-/// NAMING: the public surface keeps the original <c>snake_case</c> (<c>damage</c>, <c>source</c>,
-/// <c>activate</c>, <c>struck</c>, …) so the still-GDScript callers AND the <c>.tscn</c>-authored
-/// <c>[Export]</c> values keep working UNCHANGED through the migration. It becomes idiomatic PascalCase in the
-/// final cleanup pass, once every caller is C#. Internals are idiomatic now.
+/// The <c>[Export]</c> names are also the property keys in the <c>.tscn</c> files that set them: rename one here
+/// and every scene that sets it must be renamed with it.
 /// </summary>
 [GlobalClass]
 public partial class Hitbox : Area2D
 {
-    [Export] public float damage { get; set; } = 10.0f;
-    [Export] public float knockback { get; set; }
-    [Export] public float gust { get; set; }
-    [Export] public float stun { get; set; }
-    [Export] public Color status_color { get; set; } = new(0, 0, 0, 0);
-    [Export] public float status_time { get; set; }
-    [Export] public PackedScene? victim_vfx { get; set; }
-    [Export] public float victim_vfx_time { get; set; }
-    [Export] public bool ranged { get; set; }
-    [Export] public bool from_special { get; set; }
-    [Export] public float frenemy_time { get; set; }
-    [Export] public float dot_percent { get; set; }
-    [Export] public float dot_time { get; set; }
+    [Export] public float Damage { get; set; } = 10.0f;
+    [Export] public float Knockback { get; set; }
+    [Export] public float Gust { get; set; }
+    [Export] public float Stun { get; set; }
+    [Export] public Color StatusColor { get; set; } = new(0, 0, 0, 0);
+    [Export] public float StatusTime { get; set; }
+    [Export] public PackedScene? VictimVfx { get; set; }
+    [Export] public float VictimVfxTime { get; set; }
+    [Export] public bool Ranged { get; set; }
+    [Export] public bool FromSpecial { get; set; }
+    [Export] public float FrenemyTime { get; set; }
+    [Export] public float DotPercent { get; set; }
+    [Export] public float DotTime { get; set; }
 
     /// <summary>Who fired this, passed along so the victim knocks back away from them.</summary>
-    public Node? source;
+    public Node? Source;
 
     /// <summary>Emitted when this box connects with a Hurtbox — lets a projectile free on impact.</summary>
     [Signal]
-    public delegate void struckEventHandler(Hurtbox victim);
+    public delegate void StruckEventHandler(Hurtbox victim);
 
     private readonly List<Hurtbox> _alreadyHit = new();
 
@@ -52,11 +50,11 @@ public partial class Hitbox : Area2D
     }
 
     /// <summary>
-    /// Turn the box on until <see cref="deactivate"/> (an attack's active frames, or a projectile's whole
+    /// Turn the box on until <see cref="Deactivate"/> (an attack's active frames, or a projectile's whole
     /// life). Parameterless because GDScript does NOT honour C# default parameters — the timed variant is
     /// <see cref="ActivateTimed"/>.
     /// </summary>
-    public void activate()
+    public void Activate()
     {
         _alreadyHit.Clear();
         _connectedSinceActivate = false;
@@ -66,20 +64,20 @@ public partial class Hitbox : Area2D
     /// <summary>Activate, then auto-deactivate after <paramref name="duration"/> seconds (a discrete strike).</summary>
     public void ActivateTimed(float duration)
     {
-        activate();
+        Activate();
         if (duration > 0.0f)
-            GetTree().CreateTimer(duration).Timeout += deactivate;
+            GetTree().CreateTimer(duration).Timeout += Deactivate;
     }
 
     /// <summary>Turn the box off — the end of a swing's active frames, or a projectile expiring. A PLAYER attack box
     /// (source is the Player) that struck nobody this activation is a WHIFF → notify the player (OnMiss buffs).
     /// Gated to non-special boxes so surges/specials don't feed attack-miss procs.</summary>
-    public void deactivate()
+    public void Deactivate()
     {
-        bool whiffed = Monitoring && !_connectedSinceActivate && !from_special;
+        bool whiffed = Monitoring && !_connectedSinceActivate && !FromSpecial;
         Monitoring = false;
-        if (whiffed && GodotObject.IsInstanceValid(source) && source is Player p)
-            p.notify_miss();
+        if (whiffed && GodotObject.IsInstanceValid(Source) && Source is Player p)
+            p.NotifyMiss();
     }
 
     /// <summary>
@@ -87,7 +85,7 @@ public partial class Hitbox : Area2D
     /// only fires on ENTER, so a target standing still would never be hit again; this clears the per-hit memory
     /// and re-delivers to whoever's overlapping now. Walk out and you stop taking it. No-op while off.
     /// </summary>
-    public void pulse()
+    public void Pulse()
     {
         if (!Monitoring)
             return;
@@ -107,31 +105,31 @@ public partial class Hitbox : Area2D
         // Never hit our own source's hurtbox (harmless normally — teams don't overlap — but a friendly-fire box
         // would otherwise damage the attacker). IsInstanceValid, not != null: a shot outlives its firer, so
         // `source` may be a FREED ref (which isn't null).
-        if (GodotObject.IsInstanceValid(source) && box.GetParent() == source)
+        if (GodotObject.IsInstanceValid(Source) && box.GetParent() == Source)
             return;
         _alreadyHit.Add(box);
         _connectedSinceActivate = true;
         var hit = new Hit
         {
-            Amount = damage,
-            Knockback = knockback,
-            Gust = gust,
-            Stun = stun,
-            StatusColor = status_color,
+            Amount = Damage,
+            Knockback = Knockback,
+            Gust = Gust,
+            Stun = Stun,
+            StatusColor = StatusColor,
             // Default the status window to the stun duration.
-            StatusTime = status_time > 0.0f ? status_time : stun,
-            VictimVfx = victim_vfx,
-            Ranged = ranged,
-            FromSpecial = from_special,
-            FrenemyTime = frenemy_time,
-            DotPercent = dot_percent,
-            DotTime = dot_time,
+            StatusTime = StatusTime > 0.0f ? StatusTime : Stun,
+            VictimVfx = VictimVfx,
+            Ranged = Ranged,
+            FromSpecial = FromSpecial,
+            FrenemyTime = FrenemyTime,
+            DotPercent = DotPercent,
+            DotTime = DotTime,
         };
         // Default the VFX lifetime to the status/stun window so e.g. a stun effect lasts the whole stun.
-        hit.VictimVfxTime = victim_vfx_time > 0.0f ? victim_vfx_time : hit.StatusTime;
-        Node? credit = GodotObject.IsInstanceValid(source) ? source : Owner;
+        hit.VictimVfxTime = VictimVfxTime > 0.0f ? VictimVfxTime : hit.StatusTime;
+        Node? credit = GodotObject.IsInstanceValid(Source) ? Source : Owner;
         hit.Source = GodotObject.IsInstanceValid(credit) ? credit : null;
-        box.take_hit(hit);
-        EmitSignal(SignalName.struck, box);
+        box.TakeHit(hit);
+        EmitSignal(SignalName.Struck, box);
     }
 }

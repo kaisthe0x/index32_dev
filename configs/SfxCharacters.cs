@@ -6,7 +6,7 @@ namespace MyGame;
 /// <summary>
 /// CHARACTER sounds — PURE DATA (the <see cref="Sfx"/> service + <see cref="ParticleDirector"/> read this).
 /// C# port of <c>configs/sfx_characters.gd</c>. <see cref="CUES"/> is the master key→path list (reference by key,
-/// e.g. <c>Sfx.play("dash")</c>); <see cref="FRAMES"/> is character → animation → { sheet_frame: cue_key }, played by
+/// e.g. <c>Sfx.Play("dash")</c>); <see cref="FRAMES"/> is character → animation → { sheet_frame: cue_key }, played by
 /// ParticleDirector when an animation reaches that frame (SHEET-relative, same numbering as Emitters / HIT_FRAMES).
 /// Key convention: <c>&lt;name&gt;</c> for a whole cue, <c>&lt;name&gt;.&lt;frame&gt;</c> for a frame-specific hit.
 /// </summary>
@@ -20,14 +20,14 @@ public static class SfxCharacters
         // Slam: slam_down = descent whoosh; slam = ground impact (cuts the descent whoosh on landing).
         ["slam_down"] = "res://sfx/character/slam/slam_down.wav",
         ["slam"] = "res://sfx/character/slam/slam.wav",
-        ["run"] = "res://sfx/character/run.wav", // looping footsteps (Sfx.make_loop)
+        ["run"] = "res://sfx/character/run.wav", // looping footsteps (Sfx.MakeLoop)
         ["ruh_absorb"] = "res://sfx/character/ruh_absorb.wav", // a Ruh soul lands on Khalid
         ["player_death"] = "res://sfx/character/death/player_death.wav", // death sting/tone — PLACEHOLDER
         ["player_fall_death"] = "res://sfx/character/fall_to_death.wav", // fell out of the arena — PLACEHOLDER (reuses the slam whoosh)
-        // Low-HP warnings — fired ONCE by Player.take_damage when HP crosses DOWN through a threshold (re-arms if healed).
+        // Low-HP warnings — fired ONCE by Player.TakeDamage when HP crosses DOWN through a threshold (re-arms if healed).
         ["health_half"] = "res://sfx/character/health/health_half.wav", // crossed 50% HP — PLACEHOLDER
         ["health_low"] = "res://sfx/character/health/health_low.wav",   // crossed 20% HP — PLACEHOLDER
-        // Hurt grunts — one picked at RANDOM per hit (Sfx.play_random). Drop 2-3; a missing one is just never picked.
+        // Hurt grunts — one picked at RANDOM per hit (Sfx.PlayRandom). Drop 2-3; a missing one is just never picked.
         ["hurt.1"] = "res://sfx/character/hurt/hurt_1.wav",
         ["hurt.2"] = "res://sfx/character/hurt/hurt_2.wav",
         ["hurt.3"] = "res://sfx/character/hurt/hurt_3.wav",

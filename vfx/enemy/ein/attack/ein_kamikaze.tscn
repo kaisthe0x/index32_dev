@@ -31,7 +31,7 @@ size = Vector2(76, 64)
 
 [node name="EinExplosion" type="Node2D" unique_id=216861655]
 script = ExtResource("StrikeSc")
-lifetime = 0.4
+Lifetime = 0.4
 
 [node name="Flash" type="CPUParticles2D" parent="." unique_id=1492585560]
 z_index = 1
@@ -87,7 +87,7 @@ color_ramp = SubResource("Grad_shard")
 
 [node name="Hitbox" type="Area2D" parent="."]
 script = ExtResource("HitboxSc")
-ranged = true
+Ranged = true
 
 [node name="Shape" type="CollisionShape2D" parent="Hitbox"]
 position = Vector2(0, -16)

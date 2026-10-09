@@ -9,5 +9,5 @@ namespace MyGame;
 /// </summary>
 public interface ITunable
 {
-    void apply_tuning(SegmentData t, Node source);
+    void ApplyTuning(SegmentData t, Node source);
 }

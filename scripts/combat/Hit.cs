@@ -25,7 +25,7 @@ public partial class Hit : RefCounted
     public bool Ranged { get; set; }
     /// <summary>True if from the player's SPECIAL — a special kill doesn't refill Ruh (RunManager checks this).</summary>
     public bool FromSpecial { get; set; }
-    /// <summary>Seconds to CHARM the victim into a temporary ally (0 = none); see Enemy.become_frenemy.</summary>
+    /// <summary>Seconds to CHARM the victim into a temporary ally (0 = none); see Enemy.BecomeFrenemy.</summary>
     public float FrenemyTime { get; set; }
     /// <summary>Optional engulfing overlay tint on the victim (<c>a &gt; 0</c> enables), lasting <see cref="StatusTime"/> s.</summary>
     public Color StatusColor { get; set; } = new(0, 0, 0, 0);

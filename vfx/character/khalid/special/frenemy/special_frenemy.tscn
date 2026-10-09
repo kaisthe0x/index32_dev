@@ -49,7 +49,7 @@ position = Vector2(13, -3)
 collision_layer = 32
 collision_mask = 16
 script = ExtResource("2_hb")
-status_color = Color(0.78039217, 0.16078432, 0.16078432, 1)
+StatusColor = Color(0.78039217, 0.16078432, 0.16078432, 1)
 
 [node name="Shape" type="CollisionShape2D" parent="Hitbox" unique_id=1933370304]
 position = Vector2(10, 2.5)

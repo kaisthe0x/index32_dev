@@ -54,7 +54,7 @@ public sealed class PerkLedger
         var def = Dekken.Get(id);
         return def.Duration switch
         {
-            PerkDuration.OneUse when id == PerkIds.Heal && _player.health >= _player.max_health => "FULL HEALTH",
+            PerkDuration.OneUse when id == PerkIds.Heal && _player.Health >= _player.MaxHealth => "FULL HEALTH",
             PerkDuration.Run when _owned.Contains(id) => "OWNED",
             PerkDuration.Rounds when RoundsLeft(id) >= def.Rounds => "ACTIVE",
             _ => "",
@@ -76,7 +76,7 @@ public sealed class PerkLedger
     /// nothing (<see cref="Blocked"/>), or it's unaffordable.</summary>
     public bool BuyDrink(string id)
     {
-        if (!_stock.Contains(id) || Blocked(id) != "" || !_player.spend_lira(Price(id)))
+        if (!_stock.Contains(id) || Blocked(id) != "" || !_player.SpendLira(Price(id)))
             return false;
         Apply(Dekken.Get(id));
         return true;
@@ -86,7 +86,7 @@ public sealed class PerkLedger
     /// (<see cref="KeepBlocked"/>), or it's unaffordable.</summary>
     public bool BuyKeep(string id)
     {
-        if (!_stock.Contains(id) || KeepBlocked(id) != "" || !_player.spend_lira(Price(id)))
+        if (!_stock.Contains(id) || KeepBlocked(id) != "" || !_player.SpendLira(Price(id)))
             return false;
         _held.Add(id);
         _heldChanged(this);
@@ -127,7 +127,7 @@ public sealed class PerkLedger
         {
             case PerkDuration.OneUse:
                 if (def.Id == PerkIds.Heal)
-                    _player.heal(def.Value);
+                    _player.Heal(def.Value);
                 else if (def.Id == PerkIds.FastTravel)
                     _fastTravel();
                 break;
@@ -149,20 +149,20 @@ public sealed class PerkLedger
             if (perk.Def.Duration == PerkDuration.Rounds && --perk.RoundsLeft <= 0)
             {
                 _active.Remove(id);
-                _player.remove_passive(perk);
+                _player.RemovePassive(perk);
             }
         RollStock();
-        _player.refresh_buff_hud();
+        _player.RefreshBuffHud();
     }
 
     /// <summary>Put a fresh <paramref name="def"/> perk on the player, replacing any running copy (a renewal).</summary>
     private void Activate(PerkDef def)
     {
         if (_active.TryGetValue(def.Id, out var old))
-            _player.remove_passive(old);
+            _player.RemovePassive(old);
         var perk = new Perk(def);
         _active[def.Id] = perk;
-        _player.add_passive(perk);
+        _player.AddPassive(perk);
     }
 
     /// <summary>Draw a round's stock: up to <see cref="Dekken.StockSize"/> distinct eligible perks — not a whole-run
@@ -170,7 +170,7 @@ public sealed class PerkLedger
     private void RollStock()
     {
         var pool = new List<string>();
-        string special = _player.loadout_id(LoadoutCategory.Special);
+        string special = _player.LoadoutId(LoadoutCategory.Special);
         foreach (PerkDef d in Dekken.PERKS)
             if (!_owned.Contains(d.Id) && (d.RequiresSpecial == null || d.RequiresSpecial == special))
                 pool.Add(d.Id);

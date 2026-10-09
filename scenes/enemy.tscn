@@ -4,5 +4,5 @@
 
 [node name="Enemy" type="CharacterBody2D" unique_id=753519185]
 script = ExtResource("1_enemy")
-move_speed = 60.0
-aggro_range = 700.0
+MoveSpeed = 60.0
+AggroRange = 700.0

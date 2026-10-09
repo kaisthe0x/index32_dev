@@ -31,13 +31,13 @@ public partial class Shot : Passive
         int n = on ? (int)v : -(int)v; // additive stats
         switch (Def.Stat)
         {
-            case ShotStat.Dashes: p.add_dash_charges(n); break;
-            case ShotStat.AirJumps: p.add_air_jumps(n); break;
-            case ShotStat.JumpHeight: p.jump_velocity_bonus *= f; break;
-            case ShotStat.RunSpeed: p.scale_run_speed(f); break;
-            case ShotStat.Reach: p.attack_reach_mult *= f; break;
-            case ShotStat.AttackDamage: p.damage_mult *= f; break;
-            case ShotStat.SlamDamage: p.slam_damage_mult *= f; break;
+            case ShotStat.Dashes: p.AddDashCharges(n); break;
+            case ShotStat.AirJumps: p.AddAirJumps(n); break;
+            case ShotStat.JumpHeight: p.JumpVelocityBonus *= f; break;
+            case ShotStat.RunSpeed: p.ScaleRunSpeed(f); break;
+            case ShotStat.Reach: p.AttackReachMult *= f; break;
+            case ShotStat.AttackDamage: p.DamageMult *= f; break;
+            case ShotStat.SlamDamage: p.SlamDamageMult *= f; break;
         }
     }
 

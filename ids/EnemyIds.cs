@@ -2,7 +2,7 @@ namespace MyGame;
 
 /// <summary>
 /// Stable string IDs for the enemy roster. `const string` (see <see cref="AttackIds"/>): the id IS the runtime
-/// <c>enemy_id</c> AND the key into the EmittersEnemies / SfxEnemies / EnemyMarkers tables — nothing to convert.
+/// <c>EnemyId</c> AND the key into the EmittersEnemies / SfxEnemies / EnemyMarkers tables — nothing to convert.
 /// Reference them (<c>EnemyIds.Kebus</c>) instead of raw string literals.
 /// </summary>
 public static class EnemyIds

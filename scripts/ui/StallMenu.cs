@@ -64,7 +64,7 @@ public abstract partial class StallMenu : CanvasLayer
     /// <summary>Rebuild the balance line and every row.</summary>
     protected void Refresh()
     {
-        _balance.Text = $"LIRA {Player.lira}    FIGS {Player.fada_figs}";
+        _balance.Text = $"LIRA {Player.Lira}    FIGS {Player.FadaFigs}";
         foreach (Node child in _rows.GetChildren())
             child.QueueFree();
         FillRows(_rows);
@@ -108,7 +108,7 @@ public abstract partial class StallMenu : CanvasLayer
         {
             if (!act())
                 return;
-            GetNodeOrNull<Sfx>("/root/Sfx")?.play("buff_select"); // PLACEHOLDER cue
+            GetNodeOrNull<Sfx>("/root/Sfx")?.Play("buff_select"); // PLACEHOLDER cue
             Refresh();
         };
         return b;

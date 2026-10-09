@@ -4,7 +4,7 @@ namespace MyGame;
 
 /// <summary>
 /// Something that pops off an enemy and flies to the player on a CURVED (quadratic Bezier) path bowed by
-/// <see cref="arc_height"/>, always arriving at the end of <see cref="flight_time"/> (unless the target is gone — then
+/// <see cref="ArcHeight"/>, always arriving at the end of <see cref="FlightTime"/> (unless the target is gone — then
 /// it just frees). On arrival it shrinks into the target and calls <see cref="OnArrived"/>. The shared motion behind the
 /// Ruh soul (<see cref="RuhOrb"/>) and the Lira coin (<see cref="Lira"/>) — a subclass supplies only the arrival.
 /// </summary>
@@ -17,10 +17,10 @@ public abstract partial class ArcFlight : Node2D
     private float _t = 0.0f;
     private Phase _phase = Phase.Fly;
 
-    [Export] public float flight_time { get; set; } = 1.1f;
-    [Export] public float arc_height { get; set; } = 90.0f;
-    [Export] public Vector2 target_offset { get; set; } = new(0, -18);
-    [Export] public float absorb_time { get; set; } = 0.12f;
+    [Export] public float FlightTime { get; set; } = 1.1f;
+    [Export] public float ArcHeight { get; set; } = 90.0f;
+    [Export] public Vector2 TargetOffset { get; set; } = new(0, -18);
+    [Export] public float AbsorbTime { get; set; } = 0.12f;
 
     public override void _Ready() => ZIndex = WorldZ.FlyingPickups;
 
@@ -46,8 +46,8 @@ public abstract partial class ArcFlight : Node2D
             return;
         }
 
-        Vector2 dest = _target.GlobalPosition + target_offset;
-        _t += (float)delta / Mathf.Max(flight_time, 0.01f);
+        Vector2 dest = _target.GlobalPosition + TargetOffset;
+        _t += (float)delta / Mathf.Max(FlightTime, 0.01f);
         if (_t >= 1.0f)
         {
             GlobalPosition = dest;
@@ -55,13 +55,13 @@ public abstract partial class ArcFlight : Node2D
             return;
         }
 
-        // Quadratic Bezier p0 -> control -> dest, the control bowed perpendicular (upward-biased) by arc_height.
+        // Quadratic Bezier p0 -> control -> dest, the control bowed perpendicular (upward-biased) by ArcHeight.
         Vector2 mid = _p0.Lerp(dest, 0.5f);
         Vector2 line = dest - _p0;
         Vector2 perp = new Vector2(-line.Y, line.X).Normalized(); // 90deg; zero-safe if line ~ 0
         if (perp.Y > 0.0f)
             perp = -perp; // bow upward
-        Vector2 control = mid + perp * arc_height;
+        Vector2 control = mid + perp * ArcHeight;
         GlobalPosition = Bezier(_p0, control, dest, _t);
     }
 
@@ -78,8 +78,8 @@ public abstract partial class ArcFlight : Node2D
         OnArrived(target);
         var tw = CreateTween();
         tw.SetParallel(true);
-        tw.TweenProperty(this, "global_position", dest, absorb_time);
-        tw.TweenProperty(this, "scale", Vector2.Zero, absorb_time).SetEase(Tween.EaseType.In);
+        tw.TweenProperty(this, "global_position", dest, AbsorbTime);
+        tw.TweenProperty(this, "scale", Vector2.Zero, AbsorbTime).SetEase(Tween.EaseType.In);
         tw.Chain().TweenCallback(Callable.From(QueueFree));
     }
 }

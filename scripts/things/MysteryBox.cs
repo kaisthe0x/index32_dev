@@ -78,7 +78,7 @@ public partial class MysteryBox : Stall
         if (_phase == Phase.Offering && _roll is { } offered)
         {
             _ledger.Take(offered);
-            _sfx?.play_at("buff_select", GlobalPosition); // PLACEHOLDER cue
+            _sfx?.PlayAt("buff_select", GlobalPosition); // PLACEHOLDER cue
             FloatingText.Emit(FloatingTextType.Damage, this, NoticeOffset, offered.Name, 0.0f, OfferColor);
             Pop();
             EndOffer();
@@ -97,7 +97,7 @@ public partial class MysteryBox : Stall
             return;
         _roll = roll;
         Pop();
-        _sfx?.play_at("box_spin", GlobalPosition);
+        _sfx?.PlayAt("box_spin", GlobalPosition);
         _phase = Phase.Spinning;
         _left = BoxRules.SpinTime;
         _flicker = 0.0f;
@@ -145,12 +145,12 @@ public partial class MysteryBox : Stall
         {
             _title.AddThemeColorOverride("font_color", TeddyColor);
             _ledger?.Refund();
-            _sfx?.play_at("box_teddy", GlobalPosition);
+            _sfx?.PlayAt("box_teddy", GlobalPosition);
             _phase = Phase.Leaving;
             _left = LeaveTime;
             return;
         }
-        _sfx?.play_at("box_result", GlobalPosition);
+        _sfx?.PlayAt("box_result", GlobalPosition);
         _phase = Phase.Offering;
         _left = BoxRules.OfferTime;
     }

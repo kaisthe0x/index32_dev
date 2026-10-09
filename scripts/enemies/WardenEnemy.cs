@@ -5,9 +5,9 @@ namespace MyGame;
 /// <summary>
 /// Warden archetype: the elite of the Warden rounds (every 10th round; see <c>docs/game-loop.md</c>). Bigger and
 /// tankier than a grunt, and a RELENTLESS TELEPORTING pursuer — if the player stays beyond
-/// <see cref="teleport_range"/> for <see cref="teleport_delay"/>, he telegraphs then warps in near them (landing
-/// just outside his lunge range, so a dash can dodge). His attack is a LUNGE (the base <c>close_lunge</c> impulse
-/// on a <c>close_type = lunge</c> attack). He plays a cinematic SPAWN on creation (invulnerable during it), and on
+/// <see cref="TeleportRange"/> for <see cref="TeleportDelay"/>, he telegraphs then warps in near them (landing
+/// just outside his lunge range, so a dash can dodge). His attack is a LUNGE (the base <c>CloseLunge</c> impulse
+/// on a <c>CloseType = lunge</c> attack). He plays a cinematic SPAWN on creation (invulnerable during it), and on
 /// death his animation plays and the CORPSE PERSISTS in the world (the base would free it). Warden deaths use their
 /// own SFX. Kroj is the first Warden (an <see cref="EnemyKits"/> entry pointing at this via <c>scene</c>).
 /// Subclass of <see cref="Enemy"/>, like <c>DiverEnemy</c>/<c>SleeperEnemy</c>.
@@ -16,10 +16,10 @@ namespace MyGame;
 public partial class WardenEnemy : Enemy
 {
     [ExportGroup("Warden")]
-    [Export] public float teleport_range { get; set; } = 360.0f;       // player must be beyond this to trigger a warp
-    [Export] public float teleport_delay { get; set; } = 1.6f;         // ...for this long, before the warp begins
-    [Export] public float telegraph_time { get; set; } = 0.45f;        // fair-warp: a beat where the player can dash away
-    [Export] public float teleport_land_offset { get; set; } = 96.0f;  // lands this far from the player (outside lunge range)
+    [Export] public float TeleportRange { get; set; } = 360.0f;       // player must be beyond this to trigger a warp
+    [Export] public float TeleportDelay { get; set; } = 1.6f;         // ...for this long, before the warp begins
+    [Export] public float TelegraphTime { get; set; } = 0.45f;        // fair-warp: a beat where the player can dash away
+    [Export] public float TeleportLandOffset { get; set; } = 96.0f;  // lands this far from the player (outside lunge range)
 
     protected override string FramesPath => "res://resources/wardens/{0}.tres";
 
@@ -68,8 +68,8 @@ public partial class WardenEnemy : Enemy
         base.Act(delta);
     }
 
-    /// <summary>Relentless warp. Once the player is beyond <see cref="teleport_range"/> for
-    /// <see cref="teleport_delay"/>, telegraph (a beat to dash) then blink in near them, just outside lunge range.
+    /// <summary>Relentless warp. Once the player is beyond <see cref="TeleportRange"/> for
+    /// <see cref="TeleportDelay"/>, telegraph (a beat to dash) then blink in near them, just outside lunge range.
     /// Returns true while warping (the caller must not run the normal chase/attack AI).</summary>
     private bool TeleportPursuit(float delta)
     {
@@ -89,10 +89,10 @@ public partial class WardenEnemy : Enemy
                 DoWarp(player);
             return true;
         }
-        if (GlobalPosition.DistanceTo(player.GlobalPosition) > teleport_range)
+        if (GlobalPosition.DistanceTo(player.GlobalPosition) > TeleportRange)
         {
             _farTime += delta;
-            if (_farTime >= teleport_delay)
+            if (_farTime >= TeleportDelay)
                 BeginWarp();
         }
         else
@@ -105,7 +105,7 @@ public partial class WardenEnemy : Enemy
     private void BeginWarp()
     {
         _warping = true;
-        _warpLeft = telegraph_time;
+        _warpLeft = TelegraphTime;
         _telegraph = MakeVfx("warp");   // danger telegraph (placeholder) — worn on the warden while he charges the warp
         if (_telegraph is Node2D n)
             AddChild(n);
@@ -116,7 +116,7 @@ public partial class WardenEnemy : Enemy
     {
         // Land on the near side of the player, just outside lunge range, so a well-timed dash dodges the follow-up.
         int side = GlobalPosition.X <= player.GlobalPosition.X ? -1 : 1;
-        GlobalPosition = new Vector2(player.GlobalPosition.X + side * teleport_land_offset, player.GlobalPosition.Y);
+        GlobalPosition = new Vector2(player.GlobalPosition.X + side * TeleportLandOffset, player.GlobalPosition.Y);
         Face(-side);
         var arrive = MakeVfx("warp");   // arrival burst (placeholder), left in the world
         if (arrive is Node2D a)

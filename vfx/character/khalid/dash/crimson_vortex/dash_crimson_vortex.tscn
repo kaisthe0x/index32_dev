@@ -34,8 +34,8 @@ point_count = 4
 
 [node name="CrimsonVortex" type="Node2D" unique_id=2029558270]
 script = ExtResource("1_strike")
-lifetime = 1.5
-emit_duration = 1.3
+Lifetime = 1.5
+EmitDuration = 1.3
 
 [node name="Vortex" type="CPUParticles2D" parent="." unique_id=765950689]
 amount = 200
@@ -57,7 +57,7 @@ visible = false
 collision_layer = 32
 collision_mask = 16
 script = ExtResource("2_hb")
-damage = 18.0
+Damage = 18.0
 
 [node name="Shape" type="CollisionShape2D" parent="Vortex/Hitbox" unique_id=101]
 shape = SubResource("Circle_hit")

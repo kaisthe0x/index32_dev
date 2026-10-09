@@ -6,10 +6,9 @@ namespace MyGame;
 /// <summary>
 /// Background MUSIC service (autoload <c>Music</c>) — a CROSSFADING bed driven by per-stage PLAYLISTS. Each stage's
 /// tracks are whatever audio files sit in <c>music/&lt;stage&gt;/</c> (auto-discovered — see <see cref="StageTracks"/>),
-/// so you just drop files in the folder, no code edit + names don't matter. <c>play_stage(id)</c> plays them in order
+/// so you just drop files in the folder, no code edit + names don't matter. <c>PlayStage(id)</c> plays them in order
 /// (sorted by filename), each crossfading into the next and wrapping back to the first, forever. Two AudioStreamPlayers
-/// ping-pong so a track can fade in while the previous fades out. C# port of <c>scripts/audio/music.gd</c>. Snake_case
-/// public surface (the bridged C# callers address <c>play_stage/stop</c> by exact name).
+/// ping-pong so a track can fade in while the previous fades out.
 /// </summary>
 public partial class Music : Node
 {
@@ -79,12 +78,12 @@ public partial class Music : Node
 
     /// <summary>Start (or restart) a stage's looping background playlist — its tracks play in order, each crossfading
     /// into the next, wrapping back to the first. Stops + warns if the stage folder has no tracks.</summary>
-    public void play_stage(string stage)
+    public void PlayStage(string stage)
     {
         var list = StageTracks(stage);
         if (list.Length == 0)
         {
-            stop();
+            Stop();
             GD.PushWarning($"Music: no audio files in {MusicDir}{stage}/ (playing nothing)");
             return;
         }
@@ -183,20 +182,20 @@ public partial class Music : Node
     }
 
     /// <summary>Fade the current track out to silence over `fade` seconds, then stop. Ends the playlist.</summary>
-    public void stop(float fade = StartFade)
+    public void Stop(float fade = StartFade)
     {
         _playlistOn = false;
         FadeTo(_active, SilenceDb, fade, true);
     }
 
     /// <summary>Freeze / continue the current track at its position (a menu). Not a fade.</summary>
-    public void pause() => _players[_active].StreamPaused = true;
-    public void resume() => _players[_active].StreamPaused = false;
+    public void Pause() => _players[_active].StreamPaused = true;
+    public void Resume() => _players[_active].StreamPaused = false;
 
     /// <summary>Muffle the music "underwater" (a low-pass swept down over <see cref="MuffleFade"/>) or sweep it back
     /// open — for the pause menu. Runs while paused (this node is ProcessMode.Always). Once fully open the filter is
     /// switched off again.</summary>
-    public void set_muffled(bool on)
+    public void SetMuffled(bool on)
     {
         if (_muffle == null)
             return;
@@ -226,7 +225,7 @@ public partial class Music : Node
         _tweens[i] = t;
     }
 
-    public void set_volume(float v) => AudioBus.SetVolumeLinear(Bus, v);
-    public float get_volume() => AudioBus.GetVolumeLinear(Bus);
-    public void set_muted(bool on) => AudioBus.SetMuted(Bus, on);
+    public void SetVolume(float v) => AudioBus.SetVolumeLinear(Bus, v);
+    public float GetVolume() => AudioBus.GetVolumeLinear(Bus);
+    public void SetMuted(bool on) => AudioBus.SetMuted(Bus, on);
 }

@@ -12,7 +12,7 @@ namespace MyGame;
 [GlobalClass]
 public partial class AttackSelect : CanvasLayer
 {
-    [Signal] public delegate void chosenEventHandler(string id);
+    [Signal] public delegate void ChosenEventHandler(string id);
 
     private const int Columns = 4;
     private const int GridGap = 10;                       // separation between cells (and the details pane width math)
@@ -169,7 +169,7 @@ public partial class AttackSelect : CanvasLayer
     {
         GetTree().Paused = false;
         Input.MouseMode = Input.MouseModeEnum.Hidden; // back to play — hide the cursor
-        EmitSignal(SignalName.chosen, id);
+        EmitSignal(SignalName.Chosen, id);
         QueueFree();
     }
 }

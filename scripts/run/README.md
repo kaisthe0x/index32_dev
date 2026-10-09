@@ -13,7 +13,7 @@ implements is [`docs/game-loop.md`](../../docs/game-loop.md) — **endless CoD-Z
 
 | File | What it is |
 |---|---|
-| `RunManager.cs` (`RunManager`) | The brain + the arena root. Builds ONE arena and runs the **round loop** (a hidden quota per round, trickled in from a mixed roster at the layout's spawn spots, under a concurrent cap; the last few hunt the player, and from round 5 standing still draws kamikazes — then straight into the next round with a ROUND banner — no break), **awards Ruh per damaging hit landed** (via `gain_ruh_on_hit`, skipping a special's own hits — not per kill), **pays Lira on every kill** (coins that fly to the player) **plus a per-kit chance of one Fada Fig**, **spawns a mystery box** (spend figs for a stingy powerful-buff gamble — a win rarely offers a **special-swap** instead) **and the stalls** (Needle Point, Dekken — placed in the layout), ticks the run's `PerkLedger` at each round clear, and restarts the run on death. Owns the camera/death/spawn flair. |
+| `RunManager.cs` (`RunManager`) | The brain + the arena root. Builds ONE arena and runs the **round loop** (a hidden quota per round, trickled in from a mixed roster at the layout's spawn spots, under a concurrent cap; the last few hunt the player, and from round 5 standing still draws kamikazes — then straight into the next round with a ROUND banner — no break), **awards Ruh per damaging hit landed** (via `GainRuhOnHit`, skipping a special's own hits — not per kill), **pays Lira on every kill** (coins that fly to the player) **plus a per-kit chance of one Fada Fig**, **spawns a mystery box** (spend figs for a stingy powerful-buff gamble — a win rarely offers a **special-swap** instead) **and the stalls** (Needle Point, Dekken — placed in the layout), ticks the run's `PerkLedger` at each round clear, and restarts the run on death. Owns the camera/death/spawn flair. |
 | `EnemyKits.cs` (`EnemyKits`) | **The enemy roster** — one typed `EnemyKit` per type (id, name, tier, movement, which scene, and a `Tune` function that sets its combat stats). `RunManager.SpawnPool` draws from these. Edit here to change *who* the enemies are. |
 | `ShotLedger.cs` (`ShotLedger`) | **Needle Point's rules** for one run: the ranks owned of each shot (as `Shot` passives). BUY (break only) raises a shot one rank, permanently, at a rising price. Data in `configs/NeedlePoint.cs`; see the main README § Needle Point shots. |
 | `PerkLedger.cs` (`PerkLedger`) | **Dekken's rules** for one run: the round's stock (5 random perks, rerolled every round), active/owned perks (as `Perk` passives), BUY (break only) + `OnRoundClear`. Data in `configs/Dekken.cs`; see the main README § Dekken perks. |
@@ -51,11 +51,11 @@ Each enemy appears at a **spawn spot** — a `Marker2D` under the layout's `Enem
 from the spots already held, among those at least `Rounds.SpawnMinDistance` (320 px) from the player (so nothing lands
 on top of him); with every spot held the spawn waits (`SpawnOne` returns false, `TickRound` retries). `SpawnAt` puffs, spawns, wires `died`/`damaged`, tracks it in `_enemies`
 and counts it toward the quota unless the kit is `optional`. The enemy **patrols** around its spot until the player
-comes within its `aggro_range` (320 px), so the player has to go **find** enemies (the off-screen arrows help).
+comes within its `AggroRange` (320 px), so the player has to go **find** enemies (the off-screen arrows help).
 A layout with no markers logs an error and spawns nothing.
 
 **Near-player spawns** (from `Rounds.NearSpawnFromRound`, 10): `NearShare(r)` of the grunts — 20% at r10, +10% a round,
-max 70%; never a stationary kit — spawn on the player's floor, BEHIND him (opposite `Player.facing`),
+max 70%; never a stationary kit — spawn on the player's floor, BEHIND him (opposite `Player.Facing`),
 `NearSpawnMin..NearSpawnMax` (100–240 px) away: `NearPlayerSpot` → `PickGroundSurface`. That only uses the floor the
 player stands on: `LevelLayout` splits the Terrain's exposed tops into connected **floor regions** (tops join where
 their surfaces meet — side by side, or along a ramp, `LevelLayout.Linked`; a block step or a sawtooth splits them),
@@ -64,7 +64,7 @@ flat runs of `MinSpawnFloorTiles` (3)+, and `SpotIsClear` drops tiles under some
 From round 10, all spots held also falls back to a near spawn instead of waiting.
 
 **Stragglers:** once the quota has fully spawned and ≤ `Rounds.StragglerCount` (3) remain, `UpdateStragglers` calls
-`Enemy.hunt(Rounds.StragglerSpeedMult)` on each — they chase the player anywhere, no leash, **1.6× faster** (walk
+`Enemy.Hunt(Rounds.StragglerSpeedMult)` on each — they chase the player anywhere, no leash, **1.6× faster** (walk
 animation sped up to match) — so a round never stalls on one he can't find.
 
 **Stand-still kamikazes** (`TickPressure`): from `Rounds.KamikazeFromRound` (5), a player who stays within
@@ -72,7 +72,7 @@ animation sped up to match) — so a round never stalls on one he can't find.
 `SpawnPool`) `KamikazeDistance` (220 px) to a random side (`KamikazeSpot` — the other side if that one is inside a
 wall) and up to `KamikazeHeight` (110 px) above, under any ceiling (`HeadroomAbove`); then another every
 `KamikazeInterval(r)` (2 s at r5, ×0.95 a round, min 0.75 s) while he stays put, at most `KamikazeMax(r)` alive (5 at
-r5, +1 every 5 rounds, max 8). Moving away resets the clock; Nem's sleep pauses it (`Player.is_channeling_surge`) —
+r5, +1 every 5 rounds, max 8). Moving away resets the clock; Nem's sleep pauses it (`Player.IsChannelingSurge`) —
 kamikazes already diving still come.
 
 **The edge enemy** (`TickEdge`): from `Rounds.VentilatorFromRound` (3), a player who stays within `EdgeZone` (300 px)
@@ -84,23 +84,23 @@ dashes back. One alive at most; the next waits `VentilatorCooldown` (10 s) after
 
 Related, but not in this folder:
 - **Player HP is SLOT-based** (`scripts/Player.cs`): you have **3 blocks**, measured internally in **half-blocks**
-  (`BaseMaxHealth` = 6). **Every hit costs a flat half-block regardless of its damage** (`take_damage` ignores the
+  (`BaseMaxHealth` = 6). **Every hit costs a flat half-block regardless of its damage** (`TakeDamage` ignores the
   amount — so 6 hits kill), and there's no player damage number. Damage-*reduction* is therefore inert (Jnoon's
   mitigation is parked). Healing
   is in half-blocks: the **Nem surge restores one block**, and the **Bloodrush/Skim** buffs give a *chance*
   per hit to restore a half-block (`LifestealBuff`). The HUD shows 3 block cells (half-block resolution).
 - **Ruh** is the other pool — the **surge meter**, in
-  charges/blocks of `Player.RuhPerBlock` (100), capped by `ruh_cap`. You **start a run with 3 charges**
-  (`BASE_RUH_CAP` = 300 — `begin_run` sets it full) and **refill by landing HITS** (`RUH_PER_HIT` = 20,
-  so ~5 hits = 1 charge) — **not kills** — and it **never decays**. API: `gain_ruh_on_hit` /
-  `take_damage` (HP only) / `heal` / `begin_run`. **Specials cost no Ruh** (each has its own cooldown); **surges spend Ruh** (each
-  use costs its `SurgeSpec.cost`, 100 = one charge). Rewards raise `ruh_cap` (toward `MAX_RUH_CAP` = 500, 5 charges).
+  charges/blocks of `Player.RuhPerBlock` (100), capped by `RuhCap`. You **start a run with 3 charges**
+  (`BASE_RUH_CAP` = 300 — `BeginRun` sets it full) and **refill by landing HITS** (`RUH_PER_HIT` = 20,
+  so ~5 hits = 1 charge) — **not kills** — and it **never decays**. API: `GainRuhOnHit` /
+  `TakeDamage` (HP only) / `heal` / `BeginRun`. **Specials cost no Ruh** (each has its own cooldown); **surges spend Ruh** (each
+  use costs its `SurgeSpec.Cost`, 100 = one charge). Rewards raise `RuhCap` (toward `MAX_RUH_CAP` = 500, 5 charges).
 - **The Ruh orbs** are in the HUD gauge under the health stars — one orb per charge; each surge empties one.
 - **Surges apply a timed effect + aura** (`Player._begin_surge(SurgeSpec)`, fired by `Player._try_surge`
   on the dedicated `surge` button) — **Aegis** = invuln, **Jnoon** = ×2 damage dealt / ×0.5 taken; both
-  for `duration` (+ the Fortitude `special_invuln_bonus`). Effects run on the `_surge_left` timer and
-  clear together in `_end_surge`. Each surge names its own aura scene (`SurgeSpec.aura`).
-- **Enemies** emit `damaged` (→ RunManager awards Ruh via `gain_ruh_on_hit`, skipping a special's own
+  for `duration` (+ the Fortitude `SpecialInvulnBonus`). Effects run on the `_surge_left` timer and
+  clear together in `_end_surge`. Each surge names its own aura scene (`SurgeSpec.Aura`).
+- **Enemies** emit `damaged` (→ RunManager awards Ruh via `GainRuhOnHit`, skipping a special's own
   hits) and `died` in `Enemy._die` (→ `OnEnemyDied`: frees a cap slot + rolls the drops; no longer banks Ruh).
 - **Spawn puff**: `vfx/spawn/enemy_spawn.tscn` (fired at each spawn spot).
 
@@ -109,15 +109,15 @@ Related, but not in this folder:
 1. `RunManager.BuildArena()` sets the `bg` tint (`Terrain.BackgroundTint`), loads a random
    `stage1_v*.tscn` layout, places the player at its `PlayerSpawn`, and resets the round state; **round 1** starts on the
    first tick of play (after the attack pick + spawn). The stage
-   music (`Music.play_stage`) starts as the arena loads (the colour-scheme screen before it is silent).
+   music (`Music.PlayStage`) starts as the arena loads (the colour-scheme screen before it is silent).
 2. **Rounds** (see *Enemy spawning* above): quota trickle under the cap → spawning stops → last kill clears → the
    next round starts at once. RunManager pushes `HUD.SetRound(round, left, best)` on every change, so the HUD shows
    `ROUND n`, `n LEFT` once `Rounds.ShowLeftAt` or fewer remain, and `BEST n`. **Round sound** (`SfxWorld`,
    `sfx/world/round/round_start.wav`): `round_start` plays as each round begins, with the ROUND n label.
-3. **Hitting** an enemy → `damaged` → `gain_ruh_on_hit()` charges the surge meter (a special's own hits are
+3. **Hitting** an enemy → `damaged` → `GainRuhOnHit()` charges the surge meter (a special's own hits are
    skipped). Specials cost no Ruh (cooldown-gated); a **surge** fires only when you have the Ruh → `_try_surge()` spends its `cost`.
 4. **Killing** an enemy → `died` → `OnEnemyDied` → `SpawnDrops` (deferred — death fires mid physics-flush):
-   `Enemy.lira_drop` **Lira** coins that fly to the player and bank on arrival, and — at `Enemy.fig_chance` (10 %
+   `Enemy.LiraDrop` **Lira** coins that fly to the player and bank on arrival, and — at `Enemy.FigChance` (10 %
    default, Kebus 25 %) — **one Fada Fig** that settles until touched. Nothing drops if the enemy fell off the map. A
    quota enemy also frees a cap slot, counts toward the round, and the last one clears it.
 5. **Buffs come from the stalls:**
@@ -126,14 +126,14 @@ Related, but not in this folder:
    - **Dekken (Lira, utility perks), always open:** 5 random perks per round — a heal, a teleport to the box, fig odds,
      a fig magnet, a shield, a free surge, Wider Pull — sold as VIALS: drink at the machine, or keep (2 slots, one
      of a kind) and drink later with Q (Tab picks) — `PerkLedger`, ticked + restocked at `ClearRound`.
-     `StartRound` fires `Player.notify_round_start` (round-scoped perks re-arm).
+     `StartRound` fires `Player.NotifyRoundStart` (round-scoped perks re-arm).
    - **Mystery box (figs, permanent mechanics), real time:** one `MysteryBox` per arena, on one of the layout's box
      spots. **E** spends `BoxRules.Cost` figs → it spins (`SpinTime`) → the result hangs over it (`OfferTime`): **E**
      takes it, leaving it declines (figs spent). The result is a buff the player doesn't hold (`BuffCatalog.Pool`),
      rarely a **special-swap** (`SpecialChance`, `BoxRules.SPECIALS`), or the **teddy bear** (`TeddyChance`): figs
      refunded, the box relocates (a hard spot `HardSpotChance` of the time) under a beam. `BoxLedger` holds the rules.
 6. **Death** (HP hits 0 — the 6th hit) → `SaveData.ReportRun(_round)` records the round reached (new best →
-   `rounds_record`), then the whole run restarts via `Player.begin_run` (buffs cleared, a full 3 blocks of HP / a
+   `rounds_record`), then the whole run restarts via `Player.BeginRun` (buffs cleared, a full 3 blocks of HP / a
    full 3-charge Ruh meter) + a fresh `BuildArena()`; the run-start `AttackSelect` re-opens.
 
 ## Tuning cheatsheet
@@ -145,7 +145,7 @@ Related, but not in this folder:
 - **Cap a specific enemy type** → set `SpawnCap = N` on its kit in `EnemyKits` (e.g. Nasen: `with { SpawnCap = 1 }`). The cap grows
   +1 every `Rounds.KitCapGrowthRounds` rounds. Kits with no `SpawnCap` are unlimited.
 - **Change the drops** → Lira per kill: `RunManager.LiraForTier` (by advisory tier) or a kit's `LiraDrop`; fig
-  odds: `fig_chance` in the kit's `Tune` (default `Enemy.fig_chance` = 0.1). Pickup cues `lira_collect` / `fada_fig_collect` in
+  odds: `FigChance` in the kit's `Tune` (default `Enemy.FigChance` = 0.1). Pickup cues `lira_collect` / `fada_fig_collect` in
   `SfxWorld` (PLACEHOLDERS). The ROUND n intro's timing is `IntroFadeIn` / `IntroHold` / `IntroFly` in `HUD.cs`.
 - **Change the mystery box** → `configs/BoxRules.cs`: `Cost`, `SpinTime`, `OfferTime`, `TeddyChance`, `HardSpotChance`,
   `SpecialChance`, `SPECIALS` (the box-only specials). Where it can stand: the layout's `BoxSpots/Easy` + `BoxSpots/Hard`

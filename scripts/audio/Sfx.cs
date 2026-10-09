@@ -12,8 +12,6 @@ namespace MyGame;
 /// (<see cref="SfxLoudness"/>: its peak momentary loudness) and given the gain that brings it to
 /// <see cref="TargetLoudness"/> — so a new WAV needs no mastering or trim: drop it in, register its key. The per-cue
 /// VOLUMES tables are then only for DELIBERATE mix choices on top (a quiet ambient hum), never loudness fixes.</para>
-///
-/// <para>The PUBLIC surface is still snake_case, a leftover of the GDScript port (docs/standards.md, Known debt).</para>
 /// </summary>
 public partial class Sfx : Node
 {
@@ -75,9 +73,9 @@ public partial class Sfx : Node
         AudioBus.AddEffect(_bus, new AudioEffectHardLimiter { CeilingDb = LimiterCeilingDb });
     }
 
-    public void set_volume(float v) => AudioBus.SetVolumeLinear(Bus, v);
-    public float get_volume() => AudioBus.GetVolumeLinear(Bus);
-    public void set_muted(bool on) => AudioBus.SetMuted(Bus, on);
+    public void SetVolume(float v) => AudioBus.SetVolumeLinear(Bus, v);
+    public float GetVolume() => AudioBus.GetVolumeLinear(Bus);
+    public void SetMuted(bool on) => AudioBus.SetMuted(Bus, on);
 
     /// <summary>The stream for a cue key (cached), or null. Unregistered = silent no-op; registered-but-missing warns.</summary>
     private AudioStream? Stream(string key)
@@ -124,7 +122,7 @@ public partial class Sfx : Node
     }
 
     /// <summary>Fire a one-shot (non-positional). No-op if the key is unregistered or its file is missing.</summary>
-    public void play(string key, float volume_db = 0.0f, float pitch = 1.0f)
+    public void Play(string key, float volume_db = 0.0f, float pitch = 1.0f)
     {
         var s = Stream(key);
         if (s == null || _flat.Count == 0)
@@ -162,7 +160,7 @@ public partial class Sfx : Node
     }
 
     /// <summary>Fire ONE random variant from `keys` (skips unregistered / missing). No-op if none resolve.</summary>
-    public void play_random(IReadOnlyList<string> keys, float volume_db = 0.0f, float pitch = 1.0f)
+    public void PlayRandom(IReadOnlyList<string> keys, float volume_db = 0.0f, float pitch = 1.0f)
     {
         var valid = new List<string>();
         foreach (string k in keys)
@@ -170,7 +168,7 @@ public partial class Sfx : Node
                 valid.Add(k);
         if (valid.Count == 0)
             return;
-        play(valid[(int)(GD.Randi() % (uint)valid.Count)], volume_db, pitch);
+        Play(valid[(int)(GD.Randi() % (uint)valid.Count)], volume_db, pitch);
     }
 
     /// <summary>The stream for `key` forced to LOOP (a duplicate, so the shared one-shot stream is never flipped).</summary>
@@ -207,35 +205,35 @@ public partial class Sfx : Node
     // louder ADDS to VolumeDb (never overwrites it, which would drop the normalization).
 
     /// <summary>A dedicated LOOPING player for `key` the CALLER owns + parents (footsteps, a hum). Null if missing.</summary>
-    public AudioStreamPlayer? make_loop(string key)
+    public AudioStreamPlayer? MakeLoop(string key)
     {
         var s = LoopedStream(key);
         return s == null ? null : new AudioStreamPlayer { Bus = _bus, Stream = s, VolumeDb = GainFor(key) };
     }
 
     /// <summary>A dedicated ONE-SHOT player the CALLER owns (stoppable early, e.g. a slam whoosh). Null if missing.</summary>
-    public AudioStreamPlayer? make_oneshot(string key)
+    public AudioStreamPlayer? MakeOneshot(string key)
     {
         var s = Stream(key);
         return s == null ? null : new AudioStreamPlayer { Bus = _bus, Stream = s, VolumeDb = GainFor(key) };
     }
 
-    /// <summary>Positional twin of make_oneshot(): a one-shot AudioStreamPlayer2D the caller parents on a world object.</summary>
-    public AudioStreamPlayer2D? make_oneshot_2d(string key)
+    /// <summary>Positional twin of MakeOneshot(): a one-shot AudioStreamPlayer2D the caller parents on a world object.</summary>
+    public AudioStreamPlayer2D? MakeOneshot2D(string key)
     {
         var s = Stream(key);
         return s == null ? null : new AudioStreamPlayer2D { Bus = _bus, Stream = s, VolumeDb = GainFor(key) };
     }
 
-    /// <summary>Positional twin of make_loop(): a looping AudioStreamPlayer2D the caller parents at a world spot (an orb hum).</summary>
-    public AudioStreamPlayer2D? make_loop_2d(string key)
+    /// <summary>Positional twin of MakeLoop(): a looping AudioStreamPlayer2D the caller parents at a world spot (an orb hum).</summary>
+    public AudioStreamPlayer2D? MakeLoop2D(string key)
     {
         var s = LoopedStream(key);
         return s == null ? null : new AudioStreamPlayer2D { Bus = _bus, Stream = s, VolumeDb = GainFor(key) };
     }
 
     /// <summary>Fire a one-shot at a world position (2D panning). No-op if missing.</summary>
-    public void play_at(string key, Vector2 world_pos, float volume_db = 0.0f, float pitch = 1.0f)
+    public void PlayAt(string key, Vector2 world_pos, float volume_db = 0.0f, float pitch = 1.0f)
     {
         var s = Stream(key);
         if (s == null || _pos.Count == 0)

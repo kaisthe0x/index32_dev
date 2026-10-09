@@ -16,8 +16,8 @@ public static class EmittersCharacters
 	private static void HomingShot(Node2D node)
 	{
 		var shot = (Projectile)node;
-		shot.homing = 8.0f;
-		shot.can_fly_up = true;
+		shot.Homing = 8.0f;
+		shot.CanFlyUp = true;
 	}
 
 	public static readonly Dictionary<string, Dictionary<string, EmitterDef[]>> TABLE = new()
@@ -30,7 +30,7 @@ public static class EmittersCharacters
 			["jump"] = new[] { new EmitterDef(S("res://vfx/character/khalid/other/general_wind_streaks.tscn"), new Vector2(0, 0)) { Frames = new[] { 0, 1 } } },
 			["fall"] = new[] { new EmitterDef(S("res://vfx/character/khalid/other/general_wind_streaks.tscn"), new Vector2(0, 0)) { Mode = EmitterMode.Sustained, AllFrames = true } },
 			// DASH EFFECTS ("dash_*"): code-fired on dash-start (Player._dash_effect); a "Trail" node FOLLOWS
-			// the player, everything else LINGERS. No "frames" — fired via fire_effect, not on a frame.
+			// the player, everything else LINGERS. No "frames" — fired via FireEffect, not on a frame.
 			["dash_default"] = new[] { new EmitterDef(S("res://vfx/character/khalid/dash/default/dash_default.tscn"), new Vector2(0, -3)) },
 			["dash_crimson_vortex"] = new[] { new EmitterDef(S("res://vfx/character/khalid/dash/crimson_vortex/dash_crimson_vortex.tscn"), new Vector2(0, -16)) },
 			["double_jump"] = new[] { new EmitterDef(S("res://vfx/character/khalid/jump/default/jump_default.tscn"), new Vector2(0, -3)) },

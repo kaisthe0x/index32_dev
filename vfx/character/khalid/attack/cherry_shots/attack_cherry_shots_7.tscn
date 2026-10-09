@@ -17,9 +17,9 @@ point_count = 2
 
 [node name="ShotBig" type="Node2D"]
 script = ExtResource("1_proj")
-speed = 700.0
-homing = 0.0
-max_range = 500.0
+Speed = 700.0
+Homing = 0.0
+MaxRange = 500.0
 
 [node name="Bolt" type="Line2D" parent="."]
 points = PackedVector2Array(-44, 0, 0, 0)
@@ -34,8 +34,8 @@ position = Vector2(-22, 0)
 collision_layer = 32
 collision_mask = 16
 script = ExtResource("2_hb")
-damage = 42.0
-knockback = 90.0
+Damage = 42.0
+Knockback = 90.0
 
 [node name="Shape" type="CollisionShape2D" parent="Hitbox"]
 shape = SubResource("shape_big")

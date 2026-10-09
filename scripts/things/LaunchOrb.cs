@@ -19,8 +19,8 @@ public partial class LaunchOrb : Node2D
     private const float ShineTween = 0.14f;
 
     /// <summary>The SET launch this orb gives (px/s): a strong UP + a good FORWARD. The Player reads these on capture.</summary>
-    [Export] public float launch_up { get; set; } = 950.0f;
-    [Export] public float launch_forward { get; set; } = 650.0f;
+    [Export] public float LaunchUp { get; set; } = 950.0f;
+    [Export] public float LaunchForward { get; set; } = 650.0f;
 
     private AnimatedSprite2D _sprite = null!;
     private ShaderMaterial? _mat;
@@ -44,7 +44,7 @@ public partial class LaunchOrb : Node2D
         }
         ApplyRecolor();
         AddChild(_sprite);
-        _hum = GetNode<Sfx>("/root/Sfx").make_loop_2d("launch_orb");
+        _hum = GetNode<Sfx>("/root/Sfx").MakeLoop2D("launch_orb");
         if (_hum != null)
         {
             AddChild(_hum);
@@ -76,8 +76,8 @@ public partial class LaunchOrb : Node2D
     }
 
     /// <summary>Called by the Player each frame: is Khalid close enough to launch off this orb? Drives the SHINE.</summary>
-    public void set_near(bool value) => _near = value;
+    public void SetNear(bool value) => _near = value;
 
     /// <summary>Play the one-shot "used it" cue at the orb (called by the Player when it captures him).</summary>
-    public void play_use() => GetNode<Sfx>("/root/Sfx").play_at("launch_orb_use", GlobalPosition, 0.0f, 1.0f);
+    public void PlayUse() => GetNode<Sfx>("/root/Sfx").PlayAt("launch_orb_use", GlobalPosition, 0.0f, 1.0f);
 }

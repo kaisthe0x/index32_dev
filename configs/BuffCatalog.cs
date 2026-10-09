@@ -22,7 +22,7 @@ public static class BuffCatalog
         [BuffIds.Bloodrush] = () => new LifestealBuff(BuffIds.Bloodrush, 0.08f),
         [BuffIds.Skim] = () => new LifestealBuff(BuffIds.Skim, 0.03f),
 
-        // --- immunity windows (InvulnBuff via grant_invuln, routed by trigger): seconds ---
+        // --- immunity windows (InvulnBuff via GrantInvuln, routed by trigger): seconds ---
         [BuffIds.DashImmunity] = () => new InvulnBuff(BuffIds.DashImmunity, Trigger.OnDash, 1.5f),
         [BuffIds.JumpImmunity] = () => new InvulnBuff(BuffIds.JumpImmunity, Trigger.OnGroundJump, 1.0f),
         [BuffIds.SlamImmunity] = () => new InvulnBuff(BuffIds.SlamImmunity, Trigger.OnSlamLand, 2.0f),
@@ -92,12 +92,12 @@ public static class BuffCatalog
     {
         var equipped = new HashSet<string>
         {
-            player.loadout_id(LoadoutCategory.Attack), player.loadout_id(LoadoutCategory.Special),
+            player.LoadoutId(LoadoutCategory.Attack), player.LoadoutId(LoadoutCategory.Special),
         };
         var ids = new List<string>();
         foreach (string id in FACTORIES.Keys)
         {
-            if (Parked.Contains(id) || player.has_passive(id))
+            if (Parked.Contains(id) || player.HasPassive(id))
                 continue;
             if (Make(id) is { } b && b.AppliesTo.All(a => a is "*" or "attack" or "special" || equipped.Contains(a)))
                 ids.Add(id);

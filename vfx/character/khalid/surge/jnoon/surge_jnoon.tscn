@@ -5,12 +5,12 @@
 
 [node name="SurgeJnoon" type="Node2D" unique_id=1900001002]
 script = ExtResource("1_orbit")
-count = 14
-moon_texture = ExtResource("2_du2gv")
-moon_color = Color(1.1250899, 0, 0.2521258, 1)
-radius_x = 20.0
-center = Vector2(0, -20)
-speed = 5.0
-near_scale = 0.01
-far_scale = 0.008
-far_alpha = 0.2
+Count = 14
+MoonTexture = ExtResource("2_du2gv")
+MoonColor = Color(1.1250899, 0, 0.2521258, 1)
+RadiusX = 20.0
+Center = Vector2(0, -20)
+Speed = 5.0
+NearScale = 0.01
+FarScale = 0.008
+FarAlpha = 0.2

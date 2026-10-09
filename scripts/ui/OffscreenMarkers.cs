@@ -49,7 +49,7 @@ public partial class OffscreenMarkers : Control
             Vector2 edge = ClampToRect(center, dir, lo, hi);
             float worldDist = enemy.GlobalPosition.DistanceTo(camCenter);
             float t = Mathf.Clamp((worldDist - FadeStart) / Mathf.Max(FadeEnd - FadeStart, 1.0f), 0.0f, 1.0f);
-            Color col = EnemyMarkers.ColorFor(enemy.enemy_id);
+            Color col = EnemyMarkers.ColorFor(enemy.EnemyId);
             col.A = Mathf.Lerp(AlphaNear, AlphaFar, t);
             DrawChevron(edge, dir.Angle(), Mathf.Lerp(SizeNear, SizeFar, t), col);
         }

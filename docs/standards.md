@@ -131,8 +131,14 @@ The game runs up to a few dozen enemies at once, each with a state machine, plus
 - **G4. Signals are connected in code and disconnected or freed with their owner.** No lambda captures a node that
   can outlive it.
 - **G5. Nodes are freed by their owner** (`QueueFree`); nothing is left parented to a container that never clears.
-- **G6. The public surface of older classes is `snake_case`** (a leftover of the GDScript port — see *Known debt*).
-  Inside such a class, match it. A **new** class uses C# conventions (PascalCase members).
+- **G6. C# naming everywhere.** Types, methods, properties, events, signals and non-private fields are `PascalCase`;
+  private fields are `_camelCase`; locals and parameters are `camelCase`. No `snake_case` member — the GDScript-era
+  surface was renamed on 2026-10-09. A signal is declared `[Signal] delegate void DiedEventHandler()` and is the
+  signal `Died`.
+- **G7. An `[Export]` name is a file format.** The property name is the key the `.tscn` / `.tres` files store. Renaming
+  an exported property means renaming that key in every scene that sets it, in the same commit, with the editor
+  closed — and checking it (dump the exported values of every scene before and after; they must match). A scene key
+  the class no longer has is dropped silently on load: the value quietly becomes the default.
 
 ## V — Verification and records
 
@@ -176,8 +182,10 @@ any of them worse, and says so when a change is a cheap chance to reduce one.
 
 - **Oversized classes:** `Player.cs` (~2,270 lines), `Enemy.cs` (~1,240), `RunManager.cs` (~1,090), `HUD.cs` (~620).
   Direction: carve out subsystems as their own classes (S3) when they are next touched.
-- **`snake_case` public members** on `Player`, `Enemy`, `Hitbox`, `Strike`, `Projectile` and `Sfx` — from the
-  GDScript port. Direction: rename when a class is otherwise being reworked, all at once.
+- **`SCREAMING_CASE` names:** the static tables and constants in `configs/` and a few scripts (`CUES`, `VOLUMES`,
+  `TABLE`, `ATTACKS`, `KEBUS`, `MATERIALS`, `MAX_SCHEMES`, …) and the members of `Player.State` (`State.ATTACK`) —
+  also from the GDScript port. C# would have these `PascalCase` (rule `T1` already says so for enum members).
+  Direction: one mechanical rename pass, like the one that removed `snake_case`; new ones are `PascalCase`.
 - **By-name access to engine nodes, in one place:** `VfxPalette.RecolorNode` reads and sets `texture` by property
   name, because any node type may carry a gradient texture. The particle `emitting` / `one_shot` / `finished`
   access that `ParticleDirector` and the enemy walk trail used to do by name now goes through the typed

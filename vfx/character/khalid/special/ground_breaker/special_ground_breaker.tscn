@@ -61,8 +61,8 @@ color_ramp = SubResource("Grad_debris")
 collision_layer = 32
 collision_mask = 16
 script = ExtResource("4_hitbox")
-status_color = Color(0.8232569, 0, 0.07846785, 1)
-victim_vfx = ExtResource("4_8i7vn")
+StatusColor = Color(0.8232569, 0, 0.07846785, 1)
+VictimVfx = ExtResource("4_8i7vn")
 
 [node name="Shape" type="CollisionShape2D" parent="Hitbox" unique_id=884210005]
 position = Vector2(0.5, -1.5)

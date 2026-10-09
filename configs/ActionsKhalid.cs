@@ -146,26 +146,26 @@ public static class ActionsKhalid
 		{
 			Name = "Aegis",
 			Icon = Shield,
-			Surge = new SurgeSpec { duration = 5.0f, invuln = true, cost = 100.0f, aura = "res://vfx/character/khalid/surge/aegis/surge_aegis.tscn" },
+			Surge = new SurgeSpec { Duration = 5.0f, Invuln = true, Cost = 100.0f, Aura = "res://vfx/character/khalid/surge/aegis/surge_aegis.tscn" },
 		},
 		[SurgeIds.Jnoon] = new Action
 		{
 			Name = "Jnoon",
 			Icon = Shield,
 			// Slot health parked Jnoon's damage-reduction (a ×mult is meaningless when every hit costs a flat half-block); keeps ×2 damage dealt.
-			Surge = new SurgeSpec { duration = 5.0f, damage_mult = 2.0f, cost = 100.0f, aura = "res://vfx/character/khalid/surge/jnoon/surge_jnoon.tscn" },
+			Surge = new SurgeSpec { Duration = 5.0f, DamageMult = 2.0f, Cost = 100.0f, Aura = "res://vfx/character/khalid/surge/jnoon/surge_jnoon.tscn" },
 		},
 		[SurgeIds.Asra] = new Action
 		{
 			Name = "Asra",
 			Icon = Shield,
-			Surge = new SurgeSpec { duration = 5.0f, speed_mult = 2.0f, cost = 100.0f, aura = "res://vfx/character/khalid/surge/asra/surge_asra.tscn" },
+			Surge = new SurgeSpec { Duration = 5.0f, SpeedMult = 2.0f, Cost = 100.0f, Aura = "res://vfx/character/khalid/surge/asra/surge_asra.tscn" },
 		},
 		[SurgeIds.Nem] = new Action
 		{
 			Name = "Nem",
 			Icon = Shield,
-			Surge = new SurgeSpec { duration = 5.0f, channel = true, heal_frac = 0.5f, cost = 200.0f, aura = "res://vfx/character/khalid/surge/nem/surge_nem.tscn" },
+			Surge = new SurgeSpec { Duration = 5.0f, Channel = true, HealFrac = 0.5f, Cost = 200.0f, Aura = "res://vfx/character/khalid/surge/nem/surge_nem.tscn" },
 		},
 		[SurgeIds.Wara] = new Action
 		{
@@ -173,21 +173,21 @@ public static class ActionsKhalid
 			Icon = Shield,
 			Surge = new SurgeSpec
 			{
-				trigger = "hit",
-				stun_radius = 150.0f,
-				stun_time = 2.0f,
-				cost = 100.0f,
-				aura = "res://vfx/character/khalid/surge/wara/surge_wara.tscn",
-				burst = "res://vfx/character/khalid/surge/wara/surge_wara_burst.tscn",
+				Trigger = "hit",
+				StunRadius = 150.0f,
+				StunTime = 2.0f,
+				Cost = 100.0f,
+				Aura = "res://vfx/character/khalid/surge/wara/surge_wara.tscn",
+				Burst = "res://vfx/character/khalid/surge/wara/surge_wara_burst.tscn",
 			},
 		},
 	};
 
 	public static readonly Dictionary<string, Dictionary<string, Action>> MOVEMENTS = new()
 	{
-		[MovementIds.Run] = new() { [MovementIds.StandardStride] = new Action { Name = "Standard Stride", Icon = Ember, Move = new Locomotion { run_speed = 230.0f } } },
-		[MovementIds.Jump] = new() { [MovementIds.StandardLeap] = new Action { Name = "Standard Leap", Icon = SoftDot, Move = new Locomotion { air_jumps = 1 } } },
-		[MovementIds.Dash] = new() { [MovementIds.BlinkDash] = new Action { Name = "Blink Dash", Icon = Bolt, Move = new Locomotion { blink = true } } },
+		[MovementIds.Run] = new() { [MovementIds.StandardStride] = new Action { Name = "Standard Stride", Icon = Ember, Move = new Locomotion { RunSpeed = 230.0f } } },
+		[MovementIds.Jump] = new() { [MovementIds.StandardLeap] = new Action { Name = "Standard Leap", Icon = SoftDot, Move = new Locomotion { AirJumps = 1 } } },
+		[MovementIds.Dash] = new() { [MovementIds.BlinkDash] = new Action { Name = "Blink Dash", Icon = Bolt, Move = new Locomotion { Blink = true } } },
 		[MovementIds.Slam] = new() { [MovementIds.StandardSlam] = new Action { Name = "Standard Slam", Icon = Blast1, Move = new Locomotion() } },
 	};
 

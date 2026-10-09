@@ -9,17 +9,17 @@ namespace MyGame;
 /// </summary>
 public partial class SurgeSpec : RefCounted
 {
-    public float cost = 100.0f;
-    public float duration = 5.0f;
-    public bool invuln = false;
-    public float damage_mult = 1.0f;
-    public float damage_taken_mult = 1.0f;
-    public float speed_mult = 1.0f;
-    public bool channel = false;       // a movement-locking sleep/heal channel (Nem)
-    public float heal_frac = 0.0f;
-    public string trigger = "cast";    // "cast" (immediate) or "hit" (armed reactive — Wara)
-    public float stun_radius = 0.0f;
-    public float stun_time = 0.0f;
-    public string aura = "";           // orbit aura VFX scene shown while active
-    public string burst = "";          // Wara: the AoE burst played once WHEN triggered
+    public float Cost = 100.0f;
+    public float Duration = 5.0f;
+    public bool Invuln = false;
+    public float DamageMult = 1.0f;
+    public float DamageTakenMult = 1.0f;
+    public float SpeedMult = 1.0f;
+    public bool Channel = false;       // a movement-locking sleep/heal channel (Nem)
+    public float HealFrac = 0.0f;
+    public string Trigger = "cast";    // "cast" (immediate) or "hit" (armed reactive — Wara)
+    public float StunRadius = 0.0f;
+    public float StunTime = 0.0f;
+    public string Aura = "";           // orbit aura VFX scene shown while active
+    public string Burst = "";          // Wara: the AoE burst played once WHEN triggered
 }

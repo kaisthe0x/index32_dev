@@ -6,6 +6,77 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-09 — `new-shit` — cleanup, part 4 (C# names everywhere)
+
+Step G. The classes ported from GDScript kept their `snake_case` public names (`player.take_damage()`,
+`enemy.max_health`, `_sfx.play_at()`), because GDScript callers and scene files addressed them by name. Every
+caller has been C# for a long time. One commit. Nothing is meant to play differently.
+
+### Every member has a C# name
+
+- **What:** 328 members renamed to `PascalCase` across 29 classes — methods, properties, public fields, and the
+  seven signals. The big ones: `Player` (81), `Enemy` (67), `Locomotion` (23), `Projectile` (21), `Hitbox` (19),
+  `LobProjectile` (16), `SurgeSpec` (13), `OrbitAura` (13), `Sfx` (10), `DiverEnemy` (10). Examples:
+  `take_damage` → `TakeDamage`, `max_health` → `MaxHealth`, `is_dead()` → `IsDead()`, `play_at` → `PlayAt`,
+  `make_loop_2d` → `MakeLoop2D`, signal `health_changed` → `HealthChanged`, `died` → `Died`.
+  No lowercase-named member is left in the game's code.
+- **Why:** rule `G6` (now rewritten: C# naming everywhere) and the last "leftover of the GDScript port" item under
+  Known debt. Two naming styles in one codebase meant every call site made you remember which style that class used.
+- **How:**
+  - **The rename was done by the compiler's own rename engine** (a throwaway Roslyn tool, not kept in the repo), not
+    by search-and-replace. It renames a symbol and every reference to that symbol, and nothing that merely has the
+    same spelling — which matters for names like `health`, `speed`, `source`, `damage`, `count` and `spawn`.
+  - **Scene files.** An `[Export]` name is the key a `.tscn` stores. 27 of the renamed exports are set in scenes: 88
+    property lines in 35 scene files were renamed with them. The rewrite is scoped to nodes whose script owns that
+    export — `lifetime` and `gravity` are also properties of the engine's particle nodes (162 such lines), and those
+    were left alone.
+  - **Four name clashes, settled by hand.** `Player` had public snake_case aliases in front of private methods of the
+    target name: `has_anim` / `fire_effect` (no outside caller — the alias is gone), `refresh_buff_hud` (the private
+    `RefreshBuffHud` is now public), and the property `run_speed` beside the method `RunSpeed()` — the property is
+    now `BaseRunSpeed`. In `ParticleDirector` the private field `node` became `Root`, since `Node` is an engine type.
+  - **Strings.** The only member addressed by a string was `Box.CallDeferred("deactivate")`; it now uses the
+    generated `Hitbox.MethodName.Deactivate`, which the compiler checks. Every other string handed to the engine
+    names an engine property (`modulate:a`, `scale`, `zoom`…).
+  - **Comments and docs** were updated to the new names: 63 comment lines, and the backticked names in `README.md`
+    (about 200 lines), `scripts/run/README.md`, `vfx/README.md` and four smaller docs. The class comments that
+    explained why the names were snake_case are rewritten.
+  - **Rules:** `G6` rewritten; new `G7` — an `[Export]` name is a file format, and how to rename one safely.
+- **Could affect:** everything, in principle — it touches 100+ files — but only in two ways. (1) A reference the
+  compiler cannot see: there is none left that names a renamed member (checked, see below). (2) A scene value that
+  no longer finds its property: Godot drops it silently and the property takes its default.
+- **Tested:**
+  - Build: 0 warnings, 0 errors.
+  - **Scene values: identical.** Before the rename, a headless tool instantiated all 47 scenes and wrote down every
+    script-exported property of every node — 1,005 values. Run again after the rename and compared with the names
+    mapped: 1,005 of 1,005 present, 0 different.
+  - The 10-check and 5-check headless scenes (ported to the new names): all 15 pass.
+  - Clean headless boot of the colour screen and the arena; the owner's save backed up and restored, identical.
+  - Every string literal passed to `TweenProperty` / `CallDeferred` / `Call` / `Connect` listed and checked: all are
+    engine properties.
+  - The four GDScript tools under `tools/` and `vfx/script/` reference none of the renamed names.
+  - **Not tested:** real play. The scene-value check is the strong one here; what it cannot see is a scene value that
+    happened to equal the default both before and after.
+- **Not done, on purpose:**
+  - `SCREAMING_CASE` names — the static tables and constants (`CUES`, `TABLE`, `KEBUS`, `MATERIALS`, `MAX_SCHEMES`,
+    … about 60) and `Player.State`'s members (`State.ATTACK`). Now listed under Known debt; the same tool can do
+    them in one pass.
+  - `SurgeSpec.Trigger` is still a string (`"cast"` / `"hit"`) where rule `T1` wants an enum.
+  - Prose in the docs that names a member without backticks, and the historical docs (`docs/csharp-migration.md`,
+    `docs/game-design.md`, `docs/rewards-design.md`), were not touched.
+- **Found, not changed — unused members, for the owner to decide** (the rename tool can list what nothing
+  references):
+  - `Player`: `BaseRunSpeed`, `JumpVelocity`, `DashSpeed`, `Gravity`, `SlamSpeed`, `MaxAirJumps` (read-only views
+    "for the HUD debug stats panel", which no longer exists), `GetState`, `CurrentAttack`, `CurrentSpecial`,
+    `SetDashEffect` (the unwired crimson-vortex hook noted in part 1).
+  - Audio controls: `Sfx` / `Music` `SetVolume`, `GetVolume`, `SetMuted`; `Music.Pause` / `Resume`;
+    `AudioBus.SetVolumeDb`, `IsMuted`, `GetEffect`, `SetEffectEnabled`.
+  - `CharacterConfig.IDS`, `FramesPath`, `PortraitPath`, `AbilityPath`; `PaletteConfig.SHADES_PER`;
+    `VfxPalette.HueFor`; `StrikeTypes.From`; `StatusDef.Label`; `SurgeSpec.DamageTakenMult`;
+    `Enemy.CurrentAttackType`.
+  - Kept on purpose: `EnemyKits.KROJ` (Warden rounds are planned) and 22 `BuffIds` for buffs not built yet.
+
+---
+
 ## 2026-10-09 — `new-shit` — compile-time log
 
 ### Every build logs how long the C# compile took

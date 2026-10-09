@@ -22,7 +22,7 @@ killing to stay alive.
 **Rough implementation shape (for when we build it):**
 - A run-level `mode` flag (Normal / Hard) chosen at run start.
 - In Hard mode, drain HP at `drain_rate` HP/sec while `alive_enemy_count > 1`; pause otherwise.
-- Heal `kill_heal` HP on each enemy death (hook the existing `Enemy.died` / RunManager kill path).
+- Heal `kill_heal` HP on each enemy death (hook the existing `Enemy.Died` / RunManager kill path).
 - Tune `drain_rate` vs `kill_heal` so a competent player nets positive while fighting, negative
   while idling. Surface the drain in the HUD (e.g. a subtle red vignette pulse or a downward HP
   tick) so it's readable.
@@ -48,7 +48,7 @@ one needs doesn't exist. (Moved here from comments in the code, 2026-10-09.)
   hurtbox non-monitorable during the dash, so an incoming hit never reaches `OnHurt` and there is no "avoided by
   dashing" event. Needs a real perfect-dodge window that doesn't weaken the dodge.
 - **Instant Reset (Zahluq)** — built but parked (`BuffCatalog.Parked`): special-box whiffs don't emit `OnMiss`
-  (`Hitbox.deactivate` only emits it for non-special hits), so it would never fire.
+  (`Hitbox.Deactivate` only emits it for non-special hits), so it would never fire.
 
 ## Sound: beyond the limiter
 

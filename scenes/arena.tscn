@@ -31,4 +31,4 @@ color = Color(0.16, 0.17, 0.22, 1)
 floor_constant_speed = true
 floor_max_angle = 0.87266463
 floor_snap_length = 16.0
-combo_reset_time = 0.6
+ComboResetTime = 0.6

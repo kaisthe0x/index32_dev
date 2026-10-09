@@ -4,7 +4,7 @@ namespace MyGame;
 
 /// <summary>
 /// Slam Spring: on a slam landing, prime the NEXT ground jump with a height multiplier (one-shot,
-/// consumed on that jump — <c>Player.set_jump_spring</c>). Built by <see cref="BuffCatalog"/>.
+/// consumed on that jump — <c>Player.SetJumpSpring</c>). Built by <see cref="BuffCatalog"/>.
 /// </summary>
 public partial class SlamSpringBuff : Buff
 {
@@ -18,5 +18,5 @@ public partial class SlamSpringBuff : Buff
     }
 
     public override void OnSlamLand(Player p, float fallDistance, float fallSpeed) =>
-        p.set_jump_spring(_mult);
+        p.SetJumpSpring(_mult);
 }

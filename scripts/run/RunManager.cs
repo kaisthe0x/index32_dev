@@ -50,7 +50,7 @@ public partial class RunManager : Node2D
     private const float DeathFreeze = 0.5f;
     private const float FallDeathHold = 1.2f;  // min seconds the run lingers after a fall-death (the fall sound may run longer)
 
-    [Export] public NodePath player_path = "Player";
+    [Export] public NodePath PlayerPath = "Player";
 
     private Player _player = null!;
     private Camera2D? _camera;
@@ -96,7 +96,7 @@ public partial class RunManager : Node2D
     public override void _Ready()
     {
         EnsureVialActions();
-        _player = GetNode<Player>(player_path);
+        _player = GetNode<Player>(PlayerPath);
         _camera = GetNodeOrNull<Camera2D>("Camera2D");
         _music = GetNode<Music>("/root/Music");
         _sfx = GetNode<Sfx>("/root/Sfx");
@@ -111,10 +111,10 @@ public partial class RunManager : Node2D
         BuildBg();
         BuildFloor();
         if (_player != null)
-            _player.character = StartCharacter;
+            _player.Character = StartCharacter;
         BuildArena();
         if (_player != null)
-            _player.spawn();
+            _player.Spawn();
         if (_camera != null)
             PlaceAt(_camera, _playerSpawn + new Vector2(0, -30));
         ChooseAttack();
@@ -126,19 +126,19 @@ public partial class RunManager : Node2D
             return;
         float delta = (float)deltaD;
 
-        if (_player.is_dead())
+        if (_player.IsDead())
         {
             HandleDeath(delta);
             return;
         }
-        if (_player.is_spawning())
+        if (_player.IsSpawning())
         {
             HandleSpawn(delta);
             return;
         }
         if (_player.GlobalPosition.Y > DeathY)
         {
-            _player.fall_to_death(); // fell off the arena — that's a death (next tick runs the death flow)
+            _player.FallToDeath(); // fell off the arena — that's a death (next tick runs the death flow)
             return;
         }
         if (_spawning)
@@ -178,7 +178,7 @@ public partial class RunManager : Node2D
 
     private void BuildArena()
     {
-        _music.play_stage("stage1"); // the stage music starts as the arena loads (the colour-scheme screen stays silent)
+        _music.PlayStage("stage1"); // the stage music starts as the arena loads (the colour-scheme screen stays silent)
         _round = 0; // round 1 starts on the first tick of play (after the attack pick + spawn)
         _quota = 0;
         _spawned = 0;
@@ -279,10 +279,10 @@ public partial class RunManager : Node2D
         _quota = Quota(round);
         _spawned = 0;
         _killed = 0;
-        _player?.notify_round_start(); // round-scoped perks re-arm (Shield) / fire (Prepared)
+        _player?.NotifyRoundStart(); // round-scoped perks re-arm (Shield) / fire (Prepared)
         _spawnAccum = SpawnInterval(round); // first enemy arrives immediately
         PushRoundHud(); // the HUD plays the ROUND n intro for a new round
-        _sfx.play("round_start");
+        _sfx.Play("round_start");
     }
 
     /// <summary>The last quota enemy of the round died: timed perks spend a round, Dekken restocks, and the next round
@@ -331,7 +331,7 @@ public partial class RunManager : Node2D
     {
         int n = 0;
         foreach (Enemy e in _enemies)
-            if (IsInstanceValid(e) && e.enemy_id == id)
+            if (IsInstanceValid(e) && e.EnemyId == id)
                 n += 1;
         return n;
     }
@@ -366,10 +366,10 @@ public partial class RunManager : Node2D
         SpawnFx(at);
         var enemy = SpawnEnemy(kit, at);
         var e = enemy; // stable capture for the bound handlers
-        enemy.Connect(Enemy.SignalName.died, Callable.From(() => OnEnemyDied(e)));
-        enemy.Connect(Enemy.SignalName.damaged, Callable.From((float amount, Node? source) => OnEnemyDamaged(amount, source, e)));
+        enemy.Connect(Enemy.SignalName.Died, Callable.From(() => OnEnemyDied(e)));
+        enemy.Connect(Enemy.SignalName.Damaged, Callable.From((float amount, Node? source) => OnEnemyDamaged(amount, source, e)));
         _enemies.Add(enemy);
-        if (!enemy.optional)
+        if (!enemy.Optional)
         {
             _spawned += 1;
             _alive += 1;
@@ -422,7 +422,7 @@ public partial class RunManager : Node2D
     {
         if (_player == null)
             return null;
-        return PickGroundSurface(_player.GlobalPosition, Rounds.NearSpawnMin, Rounds.NearSpawnMax, -_player.facing);
+        return PickGroundSurface(_player.GlobalPosition, Rounds.NearSpawnMin, Rounds.NearSpawnMax, -_player.Facing);
     }
 
     /// <summary>STRAGGLERS: once the round has fully spawned and only <see cref="Rounds.StragglerCount"/> or fewer quota
@@ -432,8 +432,8 @@ public partial class RunManager : Node2D
         if (_spawned < _quota || _quota - _killed > Rounds.StragglerCount)
             return;
         foreach (Enemy e in _enemies)
-            if (IsInstanceValid(e) && !e.optional)
-                e.hunt(Rounds.StragglerSpeedMult);
+            if (IsInstanceValid(e) && !e.Optional)
+                e.Hunt(Rounds.StragglerSpeedMult);
     }
 
     /// <summary>STAND-STILL PRESSURE: from <see cref="Rounds.KamikazeFromRound"/>, a player who stays within
@@ -452,7 +452,7 @@ public partial class RunManager : Node2D
             _kamikazeCd = 0.0f;
             return;
         }
-        if (_player.is_channeling_surge())
+        if (_player.IsChannelingSurge())
             return; // Nem's sleep pauses the clock (ones already diving still come)
         _stillTime += delta;
         _kamikazeCd -= delta;
@@ -634,10 +634,10 @@ public partial class RunManager : Node2D
     private Enemy SpawnEnemy(EnemyKit kit, Vector2 pos)
     {
         var enemy = EnemyScene(kit.Scene).Instantiate<Enemy>();
-        enemy.enemy_id = kit.Id;
-        enemy.display_name = kit.DisplayName;
+        enemy.EnemyId = kit.Id;
+        enemy.DisplayName = kit.DisplayName;
         kit.Tune(enemy);
-        enemy.lira_drop = kit.LiraDrop ?? LiraForTier(kit.Tier);
+        enemy.LiraDrop = kit.LiraDrop ?? LiraForTier(kit.Tier);
         enemy.Position = pos;
         _content.AddChild(enemy);
         return enemy;
@@ -666,7 +666,7 @@ public partial class RunManager : Node2D
         fx.ZIndex = WorldZ.SpawnFx;
         _content.AddChild(fx);
         PlaceAt(fx, pos + SpawnFxOffset);
-        _sfx.play_at("enemy_spawn", pos);
+        _sfx.PlayAt("enemy_spawn", pos);
         GetTree().CreateTimer(1.2).Timeout += () =>
         {
             if (IsInstanceValid(fx))
@@ -680,16 +680,16 @@ public partial class RunManager : Node2D
         // ("Can't change this state while flushing queries"). Capture the values (the enemy frees) + defer the drop.
         // Every kill pays Lira; a per-kit chance also drops ONE fada_fig (the rare currency). None if it fell off-map.
         Vector2 at = enemy.GlobalPosition;
-        int lira = enemy.lira_drop;
+        int lira = enemy.LiraDrop;
         // + the Fig Chance perk — but an enemy that never drops figs (a kamikaze) doesn't start to with it.
-        bool fig = enemy.fig_chance > 0.0f && GD.Randf() < enemy.fig_chance + (_player?.fig_chance_bonus ?? 0.0f);
-        if (!enemy.fell_off)
+        bool fig = enemy.FigChance > 0.0f && GD.Randf() < enemy.FigChance + (_player?.FigChanceBonus ?? 0.0f);
+        if (!enemy.FellOff)
             Callable.From(() => SpawnDrops(at, lira, fig)).CallDeferred();
         _enemies.Remove(enemy);
         _spotOf.Remove(enemy); // its spot is free again
-        if (enemy.enemy_id == EnemyIds.Ventilator)
+        if (enemy.EnemyId == EnemyIds.Ventilator)
             _ventilatorCd = Rounds.VentilatorCooldown; // the next one waits
-        if (enemy.optional)
+        if (enemy.Optional)
             return; // optional enemies (the sleeper, kamikazes, the Ventilator) aren't part of the round
         _alive -= 1;   // free a slot in the concurrency cap
         _killed += 1;
@@ -712,7 +712,7 @@ public partial class RunManager : Node2D
                 var coin = _liraScene.Instantiate<Lira>();
                 _content.AddChild(coin);
                 PlaceAt(coin, at + new Vector2((float)GD.RandRange(-8, 8), -18));
-                coin.launch(_player);
+                coin.Launch(_player);
             }
         if (fig)
         {
@@ -731,17 +731,17 @@ public partial class RunManager : Node2D
         VfxPalette.RecolorTree(orb);
         AddChild(orb);
         PlaceAt(orb, at + new Vector2(0, -18));
-        orb.launch(_player, completedCharge);
+        orb.Launch(_player, completedCharge);
     }
 
     private void OnEnemyDamaged(float amount, Node? source, Enemy enemy)
     {
         if (_player != null && source == _player)
         {
-            _player.notify_hit_dealt(amount, enemy);
-            if (amount > 0.0f && !enemy.last_hit_from_special && _player.gain_ruh_on_hit())
+            _player.NotifyHitDealt(amount, enemy);
+            if (amount > 0.0f && !enemy.LastHitFromSpecial && _player.GainRuhOnHit())
                 SpawnRuhOrb(enemy.GlobalPosition, true);
-            FloatingTextType kind = enemy.last_hit_from_special ? FloatingTextType.DamageSpecial : FloatingTextType.Damage;
+            FloatingTextType kind = enemy.LastHitFromSpecial ? FloatingTextType.DamageSpecial : FloatingTextType.Damage;
             FloatingText.Emit(kind, enemy, DamageNumberOffset, Mathf.RoundToInt(amount).ToString(), amount);
         }
     }
@@ -756,7 +756,7 @@ public partial class RunManager : Node2D
         BuildArena();
         if (_player != null)
         {
-            _player.begin_run();
+            _player.BeginRun();
             ChooseAttack();
         }
         EndDeathCinematic();
@@ -768,17 +768,17 @@ public partial class RunManager : Node2D
             return;
         var ui = new AttackSelect();
         AddChild(ui);
-        ui.chosen += OnAttackChosen;
-        ui.Open(_player.character);
+        ui.Chosen += OnAttackChosen;
+        ui.Open(_player.Character);
     }
 
-    private void OnAttackChosen(string id) => _player.equip(LoadoutCategory.Attack, id);
+    private void OnAttackChosen(string id) => _player.Equip(LoadoutCategory.Attack, id);
 
     // --- death / spawn / camera flair -----------------------------------------
 
     private void HandleDeath(float delta)
     {
-        if (_player.fell_out())
+        if (_player.FellOut())
         {
             HandleFallDeath(delta);
             return;
@@ -794,7 +794,7 @@ public partial class RunManager : Node2D
         _camVel = Vector2.Zero;
         if (_camera != null)
             _camera.GlobalPosition = _camera.GlobalPosition.Lerp(_player.GlobalPosition + new Vector2(0, -18), 0.12f);
-        if (_player.death_complete() && _deathTuneLeft <= 0.0f)
+        if (_player.DeathComplete() && _deathTuneLeft <= 0.0f)
         {
             _deathHold -= delta;
             if (_deathHold <= 0.0f)
@@ -810,7 +810,7 @@ public partial class RunManager : Node2D
         if (!_deadPrev)
         {
             _deadPrev = true;
-            _music.stop();
+            _music.Stop();
             _deathHold = Mathf.Max(FallDeathHold, CueLength("player_fall_death"));
         }
         if ((_deathHold -= delta) <= 0.0f)
@@ -820,7 +820,7 @@ public partial class RunManager : Node2D
     private void BeginDeathCinematic()
     {
         _deathTuneLeft = CueLength("player_death");
-        _music.stop();
+        _music.Stop();
         if (_player != null)
         {
             _player.ZIndex = WorldZ.DeathPlayer;
@@ -842,8 +842,8 @@ public partial class RunManager : Node2D
         CreateTween().TweenProperty(_deathOverlay, "modulate:a", 1.0, DeathFadeIn);
         GetTree().CreateTimer(DeathFreeze).Timeout += () =>
         {
-            if (_player != null && _player.is_dead())
-                _player.release_death();
+            if (_player != null && _player.IsDead())
+                _player.ReleaseDeath();
         };
     }
 
@@ -1015,17 +1015,17 @@ public partial class RunManager : Node2D
         if (_player == null)
             return;
         if (@event.IsActionPressed("debug_damage"))
-            _player.take_damage(12.0f);
+            _player.TakeDamage(12.0f);
         else if (@event.IsActionPressed("debug_heal"))
-            _player.ruh += Player.RuhPerBlock;
+            _player.Ruh += Player.RuhPerBlock;
         else if (@event.IsActionPressed(VialDrinkAction))
             DrinkVial();
         else if (@event.IsActionPressed(VialCycleAction))
             _perks?.CycleHeld();
         else if (@event is InputEventKey k && k.Pressed && !k.Echo && k.Keycode == Key.B)
-            _player.debug_grant_next_buff();   // DEBUG: cycle-grant catalog buffs
+            _player.DebugGrantNextBuff();   // DEBUG: cycle-grant catalog buffs
         else if (@event is InputEventKey k2 && k2.Pressed && !k2.Echo && k2.Keycode == Key.N)
-            _player.debug_clear_buffs();
+            _player.DebugClearBuffs();
     }
 
     // --- Dekken vials (carried perks) -----------------------------------------
@@ -1057,14 +1057,14 @@ public partial class RunManager : Node2D
     /// (e.g. FULL HEALTH: the vial stays in the pocket).</summary>
     private void DrinkVial()
     {
-        if (_perks == null || _player.is_dead())
+        if (_perks == null || _player.IsDead())
             return;
         var (text, drunk) = _perks.DrinkHeld();
         if (text == "")
             return;
         FloatingText.Emit(FloatingTextType.Damage, _player, VialTextOffset, text, 0.0f, drunk ? VialDrunkColor : VialBlockedColor);
         if (drunk)
-            _sfx.play("buff_select"); // PLACEHOLDER cue
+            _sfx.Play("buff_select"); // PLACEHOLDER cue
     }
 
     /// <summary>Show <paramref name="ledger"/>'s carried vials in the HUD (it calls this whenever they change — and once

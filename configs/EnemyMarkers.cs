@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace MyGame;
 
 /// <summary>
-/// Per-enemy MARKER colour for the off-screen enemy arrows (<see cref="OffscreenMarkers"/>). Keyed by enemy_id;
+/// Per-enemy MARKER colour for the off-screen enemy arrows (<see cref="OffscreenMarkers"/>). Keyed by EnemyId;
 /// an unknown id falls back to a threat red.
 /// </summary>
 public static class EnemyMarkers

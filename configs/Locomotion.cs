@@ -10,30 +10,30 @@ namespace MyGame;
 public partial class Locomotion : RefCounted
 {
     // run
-    public float run_speed = 160.0f;
-    public float acceleration = 1200.0f;
-    public float friction = 1400.0f;
-    public float run_anim_speed = 1.5f;
+    public float RunSpeed = 160.0f;
+    public float Acceleration = 1200.0f;
+    public float Friction = 1400.0f;
+    public float RunAnimSpeed = 1.5f;
     // jump / vertical arc / landing
-    public float jump_velocity = -330.0f;
-    public int air_jumps = 2;
-    public float gravity = 900.0f;
-    public float fall_gravity_scale = 1.35f;
-    public float land_min_fall_speed = 140.0f;
-    public float land_predict_distance = 22.0f;
+    public float JumpVelocity = -330.0f;
+    public int AirJumps = 2;
+    public float Gravity = 900.0f;
+    public float FallGravityScale = 1.35f;
+    public float LandMinFallSpeed = 140.0f;
+    public float LandPredictDistance = 22.0f;
     // dash
-    public float dash_speed = 420.0f;
-    public float dash_time = 0.18f;
-    public float dash_cooldown = 0.45f;
-    public float dash_anim_time = 0.30f;
-    public float dash_gravity_scale = 0.35f;
-    public bool blink = false;
+    public float DashSpeed = 420.0f;
+    public float DashTime = 0.18f;
+    public float DashCooldown = 0.45f;
+    public float DashAnimTime = 0.30f;
+    public float DashGravityScale = 0.35f;
+    public bool Blink = false;
     // slam
-    public float slam_speed = 1200.0f;
-    public float slam_min_clearance = 50.0f;
-    public int slam_hold_frame = 2;
-    public float slam_impact_distance = 30.0f;
-    public float slam_min_drop = 120.0f;
-    public float slam_max_drop = 700.0f;
-    public float slam_max_damage_mult = 2.5f;
+    public float SlamSpeed = 1200.0f;
+    public float SlamMinClearance = 50.0f;
+    public int SlamHoldFrame = 2;
+    public float SlamImpactDistance = 30.0f;
+    public float SlamMinDrop = 120.0f;
+    public float SlamMaxDrop = 700.0f;
+    public float SlamMaxDamageMult = 2.5f;
 }

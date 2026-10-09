@@ -22,14 +22,14 @@ public partial class ParticleDirector : Node2D
 	private sealed class Sustained(Node2D node, List<Node> emitters, string anim, List<int> frames, Vector2 pos,
 		BasePose basePose, List<Hitbox> hitboxes)
 	{
-		public readonly Node2D node = node;
-		public readonly List<Node> emitters = emitters;
-		public readonly string anim = anim;
-		public readonly List<int> frames = frames;
-		public readonly Vector2 pos = pos;
-		public readonly BasePose basePose = basePose;
-		public readonly List<Hitbox> hitboxes = hitboxes;
-		public bool active;
+		public readonly Node2D Root = node;
+		public readonly List<Node> Emitters = emitters;
+		public readonly string Anim = anim;
+		public readonly List<int> Frames = frames;
+		public readonly Vector2 Pos = pos;
+		public readonly BasePose BasePose = basePose;
+		public readonly List<Hitbox> Hitboxes = hitboxes;
+		public bool Active;
 	}
 
 	/// <summary>A burst row bound to its animation, with its frames converted to emitted indices.</summary>
@@ -42,8 +42,8 @@ public partial class ParticleDirector : Node2D
 
 	private Sfx _sfx = null!;
 
-	/// <summary>Wire the director to a player sprite; watch frame/animation changes. Call once, then set_character().</summary>
-	public void setup(AnimatedSprite2D sprite)
+	/// <summary>Wire the director to a player sprite; watch frame/animation changes. Call once, then SetCharacter().</summary>
+	public void Setup(AnimatedSprite2D sprite)
 	{
 		_sprite = sprite;
 		_sfx = GetNode<Sfx>("/root/Sfx");
@@ -52,11 +52,11 @@ public partial class ParticleDirector : Node2D
 	}
 
 	/// <summary>Rebuild the emitter set for a character (on swap).</summary>
-	public void set_character(string id)
+	public void SetCharacter(string id)
 	{
 		foreach (var entry in _sustained)
-			if (IsInstanceValid(entry.node))
-				entry.node.QueueFree();
+			if (IsInstanceValid(entry.Root))
+				entry.Root.QueueFree();
 		_sustained.Clear();
 		_bursts.Clear();
 		BuildSfxFrames(id);
@@ -81,7 +81,7 @@ public partial class ParticleDirector : Node2D
 				AddChild(node);
 				var hitboxes = HitboxesOf(node);
 				foreach (var hb in hitboxes)
-					hb.source = Attacker();
+					hb.Source = Attacker();
 				_sustained.Add(new Sustained(node, emitters, anim, frames, row.Pos, Capture(node), hitboxes));
 			}
 		}
@@ -196,26 +196,26 @@ public partial class ParticleDirector : Node2D
 		// The director is a child of the player, so the attacker IS the player (its resolved tuning feeds the hits).
 		if (Attacker() is not Player atk)
 			return;
-		SegmentData hit = atk.active_hit();
+		SegmentData hit = atk.ActiveHit();
 		if (hit == null)
 			return;
 		if (node is ITunable tn)
 		{
-			tn.apply_tuning(hit, atk);
+			tn.ApplyTuning(hit, atk);
 			return;
 		}
 		foreach (var hb in hitboxes)
 		{
-			if (hit.Damage.HasValue) hb.damage = hit.Damage.Value;
+			if (hit.Damage.HasValue) hb.Damage = hit.Damage.Value;
 			// Multiplier applied OVER the hitbox's own baked damage (the slam scales BOTH its boxes by plunge
 			// height this way). Runs after `damage` so an explicit value can still be set first.
-			if (hit.DamageScale.HasValue) hb.damage *= hit.DamageScale.Value;
-			if (hit.Knockback.HasValue) hb.knockback = hit.Knockback.Value;
-			if (hit.Stun.HasValue) hb.stun = hit.Stun.Value;
+			if (hit.DamageScale.HasValue) hb.Damage *= hit.DamageScale.Value;
+			if (hit.Knockback.HasValue) hb.Knockback = hit.Knockback.Value;
+			if (hit.Stun.HasValue) hb.Stun = hit.Stun.Value;
 			if (hit.Color.HasValue)
 			{
-				hb.status_color = hit.Color.Value;
-				hb.status_time = hit.ColorTime ?? hit.Stun ?? 0.0f;
+				hb.StatusColor = hit.Color.Value;
+				hb.StatusTime = hit.ColorTime ?? hit.Stun ?? 0.0f;
 			}
 		}
 	}
@@ -255,24 +255,24 @@ public partial class ParticleDirector : Node2D
 
 		foreach (var entry in _sustained)
 		{
-			if (!IsInstanceValid(entry.node))
+			if (!IsInstanceValid(entry.Root))
 				continue;
-			bool on = entry.anim == anim && entry.frames.Contains(frame);
-			Face(entry.node, entry.basePose, entry.pos, m);
-			foreach (var em in entry.emitters)
+			bool on = entry.Anim == anim && entry.Frames.Contains(frame);
+			Face(entry.Root, entry.BasePose, entry.Pos, m);
+			foreach (var em in entry.Emitters)
 				ParticleNodes.SetEmitting(em, on);
-			if (on != entry.active)
+			if (on != entry.Active)
 			{
 				if (on)
-					InjectTuning(entry.node, entry.hitboxes);
-				foreach (var hb in entry.hitboxes)
+					InjectTuning(entry.Root, entry.Hitboxes);
+				foreach (var hb in entry.Hitboxes)
 				{
 					if (on)
-						hb.activate();
+						hb.Activate();
 					else
-						hb.deactivate();
+						hb.Deactivate();
 				}
-				entry.active = on;
+				entry.Active = on;
 			}
 		}
 
@@ -281,11 +281,11 @@ public partial class ParticleDirector : Node2D
 				FireBurst(b, m);
 
 		if (_sfxFrames.TryGetValue(anim, out var emap) && emap.TryGetValue(frame, out string? cue))
-			_sfx.play_at(cue, GlobalPosition, 0.0f, 1.0f);
+			_sfx.PlayAt(cue, GlobalPosition, 0.0f, 1.0f);
 	}
 
 	/// <summary>Fire the burst emitters configured under `anim` now, as a code-driven one-shot (an event, not a frame).</summary>
-	public void fire_effect(string anim, float tilt = 0.0f)
+	public void FireEffect(string anim, float tilt = 0.0f)
 	{
 		float m = Mirror();
 		foreach (var b in _bursts)
@@ -314,7 +314,7 @@ public partial class ParticleDirector : Node2D
 		Face(node, Capture(node), row.Pos, m);
 		if (!Mathf.IsZeroApprox(tilt))
 			node.Rotation += tilt;
-		float emitDur = node is BlastStrike bs ? bs.emit_duration : 0.0f;
+		float emitDur = node is BlastStrike bs ? bs.EmitDuration : 0.0f;
 		Vector2 target = GlobalPosition + new Vector2(row.Pos.X * m, row.Pos.Y);
 		var world = World();
 		if (row.Follow || world == null)
@@ -346,8 +346,8 @@ public partial class ParticleDirector : Node2D
 		InjectTuning(node, hitboxes);
 		foreach (var hb in hitboxes)
 		{
-			hb.source = Attacker();
-			hb.activate();
+			hb.Source = Attacker();
+			hb.Activate();
 		}
 		if (node is not Projectile && node is not Strike)
 			FreeWhenDone(node, emitters);
@@ -356,15 +356,15 @@ public partial class ParticleDirector : Node2D
 	private void LaunchLob(LobProjectile lob, Vector2 pos, float m)
 	{
 		var atk = Attacker();
-		lob.source = atk;
-		if (atk is Player p && p.active_hit() is SegmentData hit)
+		lob.Source = atk;
+		if (atk is Player p && p.ActiveHit() is SegmentData hit)
 		{
-			if (hit.Damage.HasValue) lob.explosion_damage = hit.Damage.Value;
-			if (hit.Knockback.HasValue) lob.explosion_knockback = hit.Knockback.Value;
-			if (hit.Stun.HasValue) lob.explosion_stun = hit.Stun.Value;
+			if (hit.Damage.HasValue) lob.ExplosionDamage = hit.Damage.Value;
+			if (hit.Knockback.HasValue) lob.ExplosionKnockback = hit.Knockback.Value;
+			if (hit.Stun.HasValue) lob.ExplosionStun = hit.Stun.Value;
 		}
 		Vector2 muzzle = GlobalPosition + new Vector2(pos.X * m, pos.Y);
-		lob.target = NearestEnemyPos(muzzle, m);
+		lob.Target = NearestEnemyPos(muzzle, m);
 		var world = World();
 		if (world != null)
 			world.AddChild(lob);
@@ -409,8 +409,8 @@ public partial class ParticleDirector : Node2D
 			return;
 		float m = Mirror();
 		foreach (var entry in _sustained)
-			if (IsInstanceValid(entry.node))
-				Face(entry.node, entry.basePose, entry.pos, m);
+			if (IsInstanceValid(entry.Root))
+				Face(entry.Root, entry.BasePose, entry.Pos, m);
 	}
 
 	private static void PlaceAt(Node2D node, Vector2 pos)

@@ -5,7 +5,7 @@ namespace MyGame;
 /// <summary>
 /// Grant an invulnerability window when its bound trigger fires — the catalog's immunity buffs
 /// (Dash Immunity, Jump Immunity, Slam Immunity, Hit Guard). One generic class, ROUTED by <see cref="Buff.Trigger"/>:
-/// the granted instance's Trigger picks which hook actually grants. Uses <c>Player.grant_invuln</c>. Built by
+/// the granted instance's Trigger picks which hook actually grants. Uses <c>Player.GrantInvuln</c>. Built by
 /// <see cref="BuffCatalog"/>. (Perfect-Dodge / anim-end immunity land once those triggers emit.)
 /// </summary>
 public partial class InvulnBuff : Buff
@@ -19,7 +19,7 @@ public partial class InvulnBuff : Buff
         _secs = secs;
     }
 
-    private void Grant(Player p) => p.grant_invuln(_secs);
+    private void Grant(Player p) => p.GrantInvuln(_secs);
 
     public override void OnDash(Player p) { if (Trigger == Trigger.OnDash) Grant(p); }
     public override void OnGroundJump(Player p) { if (Trigger == Trigger.OnGroundJump) Grant(p); }

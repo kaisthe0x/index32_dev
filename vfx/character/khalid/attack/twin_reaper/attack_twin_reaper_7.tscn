@@ -17,7 +17,7 @@ colors = PackedColorArray(1.5999943, 0.09894938, 0.14201215, 1, 0.9996026, 0.882
 
 [node name="Reaper7" type="Node2D" unique_id=1300743878]
 script = ExtResource("1_strike")
-lifetime = 0.28
+Lifetime = 0.28
 
 [node name="Hitbox" type="Area2D" parent="." unique_id=26628819]
 position = Vector2(-44, -1)

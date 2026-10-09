@@ -504,11 +504,11 @@ public partial class HUD : CanvasLayer
 		Unbind();
 		_player = player;
 		_ruhFill = VfxPalette.Recolor(RuhFillBase);
-		_player.health_changed += OnHealthChanged;
-		_player.ruh_changed += OnRuhChanged;
+		_player.HealthChanged += OnHealthChanged;
+		_player.RuhChanged += OnRuhChanged;
 		_player.TreeExiting += Unbind;
-		SyncHealth((float)_player.health, (float)_player.max_health, false); // seed silently — no pop-in on bind
-		SyncRuh((float)_player.ruh, (float)_player.ruh_cap, false);
+		SyncHealth((float)_player.Health, (float)_player.MaxHealth, false); // seed silently — no pop-in on bind
+		SyncRuh((float)_player.Ruh, (float)_player.RuhCap, false);
 		SyncGaugeFollow();
 		SetShown(true);
 	}
@@ -517,8 +517,8 @@ public partial class HUD : CanvasLayer
 	{
 		if (_player != null && IsInstanceValid(_player))
 		{
-			_player.health_changed -= OnHealthChanged;
-			_player.ruh_changed -= OnRuhChanged;
+			_player.HealthChanged -= OnHealthChanged;
+			_player.RuhChanged -= OnRuhChanged;
 			_player.TreeExiting -= Unbind;
 		}
 		_player = null;
@@ -552,7 +552,7 @@ public partial class HUD : CanvasLayer
 			return;
 		}
 		UpdateLowHealth(delta);
-		if (_specialBar.SetProgress(_player.special_ready()))
+		if (_specialBar.SetProgress(_player.SpecialReady()))
 			_gaugeWake = GaugeWakeTime; // the special just became ready — light the gauge up
 		UpdateGaugeAlpha(delta);
 	}
