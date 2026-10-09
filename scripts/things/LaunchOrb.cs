@@ -22,9 +22,9 @@ public partial class LaunchOrb : Node2D
     [Export] public float launch_up { get; set; } = 950.0f;
     [Export] public float launch_forward { get; set; } = 650.0f;
 
-    private AnimatedSprite2D _sprite;
-    private ShaderMaterial _mat;
-    private AudioStreamPlayer2D _hum;
+    private AnimatedSprite2D _sprite = null!;
+    private ShaderMaterial? _mat;
+    private AudioStreamPlayer2D? _hum;
     private float _baseY;
     private float _phase;
     private bool _near;

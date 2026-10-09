@@ -6,6 +6,77 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-09 — `new-shit` — cleanup, part 3 (zero compiler warnings)
+
+Step E. The project has had nullable reference checking switched on since the C# port, and the build printed 196
+warnings that nobody could read through. It now prints none, and a new warning fails the build. One commit.
+Nothing is meant to play differently.
+
+### The build is warning-free, and stays that way
+
+- **What:** all 196 warnings are fixed — none is silenced — and `mygamedev.csproj` now sets
+  `TreatWarningsAsErrors`. Almost all were about `null`: a field, parameter or return value declared as "never
+  null" that could be. Each was settled one of two ways (now rule `T7` in `docs/standards.md`):
+  - **It can really be absent → the type says so (`T?`) and every use handles it.** Examples: the player's equipped
+    attack / special / surge (absent in the editor and for a character with no sprite frames), the launch orb in
+    range, the mystery box's current roll, the HUD's bound player, the run's camera and background image,
+    `Actions.GetAction`, `BuffCatalog.Make`, `BoxLedger.Spin`, `LevelLayout.Placed`, the sound service's
+    `make_loop` / `make_oneshot`, the `source` of the enemy `damaged` signal.
+  - **It is always set before anything reads it → declared non-null with `= null!`.** 69 fields: nodes built or
+    fetched in `_Ready` (HUD rows and labels, the player's sprite and hurtbox, menu widgets) and values handed over by
+    the one `Setup` / `Open` call. Each was checked to be assigned unconditionally on that path.
+- **Why:** rule `V1`. With ~200 warnings on every build, a new one — a real "this can be null here" — was invisible.
+  At zero, the compiler does that review on every build for free, and the rule can be enforced by the build itself
+  instead of by comparing counts.
+- **How — the places where code changed shape, not just a type:**
+  - **Surges** (`Player`): `CanSurge()` plus two unguarded reads of `_currentSurge.Surge` became one
+    `ReadySurge()` that returns the surge and its spec together, or nothing. `FireSurge` / `BeginSurge` take the
+    action as a parameter. A channelled surge (Nem) remembers its sleep time in `_surgeSleepTime` when it begins,
+    instead of re-reading the equipped surge mid-channel.
+  - **Attacks and specials** (`Player`): `StartSpecial`, `AdvanceCombo`, `StartFlurry` and `SpecialStrikeFrame`
+    bind the equipped action once at the top and stop if there is none. Before, a missing action would have thrown
+    a null error at the first use; for Khalid there is always one, so this path is not reachable in play today.
+  - **Mystery box**: the roll is passed to `Reveal(roll)` and bound once in `Interact`, instead of read from a
+    nullable field at each step.
+  - **Enemy `damaged` signal**: emitted through the generated typed method with `Node? source` (a
+    damage-over-time tick whose attacker is gone has no source). This removed a `null!` that was lying to the compiler.
+  - **`ParticleDirector`**: a sustained effect's record takes its fields in its constructor (all read-only except
+    `active`), so it cannot exist half-filled.
+  - **Colour screen**: `SwatchRow` took three optional arguments for two different jobs; it is now `PickerRow`
+    (makes and stores a picker) on top of `SwatchRow` (lays a row out).
+  - **`RunManager`**: `SpawnEnemy` cannot return null, so the "spawn failed" branches in `SpawnAt` / `SpawnOne` were
+    dead and are gone. The player is fetched with `GetNode` (a missing Player now logs an engine error at start
+    instead of failing later).
+  - **Leftover of the GDScript port removed**: `Player.RUH_PER_BLOCK`, an instance property that existed only
+    because GDScript cannot read a C# constant. `Player.RuhPerBlock` is now a public constant; HUD and RunManager
+    read it.
+  - **One deprecation**: `SpriteFrames.SetAnimationLoop` → `SetAnimationLoopMode(…, Linear)` in `OverheadStatus`.
+- **Could affect:** firing a surge (button, and the Prepared perk's free one), Nem's sleep and heal, Wara; starting
+  a special, a combo or a flurry; the special's strike frame (the cooldown refund when hit during a windup); the
+  mystery box's spin / offer / take / teddy bear; Ruh orbs and damage numbers (they hang off the `damaged`
+  signal); the health-and-Ruh gauge following Khalid; the looping status icon over an enemy; the colour screen's
+  picker rows.
+- **Tested:**
+  - Build: 0 warnings, 0 errors in all three configurations (`Debug`, `ExportDebug`, `ExportRelease`).
+  - The 10-check headless scene from parts 1 and 2 — all pass.
+  - A second headless scene for what this step touched — 5 checks, all pass: Nem falls asleep for its full
+    duration (4.98 s left on the sleep frame) and heals one star, then ends; a non-flurry combo (Spear) starts and
+    advances; the mystery box takes 8 figs and spins; the offer is taken and the buff joins the player.
+  - Clean headless boot of the colour screen and the arena. The owner's `save.cfg` was backed up before and
+    restored after each run.
+  - **Not tested:** the teddy-bear branch of the box (the roll did not land on it); the gauge following Khalid and
+    the overhead status icon (nothing draws headless); the colour screen's rows by eye.
+- **Left as is — for the owner to decide:**
+  - Several `if (_sprite != null)` / `if (_player != null)` checks guard things that are now declared never-null.
+    They are harmless and were left, because `Player` is a `[Tool]` script that also runs inside the editor and
+    removing them safely means walking each editor path.
+  - Unused audio controls: `Sfx` / `Music` `set_volume`, `get_volume`, `set_muted`, and `AudioBus.SetVolumeDb`,
+    `IsMuted`, `GetEffect`, `SetEffectEnabled` have no caller. They look like the groundwork for volume sliders in
+    the pause menu. Keep if sliders are coming; delete under rule `C1` if not.
+  - `Player.CharacterAbilityFor` always returns null (no character has an intrinsic ability). Same question.
+
+---
+
 ## 2026-10-09 — `new-shit` — cleanup, part 2 (typed content tables)
 
 Step D of bringing the code up to `docs/standards.md`: the game's content tables and the data passed around with

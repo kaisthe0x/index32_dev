@@ -10,9 +10,9 @@ namespace MyGame;
 /// </summary>
 public abstract partial class StallMenu : CanvasLayer
 {
-    protected Player Player { get; private set; }
-    private VBoxContainer _rows;
-    private Label _balance;
+    protected Player Player { get; private set; } = null!;   // set by OpenFrame, before anything reads it
+    private VBoxContainer _rows = null!;
+    private Label _balance = null!;
 
     protected StallMenu()
     {

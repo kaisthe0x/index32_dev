@@ -14,7 +14,7 @@ public partial class NeedlePointMenu : StallMenu
     private const float NextWidth = 104.0f;
     private const float BuyWidth = 80.0f;
 
-    private ShotLedger _ledger;
+    private ShotLedger _ledger = null!;
 
     public void Open(ShotLedger ledger, Player player)
     {

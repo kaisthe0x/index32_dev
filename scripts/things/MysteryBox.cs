@@ -32,16 +32,16 @@ public partial class MysteryBox : Stall
     private const float BeamWidth = 14.0f;
     private const float BeamHeight = 900.0f;
 
-    private BoxLedger _ledger;
+    private BoxLedger? _ledger;
     private List<Vector2> _easy = new(), _hard = new();
     private Phase _phase = Phase.Idle;
     private float _left;        // time left in the current phase
     private float _flicker;     // until the next name change while spinning
-    private BoxRoll _roll;      // the spin in progress / on offer
+    private BoxRoll? _roll;      // the spin in progress / on offer
     private List<string> _spinNames = new();
-    private Label _title, _detail;
-    private Polygon2D _beam;
-    private Sfx _sfx;
+    private Label _title = null!, _detail = null!;
+    private Polygon2D _beam = null!;
+    private Sfx? _sfx;
 
     public override void _Ready()
     {
@@ -75,11 +75,11 @@ public partial class MysteryBox : Stall
     {
         if (_ledger == null)
             return;
-        if (_phase == Phase.Offering)
+        if (_phase == Phase.Offering && _roll is { } offered)
         {
-            _ledger.Take(_roll);
+            _ledger.Take(offered);
             _sfx?.play_at("buff_select", GlobalPosition); // PLACEHOLDER cue
-            FloatingText.Emit(FloatingTextType.Damage, this, NoticeOffset, _roll.Name, 0.0f, OfferColor);
+            FloatingText.Emit(FloatingTextType.Damage, this, NoticeOffset, offered.Name, 0.0f, OfferColor);
             Pop();
             EndOffer();
             return;
@@ -93,9 +93,9 @@ public partial class MysteryBox : Stall
             return;
         }
         _spinNames = _ledger.SpinNames(); // before the spin, so the figs it costs don't change the pool
-        _roll = _ledger.Spin(OtherSpots().Count > 0);
-        if (_roll == null)
+        if (_ledger.Spin(OtherSpots().Count > 0) is not { } roll)
             return;
+        _roll = roll;
         Pop();
         _sfx?.play_at("box_spin", GlobalPosition);
         _phase = Phase.Spinning;
@@ -119,8 +119,8 @@ public partial class MysteryBox : Stall
                 _flicker = FlickerInterval;
                 _title.Text = _spinNames[(int)(GD.Randi() % (uint)_spinNames.Count)];
             }
-            if (_left <= 0.0f)
-                Reveal();
+            if (_left <= 0.0f && _roll is { } rolled)
+                Reveal(rolled);
         }
         else if (_phase == Phase.Offering)
         {
@@ -136,15 +136,15 @@ public partial class MysteryBox : Stall
     }
 
     /// <summary>The spin ends: a teddy bear refunds + sends the box away; anything else goes on offer.</summary>
-    private void Reveal()
+    private void Reveal(BoxRoll roll)
     {
-        _title.Text = _roll.Name;
-        _detail.Text = _roll.Description;
+        _title.Text = roll.Name;
+        _detail.Text = roll.Description;
         Pop();
-        if (_roll.Outcome == BoxOutcome.Teddy)
+        if (roll.Outcome == BoxOutcome.Teddy)
         {
             _title.AddThemeColorOverride("font_color", TeddyColor);
-            _ledger.Refund();
+            _ledger?.Refund();
             _sfx?.play_at("box_teddy", GlobalPosition);
             _phase = Phase.Leaving;
             _left = LeaveTime;

@@ -90,7 +90,7 @@ Related, but not in this folder:
   is in half-blocks: the **Nem surge restores one block**, and the **Bloodrush/Skim** buffs give a *chance*
   per hit to restore a half-block (`LifestealBuff`). The HUD shows 3 block cells (half-block resolution).
 - **Ruh** is the other pool — the **surge meter**, in
-  charges/blocks of `RUH_PER_BLOCK` (100), capped by `ruh_cap`. You **start a run with 3 charges**
+  charges/blocks of `Player.RuhPerBlock` (100), capped by `ruh_cap`. You **start a run with 3 charges**
   (`BASE_RUH_CAP` = 300 — `begin_run` sets it full) and **refill by landing HITS** (`RUH_PER_HIT` = 20,
   so ~5 hits = 1 charge) — **not kills** — and it **never decays**. API: `gain_ruh_on_hit` /
   `take_damage` (HP only) / `heal` / `begin_run`. **Specials cost no Ruh** (each has its own cooldown); **surges spend Ruh** (each
@@ -158,7 +158,7 @@ Related, but not in this folder:
 - **Which buffs the box offers** → `BuffCatalog.FACTORIES` (each with its one value) minus `Parked`, minus what the
   player holds (`BuffCatalog.Pool`); a new buff = a `BuffIds` id + a factory + its `INFO` line.
 - **Change an enemy's stats** → its kit's `Tune` in `EnemyKits.cs` (combat).
-- **Change the Ruh / surge economy** → `Player.RUH_PER_HIT` (fill rate per hit), `RUH_PER_BLOCK`
+- **Change the Ruh / surge economy** → `Player.RUH_PER_HIT` (fill rate per hit), `RuhPerBlock`
   (charge size), `BASE_RUH_CAP` (starting charges), and the Aegis surge's `cost` / `duration` in
   `configs/actions_khalid.gd` (`SURGES`) for its Ruh price + invuln window. (Specials cost no Ruh — their knob is each special's `Cooldown` in `ActionsKhalid.SPECIALS`.)
 

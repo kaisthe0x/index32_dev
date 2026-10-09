@@ -12,7 +12,7 @@ namespace MyGame;
 public partial class OrbitAura : Node2D
 {
     [Export] public int count { get; set; } = 6;
-    [Export] public Texture2D moon_texture { get; set; }
+    [Export] public Texture2D? moon_texture { get; set; }
     [Export] public Color moon_color { get; set; } = new(1.7f, 1.35f, 0.4f); // HDR gold -> blooms; alpha set per-frame
     [Export] public float radius_x { get; set; } = 28.0f;
     [Export] public float radius_y { get; set; } = 11.0f;   // < radius_x -> a tilted (perspective) ring

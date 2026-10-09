@@ -33,7 +33,7 @@ public partial class Sfx : Node
     private readonly List<AudioStreamPlayer> _flat = new();
     private readonly List<AudioStreamPlayer2D> _pos = new();
     private int _fi, _pi;
-    private readonly Dictionary<string, AudioStream> _cache = new();
+    private readonly Dictionary<string, AudioStream?> _cache = new();
     private readonly Dictionary<string, string> _cues = new();  // key -> path, merged from the per-area configs
     private readonly Dictionary<string, float> _vol = new();    // key -> deliberate per-cue mix offset (dB), merged; unlisted = 0
     private readonly Dictionary<string, Vector2> _pitch = new(); // key or dotted-prefix group -> random pitch range (min,max), merged; unlisted = fixed
@@ -80,12 +80,12 @@ public partial class Sfx : Node
     public void set_muted(bool on) => AudioBus.SetMuted(Bus, on);
 
     /// <summary>The stream for a cue key (cached), or null. Unregistered = silent no-op; registered-but-missing warns.</summary>
-    private AudioStream Stream(string key)
+    private AudioStream? Stream(string key)
     {
         if (_cache.TryGetValue(key, out var cached))
             return cached;
-        AudioStream s = null;
-        if (_cues.TryGetValue(key, out string path))
+        AudioStream? s = null;
+        if (_cues.TryGetValue(key, out string? path))
         {
             if (ResourceLoader.Exists(path))
             {
@@ -156,7 +156,7 @@ public partial class Sfx : Node
     private float GainFor(string key)
     {
         float gain = _vol.GetValueOrDefault(key);
-        if (_cues.TryGetValue(key, out string path) && _normalize.TryGetValue(path, out float n))
+        if (_cues.TryGetValue(key, out string? path) && _normalize.TryGetValue(path, out float n))
             gain += n;
         return gain;
     }
@@ -174,7 +174,7 @@ public partial class Sfx : Node
     }
 
     /// <summary>The stream for `key` forced to LOOP (a duplicate, so the shared one-shot stream is never flipped).</summary>
-    private AudioStream LoopedStream(string key)
+    private AudioStream? LoopedStream(string key)
     {
         var s = Stream(key);
         if (s == null)
@@ -207,28 +207,28 @@ public partial class Sfx : Node
     // louder ADDS to VolumeDb (never overwrites it, which would drop the normalization).
 
     /// <summary>A dedicated LOOPING player for `key` the CALLER owns + parents (footsteps, a hum). Null if missing.</summary>
-    public AudioStreamPlayer make_loop(string key)
+    public AudioStreamPlayer? make_loop(string key)
     {
         var s = LoopedStream(key);
         return s == null ? null : new AudioStreamPlayer { Bus = _bus, Stream = s, VolumeDb = GainFor(key) };
     }
 
     /// <summary>A dedicated ONE-SHOT player the CALLER owns (stoppable early, e.g. a slam whoosh). Null if missing.</summary>
-    public AudioStreamPlayer make_oneshot(string key)
+    public AudioStreamPlayer? make_oneshot(string key)
     {
         var s = Stream(key);
         return s == null ? null : new AudioStreamPlayer { Bus = _bus, Stream = s, VolumeDb = GainFor(key) };
     }
 
     /// <summary>Positional twin of make_oneshot(): a one-shot AudioStreamPlayer2D the caller parents on a world object.</summary>
-    public AudioStreamPlayer2D make_oneshot_2d(string key)
+    public AudioStreamPlayer2D? make_oneshot_2d(string key)
     {
         var s = Stream(key);
         return s == null ? null : new AudioStreamPlayer2D { Bus = _bus, Stream = s, VolumeDb = GainFor(key) };
     }
 
     /// <summary>Positional twin of make_loop(): a looping AudioStreamPlayer2D the caller parents at a world spot (an orb hum).</summary>
-    public AudioStreamPlayer2D make_loop_2d(string key)
+    public AudioStreamPlayer2D? make_loop_2d(string key)
     {
         var s = LoopedStream(key);
         return s == null ? null : new AudioStreamPlayer2D { Bus = _bus, Stream = s, VolumeDb = GainFor(key) };

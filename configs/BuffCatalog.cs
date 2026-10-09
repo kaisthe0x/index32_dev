@@ -72,7 +72,7 @@ public static class BuffCatalog
 
     /// <summary>Build the <see cref="Buff"/> for <paramref name="id"/> (null if it isn't implemented), with its Name +
     /// Description filled from <see cref="INFO"/>.</summary>
-    public static Buff Make(string id)
+    public static Buff? Make(string id)
     {
         if (!FACTORIES.TryGetValue(id, out var f))
             return null;
@@ -99,8 +99,7 @@ public static class BuffCatalog
         {
             if (Parked.Contains(id) || player.has_passive(id))
                 continue;
-            Buff b = Make(id);
-            if (b.AppliesTo.All(a => a is "*" or "attack" or "special" || equipped.Contains(a)))
+            if (Make(id) is { } b && b.AppliesTo.All(a => a is "*" or "attack" or "special" || equipped.Contains(a)))
                 ids.Add(id);
         }
         return ids;

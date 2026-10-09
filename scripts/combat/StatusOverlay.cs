@@ -10,8 +10,8 @@ namespace MyGame;
 /// </summary>
 public partial class StatusOverlay : Node2D
 {
-    private AnimatedSprite2D _target;
-    private AnimatedSprite2D _overlay;
+    private AnimatedSprite2D _target = null!;
+    private AnimatedSprite2D _overlay = null!;
     private float _time = 0.0f;
     private Color _color = Colors.White;
     private float _phase = 0.0f;

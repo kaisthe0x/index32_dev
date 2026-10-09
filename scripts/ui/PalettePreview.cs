@@ -45,14 +45,14 @@ public partial class PalettePreview : Control
     private static readonly Dictionary<string, Color> UI_DEFAULTS = new()
         { [UiStyle.PickFrame] = UiStyle.DefaultFrame, [UiStyle.PickAccent] = UiStyle.DefaultAccent };
 
-    private ShaderMaterial _mat, _portraitMat;
-    private ColorRect _backdrop;
-    private AnimatedSprite2D _sprite;
-    private TextureRect _portrait;
-    private PanelContainer _portraitFrame;
-    private ScrollContainer _scroll;
-    private VBoxContainer _col;
-    private Node2D _sample;
+    private ShaderMaterial _mat = null!, _portraitMat = null!;
+    private ColorRect _backdrop = null!;
+    private AnimatedSprite2D _sprite = null!;
+    private TextureRect _portrait = null!;
+    private PanelContainer _portraitFrame = null!;
+    private ScrollContainer _scroll = null!;
+    private VBoxContainer _col = null!;
+    private Node2D? _sample;
     private readonly Dictionary<string, Color> _bodyPicks = new();   // material -> picked Color (missing = default shade ramp)
     private readonly Dictionary<string, Color> _powerPicks = new();  // family -> picked Color (missing = family default)
     private readonly Dictionary<string, ColorPickerButton> _bodyPickers = new();
@@ -60,7 +60,7 @@ public partial class PalettePreview : Control
     private readonly Dictionary<string, Color> _uiPicks = new();     // UiStyle.PickFrame/PickAccent -> picked Color (always both set)
     private readonly Dictionary<string, ColorPickerButton> _uiPickers = new();
     private readonly List<Button> _slotButtons = new();
-    private Button _saveButton;
+    private Button _saveButton = null!;
     private int _activeSlot = -1;  // -1 == the built-in DEFAULT look; 0..MAX-1 == a saved slot
 
     public override void _Ready()
@@ -220,27 +220,27 @@ public partial class PalettePreview : Control
         foreach (var m in PaletteConfig.MATERIALS)
         {
             string mat = m;
-            col.AddChild(SwatchRow(BODY_LABELS[m], BodyPickFor(m), c => OnBodyColour(c, mat), _bodyPickers, m));
+            col.AddChild(PickerRow(BODY_LABELS[m], BodyPickFor(m), c => OnBodyColour(c, mat), _bodyPickers, m));
         }
 
         col.AddChild(Header("POWERS / VFX"));
         foreach (var fam in POWER_ORDER)
         {
             string f = fam;
-            col.AddChild(SwatchRow(POWER_LABELS[fam], _powerPicks[fam], c => OnPowerColour(c, f), _powerPickers, fam));
+            col.AddChild(PickerRow(POWER_LABELS[fam], _powerPicks[fam], c => OnPowerColour(c, f), _powerPickers, fam));
         }
 
         col.AddChild(Header("UI"));
         foreach (var k in UI_ORDER)
         {
             string key = k;
-            col.AddChild(SwatchRow(UI_LABELS[k], _uiPicks[k], c => OnUiColour(c, key), _uiPickers, k));
+            col.AddChild(PickerRow(UI_LABELS[k], _uiPicks[k], c => OnUiColour(c, key), _uiPickers, k));
         }
 
         col.AddChild(Header("BACKDROP"));
         var bgPick = new ColorPickerButton { Color = _backdrop.Color };
         bgPick.ColorChanged += c => _backdrop.Color = c;
-        col.AddChild(SwatchRow("Background", _backdrop.Color, null, null, "", bgPick));
+        col.AddChild(SwatchRow("Background", bgPick));
 
         col.AddChild(Spacer(6));
         var buttons = new HBoxContainer();
@@ -263,10 +263,19 @@ public partial class PalettePreview : Control
     private Color BodyPickFor(string matName) =>
         _bodyPicks.GetValueOrDefault(matName, new Color(PaletteConfig.DEFAULT[matName][1]));
 
-    /// <summary>One labelled row in a subtle strip. If `swatch` is given it's used; else a ColorPickerButton
-    /// is made, seeded to `col`, wired to `cb`, and stored in `store[key]`.</summary>
-    private PanelContainer SwatchRow(string labelText, Color col, Action<Color> cb,
-        Dictionary<string, ColorPickerButton> store, string key, Control swatch = null)
+    /// <summary>A labelled row holding a new ColorPickerButton seeded to `col`, wired to `onPick`, and kept in
+    /// `store[key]` so a scheme switch can update it.</summary>
+    private PanelContainer PickerRow(string labelText, Color col, Action<Color> onPick,
+        Dictionary<string, ColorPickerButton> store, string key)
+    {
+        var picker = new ColorPickerButton { Color = col };
+        picker.ColorChanged += c => onPick(c);
+        store[key] = picker;
+        return SwatchRow(labelText, picker);
+    }
+
+    /// <summary>One labelled row in a subtle strip, with `swatch` on its right.</summary>
+    private PanelContainer SwatchRow(string labelText, Control swatch)
     {
         var strip = new PanelContainer();
         strip.ThemeTypeVariation = UiStyle.RowPanel;
@@ -279,16 +288,8 @@ public partial class PalettePreview : Control
         var row = new HBoxContainer();
         pad.AddChild(row);
         row.AddChild(new Label { Text = labelText, SizeFlagsHorizontal = Control.SizeFlags.ExpandFill, VerticalAlignment = VerticalAlignment.Center });
-        Control pick = swatch;
-        if (pick == null)
-        {
-            var cpb = new ColorPickerButton { Color = col };
-            cpb.ColorChanged += c => cb(c);
-            store[key] = cpb;
-            pick = cpb;
-        }
-        pick.CustomMinimumSize = new Vector2(116, 30);
-        row.AddChild(pick);
+        swatch.CustomMinimumSize = new Vector2(116, 30);
+        row.AddChild(swatch);
         return strip;
     }
 

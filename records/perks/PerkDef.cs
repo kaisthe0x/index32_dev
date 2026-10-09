@@ -7,4 +7,4 @@ namespace MyGame;
 /// is equipped); null = always eligible.
 /// </summary>
 public sealed record PerkDef(string Id, string Name, string Description, PerkDuration Duration, int Rounds, int Price,
-    float Value, string RequiresSpecial = null);
+    float Value, string? RequiresSpecial = null);

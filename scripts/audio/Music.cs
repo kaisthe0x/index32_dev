@@ -28,10 +28,10 @@ public partial class Music : Node
     private readonly List<AudioStreamPlayer> _players = new();
     private readonly Tween[] _tweens = new Tween[2];
     private int _active = 0;
-    private readonly Dictionary<string, AudioStream> _cache = new();
-    private AudioEffectLowPassFilter _muffle;     // added to the Music bus in _Ready; ENABLED only while (un)muffling
+    private readonly Dictionary<string, AudioStream?> _cache = new();
+    private AudioEffectLowPassFilter? _muffle;     // added to the Music bus in _Ready; ENABLED only while (un)muffling
     private int _muffleIdx = -1;
-    private Tween _muffleTween;
+    private Tween? _muffleTween;
 
     // Active playlist state.
     private string[] _playlist = System.Array.Empty<string>();
@@ -146,11 +146,11 @@ public partial class Music : Node
 
     /// <summary>The stream for a track path (cached). Force-looped as a SAFETY NET — if a per-frame crossfade tick is
     /// ever missed, the track repeats rather than going silent (the playlist normally crossfades away before then).</summary>
-    private AudioStream Stream(string path)
+    private AudioStream? Stream(string path)
     {
         if (_cache.TryGetValue(path, out var cached))
             return cached;
-        AudioStream s = null;
+        AudioStream? s = null;
         if (path != "" && ResourceLoader.Exists(path))
         {
             s = GD.Load<AudioStream>(path);

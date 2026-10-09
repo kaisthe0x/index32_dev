@@ -35,7 +35,7 @@ public sealed class BoxLedger
 
     /// <summary>Pay for a spin and roll its result; null if it's <see cref="Blocked"/>. A teddy bear is only possible
     /// when the box <paramref name="canRelocate"/> (the layout has another spot for it).</summary>
-    public BoxRoll Spin(bool canRelocate)
+    public BoxRoll? Spin(bool canRelocate)
     {
         if (Blocked() != "" || !_player.spend_fada_figs(BoxRules.Cost))
             return null;
@@ -46,7 +46,7 @@ public sealed class BoxLedger
         if (specials.Count > 0 && GD.Randf() < BoxRules.SpecialChance)
         {
             string id = specials[(int)(GD.Randi() % (uint)specials.Count)];
-            Action special = Actions.GetAction(_player.character, "specials", id);
+            Action? special = Actions.GetAction(_player.character, "specials", id);
             return new BoxRoll(BoxOutcome.Special, id, special?.Name ?? id, $"SPECIAL — replaces yours. {special?.Description}");
         }
         string buffId = buffs[(int)(GD.Randi() % (uint)buffs.Count)];
@@ -60,8 +60,8 @@ public sealed class BoxLedger
     /// <summary>The player took <paramref name="roll"/>: a buff joins his passives for the run; a special replaces his.</summary>
     public void Take(BoxRoll roll)
     {
-        if (roll.Outcome == BoxOutcome.Buff)
-            _player.add_passive(BuffCatalog.Make(roll.Id));
+        if (roll.Outcome == BoxOutcome.Buff && BuffCatalog.Make(roll.Id) is { } buff)
+            _player.add_passive(buff);
         else if (roll.Outcome == BoxOutcome.Special)
             _player.equip(LoadoutCategory.Special, roll.Id);
     }

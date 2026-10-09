@@ -14,7 +14,7 @@ public partial class OverheadStatus : Node2D
     private const float BobAmpl = 1.5f;
     private const float BobSpeed = 2.2f;
 
-    private AnimatedSprite2D _sprite;
+    private AnimatedSprite2D _sprite = null!;
     private float _yOff = 0.0f;
     private StatusType? _shown = null;
     private float _phase = 0.0f;
@@ -87,7 +87,7 @@ public partial class OverheadStatus : Node2D
         int fw = tex.GetWidth() / Mathf.Max(hframes, 1);
         int fh = tex.GetHeight();
         var sf = new SpriteFrames();
-        sf.SetAnimationLoop("default", true);
+        sf.SetAnimationLoopMode("default", SpriteFrames.LoopMode.Linear);
         sf.SetAnimationSpeed("default", spec.Fps);
         for (int i = 0; i < hframes; i++)
         {

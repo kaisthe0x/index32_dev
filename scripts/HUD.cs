@@ -13,10 +13,10 @@ namespace MyGame;
 /// </summary>
 public partial class HUD : CanvasLayer
 {
-	private Player _player;
+	private Player? _player;
 
-	private CanvasLayer _lowHpLayer;
-	private ShaderMaterial _lowHpMat;
+	private CanvasLayer _lowHpLayer = null!;
+	private ShaderMaterial _lowHpMat = null!;
 	private float _lowHpLevel = 0.0f;
 	private float _lowHpTarget = 0.0f;
 	private float _lowHpTime = 0.0f;
@@ -28,36 +28,36 @@ public partial class HUD : CanvasLayer
 	private const float LowHpPulseBase = 0.72f;
 	private const float LowHpPulsePunch = 0.6f;
 
-	private Control _root;
-	private OffscreenMarkers _markers;
-	private VBoxContainer _gauge;     // health stars over Ruh orbs; reparented between the two placements
+	private Control _root = null!;
+	private OffscreenMarkers _markers = null!;
+	private VBoxContainer _gauge = null!;     // health stars over Ruh orbs; reparented between the two placements
 	private float _gaugeWake = 0.0f;  // seconds left at full brightness after the last change
 	private GaugePlacement _placement;
 	// FollowKhalid placement: the gauge hangs off _gaugeAnchor on its own camera-following CanvasLayer, ABOVE the low-HP
 	// grade (so it stays legible exactly when HP is low) and below the screen HUD. A RemoteTransform2D on the Player drags
 	// the anchor along — set during physics, so physics interpolation smooths it in step with Khalid — and it's NOT a
 	// Player child, so the player's hit-flash / blink modulate never bleeds into it.
-	private CanvasLayer _gaugeLayer;
-	private Node2D _gaugeAnchor;
-	private RemoteTransform2D _gaugeFollow; // only while a Player is bound AND the placement is FollowKhalid
-	private PauseMenu _pauseMenu;
-	private HBoxContainer _hpRow;
+	private CanvasLayer _gaugeLayer = null!;
+	private Node2D _gaugeAnchor = null!;
+	private RemoteTransform2D? _gaugeFollow; // only while a Player is bound AND the placement is FollowKhalid
+	private PauseMenu _pauseMenu = null!;
+	private HBoxContainer _hpRow = null!;
 	private readonly List<HealthPip> _stars = new();
 	private readonly List<float> _starLevels = new();
-	private HBoxContainer _ruhRow;
+	private HBoxContainer _ruhRow = null!;
 	private readonly List<RuhPip> _orbs = new();
 	private readonly List<float> _orbLevels = new();
-	private SpecialBar _specialBar;   // the special's cooldown, under the Ruh orbs (always shown; pulses when ready)
+	private SpecialBar _specialBar = null!;   // the special's cooldown, under the Ruh orbs (always shown; pulses when ready)
 	private Color _ruhFill;
-	private CurrencyCounter _liraCounter;
-	private CurrencyCounter _figCounter;
-	private HBoxContainer _vialRow;   // the carried Dekken vials (SetVials)
-	private Label _roundLabel;
-	private Label _leftLabel;   // "n LEFT" — shown only once few quota enemies remain
-	private Label _bestLabel;
+	private CurrencyCounter _liraCounter = null!;
+	private CurrencyCounter _figCounter = null!;
+	private HBoxContainer _vialRow = null!;   // the carried Dekken vials (SetVials)
+	private Label _roundLabel = null!;
+	private Label _leftLabel = null!;   // "n LEFT" — shown only once few quota enemies remain
+	private Label _bestLabel = null!;
 	private int _shownRound = 0; // the round whose intro has played (a higher one plays the intro again)
-	private Label _roundIntro;   // the big "ROUND n" flying from screen centre into _roundLabel (only while animating)
-	private VBoxContainer _buffPanel;
+	private Label? _roundIntro;   // the big "ROUND n" flying from screen centre into _roundLabel (only while animating)
+	private VBoxContainer _buffPanel = null!;
 
 	private static readonly Vector2 CurrencyPos = new(16, 14);
 	// Round block placement: RoundBlockAnchor is the screen point (as fractions of width/height) the block's TOP-CENTRE
@@ -224,15 +224,16 @@ public partial class HUD : CanvasLayer
 	/// FollowKhalid; remove it otherwise (or once unbound).</summary>
 	private void SyncGaugeFollow()
 	{
-		bool want = _player != null && _placement == GaugePlacement.FollowKhalid;
-		if (want && _gaugeFollow == null)
+		if (_player is { } player && _placement == GaugePlacement.FollowKhalid)
 		{
+			if (_gaugeFollow != null)
+				return;
 			_gaugeFollow = new RemoteTransform2D { UpdateRotation = false, UpdateScale = false, RemotePath = _gaugeAnchor.GetPath() };
 			_gaugeFollow.Ready += () => _gaugeAnchor.ResetPhysicsInterpolation(); // snap to Khalid, don't sweep in
 			// Deferred: Bind runs from node_added, while the Player is still mid-enter-tree.
-			_player.CallDeferred(Node.MethodName.AddChild, _gaugeFollow);
+			player.CallDeferred(Node.MethodName.AddChild, _gaugeFollow);
 		}
-		else if (!want && _gaugeFollow != null)
+		else if (_gaugeFollow != null)
 		{
 			if (IsInstanceValid(_gaugeFollow))
 				_gaugeFollow.QueueFree();
@@ -464,7 +465,7 @@ public partial class HUD : CanvasLayer
 	/// moment it becomes full.</summary>
 	private void UpdateOrbs(float current, bool animate)
 	{
-		float per = _player.RUH_PER_BLOCK;
+		float per = Player.RuhPerBlock;
 		for (int i = 0; i < _orbs.Count; i++)
 		{
 			float level = Mathf.Clamp(current / per - i, 0.0f, 1.0f);
@@ -483,7 +484,7 @@ public partial class HUD : CanvasLayer
 			Bind(p);
 	}
 
-	private Player FindPlayer()
+	private Player? FindPlayer()
 	{
 		var scene = GetTree().CurrentScene;
 		if (scene == null)
@@ -614,7 +615,7 @@ public partial class HUD : CanvasLayer
 
 	private void SyncRuh(float current, float maximum, bool animate)
 	{
-		int blocks = Mathf.RoundToInt(maximum / _player.RUH_PER_BLOCK);
+		int blocks = Mathf.RoundToInt(maximum / Player.RuhPerBlock);
 		ResizePips(_ruhRow, _orbs, _orbLevels, blocks);
 		UpdateOrbs(current, animate);
 		if (animate)

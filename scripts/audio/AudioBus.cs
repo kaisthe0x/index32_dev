@@ -45,7 +45,7 @@ public static class AudioBus
     }
 
     /// <summary>Add an effect to a bus at runtime and RETURN it (or null if the bus is missing).</summary>
-    public static AudioEffect AddEffect(StringName bus, AudioEffect effect)
+    public static AudioEffect? AddEffect(StringName bus, AudioEffect effect)
     {
         int i = AudioServer.GetBusIndex(bus);
         if (i == -1)
@@ -54,7 +54,7 @@ public static class AudioBus
         return effect;
     }
 
-    public static AudioEffect GetEffect(StringName bus, int idx = 0)
+    public static AudioEffect? GetEffect(StringName bus, int idx = 0)
     {
         int i = AudioServer.GetBusIndex(bus);
         if (i == -1 || idx < 0 || idx >= AudioServer.GetBusEffectCount(i))

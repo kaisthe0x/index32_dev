@@ -68,12 +68,9 @@ public partial class Player : Combatant, IStrikeWielder
     // =====================================================================================================
     // Ruh (surge meter)
     // =====================================================================================================
-    private const float RuhPerBlock = 100.0f; // one HUD "block" = one charge (the default surge cost)
+    public const float RuhPerBlock = 100.0f;  // one HUD "block" = one charge (the default surge cost)
     private const float RuhPerHit = 20.0f;     // Ruh gained per HIT landed (5 hits = 1 charge)
     private const float MaxRuhCap = 500.0f;    // hard ceiling: 5 charges
-
-    /// <summary>Instance accessor so GDScript (HUD block sizing / run debug) can read the block size — it can't read a C# const.</summary>
-    public float RUH_PER_BLOCK => RuhPerBlock;
 
     private float _ruhCap = 300.0f;
 
@@ -158,18 +155,20 @@ public partial class Player : Combatant, IStrikeWielder
     private const float LaunchMagnetTime = 0.08f;
     private const float LaunchCd = 0.45f;
 
-    private LaunchOrb _launchOrb;
+    private LaunchOrb? _launchOrb;
     private Vector2 _launchFrom = Vector2.Zero;
     private float _launchT = 0.0f;
     private Vector2 _launchVel = Vector2.Zero;
     private float _launchCdLeft = 0.0f;
-    private LaunchOrb _nearOrb;
+    private LaunchOrb? _nearOrb;
 
     private State _state = State.IDLE;
     private int _facing = 1;
-    private Action _currentAttack;   // the equipped attack (or null)
-    private Action _currentSpecial;
-    private Action _currentSurge;
+    // The equipped actions. Null until a character with that slot is applied -- in the editor (this is a [Tool]
+    // script) and for a character whose sprite frames are missing, ApplyCharacter stops before the loadout.
+    private Action? _currentAttack;
+    private Action? _currentSpecial;
+    private Action? _currentSurge;
     private readonly System.Collections.Generic.Dictionary<LoadoutCategory, string> _loadout = new();
     private SegmentData _activeHit = new();
     private float _dashLeft = 0.0f;
@@ -204,7 +203,7 @@ public partial class Player : Combatant, IStrikeWielder
     private float _gustLeft = 0.0f; // a gust is carrying him (Combat.GustCarryTime): weak steering, no air brake
     private float _armorLeft = 0.0f;
     private float _holdLeft = 0.0f;
-    private BlastStrike _channel = null;
+    private BlastStrike? _channel;
     private readonly List<Passive> _passives = new();
 
     // --- surge window ---
@@ -218,9 +217,10 @@ public partial class Player : Combatant, IStrikeWielder
     private float _surgeHealTarget = 0.0f;
     private float _surgeHealRate = 0.0f;
     private int _surgeSleepFrame = 0;
+    private float _surgeSleepTime = 0.0f;   // how long a channelled surge sleeps once it reaches the sleep frame
     private bool _surgeArmed = false;
-    private SurgeSpec _armedSurge = null;
-    private Node2D _specialAura = null;
+    private SurgeSpec? _armedSurge;
+    private Node2D? _specialAura;
 
     // --- shield / parry ---
     private float _parryLeft = 0.0f;
@@ -232,22 +232,22 @@ public partial class Player : Combatant, IStrikeWielder
     [Export] public bool flinch_on_all_damage = true;
 
     private float _specialCd = 0.0f;
-    private AudioStreamPlayer _runSfx = null;
-    private AudioStreamPlayer _slamDownSfx = null;
+    private AudioStreamPlayer? _runSfx;
+    private AudioStreamPlayer? _slamDownSfx;
     private const float RuhFlashRefractory = 0.2f;
     private float _ruhFlashCd = 0.0f;
-    private Tween _hairTween = null;
-    private ShaderMaterial _tintMat = null;
+    private Tween? _hairTween;
+    private ShaderMaterial? _tintMat;
     private bool _bodyIsLut = false;
     private (Color Base, Color AccentA, Color AccentB)? _hairBase;   // the tint shader's own colours (non-LUT body only)
     private static readonly Color HairAbsorbBase = new(2.6f, 1.7f, 0.5f);
     private static readonly Color HairAbsorbA = new(2.3f, 1.0f, 0.35f);
     private static readonly Color HairAbsorbB = new(1.9f, 0.6f, 0.25f);
 
-    private ParticleDirector _particles = null;
-    private Hurtbox _hurtbox = null;
-    private StatusOverlay _status = null;
-    private AnimatedSprite2D _sprite = null;
+    private ParticleDirector _particles = null!;
+    private Hurtbox _hurtbox = null!;
+    private StatusOverlay _status = null!;
+    private AnimatedSprite2D _sprite = null!;
 
     // =====================================================================================================
     // Lifecycle
@@ -353,10 +353,7 @@ public partial class Player : Combatant, IStrikeWielder
             ApplyMovement(cat, LoadoutGet(cat, "default"));
     }
 
-    private Action GetAction(string kind, string id)
-    {
-        return Actions.GetAction(character, kind, id);
-    }
+    private Action? GetAction(string kind, string id) => Actions.GetAction(character, kind, id);
 
     private void ApplyMovement(LoadoutCategory category, string optionId)
     {
@@ -430,7 +427,7 @@ public partial class Player : Combatant, IStrikeWielder
     }
 
     /// <summary>A character's intrinsic ability, or null. Khalid ships without one. (Add a case when a character gets a C# CharacterAbility.)</summary>
-    private static Passive CharacterAbilityFor(string character) => null;
+    private static Passive? CharacterAbilityFor(string character) => null;
 
     /// <summary>Whether a passive with this id is on him (a box buff he already holds).</summary>
     public bool has_passive(string id)
@@ -519,14 +516,14 @@ public partial class Player : Combatant, IStrikeWielder
 
     /// <summary>Which way Khalid faces: +1 right, -1 left (RunManager spawns grunts on the other side).</summary>
     public int facing => _facing;
-    public Action current_attack() => _currentAttack;
-    public Action current_special() => _currentSpecial;
+    public Action? current_attack() => _currentAttack;
+    public Action? current_special() => _currentSpecial;
 
     // =====================================================================================================
     // Action helpers (thin typed accessors over the equipped Action)
     // =====================================================================================================
     private static StringName Anim(Action a) => a.Animation;
-    private static bool HasTag(Action a, string t) => a != null && a.HasTag(t);
+    private static bool HasTag(Action a, string t) => a.HasTag(t);
     private static float CooldownOf(Action a) => a.Cooldown;
     private static bool IsFlurry(Action a) => a.IsFlurry;
 
@@ -972,7 +969,7 @@ public partial class Player : Combatant, IStrikeWielder
     // =====================================================================================================
     // Surges
     // =====================================================================================================
-    private void BeginSurge(SurgeSpec s)
+    private void BeginSurge(Action surge, SurgeSpec s)
     {
         EndSurge();
         _surgeInvuln = s.invuln;
@@ -992,10 +989,11 @@ public partial class Player : Combatant, IStrikeWielder
             // Slot health: a healing surge (heal_frac > 0, i.e. Nem) restores ONE block over its channel.
             _surgeHealTarget = Mathf.Min(health + SurgeHealHalfBlocks, max_health);
             _surgeHealRate = (_surgeHealTarget - health) / Mathf.Max(s.duration, 0.01f);
-            var anim = Anim(_currentSurge);
+            var anim = Anim(surge);
             int fcount = (_sprite.SpriteFrames != null && _sprite.SpriteFrames.HasAnimation(anim))
                 ? _sprite.SpriteFrames.GetFrameCount(anim) : 0;
             _surgeSleepFrame = Mathf.Max(fcount - 2, 0);
+            _surgeSleepTime = s.duration;
         }
         else
         {
@@ -1018,23 +1016,22 @@ public partial class Player : Combatant, IStrikeWielder
 
     private void TrySurge()
     {
-        if (!CanSurge() || !Input.IsActionJustPressed("surge"))
+        if (!Input.IsActionJustPressed("surge") || ReadySurge() is not var (surge, spec) || ruh < spec.cost)
             return;
-        var s = _currentSurge.Surge;
-        if (ruh < s.cost)
-            return;
-        ruh -= s.cost;
-        FireSurge(s);
+        ruh -= spec.cost;
+        FireSurge(surge, spec);
     }
 
-    private bool CanSurge() => !_dead && _currentSurge?.Surge != null && !_surgeChannel && !_surgeArmed;
+    /// <summary>The equipped surge and its spec, if one can fire now (alive, none channelling or armed); else null.</summary>
+    private (Action Surge, SurgeSpec Spec)? ReadySurge() =>
+        !_dead && !_surgeChannel && !_surgeArmed && _currentSurge is { Surge: { } spec } surge ? (surge, spec) : null;
 
     /// <summary>Fire the equipped surge WITHOUT spending Ruh (the Prepared perk, at round start). No-op if one is
     /// already going.</summary>
     public void surge_free()
     {
-        if (CanSurge())
-            FireSurge(_currentSurge.Surge);
+        if (ReadySurge() is var (surge, spec))
+            FireSurge(surge, spec);
     }
 
     /// <summary>Tell every passive a round began (RunManager.StartRound) — see <see cref="Passive.OnRoundStart"/>.</summary>
@@ -1044,12 +1041,12 @@ public partial class Player : Combatant, IStrikeWielder
             p.OnRoundStart(this);
     }
 
-    private void FireSurge(SurgeSpec s)
+    private void FireSurge(Action surge, SurgeSpec s)
     {
-        BeginSurge(s);
+        BeginSurge(surge, s);
         Flash(_sprite);
-        _sfx.play(Anim(_currentSurge).ToString());
-        if (_state != State.SPAWN && HasAnim(Anim(_currentSurge)))
+        _sfx.play(Anim(surge).ToString());
+        if (_state != State.SPAWN && HasAnim(Anim(surge)))
             Enter(State.SURGE);
     }
 
@@ -1137,10 +1134,12 @@ public partial class Player : Combatant, IStrikeWielder
 
     private int SpecialStrikeFrame()
     {
-        var hits = AnimMeta.HitFrames(_sprite.SpriteFrames, Anim(_currentSpecial));
+        if (_currentSpecial is not { } special)
+            return 0;
+        var hits = AnimMeta.HitFrames(_sprite.SpriteFrames, Anim(special));
         if (hits.Count > 0)
             return hits[0];
-        return _sprite.SpriteFrames.GetFrameCount(Anim(_currentSpecial)) / 2;
+        return _sprite.SpriteFrames.GetFrameCount(Anim(special)) / 2;
     }
 
     public bool is_dead() => _dead;
@@ -1302,7 +1301,7 @@ public partial class Player : Combatant, IStrikeWielder
         if (_holdLeft > 0.0f)
         {
             _holdLeft = Mathf.Max(_holdLeft - delta, 0.0f);
-            if (_holdLeft <= 0.0f && _sprite != null)
+            if (_holdLeft <= 0.0f)
             {
                 _sprite.Play();
                 _channel = null;
@@ -1549,10 +1548,10 @@ public partial class Player : Combatant, IStrikeWielder
     private State AirborneDefault() => HasFall() ? State.FALL : State.JUMP;
 
     // --- launch orbs ---
-    private LaunchOrb OrbInPullRange()
+    private LaunchOrb? OrbInPullRange()
     {
         var body = GlobalPosition + LaunchBody;
-        LaunchOrb best = null;
+        LaunchOrb? best = null;
         float bestD = LaunchPullRange * LaunchPullRange;
         foreach (Node o in GetTree().GetNodesInGroup("orbs"))
         {
@@ -1570,7 +1569,7 @@ public partial class Player : Combatant, IStrikeWielder
 
     private void UpdateOrbProximity()
     {
-        LaunchOrb near = null;
+        LaunchOrb? near = null;
         if (!_dead && _state != State.SPAWN && _state != State.LAUNCH)
             near = OrbInPullRange();
         if (near == _nearOrb)
@@ -1809,7 +1808,7 @@ public partial class Player : Combatant, IStrikeWielder
         }
         // A press chains the next hit; HOLDING chains it too — except after the combo's last hit, which keeps its
         // recovery beat before holding loops the combo back to its first hit (via IDLE).
-        if (Input.IsActionJustPressed("attack") || (AttackHeld() && _comboStep < AttackHits().Count))
+        if (Input.IsActionJustPressed("attack") || (AttackHeld() && _currentAttack is { } held && _comboStep < AttackHits(held).Count))
         {
             AdvanceCombo();
             return;
@@ -1833,24 +1832,24 @@ public partial class Player : Combatant, IStrikeWielder
 
     private void StartSpecial()
     {
-        if (_specialCd > 0.0f)
+        if (_specialCd > 0.0f || _currentSpecial is not { } special)
             return;
-        _specialCd = _currentSpecial != null ? CooldownOf(_currentSpecial) : 0.0f; // every special has its own cooldown
-        bool isShield = _currentSpecial != null && HasTag(_currentSpecial, "shield");
+        _specialCd = CooldownOf(special); // every special has its own cooldown
+        bool isShield = HasTag(special, "shield");
         foreach (var p in _passives)
-            p.OnSpecialCast(this, _currentSpecial);
+            p.OnSpecialCast(this, special);
         if (isShield)
             _parryLeft = parry_window;
         _comboStep = 0;
         _comboWindow = 0.0f;
         _comboPlaying = false;
         _bufferedSpecial = false;
-        _activeHit = ResolveTuning(_currentSpecial, 0);
+        _activeHit = ResolveTuning(special, 0);
         _activeHit.FromSpecial = true;
         Enter(State.SPECIAL);
-        if (_sprite != null && _currentSpecial != null && HasAnim(Anim(_currentSpecial)))
+        if (HasAnim(Anim(special)))
         {
-            _sprite.Play(Anim(_currentSpecial));
+            _sprite.Play(Anim(special));
             _sprite.SetFrameAndProgress(0, 0.0f);
         }
     }
@@ -1903,7 +1902,7 @@ public partial class Player : Combatant, IStrikeWielder
                     _surgeAsleep = true;
                     _sprite.SetFrameAndProgress(_surgeSleepFrame, 0.0f);
                     _sprite.Pause();
-                    _surgeLeft = _currentSurge.Surge.duration;
+                    _surgeLeft = _surgeSleepTime;
                 }
             }
             else
@@ -1973,13 +1972,15 @@ public partial class Player : Combatant, IStrikeWielder
 
     private void AdvanceCombo()
     {
-        if (_currentAttack != null && IsFlurry(_currentAttack))
+        if (_currentAttack is not { } attack)
+            return;
+        if (IsFlurry(attack))
         {
             if (!_flurry)
-                StartFlurry();
+                StartFlurry(attack);
             return;
         }
-        var hits = AttackHits();
+        var hits = AttackHits(attack);
         if (hits.Count == 0)
             return;
         _bufferedSpecial = false;
@@ -1989,28 +1990,28 @@ public partial class Player : Combatant, IStrikeWielder
         int segStart = _comboStep == 0 ? 0 : hits[_comboStep - 1] + 1;
         _segEnd = hits[_comboStep];
         _comboStep += 1;
-        _activeHit = ResolveTuning(_currentAttack, _comboStep - 1);
+        _activeHit = ResolveTuning(attack, _comboStep - 1);
 
         _comboWindow = combo_reset_time;
         _comboPlaying = true;
         Enter(State.ATTACK);
         _sprite.SpeedScale = 1.0f;
-        _sprite.Play(Anim(_currentAttack));
+        _sprite.Play(Anim(attack));
         _sprite.SetFrameAndProgress(segStart, 0.0f);
     }
 
-    private void StartFlurry()
+    private void StartFlurry(Action attack)
     {
         _bufferedSpecial = false;
         _flurry = true;
-        _activeHit = ResolveTuning(_currentAttack, 0);
+        _activeHit = ResolveTuning(attack, 0);
         Enter(State.ATTACK);
         _sprite.SpeedScale = 1.0f;
-        _sprite.Play(Anim(_currentAttack));
+        _sprite.Play(Anim(attack));
     }
 
     /// <summary>The frames that end each combo segment: the authored hit frames, or every frame when none are authored.</summary>
-    private IReadOnlyList<int> AttackHits() => AnimMeta.HitFramesOrAll(_sprite.SpriteFrames, Anim(_currentAttack));
+    private IReadOnlyList<int> AttackHits(Action attack) => AnimMeta.HitFramesOrAll(_sprite.SpriteFrames, Anim(attack));
 
     private void Enter(State state)
     {
@@ -2109,8 +2110,8 @@ public partial class Player : Combatant, IStrikeWielder
         State.JUMP => "jump",
         State.FALL => "fall",
         State.DASH => "dash",
-        State.ATTACK => Anim(_currentAttack),
-        State.SPECIAL => Anim(_currentSpecial),
+        State.ATTACK => _currentAttack != null ? Anim(_currentAttack) : "idle",
+        State.SPECIAL => _currentSpecial != null ? Anim(_currentSpecial) : "idle",
         State.LAND => "land",
         State.SLAM => "slam",
         State.DEATH => "death",

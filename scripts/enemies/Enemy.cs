@@ -25,7 +25,7 @@ public partial class Enemy : Combatant
 	private static readonly Vector2 DefaultMuzzle = new(20, -46);
 
 	[Signal] public delegate void diedEventHandler();
-	[Signal] public delegate void damagedEventHandler(float amount, Node source);
+	[Signal] public delegate void damagedEventHandler(float amount, Node? source);
 
 	[Export] public string enemy_id { get; set; } = "kebus";
 	[Export] public string display_name { get; set; } = "Kebus";
@@ -983,7 +983,7 @@ public partial class Enemy : Combatant
 		last_hit_from_special = hit.FromSpecial;
 		float before = Health;
 		Health = Mathf.Max(Health - hit.Amount, 0.0f);
-		EmitSignal(SignalName.damaged, before - Health, hit.Source);
+		EmitSignaldamaged(before - Health, hit.Source);
 		Bar.SetRatio(Health / max_health);
 		HitReact(Sprite, hit.Amount);
 		if (alert_duration > 0.0f)
@@ -1078,7 +1078,7 @@ public partial class Enemy : Combatant
 		if (dealt <= 0.0f)
 			return;
 		last_hit_from_special = false;
-		EmitSignal(SignalName.damaged, dealt, (IsInstanceValid(_dotSource) ? _dotSource : null)!);
+		EmitSignaldamaged(dealt, IsInstanceValid(_dotSource) ? _dotSource : null);
 		Bar.SetRatio(Health / max_health);
 		if (Health <= 0.0f)
 		{

@@ -6,6 +6,8 @@
     <RootNamespace>MyGame</RootNamespace>
     <!-- Strictness the migration is FOR: nullable reference types + latest C#. -->
     <Nullable>enable</Nullable>
+    <!-- The build is warning-free (docs/standards.md, rule V1): a new warning fails it, so none can pile up unseen. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>

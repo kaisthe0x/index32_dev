@@ -18,13 +18,13 @@ public partial class FadaFig : RigidBody2D
     [Export] public float magnet_speed { get; set; } = 540.0f;  // used only once magnetized
 
     /// <summary>The player whose Magnet perk can pull this fig in (set by RunManager at spawn).</summary>
-    public Player Collector;
+    public Player? Collector;
 
-    private Node2D _magnetTarget;
+    private Node2D? _magnetTarget;
     private bool _collected;
 
     // One shared pulse-glow material for every Fada Fig (a scene-wide resource, not per-instance).
-    private static ShaderMaterial _glowMaterial;
+    private static ShaderMaterial? _glowMaterial;
 
     public override void _Ready()
     {

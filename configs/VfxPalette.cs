@@ -1,5 +1,6 @@
 using Godot;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace MyGame;
 
@@ -100,11 +101,12 @@ public static class VfxPalette
         }
         // Gradient-as-texture trick: many effects colour particles via a GradientTexture on `texture` — recolour
         // that too. A normal sprite texture is returned untouched. Guard on the property existing (like GDScript `in`).
-        if (HasProp(n, "texture"))
-            n.Set("texture", RecoloredGradientTex(n.Get("texture").As<Texture2D>()));
+        if (HasProp(n, "texture") && n.Get("texture").As<Texture2D>() is { } texture)
+            n.Set("texture", RecoloredGradientTex(texture));
     }
 
-    private static Gradient RecoloredGradient(Gradient g)
+    [return: NotNullIfNotNull(nameof(g))]
+    private static Gradient? RecoloredGradient(Gradient? g)
     {
         if (g == null)
             return null;
@@ -114,7 +116,8 @@ public static class VfxPalette
         return dup;
     }
 
-    private static Texture2D RecoloredGradientTex(Texture2D t)
+    [return: NotNullIfNotNull(nameof(t))]
+    private static Texture2D? RecoloredGradientTex(Texture2D? t)
     {
         switch (t)
         {

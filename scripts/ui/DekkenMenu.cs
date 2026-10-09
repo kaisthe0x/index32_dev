@@ -16,7 +16,7 @@ public partial class DekkenMenu : StallMenu
     private const float DrinkWidth = 90.0f;
     private const float KeepWidth = 82.0f;
 
-    private PerkLedger _ledger;
+    private PerkLedger _ledger = null!;
 
     public void Open(PerkLedger ledger, Player player)
     {

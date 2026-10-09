@@ -52,8 +52,8 @@ public partial class RunManager : Node2D
 
     [Export] public NodePath player_path = "Player";
 
-    private Player _player;
-    private Camera2D _camera;
+    private Player _player = null!;
+    private Camera2D? _camera;
 
     // --- round state (see Rounds) — only NON-optional enemies are "quota" enemies ---
     private int _round = 0;            // the current round (0 = before round 1 — it starts on the first tick of play)
@@ -70,33 +70,33 @@ public partial class RunManager : Node2D
     private float _arenaLeft, _arenaRight; // the arena's horizontal ends (LevelLayout.HorizontalSpan) — the Ventilator's edges
     private float _edgeTime = 0.0f;        // how long the player has been within Rounds.EdgeZone of an end
     private float _ventilatorCd = 0.0f;    // until the next Ventilator may come (starts when one dies)
-    private Node2D _content;
-    private ColorRect _bg;
-    private Sprite2D _bgSky;
+    private Node2D _content = null!;
+    private ColorRect _bg = null!;
+    private Sprite2D? _bgSky;
     private Vector2 _bgImgSize;
-    private LevelLayout _layout;
-    private PerkLedger _perks;                   // this run's Dekken perks (stock, active, owned)
-    private MysteryBox _box;                     // Fast Travel's destination
+    private LevelLayout? _layout;
+    private PerkLedger _perks = null!;                   // this run's Dekken perks (stock, active, owned)
+    private MysteryBox? _box;                     // Fast Travel's destination
 
     private const string StageDir = "res://scenes/levels/stage1/";
     private Vector2 _playerSpawn = Vector2.Zero;
     private bool _deadPrev = false;
     private float _deathHold = 0.0f;
     private bool _spawning = false;
-    private Tween _camTween;
-    private Polygon2D _deathOverlay;
+    private Tween? _camTween;
+    private Polygon2D? _deathOverlay;
     private float _deathTuneLeft = 0.0f;
 
     // --- bridges (cached in _Ready) ---
-    private Music _music;
-    private Sfx _sfx;
-    private PackedScene _spawnFx, _ruhOrb, _liraScene, _fadaFigScene;
+    private Music _music = null!;
+    private Sfx _sfx = null!;
+    private PackedScene _spawnFx = null!, _ruhOrb = null!, _liraScene = null!, _fadaFigScene = null!;
     private readonly System.Collections.Generic.Dictionary<string, PackedScene> _enemyScenes = new(); // kit scene path → loaded scene
 
     public override void _Ready()
     {
         EnsureVialActions();
-        _player = GetNodeOrNull<Player>(player_path);
+        _player = GetNode<Player>(player_path);
         _camera = GetNodeOrNull<Camera2D>("Camera2D");
         _music = GetNode<Music>("/root/Music");
         _sfx = GetNode<Sfx>("/root/Sfx");
@@ -231,11 +231,11 @@ public partial class RunManager : Node2D
         var dekken = _layout?.Placed<DekkenStall>();
         if (_box == null || needlePoint == null || dekken == null)
             GD.PushError("RunManager: the layout must place all three stall scenes (scenes/things/: mystery_box, needle_point, dekken).");
-        if (_box != null)
+        if (_box != null && _layout is { } layout)
         {
-            if (_layout.BoxSpots(hard: false).Count == 0)
+            if (layout.BoxSpots(hard: false).Count == 0)
                 GD.PushError("RunManager: the layout has no easy box spot (BoxSpots/Easy markers) — the box stays where it was placed and can't relocate.");
-            _box.Setup(new BoxLedger(_player), _layout.BoxSpots(hard: false), _layout.BoxSpots(hard: true));
+            _box.Setup(new BoxLedger(_player), layout.BoxSpots(hard: false), layout.BoxSpots(hard: true));
         }
         if (needlePoint != null)
             needlePoint.Ledger = new ShotLedger(_player); // this run's Needle Point ranks
@@ -312,7 +312,7 @@ public partial class RunManager : Node2D
 
     /// <summary>A random kit from the pool that is UNDER its per-type concurrent cap (uncapped kits always qualify);
     /// null if every kit is currently at cap.</summary>
-    private EnemyKit PickSpawnKit()
+    private EnemyKit? PickSpawnKit()
     {
         var eligible = new System.Collections.Generic.List<EnemyKit>();
         foreach (EnemyKit kit in SpawnPool)
@@ -351,9 +351,9 @@ public partial class RunManager : Node2D
         if (at is not Vector2 pos)
             return false;
         var enemy = SpawnAt(kit, pos);
-        if (enemy != null && spot != null)
+        if (spot != null)
             _spotOf[enemy] = pos;
-        return enemy != null;
+        return true;
     }
 
     private static float NearShare(int r) =>
@@ -365,11 +365,9 @@ public partial class RunManager : Node2D
     {
         SpawnFx(at);
         var enemy = SpawnEnemy(kit, at);
-        if (enemy == null)
-            return null;
         var e = enemy; // stable capture for the bound handlers
         enemy.Connect(Enemy.SignalName.died, Callable.From(() => OnEnemyDied(e)));
-        enemy.Connect(Enemy.SignalName.damaged, Callable.From((float amount, Node source) => OnEnemyDamaged(amount, source, e)));
+        enemy.Connect(Enemy.SignalName.damaged, Callable.From((float amount, Node? source) => OnEnemyDamaged(amount, source, e)));
         _enemies.Add(enemy);
         if (!enemy.optional)
         {
@@ -472,7 +470,7 @@ public partial class RunManager : Node2D
     private void TickEdge(float delta)
     {
         _ventilatorCd = Mathf.Max(_ventilatorCd - delta, 0.0f);
-        int inland = _player != null && _round >= Rounds.VentilatorFromRound ? EdgeInland(_player.GlobalPosition.X) : 0;
+        int inland = _round >= Rounds.VentilatorFromRound ? EdgeInland(_player.GlobalPosition.X) : 0;
         if (inland == 0)
         {
             _edgeTime = 0.0f;
@@ -481,7 +479,7 @@ public partial class RunManager : Node2D
         _edgeTime += delta;
         if (_edgeTime < Rounds.EdgeDwell || _ventilatorCd > 0.0f || LivingOfType(EnemyIds.Ventilator) >= Rounds.VentilatorMax)
             return;
-        Vector2 player = _player!.GlobalPosition;
+        Vector2 player = _player.GlobalPosition;
         // Only a tile actually inland of him — PickGroundSurface falls back to either side when one side has none, and a
         // Ventilator on the OUTER side would blow him back into the arena. None yet = try again next tick.
         if (PickGroundSurface(player, Rounds.VentilatorSpawnMin, Rounds.VentilatorSpawnMax, inland) is Vector2 at
@@ -736,7 +734,7 @@ public partial class RunManager : Node2D
         orb.launch(_player, completedCharge);
     }
 
-    private void OnEnemyDamaged(float amount, Node source, Enemy enemy)
+    private void OnEnemyDamaged(float amount, Node? source, Enemy enemy)
     {
         if (_player != null && source == _player)
         {
@@ -880,7 +878,7 @@ public partial class RunManager : Node2D
     /// <summary>Length in seconds of a character sound cue (0 if the cue or its file is missing).</summary>
     private static float CueLength(string cue)
     {
-        if (!SfxCharacters.CUES.TryGetValue(cue, out string path) || !ResourceLoader.Exists(path))
+        if (!SfxCharacters.CUES.TryGetValue(cue, out string? path) || !ResourceLoader.Exists(path))
             return 0.0f;
         var s = GD.Load<AudioStream>(path);
         return s != null ? (float)s.GetLength() : 0.0f;
@@ -1019,7 +1017,7 @@ public partial class RunManager : Node2D
         if (@event.IsActionPressed("debug_damage"))
             _player.take_damage(12.0f);
         else if (@event.IsActionPressed("debug_heal"))
-            _player.ruh += _player.RUH_PER_BLOCK;
+            _player.ruh += Player.RuhPerBlock;
         else if (@event.IsActionPressed(VialDrinkAction))
             DrinkVial();
         else if (@event.IsActionPressed(VialCycleAction))

@@ -52,6 +52,14 @@ The point is that a mistake is a compile error, not a bug found in play.
 - **T5. No magic values in logic.** A number, colour, path or action name used by behaviour is a named constant —
   in `configs/` if it is tuning or content, `private const` beside its only user if it is an implementation detail.
 - **T6. An enum that needs a table key gets a `.Key()` helper**, defined once beside the enum.
+- **T7. A type says whether it can be null.** Nullable reference checking is on.
+  - Something that can really be absent is declared `T?` and every use handles the absence — a guard, `?.`, or a
+    pattern such as `if (_roll is not { } roll) return;`. A method that can return nothing returns `T?`.
+  - A field that is always set before anything reads it — a node built or fetched in `_Ready`, a value handed over
+    by the one `Setup` / `Open` call — is declared non-null with `= null!;`.
+  - `x!` is accepted in one other place: straight after an engine check the compiler cannot see
+    (`if (IsInstanceValid(_box)) _box!.pulse();`). Anywhere else it is not allowed to quieten a dereference — pass
+    the value in as a parameter, or guard it.
 
 ## D — Data and behaviour stay apart
 
@@ -128,7 +136,9 @@ The game runs up to a few dozen enemies at once, each with a state machine, plus
 
 ## V — Verification and records
 
-- **V1. It builds:** `dotnet build mygamedev.csproj`, zero errors, and no new warnings in files the change touches.
+- **V1. It builds with zero warnings:** `dotnet build mygamedev.csproj`. The project treats warnings as errors
+  (`TreatWarningsAsErrors`), so a warning fails the build. Never silence one with `#pragma`, `NoWarn` or a stray `!`
+  — fix what it points at. (A throwaway test file under `tmp_check/` may start with `#nullable disable`.)
 - **V2. Behaviour is checked in the engine**, not assumed: a headless run of a real scene for logic, a windowed
   render when the question is what something looks like.
 - **V3. Say what was not verified.** A claim of "works" names how it was checked; anything unchecked is stated.
@@ -173,10 +183,6 @@ any of them worse, and says so when a change is a cheap chance to reduce one.
   access that `ParticleDirector` and the enemy walk trail used to do by name now goes through the typed
   `helpers/ParticleNodes.cs` — extend that, do not add new by-name access. (Calls between the game's *own* classes
   are all typed since 2026-10-09 — keep it that way: rule `T4`.)
-- **Compiler warnings:** the project has nullable reference checking on, and the build prints about 200 warnings (196 on 2026-10-09)
-  (mostly `CS8618` — a field not set in the constructor; worst in `Player`, `HUD`, `RunManager`, `ParticleDirector`).
-  With that many, a new one goes unseen. Direction: bring it to zero, then make warnings fail the build. Until then
-  rule `V1` is checked by comparing the count before and after a change.
 - **Per-call allocations in spawn-time code:** `RunManager.SpotIsClear` and the point / ray queries build their
   shape and parameters on each call. Not per-frame today; must not move onto the per-frame path as-is.
 - **No automated tests.** Behaviour is checked by throwaway headless scenes that are deleted afterwards. Direction:

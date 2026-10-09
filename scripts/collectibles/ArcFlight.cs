@@ -12,7 +12,7 @@ public abstract partial class ArcFlight : Node2D
 {
     private enum Phase { Fly, Absorb }
 
-    private Node2D _target = null;
+    private Node2D? _target;
     private Vector2 _p0 = Vector2.Zero;
     private float _t = 0.0f;
     private Phase _phase = Phase.Fly;
@@ -51,7 +51,7 @@ public abstract partial class ArcFlight : Node2D
         if (_t >= 1.0f)
         {
             GlobalPosition = dest;
-            Absorb(dest);
+            Absorb(_target, dest);
             return;
         }
 
@@ -72,10 +72,10 @@ public abstract partial class ArcFlight : Node2D
     }
 
     /// <summary>The pickup beat: pay off, then shrink into the target + free.</summary>
-    private void Absorb(Vector2 dest)
+    private void Absorb(Node2D target, Vector2 dest)
     {
         _phase = Phase.Absorb;
-        OnArrived(_target);
+        OnArrived(target);
         var tw = CreateTween();
         tw.SetParallel(true);
         tw.TweenProperty(this, "global_position", dest, absorb_time);

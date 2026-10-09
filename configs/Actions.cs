@@ -50,7 +50,7 @@ public static class Actions
     };
 
     /// <summary>The Action for a character's pool by id (or the default when id is empty/unknown). Null if the pool is empty.</summary>
-    public static Action GetAction(string character, string kind, string id = "")
+    public static Action? GetAction(string character, string kind, string id = "")
     {
         var tables = Tables(character);
         if (!tables.TryGetValue(kind, out var pool) || pool.Count == 0)

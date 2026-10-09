@@ -59,7 +59,7 @@ public static class UiStyle
     public static readonly FontVariation BodyFont = MakeFont(BodyScan, BodyBleed);
     public static readonly FontVariation TitleFont = MakeFont(TitleScan, TitleBleed);
 
-    private static Theme _theme;
+    private static Theme? _theme;
     /// <summary>The shared menu theme (built once; <see cref="SetColors"/> repaints it in place, so every Control using it
     /// updates live).</summary>
     public static Theme Theme => _theme ??= Populate(new Theme());

@@ -46,7 +46,7 @@ public partial class LevelLayout : Node2D
 
     /// <summary>The stall of type <typeparamref name="T"/> placed in this layout (its scene dropped in the editor), or null
     /// if the layout has none.</summary>
-    public T Placed<T>() where T : Stall
+    public T? Placed<T>() where T : Stall
     {
         foreach (Node n in FindChildren("*", "", true, false))
             if (n is T stall)

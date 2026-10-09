@@ -2052,7 +2052,7 @@ Three rows kept near the action, so you read your state without looking away fro
   half a block, so a star is only ever full / left-half / empty. All stars are tinted
   **green→orange→red by overall HP** from the shared `FloatingHealthBar.ColorForRatio` bands, so the
   player and the floating enemy bars use identical thresholds.
-- **Ruh orbs** — one `RuhPip` per Ruh charge (`Player.RUH_PER_BLOCK`), filling **from the bottom
+- **Ruh orbs** — one `RuhPip` per Ruh charge (`Player.RuhPerBlock`), filling **from the bottom
   like liquid** as hits bank Ruh. Coloured like the in-world Ruh orbs (red family, recoloured to
   the Power-1 pick via `VfxPalette.Recolor` at bind), so health and Ruh differ by shape *and* colour.
 - **Special bar** — `SpecialBar`: a short pixel bar (`BarWidth` 19 × `BarHeight` 4, centred — narrower than the orbs, so the gauge tapers like a triangle; `HUD.SpecialBarTopGap` adds 2px above it so the orb→bar gap *looks* as wide as the pointy star→orb gap) for the equipped special's cooldown, fed each frame

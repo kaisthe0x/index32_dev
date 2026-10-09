@@ -14,7 +14,7 @@ public partial class Lira : ArcFlight
     private const float FlightJitter = 0.15f; // ± fraction of flight_time
 
     // One shared pulse-glow material for every coin (like the Fada Fig's).
-    private static ShaderMaterial _glowMaterial;
+    private static ShaderMaterial? _glowMaterial;
 
     public override void _Ready()
     {

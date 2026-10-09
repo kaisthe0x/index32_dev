@@ -18,11 +18,11 @@ public abstract partial class Stall : Node2D
     private const string InteractAction = "interact"; // E (registered in _Ready if the project hasn't)
     private const float PromptWidth = 80.0f;             // the prompt label is centred on the Prompt marker in this width
 
-    private Player _inRange;   // the player while standing in range (null otherwise)
-    private Label _prompt;
+    private Player? _inRange;   // the player while standing in range (null otherwise)
+    private Label _prompt = null!;
 
     /// <summary>The stall's look (the scene's <c>Visual</c> node).</summary>
-    protected Node2D Visual { get; private set; }
+    protected Node2D Visual { get; private set; } = null!;
 
     public override void _Ready()
     {

@@ -22,9 +22,9 @@ public partial class AttackSelect : CanvasLayer
     private string _character = "khalid";
     private string _selectedId = "";
     private readonly Dictionary<string, Button> _cells = new();
-    private Label _detailName;
-    private Label _detailType;
-    private Label _detailDesc;
+    private Label _detailName = null!;
+    private Label _detailType = null!;
+    private Label _detailDesc = null!;
 
     public AttackSelect()
     {
@@ -65,7 +65,7 @@ public partial class AttackSelect : CanvasLayer
         grid.AddThemeConstantOverride("v_separation", GridGap);
         col.AddChild(grid);
 
-        Button firstCell = null;
+        Button? firstCell = null;
         foreach (string id in Actions.Ids(_character, "attacks"))
         {
             var a = Actions.GetAction(_character, "attacks", id);

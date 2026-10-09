@@ -19,7 +19,7 @@ public static class Terrain
 	public static readonly Color BackgroundTint = new(0.06f, 0.10f, 0.13f);
 	public const float BackgroundTintAlpha = 0.4f;
 
-	private static Texture2D Load(string path) => ResourceLoader.Exists(path) ? GD.Load<Texture2D>(path) : null;
+	private static Texture2D? Load(string path) => ResourceLoader.Exists(path) ? GD.Load<Texture2D>(path) : null;
 
-	public static Texture2D BackgroundTexture() => Load(BackgroundTexturePath);
+	public static Texture2D? BackgroundTexture() => Load(BackgroundTexturePath);
 }

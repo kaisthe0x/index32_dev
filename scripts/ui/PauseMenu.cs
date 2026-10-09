@@ -11,11 +11,11 @@ namespace MyGame;
 public partial class PauseMenu : CanvasLayer
 {
     /// <summary>The player picked a gauge placement (already persisted to <see cref="SaveData"/>).</summary>
-    public event System.Action<GaugePlacement> GaugePlacementChanged;
+    public event System.Action<GaugePlacement>? GaugePlacementChanged;
 
     private readonly Dictionary<GaugePlacement, Button> _placementButtons = new();
-    private Button _resume;
-    private ColorRect _dim;
+    private Button _resume = null!;
+    private ColorRect _dim = null!;
     private bool _enabled;
 
     /// <summary>Whether Esc may open the menu. Disabling while open closes it.</summary>

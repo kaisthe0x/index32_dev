@@ -17,21 +17,30 @@ public partial class ParticleDirector : Node2D
 	/// direction and gravity, or any other node's rotation.</summary>
 	private readonly record struct BasePose(Vector2 Direction, Vector2 Gravity, float Rotation);
 
-	private sealed class Sustained
+	/// <summary>A sustained row's live effect: spawned once, parented to the director, switched on while one of its
+	/// frames is showing.</summary>
+	private sealed class Sustained(Node2D node, List<Node> emitters, string anim, List<int> frames, Vector2 pos,
+		BasePose basePose, List<Hitbox> hitboxes)
 	{
-		public Node2D node; public List<Node> emitters; public string anim; public List<int> frames;
-		public Vector2 pos; public BasePose basePose; public List<Hitbox> hitboxes; public bool active;
+		public readonly Node2D node = node;
+		public readonly List<Node> emitters = emitters;
+		public readonly string anim = anim;
+		public readonly List<int> frames = frames;
+		public readonly Vector2 pos = pos;
+		public readonly BasePose basePose = basePose;
+		public readonly List<Hitbox> hitboxes = hitboxes;
+		public bool active;
 	}
 
 	/// <summary>A burst row bound to its animation, with its frames converted to emitted indices.</summary>
 	private sealed record Burst(string Anim, List<int> Frames, EmitterDef Def);
 
-	private AnimatedSprite2D _sprite;
+	private AnimatedSprite2D _sprite = null!;
 	private readonly List<Sustained> _sustained = new();
 	private readonly List<Burst> _bursts = new();
 	private readonly Dictionary<string, Dictionary<int, string>> _sfxFrames = new(); // anim -> { emitted_frame -> cue_key }
 
-	private Sfx _sfx;
+	private Sfx _sfx = null!;
 
 	/// <summary>Wire the director to a player sprite; watch frame/animation changes. Call once, then set_character().</summary>
 	public void setup(AnimatedSprite2D sprite)
@@ -73,17 +82,7 @@ public partial class ParticleDirector : Node2D
 				var hitboxes = HitboxesOf(node);
 				foreach (var hb in hitboxes)
 					hb.source = Attacker();
-				_sustained.Add(new Sustained
-				{
-					node = node,
-					emitters = emitters,
-					anim = anim,
-					frames = frames,
-					pos = row.Pos,
-					basePose = Capture(node),
-					hitboxes = hitboxes,
-					active = false,
-				});
+				_sustained.Add(new Sustained(node, emitters, anim, frames, row.Pos, Capture(node), hitboxes));
 			}
 		}
 		Refresh();
@@ -128,7 +127,7 @@ public partial class ParticleDirector : Node2D
 
 	/// <summary>Instantiate a row's effect, recoloured to the power picks and with the row's typed settings applied;
 	/// null (with a warning) if the scene is nothing the director can drive.</summary>
-	private Node2D Spawn(EmitterDef row)
+	private Node2D? Spawn(EmitterDef row)
 	{
 		if (row.Scene.Instantiate() is not Node2D node)
 			return null;
@@ -221,11 +220,8 @@ public partial class ParticleDirector : Node2D
 		}
 	}
 
-	private Node World()
-	{
-		var p = GetParent();
-		return p?.GetParent();
-	}
+	/// <summary>The node the player lives in — where a world-anchored burst is parented. Null outside the tree.</summary>
+	private Node? World() => GetParent()?.GetParent();
 
 	private float Mirror() => _sprite.FlipH ? -1.0f : 1.0f;
 
@@ -284,7 +280,7 @@ public partial class ParticleDirector : Node2D
 			if (b.Anim == anim && b.Frames.Contains(frame))
 				FireBurst(b, m);
 
-		if (_sfxFrames.TryGetValue(anim, out var emap) && emap.TryGetValue(frame, out string cue))
+		if (_sfxFrames.TryGetValue(anim, out var emap) && emap.TryGetValue(frame, out string? cue))
 			_sfx.play_at(cue, GlobalPosition, 0.0f, 1.0f);
 	}
 

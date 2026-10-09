@@ -25,7 +25,7 @@ public sealed class SegmentData
     public Color? Color;
     public float? ColorTime;
     /// <summary>Scene path of a VFX stamped on the victim.</summary>
-    public string VictimEffect;
+    public string? VictimEffect;
     public float? VictimTime;
     /// <summary>Marks the hit as coming from a special (grants no Ruh).</summary>
     public bool? FromSpecial;

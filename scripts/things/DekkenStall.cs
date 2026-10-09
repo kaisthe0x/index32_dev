@@ -14,7 +14,7 @@ public partial class DekkenStall : Stall
     private const string TintParam = "tint";   // the shader's vial colour
     private const string ArtNode = "Art";      // the machine's sprite, under the scene's Visual node
 
-    public PerkLedger Ledger;
+    public PerkLedger Ledger = null!;
 
     public override void _Ready()
     {
