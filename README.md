@@ -55,6 +55,8 @@ scripts/combat/       Hurtbox, hitbox, Combatant base, health bar, floating text
 scripts/enemies/      Enemy base + projectile
 sprites/characters/   Source pixel-art sheets, one folder per character
 sprites/enemies/      Source enemy sheets, one folder per enemy
+sprites/creatures/    Source sheets of ambient creatures (the bird) -- sliced in code, no generated resource
+scripts/creatures/    Ambient creatures (Bird)
 tools/                Generator + verification scripts (not shipped)
 ```
 
@@ -2067,6 +2069,33 @@ instead of a fixed fps that desyncs the moment speed changes. `RunAnimSpeed`
 
 ---
 
+### Birds — scenery that reacts (`scripts/creatures/Bird.cs`, `scripts/run/BirdFlock.cs`)
+
+A few small birds sit around the arena. They are **scenery**: no damage, no health, no drops, nothing counts them.
+All tuning is in **`configs/Birds.cs`**.
+
+- **One strip, two halves.** The art is a 24-frame, 32×32 strip (`sprites/creatures/bird/bird.png`, copied from
+  `index32_art/art/creatures/bird/bird.png`; 4 shades of blue, baked by the art repo's `bird` repalette profile).
+  Frames 0–3 settle onto the perch; frames 4–23 take off, fly and break apart (frame 23 is empty). `Bird.BuildFrames`
+  cuts the strip into one animation in code (10 fps) — there is no generated `.tres` for it.
+- **What a bird does** (`Bird`, a private `Stage`: Unseen → Settling → Perched → Fleeing):
+  it is placed off screen and does nothing until the camera first shows it (`VisibleOnScreenNotifier2D`); then it
+  plays frames 0 → `Birds.PerchFrame` (3) and **pauses there**. Once perched its scare sensor turns on — an `Area2D`
+  of radius `Birds.ScareRadius` (80 px) that sees `PlayerBody` and `EnemyBody` — and the first body inside (including
+  one already standing there) makes it play the rest of the strip while it flies up and **away from that body**
+  (`Birds.FleeVelocity`, 120 px/s across and 95 px/s up, reached over `Birds.FleeRampTime` 0.5 s; the art faces right
+  and is mirrored to fly left). The take-off sound `bird_flee` plays on `Birds.FleeSoundFrame` (4). It frees itself
+  when the strip ends. It is driven by signals and only ticks while flying.
+- **How many and where** (`BirdFlock`, built per arena and ticked by `RunManager` during play): up to `Birds.Count` (4)
+  at once. A new bird goes on a random tile top (`LevelLayout.Tops` — every exposed top, platforms and lone tiles
+  included) that is at least `Birds.OffscreenMargin` (64 px) outside what the camera shows, `Birds.MinSpacing` (96 px)
+  from every other bird, and clear of solid props (`ArenaGround.SpotIsClear`); it stands on the real surface there
+  (`ArenaGround.GroundBelow`, so it sits on a ramp, not above it). A bird that left is replaced after a random
+  `Birds.RespawnMin`–`RespawnMax` (6–14 s).
+- **The sound** (`sfx/creatures/bird/flee.wav`) is a **PLACEHOLDER** — a stand-in flutter, to be replaced by a
+  recording. It plays at the normal level (no mix offset), with a random ±8 % pitch per play.
+- **Not built:** birds dropping items (an idea for later). Nothing in the code anticipates it.
+
 ## HUD
 
 `scenes/hud.tscn` + `scripts/HUD.cs` — health + Ruh in a **gauge** (bottom-centre, or following
@@ -2167,7 +2196,7 @@ so it never hides their content.
 
 **World draw order** has its own table, **`WorldZ`** (`scripts/ui/WorldZ.cs`) — the z_index of everything in the arena,
 lowest first: `Scenery` (-30, the layout's statue / trees) → `Stalls` (-25, the box, Needle Point, Dekken, launch orbs
-— behind the tiles) → `Decor` (-20, the rocks + plants tile layer) → `Terrain` (-10) → `Drops` (-1, figs on the ground) → `Actors` (0,
+— behind the tiles) → `Decor` (-20, the rocks + plants tile layer) → `Terrain` (-10) → `Wildlife` (-2, perched birds) → `Drops` (-1, figs on the ground) → `Actors` (0,
 Khalid + enemies) → `EnemySpawner.SpawnFx` (4) → `FlyingPickups` (5, Lira + Ruh souls) → `Impacts` (50) → the death cinematic
 (400 / 500). `LevelLayout` sets its `Aesthetic` / `Decor` / `Terrain` nodes from it (a `[Tool]`, so the editor shows the
 same order), and each piece of code that places something in the world sets its own. Effects parented to a body keep

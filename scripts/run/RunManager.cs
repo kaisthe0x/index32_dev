@@ -14,8 +14,9 @@ namespace MyGame;
 /// <see cref="EnemySpawner"/> (who spawns and where, and the living list), <see cref="PressureSpawns"/> (the
 /// stand-still kamikazes and the edge Ventilator), <see cref="ArenaGround"/> (where things can stand),
 /// <see cref="RunCamera"/> (follow and zoom), <see cref="DeathSequence"/> (what plays between dying and the restart),
-/// <see cref="ArenaBackdrop"/> (what is drawn behind the arena) and <see cref="VialControls"/> (drinking carried
-/// vials). The spawner, the ground and the pressure spawns are rebuilt with each arena.</para>
+/// <see cref="ArenaBackdrop"/> (what is drawn behind the arena), <see cref="VialControls"/> (drinking carried
+/// vials) and <see cref="BirdFlock"/> (the birds perched around the arena). The spawner, the ground, the pressure
+/// spawns and the birds are rebuilt with each arena.</para>
 /// </summary>
 [GlobalClass]
 public partial class RunManager : Node2D
@@ -48,6 +49,7 @@ public partial class RunManager : Node2D
     private Node2D _content = null!;                // everything of this arena: the layout, enemies, drops
     private EnemySpawner _spawner = null!;
     private PressureSpawns _pressure = null!;
+    private BirdFlock _birds = null!;
     private PerkLedger _perks = null!;              // this run's Dekken perks (stock, active, owned)
     private MysteryBox? _box;                       // Fast Travel's destination
     private Vector2 _playerSpawn = Vector2.Zero;
@@ -110,6 +112,7 @@ public partial class RunManager : Node2D
         }
         TickRound(delta);
         _pressure.Tick(delta, _round);
+        _birds.Tick(delta);
         _camera.Follow(_player, delta);
     }
 
@@ -178,6 +181,7 @@ public partial class RunManager : Node2D
         _spawner.Died += OnEnemyDied;
         _spawner.Damaged += OnEnemyDamaged;
         _pressure = new PressureSpawns(_player, _spawner, ground, arenaLeft, arenaRight);
+        _birds = new BirdFlock(_content, layout, ground);
 
         foreach (var op in layout?.Orbs() ?? new System.Collections.Generic.List<Vector2>())
             _content.AddChild(new LaunchOrb { Position = op });

@@ -6,6 +6,34 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-10 — `new-shit` — Birds: scenery that flies off when something comes close
+
+### Birds perch around the arena and flee from Khalid and enemies
+
+- **What:** up to four small birds sit on random tiles. A bird is placed where the camera can't see it; the first
+  time it comes on screen it plays frames 0–3 of its strip and holds; when Khalid or an enemy comes within 80 px it
+  plays frames 4–23 while flying up and away from them, with a flutter sound on frame 4, and is gone. Another arrives
+  6–14 s later, again off screen. New: `configs/Birds.cs` (all numbers), `scripts/creatures/Bird.cs` (one bird),
+  `scripts/run/BirdFlock.cs` (how many, where), `sprites/creatures/bird/bird.png`, `sfx/creatures/bird/flee.wav`,
+  the cue `bird_flee` in `configs/SfxWorld.cs`, `WorldZ.Wildlife`. Changed: `RunManager` builds and ticks the flock;
+  `LevelLayout.Tops()` (every exposed tile top); `ArenaGround.SpotIsClear` and `GroundBelow` are now public.
+- **Why / how:** the owner wants the arena to feel alive. The bird only reacts to signals (camera visibility, a
+  body entering its sensor, the sprite's frame) and ticks only while flying, so a perched bird costs nothing per
+  frame. The flock is its own class owned by `RunManager`, like `PressureSpawns` (rule `S3`). The strip is cut into
+  frames in code, so nothing hand-written lands in `resources/`. The art was recoloured from a ~1,150-colour
+  purple-to-green gradient to four blues in `index32_art` (repalette profile `bird`).
+- **Could affect:** nothing in combat — the sensor only listens (`CollisionLayer` 0) and birds are not enemies, so
+  rounds, quotas and drops don't see them. `SpotIsClear` / `GroundBelow` kept their behaviour; only their
+  visibility changed. Up to four extra sprites and four idle `Area2D`s per arena.
+- **Tested:** `dotnet build` 0 warnings; headless arena boot clean; a WINDOWED scripted run (throwaway, deleted):
+  4 birds placed off screen, the watched one played frames 0→3 on first being seen and held, took off when Khalid
+  was put 50 px away, flew away from him over frames 4–23 (2.1 s) and freed itself, and the flock was back to 4
+  after 10.7 s. Screenshots checked by eye. The owner then replaced the sound file, set its mix
+  offset from −8 dB to 0 (so the row was removed — unlisted is 0) and approved the result. **Not tested:** an ENEMY
+  scaring a bird (same sensor and mask, not observed).
+
+---
+
 ## 2026-10-09 — `new-shit` — `Player` redesign: one class per state
 
 The second half of the redesign the owner approved. `Player.cs` was 2,213 lines: one class holding fourteen states'
