@@ -21,6 +21,8 @@ public static class SfxWorld
 																   // (positional, via Sfx.MakeLoop2D in LaunchOrb); launch_orb_use = the one-shot when Khalid uses it.
 		["launch_orb"] = "res://sfx/things/traversal/launch_orb/launch_orb.wav", // PLACEHOLDER — looping emitter hum
 		["launch_orb_use"] = "res://sfx/things/traversal/launch_orb/launch_orb_use.wav", // PLACEHOLDER — on use
+		// Birds (scenery): the wing flutter as a scared bird takes off (Bird, on Birds.FleeSoundFrame).
+		["bird_flee"] = "res://sfx/creatures/bird/flee.wav", // PLACEHOLDER — a stand-in flutter, to be replaced by a recording
 		// Rounds (RunManager): round_start plays as each round begins (the "ROUND n" label pops).
 		["round_start"] = "res://sfx/world/round/round_start.wav",
 	};
@@ -39,5 +41,6 @@ public static class SfxWorld
 	public static readonly Dictionary<string, Vector2> Pitch = new()
 	{
 		["lira_collect"] = new Vector2(0.0f, 0.08f), // coins land in bursts — vary them, but never below the real pitch
+		["bird_flee"] = new Vector2(-0.08f, 0.08f),  // several birds scared at once shouldn't sound like one sample
 	};
 }

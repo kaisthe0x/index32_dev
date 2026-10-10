@@ -105,6 +105,7 @@ public partial class LevelLayout : Node2D
     // only where their surfaces actually MEET (see Linked) — flat tiles side by side, a ramp and the floors at its two
     // ends — so a block step, or slopes laid as a sawtooth, splits regions. A region is somewhere a grunt can walk.
     private readonly List<(Vector2 Pos, int Region)> _topPositions = new();         // every top: tile-top world pos + region
+    private readonly List<Vector2> _tops = new();                                   // every top's tile-top world pos
     private readonly Dictionary<int, List<Vector2>> _spawnable = new();             // region → its spawn-worthy tops
     private bool _groundBuilt;
 
@@ -121,6 +122,14 @@ public partial class LevelLayout : Node2D
             return here;
         region = NearestRegion(groundPoint, requireSpawnable: true);
         return region >= 0 ? _spawnable[region] : new List<Vector2>();
+    }
+
+    /// <summary>Every exposed tile top in the layout (solid ground and one-way platforms, lone tiles included), as
+    /// world positions on the tile tops — anywhere something small can sit. Empty if there's no painted Terrain.</summary>
+    public IReadOnlyList<Vector2> Tops()
+    {
+        BuildGround();
+        return _tops;
     }
 
     /// <summary>The region of the top nearest <paramref name="point"/> (optionally only regions with spawn-worthy tops);
@@ -173,6 +182,7 @@ public partial class LevelLayout : Node2D
             Vector2 pos = tm.ToGlobal(tm.MapToLocal(cell) - new Vector2(0.0f, halfH)); // tile-top, world space
             int region = regionOf[cell];
             _topPositions.Add((pos, region));
+            _tops.Add(pos);
             if (FloorRun(tops, slopes, cell) < MinSpawnFloorTiles)
                 continue; // too short to walk on
             if (!_spawnable.TryGetValue(region, out var list))
