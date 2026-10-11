@@ -2081,8 +2081,8 @@ All tuning is in **`configs/Birds.cs`**.
 - **What a bird does** (`Bird`, a private `Stage`: Unseen → Settling → Perched → Fleeing):
   it is placed off screen and does nothing until the camera first shows it (`VisibleOnScreenNotifier2D`); then it
   plays frames 0 → `Birds.PerchFrame` (3) and **pauses there**. Once perched its scare sensor turns on — an `Area2D`
-  of radius `Birds.ScareRadius` (80 px) that sees `PlayerBody` and `EnemyBody` — and the first body inside (including
-  one already standing there) makes it play the rest of the strip while it flies up and **away from that body**
+  of radius `Birds.ScareRadius` (80 px) that sees `PlayerBody` only (enemies never scare a bird) — and Khalid stepping inside (or
+  already standing there) makes it play the rest of the strip while it flies up and **away from him**
   (`Birds.FleeVelocity`, 120 px/s across and 95 px/s up, reached over `Birds.FleeRampTime` 0.5 s; the art faces right
   and is mirrored to fly left). The take-off sound `bird_flee` plays on `Birds.FleeSoundFrame` (4). It frees itself
   when the strip ends. It is driven by signals and only ticks while flying.

@@ -8,10 +8,10 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ## 2026-10-10 — `new-shit` — Birds: scenery that flies off when something comes close
 
-### Birds perch around the arena and flee from Khalid and enemies
+### Birds perch around the arena and flee from Khalid
 
 - **What:** up to four small birds sit on random tiles. A bird is placed where the camera can't see it; the first
-  time it comes on screen it plays frames 0–3 of its strip and holds; when Khalid or an enemy comes within 80 px it
+  time it comes on screen it plays frames 0–3 of its strip and holds; when Khalid comes within 80 px it
   plays frames 4–23 while flying up and away from them, with a flutter sound on frame 4, and is gone. Another arrives
   6–14 s later, again off screen. New: `configs/Birds.cs` (all numbers), `scripts/creatures/Bird.cs` (one bird),
   `scripts/run/BirdFlock.cs` (how many, where), `sprites/creatures/bird/bird.png`, `sfx/creatures/bird/flee.wav`,
@@ -29,8 +29,9 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
   4 birds placed off screen, the watched one played frames 0→3 on first being seen and held, took off when Khalid
   was put 50 px away, flew away from him over frames 4–23 (2.1 s) and freed itself, and the flock was back to 4
   after 10.7 s. Screenshots checked by eye. The owner then replaced the sound file, set its mix
-  offset from −8 dB to 0 (so the row was removed — unlisted is 0) and approved the result. **Not tested:** an ENEMY
-  scaring a bird (same sensor and mask, not observed).
+  offset from −8 dB to 0 (so the row was removed — unlisted is 0) and approved the result. The owner then asked that ONLY Khalid scare
+  birds: the sensor's mask dropped `EnemyBody`. **Not tested:** that an enemy walking past a perched bird leaves it
+  there (it follows from the mask; not observed in a run).
 
 ---
 

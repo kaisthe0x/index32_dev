@@ -5,9 +5,9 @@ namespace MyGame;
 /// <summary>
 /// A bird perched in the arena — scenery (tuning in <see cref="Birds"/>). It is placed off screen by
 /// <see cref="BirdFlock"/>; the moment the camera first sees it, it settles onto its perch (frames 0 to
-/// <see cref="Birds.PerchFrame"/>) and holds there. When Khalid or an enemy comes within
-/// <see cref="Birds.ScareRadius"/> it plays the rest of the strip while flying up and away from whoever scared it,
-/// then frees itself (the art breaks the bird apart on its last frames).
+/// <see cref="Birds.PerchFrame"/>) and holds there. When Khalid comes within
+/// <see cref="Birds.ScareRadius"/> it plays the rest of the strip while flying up and away from him,
+/// then frees itself (the art breaks the bird apart on its last frames). Enemies don't scare it — only he does.
 ///
 /// <para>It only reacts: the camera, the scare sensor and the sprite's frames drive it through signals, and it ticks
 /// only while flying.</para>
@@ -24,7 +24,7 @@ public partial class Bird : Node2D
     private Area2D _sensor = null!;
     private Sfx _sfx = null!;
     private Stage _stage = Stage.Unseen;
-    private int _fleeSide = 1;      // +1 flies right, -1 left (away from whoever scared it)
+    private int _fleeSide = 1;      // +1 flies right, -1 left (away from Khalid)
     private float _fleeTime = 0.0f; // seconds since take-off (ramps the flight speed up)
 
     /// <summary>A bird drawn from <paramref name="frames"/> (<see cref="BuildFrames"/> — one shared by the whole flock).</summary>
@@ -70,11 +70,11 @@ public partial class Bird : Node2D
         seen.ScreenEntered += OnSeen;
         AddChild(seen);
 
-        // Off until it is perched: turning it on then also reports anyone ALREADY standing in range.
+        // Off until it is perched: turning it on then also reports Khalid if he is ALREADY standing in range.
         _sensor = new Area2D
         {
             CollisionLayer = 0,
-            CollisionMask = (uint)(Combat.Layer.PlayerBody | Combat.Layer.EnemyBody),
+            CollisionMask = (uint)Combat.Layer.PlayerBody, // only Khalid scares it; enemies walk past
             Monitoring = false,
             Monitorable = false,
         };
@@ -111,7 +111,7 @@ public partial class Bird : Node2D
             _sfx.PlayAt(FleeCue, GlobalPosition);
     }
 
-    /// <summary>Khalid or an enemy came close: play the rest of the strip, flying away from <paramref name="body"/>.</summary>
+    /// <summary>Khalid came close: play the rest of the strip, flying away from <paramref name="body"/>.</summary>
     private void OnScared(Node2D body)
     {
         if (_stage != Stage.Perched)

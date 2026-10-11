@@ -4,8 +4,8 @@ namespace MyGame;
 
 /// <summary>
 /// Tuning for the arena's BIRDS — PURE DATA; the readers are <see cref="Bird"/> (one bird) and <see cref="BirdFlock"/>
-/// (how many there are and where they sit). Birds are scenery: they perch on random tiles, and take off when Khalid or
-/// an enemy comes close. They deal and take no damage and count toward nothing.
+/// (how many there are and where they sit). Birds are scenery: they perch on random tiles, and take off when Khalid
+/// comes close (enemies don't disturb them). They deal and take no damage and count toward nothing.
 ///
 /// <para>The art is ONE 24-frame strip (<see cref="SheetPath"/>, from <c>index32_art/art/creatures/bird/</c>): frames
 /// 0–<see cref="PerchFrame"/> settle onto the perch, the rest take off, fly and break apart (the last frame is empty).</para>
@@ -32,7 +32,7 @@ public static class Birds
     public const int SpawnTries = 12;           // random tiles tried per attempt; none fits = try again next tick
 
     // --- taking off -------------------------------------------------------------------------------------------------
-    public const float ScareRadius = 80.0f;  // Khalid or an enemy this close (2.5 tiles) scares a perched bird
+    public const float ScareRadius = 80.0f;  // Khalid this close (2.5 tiles) scares a perched bird — enemies never do
     /// <summary>Flight velocity (px/s) once up to speed, for a bird fleeing to the RIGHT (X is mirrored for the left):
     /// up and away, covering ~210 px across and ~170 px up over the 2 s flight.</summary>
     public static readonly Vector2 FleeVelocity = new(120.0f, -95.0f);
