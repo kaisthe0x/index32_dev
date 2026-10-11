@@ -15,14 +15,14 @@ namespace MyGame;
 /// stand-still kamikazes and the edge Ventilator), <see cref="ArenaGround"/> (where things can stand),
 /// <see cref="RunCamera"/> (follow and zoom), <see cref="DeathSequence"/> (what plays between dying and the restart),
 /// <see cref="ArenaBackdrop"/> (what is drawn behind the arena), <see cref="VialControls"/> (drinking carried
-/// vials) and <see cref="BirdFlock"/> (the birds perched around the arena). The spawner, the ground, the pressure
+/// vials), <see cref="WineControls"/> (drinking the carried fig wine) and <see cref="BirdFlock"/> (the birds perched around the arena). The spawner, the ground, the pressure
 /// spawns and the birds are rebuilt with each arena.</para>
 /// </summary>
 [GlobalClass]
 public partial class RunManager : Node2D
 {
     private static readonly Vector2 DamageNumberOffset = new(0, -42);
-    private static readonly Vector2 FastTravelOffset = new(-28, -4); // where Fast Travel drops you, beside the box
+    private static readonly Vector2 FastTravelOffset = new(-28, -4); // where Fast Travel drops you, beside the Figmenter
     private const float DeathY = 320.0f;   // falling below this world Y kills the player
     private const string StartCharacter = "khalid";
     private const string StageDir = "res://scenes/levels/stage1/";
@@ -33,6 +33,7 @@ public partial class RunManager : Node2D
     private RunCamera _camera = null!;
     private DeathSequence _death = null!;
     private VialControls _vials = null!;
+    private WineControls _wine = null!;
     private Music _music = null!;
     private Sfx _sfx = null!;
     private PackedScene _ruhOrb = null!, _liraScene = null!, _fadaFigScene = null!;
@@ -51,7 +52,8 @@ public partial class RunManager : Node2D
     private PressureSpawns _pressure = null!;
     private BirdFlock _birds = null!;
     private PerkLedger _perks = null!;              // this run's Dekken perks (stock, active, owned)
-    private MysteryBox? _box;                       // Fast Travel's destination
+    private FigmenterLedger _brews = null!;         // this run's Figmenter: the brew in it and the carried wine
+    private Figmenter? _figmenter;                       // Fast Travel's destination
     private Vector2 _playerSpawn = Vector2.Zero;
     private bool _spawning = false;                 // the spawn animation is playing (the camera is zoomed in on it)
 
@@ -68,6 +70,8 @@ public partial class RunManager : Node2D
         AddChild(_death);
         _vials = new VialControls(_player, _sfx);
         AddChild(_vials);
+        _wine = new WineControls(_player, _sfx);
+        AddChild(_wine);
 
         Engine.TimeScale = 1.0;
         Input.MouseMode = Input.MouseModeEnum.Hidden; // hide the cursor during play; menus re-show it while open
@@ -187,20 +191,18 @@ public partial class RunManager : Node2D
             _content.AddChild(new LaunchOrb { Position = op });
 
         // The stalls are scenes the layout places (LevelLayout.Placed) — all three are required.
-        _box = layout?.Placed<MysteryBox>();
+        _figmenter = layout?.Placed<Figmenter>();
         var needlePoint = layout?.Placed<NeedlePointStall>();
         var dekken = layout?.Placed<DekkenStall>();
-        if (_box == null || needlePoint == null || dekken == null)
-            GD.PushError("RunManager: the layout must place all three stall scenes (scenes/things/: mystery_box, needle_point, dekken).");
-        if (_box != null && layout != null)
-        {
-            if (layout.BoxSpots(hard: false).Count == 0)
-                GD.PushError("RunManager: the layout has no easy box spot (BoxSpots/Easy markers) — the box stays where it was placed and can't relocate.");
-            _box.Setup(new BoxLedger(_player), layout.BoxSpots(hard: false), layout.BoxSpots(hard: true));
-        }
+        if (_figmenter == null || needlePoint == null || dekken == null)
+            GD.PushError("RunManager: the layout must place all three stall scenes (scenes/things/: figmenter, needle_point, dekken).");
+        _brews = new FigmenterLedger(_player);
+        _wine.Ledger = _brews;
+        if (_figmenter != null)
+            _figmenter.Ledger = _brews;
         if (needlePoint != null)
             needlePoint.Ledger = new ShotLedger(_player); // this run's Needle Point ranks
-        _perks = new PerkLedger(_player, FastTravelToBox, _vials.ShowVials);
+        _perks = new PerkLedger(_player, FastTravelToFigmenter, _vials.ShowVials);
         _vials.Ledger = _perks;
         if (dekken != null)
             dekken.Ledger = _perks;
@@ -246,11 +248,13 @@ public partial class RunManager : Node2D
         _sfx.Play("round_start");
     }
 
-    /// <summary>The last quota enemy of the round died: timed perks spend a round, Dekken restocks, and the next round
+    /// <summary>The last quota enemy of the round died: timed perks spend a round, Dekken restocks, the Figmenter's
+    /// brew fills a step and a carried wine ages, and the next round
     /// starts at once — the player never gets a break.</summary>
     private void ClearRound()
     {
         _perks.OnRoundClear();
+        _brews.OnRoundClear();
         StartRound(_round + 1);
     }
 
@@ -282,12 +286,12 @@ public partial class RunManager : Node2D
                 e.Hunt(Rounds.StragglerSpeedMult);
     }
 
-    /// <summary>Dekken's Fast Travel: put the player right beside the mystery box.</summary>
-    private void FastTravelToBox()
+    /// <summary>Dekken's Fast Travel: put the player right beside the Figmenter.</summary>
+    private void FastTravelToFigmenter()
     {
-        if (_box == null)
+        if (_figmenter == null)
             return;
-        Nodes.PlaceAt(_player, _box.GlobalPosition + FastTravelOffset);
+        Nodes.PlaceAt(_player, _figmenter.GlobalPosition + FastTravelOffset);
         _player.Velocity = Vector2.Zero;
     }
 

@@ -49,7 +49,7 @@ resources/characters/ GENERATED SpriteFrames -- do not hand-edit
 resources/enemies/    GENERATED enemy SpriteFrames -- do not hand-edit
 scenes/               player, level, hud
 scripts/              player, hud
-scripts/run/          the roguelite run: arena, round loop + spawner, Ruh, the stalls' ledgers (shots / perks / box), attack picker (see scripts/run/README.md)
+scripts/run/          the roguelite run: arena, round loop + spawner, Ruh, the stalls' ledgers (shots / perks / Figmenter), attack picker (see scripts/run/README.md)
 scripts/abilities/    Passive/Buff base (C#) + the buff classes (their Trigger enum: enums/abilities/Trigger.cs)
 scripts/combat/       Hurtbox, hitbox, Combatant base, health bar, floating text, status overlay — all C# now (constants -> configs/Combat.cs)
 scripts/enemies/      Enemy base + projectile
@@ -82,7 +82,8 @@ nothing in an exported game). A full compile of the game is about 1.4 s (2026-10
 | Ctrl (RT / R2) | `surge` | Fires the equipped **Surge** — a passive ability (**Aegis** = ~5s invincibility; **Jnoon** = ~5s ×2 damage dealt; **Asra** = ~5s ×2 move speed) applied *without* interrupting your attacking/moving — **except Nem**, a committed sleep that locks you in place and restores one health block over 5s (a hit wakes/cancels it; the kamikaze stand-still clock pauses while he sleeps), and **Wara**, which *arms* and waits: the next enemy hit is negated and AoE-stuns everyone near you (2s). **Spends one Ruh charge per use** — Ruh is the only gate, no cooldown. RT on the pad because dash owns LT |
 | Q (RB) | `vial_drink` | Drink the selected carried **Dekken vial** — instant, mid-fight. If it would do nothing right now (Heal at full health) it stays in your pocket. Registered in code by `RunManager` |
 | Tab (LB) | `vial_cycle` | Select the next carried vial (the HUD frames the selected one) |
-| E | `interact` | Use the stall you're standing at — the **mystery box** (spend fada figs), **Needle Point** (shots) or **Dekken** (perks); a shop menu closes with E / Esc. Registered in code by `Stall` |
+| E | `interact` | Use the stall you're standing at — the **Figmenter** (start a brew with fada figs, collect the wine), **Needle Point** (shots) or **Dekken** (perks); a shop menu closes with E / Esc. Registered in code by `Stall` |
+| F (D-pad up) | `wine_drink` | Drink the carried **fig wine** — instant, mid-fight. Its buff joins you for the run at the wine's current rarity. Registered in code by `WineControls`. |
 | Z / X | `debug_damage` / `debug_heal` | Dev only |
 | 0 | `debug_respawn` | Dev only — rebuild the current level fresh |
 
@@ -151,16 +152,16 @@ run with 3 Ruh charges** — the surge meter, shown in charges (100 each), no de
 surge** (a passive on its own button): it grants ~5s of invincibility on demand without interrupting
 you, and **each use spends one Ruh charge** — Ruh is the only gate, no cooldown (see below). **HP is separate**: damage hits it only, heals
 *only* from buffs. **Killing an enemy** pays **Lira** (the common currency) and, at a per-enemy chance, a **Fada
-Fig** (the rare one) — see below. **Buffs come from the mystery box** in the arena: stand next to it and press **E**
+Fig** (the rare one) — see below. **Buffs come from the Figmenter** in the arena: stand next to it and press **E**
 to **spend** figs on a gamble — a win opens a **pick-1-of-3 menu** from the POWERFUL pool (above-rare tiers), each
 win making the next rarer. **Lira buys shots at Needle Point** (permanent stat boosts, rank by rank) **and perks at Dekken** (utility —
 a heal, a teleport, a shield …); every stall is open all the time — rounds run back to back with no break
 (§ Needle Point shots / § Dekken perks below, `docs/game-loop.md` § Economy). Moves are independent — they **upgrade by layering
 buffs**, not by turning into a different move (Rope Dart & Redere Frisbee are now standalone swaps, not
 successors). Take 0 HP and the run restarts (a fresh arena; buffs cleared, HP + Ruh refilled). All of this — the
-spawner, the enemy roster, the buff pools, the box, the attack picker — lives in
-[`scripts/run/`](scripts/run/README.md) (`RunManager` is `arena.tscn`'s root; `EnemyKits` is the roster, `MysteryBox`
-+ `BoxLedger` + `BuffCatalog` the fig gamble for permanent buffs). The `.tscn` stays minimal because the editor
+spawner, the enemy roster, the buff pools, the Figmenter, the attack picker — lives in
+[`scripts/run/`](scripts/run/README.md) (`RunManager` is `arena.tscn`'s root; `EnemyKits` is the roster, `Figmenter`
++ `FigmenterLedger` + `BuffCatalog` the fig gamble for permanent buffs). The `.tscn` stays minimal because the editor
 clobbers it, so the level content is built in code from that data. The **look** of the terrain itself is the
 hand-painted `TileMapLayer` in each stage layout (see the run README); the old procedural tileset/plant/tree
 "skin" is **retired**, and `configs/Terrain.cs` now only holds the backdrop config.
@@ -186,7 +187,7 @@ tint (`BackgroundTintAlpha`). (The old animated orbiting planet was removed; its
   ([`scenes/fada_fig.tscn`](scenes/fada_fig.tscn), [`scripts/collectibles/FadaFig.cs`](scripts/collectibles/FadaFig.cs),
   a `RigidBody2D`) pops out, bounces/tumbles, and settles on the terrain; the player collects it by **physically
   touching** it (the child `Pickup` Area → `Wallet.CollectFadaFigs`, `fada_fig_collect` placeholder sfx).
-  `FadaFig.Magnetize(target)` is a ready hook for a future perk that pulls loose figs in. The mystery box spends
+  `FadaFig.Magnetize(target)` is a ready hook for a future perk that pulls loose figs in. The Figmenter spends
   them (`Wallet.SpendFadaFigs`).
 
 Both balances show top-left on the HUD. The fig sprite wears a shared **`vfx/shaders/world/pulse_glow.gdshader`**
@@ -782,9 +783,9 @@ following box; multiple frames would double-hit) and the Strike's `lifetime` spa
 keeping the box live the entire dash — you connect no matter how far from an enemy you start. Recipe for
 any dash move: `lunge` + `hold` + `super_armor` in the tuning, `follow: true` on the emitter.
 
-**Zahluq is a box-only special (not an attack).** It was retired from the attack roster — too strong to pick
+**Zahluq is a Figmenter-only special (not an attack).** It was retired from the attack roster — too strong to pick
 freely — and lives in `ActionsKhalid.Specials` under `SpecialIds.Zahluq`. It is offered **only** by the
-mystery box, at a low `SpecialOfferChance` (`RunManager.RollBoxSpecial`), and choosing it **replaces your
+Figmenter, at a low `SpecialOfferChance` (`RunManager.RollBoxSpecial`), and choosing it **replaces your
 current special** (`OnBuffChosen` equips it via `Player.Equip(LoadoutCategory.Special, …)`) rather than
 adding a passive buff. It keeps its old presentation through `AnimationOverride = "attack_zahluq"` (sprite,
 emitter row, and `zahluq` sfx cue all still key off `attack_zahluq`).
@@ -880,7 +881,7 @@ together because an `extends` chain must be one language (see `docs/csharp-migra
 - a character's **intrinsic ability** — a `CharacterAbility` (which *is* a `Passive`) returned by
   `Player.CharacterAbilityFor(id)`, seeded FIRST in the list. Khalid ships without one.
 - a **granted buff** — a `Passive` subclass, added at runtime via `Player.AddPassive()` when it's granted (today:
-  picked from the mystery box's menu, built by `BuffCatalog.Make`), and cleared on run restart (each passive's `Teardown` runs so it can undo lingering effects). `BeginRun` clears them
+  picked from the Figmenter's menu, built by `BuffCatalog.Make`), and cleared on run restart (each passive's `Teardown` runs so it can undo lingering effects). `BeginRun` clears them
   FIRST (`ClearPassives`), before resetting stats — otherwise each undo lands on already-reset stats and applies
   twice (the old bug: an extra-air-jump buff left the next run at −1 air jumps, a jump-height one at ~0.7× height).
 
@@ -940,12 +941,12 @@ A **`Buff` IS a `Passive`** (so it grants, dispatches, and tears down through th
   one. Gate a `ModifyTuning` override with `AppliesToAction(action)`; behavioural hooks (`OnParry`, …)
   already self-scope to their fire site, so `AppliesTo` there is for offer gating / display.
 
-Box buffs have a **single version** (no tiers) and never repeat — the box only offers what the player doesn't hold
+Figmenter buffs come in **five strengths** (the rarity of the wine that granted them) and never repeat — a wine never holds what the player already has
 (`BuffCatalog.Pool`), so there's no replace-in-place rule.
 
 Two ways a buff acts (either/both): **numbers** — override `ModifyTuning` to change a move's tuning dict
 (folded in last inside `resolve_tuning`); **behaviour** — override an event hook. The buffs themselves are
-the box catalog below.
+the Figmenter catalog below.
 
 #### Needle Point shots (`configs/NeedlePoint.cs`)
 
@@ -979,7 +980,7 @@ rank I's Lira price — **priced by worth**: Jump Height / Run Speed 15, Extra J
 The **perk shop** (`docs/game-loop.md` § Economy): utility and tactics, bought with Lira. Each round it stocks
 `Dekken.StockSize` (5) perks drawn at random from `Dekken.Perks` — each a `PerkDef` (`records/perks/`): name, text, a
 `PerkDuration` (`Rounds` / `OneUse` / `Run`), rounds, Lira price, one tuning `Value`, and optionally the special it
-needs equipped. The pool: **Heal** (a block, one use), **Fast Travel** (beside the mystery box, one use), **Fig
+needs equipped. The pool: **Heal** (a block, one use), **Fast Travel** (beside the Figmenter, one use), **Fig
 Chance** (+5 % fig odds on every kill, whole run), **Magnet** (figs within 400 px fly to you), **Shield** (blocks the
 first hit each round), **Prepared** (your surge fires free as each round starts — Wara arms), **Wider Pull** (Come
 Closer +2 targets; only stocked with Come Closer). All placeholders.
@@ -993,7 +994,7 @@ Closer +2 targets; only stocked with Come Closer). All placeholders.
   (`Blocked` says why a vial can't be DRUNK now: FULL HEALTH / OWNED / ACTIVE; `KeepBlocked` why it can't be KEPT:
   DRINK ONLY / HELD / POCKETS FULL), the carried vials (`Held`, `Selected`, `CycleHeld`, `DrinkHeld` — a vial that
   would do nothing stays in the pocket), timed perks spending a round per clear, whole-run perks leaving the pool.
-  One-use perks just happen (`Player.Heal`, `RunManager.FastTravelToBox`). `RunManager` owns the two keys
+  One-use perks just happen (`Player.Heal`, `RunManager.FastTravelToFigmenter`). `RunManager` owns the two keys
   (`VialControls.EnsureActions`, `VialControls.Drink`) and pushes the carried vials to the HUD (`VialControls.ShowVials` → `HUD.SetVials`: two
   framed slots under the currency counters, the selected one in the accent colour — PLACEHOLDER text until the vial
   icons exist).
@@ -1011,30 +1012,50 @@ Closer +2 targets; only stocked with Come Closer). All placeholders.
   button. Active perks show in the HUD's
   top-right list (rounds left, or RUN).
 
-#### The mystery box (`MysteryBox` · `BoxLedger` · `configs/BoxRules.cs` · `configs/BuffCatalog.cs`)
+#### The Figmenter (`Figmenter` · `FigmenterLedger` · `configs/FigmenterRules.cs` · `configs/BuffCatalog.cs`)
 
-The box sells **permanent, build-defining mechanics** for **figs** — in **real time**, the game never pauses
-(docs/game-loop.md § Economy). Stand at it and press **E**:
+The Figmenter turns **Fada Figs** into **fig wine**, and a wine holds one **permanent, build-defining mechanic**. It
+all happens in real time — the game never pauses (docs/game-loop.md § Economy). It was called the **mystery box**
+until 2026-10-10.
 
-1. **Spin** — `BoxLedger.Spin` charges `BoxRules.Cost` (8 figs) and rolls the result; names flicker over the box for
-   `SpinTime` (2.5 s). No figs → "NEED 8"; nothing left to give → "EMPTY" (no charge).
-2. **Offer** — the result (name + one-line description) hangs over the box for `OfferTime` (8 s, blinking in the last
-   quarter). **E takes it** (`BoxLedger.Take`: a buff → `AddPassive`; a special → `equip`). Leave it and it's gone —
-   that's the **decline**; the figs stay spent.
-3. **Teddy bear** (`TeddyChance`, 1 in 8, only if the layout has another spot) — instead of an offer: the figs are
-   **refunded** and the box **relocates** to another box spot — a **hard** one `HardSpotChance` (40 %) of the time —
-   fading out and in, under a **beam of light** until the player reaches it. Dekken's Fast Travel goes wherever it is.
+**Its look** (`scenes/things/figmenter.tscn`): a mossy steel vat with a window and a control box, standing on the
+ground — `assets/things/figmenter.png`, a 6-frame strip (96×96 each) copied from
+`index32_art/art/stages/stage1/Figmenter.png`: frame 0 is the empty tank, frames 1–5 fill it with wine (a light comes
+on at the last). `Figmenter` shows the frame for how far the brew is (`FigmenterLedger.Fill`), so the strip can be any
+length. Like Needle Point and Dekken it **stays where the layout places it**.
 
-**What it gives:** one buff from `BuffCatalog.Pool(player)` — every implemented, un-parked buff he **doesn't hold yet**
-(so no duplicates; a buff tied to one move, like Overcharge → Bakshen, only while that move is equipped) — or, at
-`SpecialChance` (6 %), a **special-swap** from `BoxRules.Specials` (Zahluq, Bakshen; never the equipped one).
+**The loop** (`FigmenterLedger` — one per run, owned by `RunManager`; numbers in `configs/FigmenterRules.cs`):
 
-**Box spots** are the layout's `BoxSpots/Easy` and `BoxSpots/Hard` markers (`LevelLayout.BoxSpots`); `MysteryBox.Setup`
-puts the box on a random easy one at run start. SFX cues `box_spin` / `box_result` / `box_teddy` / `buff_select` are
-PLACEHOLDERS (`SfxWorld`).
+1. **Brew** — at the empty machine, **E** pays `Cost` (8 figs). What the wine will hold is decided right then, so
+   figs are never taken for nothing ("NEED 8" without the figs; "EMPTY" when there is nothing left to make).
+2. **Wait** — it takes `BrewRounds` (**5**) cleared rounds; the tank fills a step per round and the machine shows
+   "n ROUNDS". Pressing E meanwhile just repeats that.
+3. **Ready** — the wine's **name and what it does** hang over the machine. A ready wine waits as long as you like
+   (it does not age in the machine).
+4. **Collect** — **E** moves it into your **wine slot** (one bottle; shown in the HUD under the vials). With the slot
+   taken you get "DRINK YOUR WINE FIRST". The machine is empty again and can brew the next one right away.
+5. **Drink — or carry** — **F** (pad: D-pad up; `wine_drink`, registered in code by `WineControls`) drinks the bottle
+   at any moment. A wine leaves the machine **Common** and climbs one rarity every `AgeRounds` (**2**) rounds you
+   carry it: Common → Rare → Hot → Sensational → Epic (8 rounds for the lot). The buff comes out **that much
+   stronger**.
+
+**What a wine holds:** one buff from `BuffCatalog.Pool(player)` — every implemented, un-parked buff he **doesn't hold
+yet**, minus the one in the bottle he is carrying (so no duplicates; a buff tied to one move, like Overcharge →
+Bakshen, only while that move is equipped) — or, at `SpecialChance` (6 %), a **special-swap** from
+`FigmenterRules.Specials` (Zahluq, Bakshen; never the equipped one). Rarity does nothing to a special — the label says
+which it is, so drink that one straight away.
+
+**Rarity** is the `WineRarity` enum; its colours are `FigmenterRules.RarityColor` (plain, blue, orange, purple, red) and
+appear on the HUD wine slot, the floating name when you drink, and the buff's line in the buff list (`Buff.Rarity`).
+
+**Sounds** (`sfx/things/figmenter/`, cues in `SfxWorld`): `figmenter_brew` (figs drop in, the machine starts),
+`figmenter_ready` (a chime when a brew finishes), `wine_collect` (a cork and glass as the bottle is taken) and
+`wine_drink` (swallows). All four are **PLACEHOLDERS** — synthesized, to be replaced by recordings. **Not built:** the owner
+plans a between-runs upgrade system that would shorten the brew.
 
 **The catalog** (`docs/buff-catalog.md`) is a data registry: `BuffCatalog.Factories` maps a `BuffIds.*` id → a
-`Func<Buff>` that builds the buff with its **one value** (the old five-tier arrays collapsed to their Hot value);
+`Func<WineRarity, Buff>` that builds the buff at one of its **five strengths** (Common … Epic, listed in order in the
+factory — the wine's rarity picks which);
 `Info` holds its name + description. Most entries reuse a **generic buff class** rather than a bespoke one:
 
 - **`LifestealBuff`** — each landed hit has a chance to restore half a block, via `OnHitDealt` (Bloodrush 8 %, Skim 3 %).
@@ -1919,7 +1940,7 @@ the build basics:
   clears on the last kill (only non-optional enemies count). A **kit** (`EnemyKits.Kebus`, …) is a typed `EnemyKit` record: id, display name, tier, movement, which scene (the
   generic `enemy.tscn` by default, or a custom one — `sleeper_enemy.tscn`, `diver_enemy.tscn`) and a `Tune` function
   that sets the enemy's stats on the typed instance. `EnemySpawner.SpawnEnemy` instantiates and tunes it; the enemy's
-  `died` signal frees a cap slot and drops Lira (+ a chance of a Fada Fig) — buffs come from the mystery box, not kills.
+  `died` signal frees a cap slot and drops Lira (+ a chance of a Fada Fig) — buffs come from the Figmenter, not kills.
 - **Spawn spots** — `EnemySpawner.PickSpawnSpot` picks a FREE `EnemySpawns` marker (one enemy per spot; `EnemySpawner._spotOf`
   frees it on death), spreading them over the map: the free spot farthest from the ones already held, among those at
   least `Rounds.SpawnMinDistance` (320 px) from the player. All spots held = the spawn waits. `EnemySpawner.SpawnAt` puffs, spawns,
@@ -2179,7 +2200,7 @@ scales cleanly at any resolution.
 - **`UiStyle.Install()`** (called first thing in the HUD autoload) makes Sixtyfour the global
   **fallback font**, so un-themed text (enemy name tags, world prompts) matches too.
 - **Semantic colours stay semantic:** Needle Point rank colours, damage numbers, and the
-  mystery box's gold glint are left as-is; only UI chrome uses the palette.
+  Figmenter's gold glint are left as-is; only UI chrome uses the palette.
 
 ### Pause menu (`scripts/ui/PauseMenu.cs`)
 
@@ -2195,7 +2216,7 @@ so screens can't silently cover each other: `Background` (-100) → `LowHealth` 
 so it never hides their content.
 
 **World draw order** has its own table, **`WorldZ`** (`scripts/ui/WorldZ.cs`) — the z_index of everything in the arena,
-lowest first: `Scenery` (-30, the layout's statue / trees) → `Stalls` (-25, the box, Needle Point, Dekken, launch orbs
+lowest first: `Scenery` (-30, the layout's statue / trees) → `Stalls` (-25, the Figmenter, Needle Point, Dekken, launch orbs
 — behind the tiles) → `Decor` (-20, the rocks + plants tile layer) → `Terrain` (-10) → `Wildlife` (-2, perched birds) → `Drops` (-1, figs on the ground) → `Actors` (0,
 Khalid + enemies) → `EnemySpawner.SpawnFx` (4) → `FlyingPickups` (5, Lira + Ruh souls) → `Impacts` (50) → the death cinematic
 (400 / 500). `LevelLayout` sets its `Aesthetic` / `Decor` / `Terrain` nodes from it (a `[Tool]`, so the editor shows the

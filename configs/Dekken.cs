@@ -27,7 +27,7 @@ public static class Dekken
     public static readonly PerkDef[] Perks =
     {
         new(PerkIds.Heal, "Heal", "Restore a health block.", PerkDuration.OneUse, 0, 20, 2f),
-        new(PerkIds.FastTravel, "Fast Travel", "Teleport to the mystery box.", PerkDuration.OneUse, 0, 20, 0f),
+        new(PerkIds.FastTravel, "Fast Travel", "Teleport to the Figmenter.", PerkDuration.OneUse, 0, 20, 0f),
         new(PerkIds.FigChance, "Fig Chance", "Enemies 5% likelier to drop figs.", PerkDuration.Run, 0, 40, 0.05f),
         new(PerkIds.Magnet, "Magnet", "Nearby figs fly to you.", PerkDuration.Rounds, 2, 15, 400f),
         new(PerkIds.Shield, "Shield", "Blocks your first hit each round.", PerkDuration.Rounds, 2, 25, 1f),

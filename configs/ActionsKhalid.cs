@@ -107,7 +107,7 @@ public static class ActionsKhalid
 			Cooldown = 3.0f,
 		},
 		// Bakshen — ex-attack (it was the only cooldown-gated attack; a big hit on a cooldown IS a special). A rare
-		// special-swap from the mystery box. AnimationOverride reuses its "attack_bakshen" sprite/vfx/sfx.
+		// special-swap from the Figmenter. AnimationOverride reuses its "attack_bakshen" sprite/vfx/sfx.
 		[SpecialIds.Bakshen] = new Action
 		{
 			Name = "Bakshen",
@@ -117,7 +117,7 @@ public static class ActionsKhalid
 			Cooldown = 3.0f,
 			Hit = new HitData(StrikeType.Melee, new SegmentData { Damage = 120, Knockback = 0, Stun = 0.0f }),
 		},
-		// Zahluq — ex-attack, now a RARE special only obtainable from the mystery box (replaces your special).
+		// Zahluq — ex-attack, now a RARE special only obtainable from the Figmenter (replaces your special).
 		// AnimationOverride reuses its existing "attack_zahluq" sprite/vfx/sfx (assets keep the attack_ prefix).
 		[SpecialIds.Zahluq] = new Action
 		{

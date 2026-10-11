@@ -3,7 +3,7 @@ using Godot;
 namespace MyGame;
 
 /// <summary>
-/// A collectible Fada Fig — the RARE currency (docs/game-loop.md § Economy; spent at the mystery box). A kill drops one
+/// A collectible Fada Fig — the RARE currency (docs/game-loop.md § Economy; spent at the Figmenter). A kill drops one
 /// at the enemy's <c>Enemy.FigChance</c> (10 % default, per-kit override). It pops out of the corpse with a little
 /// bounce + tumble (RigidBody physics) and settles on the ground; the player collects it by physically touching it —
 /// the child <c>Pickup</c> Area detects the player's body. There's no magnet by default — only while the player holds the

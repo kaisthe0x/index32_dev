@@ -1,7 +1,7 @@
 # run — the roguelite loop
 
 Everything that makes the game a *run* lives here: the arena, the round loop + spawner, the Ruh economy
-plumbing, the buff menu, and the mystery box. One folder, driven by data you can tune in one place each. The design it
+plumbing, the buff menu, and the Figmenter. One folder, driven by data you can tune in one place each. The design it
 implements is [`docs/game-loop.md`](../../docs/game-loop.md) — **endless CoD-Zombies-style rounds**.
 
 > **Levels/exits are gone.** There is ONE arena and endless numbered **rounds**; the run ends only on death — no
@@ -21,21 +21,22 @@ implements is [`docs/game-loop.md`](../../docs/game-loop.md) — **endless CoD-Z
 | `RunCamera.cs` (`RunCamera`) | **The camera**: the follow spring, the eased drift during spawn / death, the three zoom levels. |
 | `DeathSequence.cs` (`DeathSequence`) | **Between dying and the restart**: the death cinematic (zoom, black overlay, held death frame, the hold) or, for a fall, just the wait for the fall sound. |
 | `ArenaBackdrop.cs` (`ArenaBackdrop`) | **Behind the arena**: the stage's background image, scaled to the window, under a dark tint. |
+| `WineControls.cs` (`WineControls`) | **The carried fig wine in the player's hands**: F / D-pad up drinks it, and the HUD's wine slot. The rules stay in `FigmenterLedger`. |
 | `VialControls.cs` (`VialControls`) | **Carried vials in the player's hands**: Q / RB drinks, Tab / LB cycles, and the HUD's vial row. The rules stay in `PerkLedger`. |
 | `EnemyKits.cs` (`EnemyKits`) | **The enemy roster** — one typed `EnemyKit` per type (id, name, tier, movement, which scene, and a `Tune` function that sets its combat stats). `EnemySpawner.SpawnPool` draws from these. Edit here to change *who* the enemies are. |
 | `ShotLedger.cs` (`ShotLedger`) | **Needle Point's rules** for one run: the ranks owned of each shot (as `Shot` passives). BUY (break only) raises a shot one rank, permanently, at a rising price. Data in `configs/NeedlePoint.cs`; see the main README § Needle Point shots. |
 | `PerkLedger.cs` (`PerkLedger`) | **Dekken's rules** for one run: the round's stock (5 random perks, rerolled every round), active/owned perks (as `Perk` passives), BUY (break only) + `OnRoundClear`. Data in `configs/Dekken.cs`; see the main README § Dekken perks. |
 | `DekkenStall.cs` (`DekkenStall`, in `scripts/things/`) | The perk shop — a triangular VENDING MACHINE of vials (`assets/things/dekken.png`, 128×128, from `index32_art/art/stages/stage1/Dekken.png` — the mossy stage-1 version), placed in the layout. Its vials are tinted Khalid's hair colour (`vial_recolor.gdshader`). Press **E** at it to open the `DekkenMenu` (`scripts/ui/`). |
 | `NeedlePointStall.cs` (`NeedlePointStall`, in `scripts/things/`) | The stat stall — a booth you walk up into (ramped dais collision). Press **E** on its top platform to open the `NeedlePointMenu` (`scripts/ui/`) over the run's ledger. |
-| `Stall.cs` (`Stall`, in `scripts/things/`) | The shared stand-at-it-and-press-**E** base for the stall SCENES (`scenes/things/`): reads the scene's `Visual`, `Interact` (Area2D — where to stand) and `Prompt` (Marker2D) nodes; owns the prompt and the key (`interact`, registered in code). The mystery box, Needle Point and Dekken extend it. |
-| `MysteryBox.cs` (`MysteryBox`, in `scripts/things/`) | The box itself (a `Stall`; placeholder "?" crate): the REAL-TIME spin → offer → take/decline flow, the teddy bear, and relocating between the layout's box spots under a beam. |
-| `BoxLedger.cs` (`BoxLedger`) | The run's box rules: charges a spin, rolls it (`BoxRoll` — a buff the player doesn't hold, a rare special-swap, or the teddy bear), grants what's taken, refunds a teddy. Numbers in `configs/BoxRules.cs`; what it can give in `configs/BuffCatalog.cs`. |
+| `Stall.cs` (`Stall`, in `scripts/things/`) | The shared stand-at-it-and-press-**E** base for the stall SCENES (`scenes/things/`): reads the scene's `Visual`, `Interact` (Area2D — where to stand) and `Prompt` (Marker2D) nodes; owns the prompt and the key (`interact`, registered in code). The Figmenter, Needle Point and Dekken extend it. |
+| `Figmenter.cs` (`Figmenter`, in `scripts/things/`) | The Figmenter itself (a `Stall`; a steel vat standing where the layout places it — `scenes/things/figmenter.tscn`; it was the "mystery box" until 2026-10-10): shows the brew — the tank's fill frame, the rounds left, the ready wine's label — and takes the E presses (start a brew, collect). |
+| `FigmenterLedger.cs` (`FigmenterLedger`) | The run's Figmenter rules: the brew in the machine (paid, filling a step per cleared round, ready) and the one carried `Wine` (ageing a `WineRarity` step every 2 rounds, drunk for its buff at that strength). Raises `Changed`. Numbers in `configs/FigmenterRules.cs`; what it can give in `configs/BuffCatalog.cs`. |
 | `configs/Rounds.cs` (`Rounds`) | **Round tuning** — quota curve, concurrent cap, spawn interval, spawn-spot distance, stragglers, stand-still kamikazes, when "n LEFT" shows. Pure data. |
 
 **Hand-painted stage layouts** are the active approach: `RunManager` loads a random
 `scenes/levels/stage1/stage1_v*.tscn` (a `LevelLayout`, discovered by the `stage1_v` glob in
 `StageLayoutPaths`) and reads its `PlayerSpawn` marker, its `EnemySpawns` markers, the optional `orb` group, and the three REQUIRED stall
-SCENES placed in it — `scenes/things/mystery_box.tscn`, `needle_point.tscn`, `dekken.tscn`, found by
+SCENES placed in it — `scenes/things/figmenter.tscn`, `needle_point.tscn`, `dekken.tscn`, found by
 `LevelLayout.Placed<T>()` (a missing one logs an error). Terrain
 is a **`TileMapLayer` with per-tile collision**: `tools/gen_terrain_tileset.gd` builds the shared
 `assets/terrain/stage1/terrain_tileset.tres` from every **`tilesetN.png`** in that folder (each its own atlas source,
@@ -131,15 +132,16 @@ Related, but not in this folder:
 5. **Buffs come from the stalls:**
    - **Needle Point (Lira, permanent stats), always open:** each purchase raises a shot one rank for the rest of the
      run, each rank dearer than the last — `ShotLedger`.
-   - **Dekken (Lira, utility perks), always open:** 5 random perks per round — a heal, a teleport to the box, fig odds,
+   - **Dekken (Lira, utility perks), always open:** 5 random perks per round — a heal, a teleport to the Figmenter, fig odds,
      a fig magnet, a shield, a free surge, Wider Pull — sold as VIALS: drink at the machine, or keep (2 slots, one
      of a kind) and drink later with Q (Tab picks) — `PerkLedger`, ticked + restocked at `ClearRound`.
      `StartRound` fires `Player.NotifyRoundStart` (round-scoped perks re-arm).
-   - **Mystery box (figs, permanent mechanics), real time:** one `MysteryBox` per arena, on one of the layout's box
-     spots. **E** spends `BoxRules.Cost` figs → it spins (`SpinTime`) → the result hangs over it (`OfferTime`): **E**
-     takes it, leaving it declines (figs spent). The result is a buff the player doesn't hold (`BuffCatalog.Pool`),
-     rarely a **special-swap** (`SpecialChance`, `BoxRules.Specials`), or the **teddy bear** (`TeddyChance`): figs
-     refunded, the box relocates (a hard spot `HardSpotChance` of the time) under a beam. `BoxLedger` holds the rules.
+   - **Figmenter (figs → fig wine, permanent mechanics), real time:** one `Figmenter` per arena, where the layout
+     places it. **E** pays `FigmenterRules.Cost` figs to start a brew; it takes `BrewRounds` cleared rounds (the tank
+     fills a step each — `FigmenterLedger.OnRoundClear`, called at `ClearRound`); **E** then collects the labelled wine
+     into the one wine slot. **F** drinks it any time; carried, it climbs a rarity every `AgeRounds` rounds and its
+     buff comes out stronger. A wine holds a buff the player doesn't have (`BuffCatalog.Pool`) or rarely a
+     **special-swap** (`SpecialChance`, `FigmenterRules.Specials`). `FigmenterLedger` holds the rules.
 6. **Death** (HP hits 0 — the 6th hit) → `SaveData.ReportRun(_round)` records the round reached (new best →
    `rounds_record`), then the whole run restarts via `Player.BeginRun` (buffs cleared, a full 3 blocks of HP / a
    full 3-charge Ruh meter) + a fresh `BuildArena()`; the run-start `AttackSelect` re-opens.
@@ -155,15 +157,15 @@ Related, but not in this folder:
 - **Change the drops** → Lira per kill: `EnemySpawner.LiraForTier` (by advisory tier) or a kit's `LiraDrop`; fig
   odds: `FigChance` in the kit's `Tune` (default `Enemy.FigChance` = 0.1). Pickup cues `lira_collect` / `fada_fig_collect` in
   `SfxWorld` (PLACEHOLDERS). The ROUND n intro's timing is `IntroFadeIn` / `IntroHold` / `IntroFly` in `scripts/ui/RoundBanner.cs`.
-- **Change the mystery box** → `configs/BoxRules.cs`: `Cost`, `SpinTime`, `OfferTime`, `TeddyChance`, `HardSpotChance`,
-  `SpecialChance`, `Specials` (the box-only specials). Where it can stand: the layout's `BoxSpots/Easy` + `BoxSpots/Hard`
-  markers. Its look: `scenes/things/mystery_box.tscn`.
+- **Change the Figmenter** → `configs/FigmenterRules.cs`: `Cost`, `BrewRounds`, `AgeRounds`,
+  `SpecialChance`, `Specials`, the rarity colours (the Figmenter-only specials). Where it stands: wherever the layout places the scene. Its
+  look: `scenes/things/figmenter.tscn`.
 - **Change the shots** → `configs/NeedlePoint.cs`: each shot's per-rank values and rank-I price in `Shots`, plus
   `PriceGrowth` and `RankColors`. A new shot = a `ShotIds` id + a `ShotStat` + its
   case in `Shot.Apply`.
 - **Change the perks** → `configs/Dekken.cs`: `StockSize`, `CarrySlots` (vials carried) and each perk's duration, rounds, price and `Value` in
   `Perks`. A new perk = a `PerkIds` id + its entry + its effect (`Perk` for lasting ones, `PerkLedger.Buy` for one-use).
-- **Which buffs the box offers** → `BuffCatalog.Factories` (each with its one value) minus `Parked`, minus what the
+- **Which buffs the Figmenter offers** → `BuffCatalog.Factories` (each with its one value) minus `Parked`, minus what the
   player holds (`BuffCatalog.Pool`); a new buff = a `BuffIds` id + a factory + its `Info` line.
 - **Change an enemy's stats** → its kit's `Tune` in `EnemyKits.cs` (combat).
 - **Change the Ruh / surge economy** → `Player.RUH_PER_HIT` (fill rate per hit), `RuhPerBlock`
@@ -173,8 +175,7 @@ Related, but not in this folder:
 ## Known template gaps (deliberate, for later)
 
 - The arena reuses one platform style; "different look" is just the `bg` tint so far.
-- The mystery box is placeholder art (a "?" crate) and reuses the Fada-Fig pickup sfx; the buff menu reuses the
-  reward-card popup. No dedicated art/sfx yet.
+- The Figmenter's four sounds (`sfx/things/figmenter/`) are synthesized placeholders.
 - The rest of the round design is still to build, in order (`docs/game-loop.md` § Build order): stragglers hunting
   the player → enemy **ranks** (tier-coloured, heavier hits) → **round drops** (Max Health / Max Ruh) → **Warden
   rounds** (every 10th).

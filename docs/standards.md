@@ -30,7 +30,7 @@ serves one of those four.
 
 - **S3. A new subsystem gets its own class.** Do not add a feature by growing `Player`, `RunManager`, `Enemy` or
   `HUD` — they are already too large (see *Known debt*). The pattern to copy is the stall **ledgers**
-  (`ShotLedger`, `PerkLedger`, `BoxLedger`): a plain class that owns one feature's state and rules, created and
+  (`ShotLedger`, `PerkLedger`, `FigmenterLedger`): a plain class that owns one feature's state and rules, created and
   owned by `RunManager`, with a node (`Stall`, a menu) that only drives presentation. Wiring a new class into a big
   one is fine; putting its logic there is not.
 

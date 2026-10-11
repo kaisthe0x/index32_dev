@@ -96,7 +96,7 @@ public partial class Player : Combatant, IStrikeWielder
         }
     }
 
-    // --- run-reward buffs (per-run, reset by BeginRun); shots, perks and box buffs change these. ---
+    // --- run-reward buffs (per-run, reset by BeginRun); shots, perks and Figmenter buffs change these. ---
     private const float BaseRuhCap = 300.0f;
     // Slot health: HP is measured in HALF-BLOCKS. 3 blocks = 6 half-blocks, and EVERY hit costs one half-block
     // regardless of damage (so 6 hits kill). BeginRun fills to BaseMaxHealth.
@@ -354,7 +354,7 @@ public partial class Player : Combatant, IStrikeWielder
     /// <summary>A character's intrinsic ability, or null. Khalid ships without one. (Add a case when a character gets a C# CharacterAbility.)</summary>
     private static Passive? CharacterAbilityFor(string character) => null;
 
-    /// <summary>Whether a passive with this id is on him (a box buff he already holds).</summary>
+    /// <summary>Whether a passive with this id is on him (a Figmenter buff he already holds).</summary>
     public bool HasPassive(string id)
     {
         foreach (var p in _passives)
@@ -555,7 +555,7 @@ public partial class Player : Combatant, IStrikeWielder
         if (ids.Count == 0)
             return;
         string id = ids[_debugBuffIdx++ % ids.Count];
-        var buff = BuffCatalog.Make(id);
+        var buff = BuffCatalog.Make(id, WineRarity.Hot); // the middle strength
         if (buff != null)
         {
             AddPassive(buff);

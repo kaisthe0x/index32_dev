@@ -35,6 +35,9 @@ public partial class Buff : Passive
     /// <summary>One-line explanation shown to the player (HUD + offers). Set by <see cref="BuffCatalog.Make"/>.</summary>
     public string Description = "";
 
+    /// <summary>The rarity of the wine that granted it — which of its five strengths it has. Set by <see cref="BuffCatalog.Make"/>.</summary>
+    public WineRarity Rarity = WineRarity.Common;
+
     /// <summary>
     /// True if this buff should act on <paramref name="action"/> — by id, by category keyword ("attack"/"special"),
     /// by a tag, or unconditionally ("*"/empty). Gate <see cref="Passive.ModifyTuning"/> (and move-specific work) with it.

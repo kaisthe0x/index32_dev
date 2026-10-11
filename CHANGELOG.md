@@ -6,6 +6,75 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-11 — `new-shit` — The mystery box is now the Figmenter, and it makes fig wine
+
+### Figs brew fig wine: a 5-round wait, a bottle you carry, a buff as strong as the wine is old
+
+- **What:** the spin → offer flow is replaced. At the empty Figmenter **E** pays 8 figs and a brew starts; it takes
+  **5 cleared rounds**, the tank filling one frame of the owner's animation per round. The finished wine is labelled
+  with its buff; **E** collects it into the player's **one wine slot** (HUD, under the vials). **F** (D-pad up)
+  drinks it at any moment. A carried wine climbs one rarity every **2 rounds** — Common, Rare, Hot, Sensational, Epic
+  — and the buff is granted at that strength. A ready wine waits in the machine (without ageing) while the slot is
+  taken; the machine can brew again as soon as it is emptied.
+- **New / changed:** `FigmenterLedger` rewritten (brew state, the carried wine, `OnRoundClear`, a `Changed` event);
+  `Figmenter` rewritten to only show the ledger (no per-frame work); new `WineControls` (the key + the HUD push),
+  `WineSlot` (HUD), `Wine` (was `FigmenterRoll`), `WineKind` (was `FigmenterOutcome`), `WineRarity`, `BrewState`;
+  `FigmenterRules`: `BrewRounds`, `AgeRounds`, rarity colours (`SpinTime` / `OfferTime` gone); cues
+  `figmenter_spin` / `figmenter_result` → `figmenter_brew` / `figmenter_ready`. **`BuffCatalog` has five values per
+  buff again** (`Func<WineRarity, Buff>`), restored from the tables that commit `2b1000c` collapsed to their middle
+  value; `Buff.Rarity` records which was granted and the buff list shows it in the rarity's colour.
+  `assets/things/figmenter.png` is now a 6-frame strip with the owner's moss. **Its own sounds:** `figmenter_brew`,
+  `figmenter_ready`, `wine_collect`, `wine_drink` (`sfx/things/figmenter/`) — synthesized PLACEHOLDERS that replace
+  the reused fig-pickup sound; nobody has listened to them yet.
+- **Why / how:** the owner's design — wine takes time and gains value with age. What a wine holds is rolled when the
+  brew is PAID for, so figs are never taken for nothing, and shown when it is ready, so drink-now versus carry is an
+  informed choice (both decided with the owner). The fill frame is picked from the brew's fraction, not its round
+  count, so a later change to the brew time needs no new art. Ageing counts only carried rounds, so holding the
+  bottle is the cost.
+- **Could affect:** the pace of builds — the first Figmenter buff now arrives about 5 rounds later than before
+  (around round 9–10), and buffs drunk young are WEAKER than before (Common is the first of five values; the old
+  single value was the third). The debug buff key grants the middle (Hot) strength, as before. A new key, F.
+- **Tested:** a scripted headless run, 16 of 16: refused without figs; 8 figs start a brew; E while brewing does
+  nothing; frame 3 and "2 ROUNDS" after three rounds; ready, full and labelled after five; a ready wine waits;
+  collected as a Common; a second brew while carrying; Hot after five carried rounds; the second wine differs from
+  the first; no collecting with the slot taken; drinking grants the buff at Hot and empties the slot; an empty slot
+  does nothing; the second wine collects; rarity caps at Epic. The same run windowed, with screenshots of the tank
+  half full, the ready label and the HUD slot. The check is saved as `Repos/handoff_files/WineCheck.cs`. **Not
+  tested:** a real run of five rounds (the check calls the round-clear hook directly); a wine that is a
+  special-swap (6 %, did not come up); the HUD slot's look at full window size; the owner has not played it.
+
+### The stall is renamed and drawn, and it stays where it is put### The stall is renamed and drawn, and it stays where it is put
+
+- **What:** the mystery box is called the **Figmenter** everywhere, and its placeholder (a purple square with a "?")
+  is replaced by the owner's drawing — a steel vat with a window and a control box — in stage-1 colours
+  (`assets/things/figmenter.png`, 96×96). It stands on the ground where the layout places it, like Needle Point and
+  Dekken. **The teddy bear is gone:** a spin can no longer refund the figs and send the Figmenter to another spot, so
+  the machine never refunds or moves.
+- **Renamed:** `MysteryBox` → `Figmenter`, `BoxLedger` → `FigmenterLedger`, `BoxRules` → `FigmenterRules`,
+  `BoxRoll` → `FigmenterRoll`, `BoxOutcome` → `FigmenterOutcome`; the folders `enums/box` and `records/box` →
+  `…/figmenter`; `scenes/things/mystery_box.tscn` → `figmenter.tscn`; the layout's `MysteryBox` node → `Figmenter`;
+  the sound cues `box_spin` / `box_result` → `figmenter_*`; `RunManager._box` / `FastTravelToBox`; comments and docs.
+  Older changelog entries keep the old name — they describe what was true then.
+- **Removed with the relocation** (rule `C1`): `FigmenterOutcome.Teddy`, `FigmenterLedger.Refund`,
+  `FigmenterRules.TeddyChance` / `HardSpotChance`, the cue `box_teddy`, `LevelLayout.BoxSpots`, the layout's
+  `BoxSpots` node and its six markers, the Figmenter's `Setup`, beam, fade and `Leaving` phase, and
+  `Stall.PlayerArrived` (its only user was the beam). The Figmenter now gets its ledger like the other stalls
+  (`figmenter.Ledger = …`).
+- **Why / how:** the owner chose the design and the name, wants it to be a machine that makes fig wine, and wants it
+  fixed in place like the other stalls. The NAME, the LOOK and the fixed place were done now; the fig-wine mechanic
+  is a later design step. Files were moved with `git mv` together with their `.uid` files, so the scene's script
+  reference is unchanged. (A hover with rocket fire was built in between and dropped at the owner's request, with
+  its effect scene — nothing of it remains.)
+- **Could affect:** Dekken's Fast Travel still goes to the Figmenter, which is now always at the same place. A layout must place
+  `scenes/things/figmenter.tscn`; it no longer needs spot markers (`stage1_v1.tscn` was updated — it stands at the
+  old `Start` spot). The interact area is 80 px wide (was 64) and the prompt sits at the top of the art. E5 loses
+  its "pointer to the box" item: there is nothing to point at once it cannot move.
+- **Tested:** `dotnet build` 0 warnings; headless arena boot clean; the saved checks pass (`ECheck`: a vial, Nem, a combo; `WineCheck`: above); a WINDOWED screenshot shows the new art standing on the ground beside Khalid, with no
+  children under its art (no emitters). The Godot editor was closed while the scenes were edited. **Not tested:** the
+  owner has not played it.
+
+---
+
 ## 2026-10-10 — `new-shit` — Birds: scenery that flies off when something comes close
 
 ### Birds perch around the arena and flee from Khalid

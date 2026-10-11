@@ -1,7 +1,7 @@
 namespace MyGame;
 
 /// <summary>
-/// Stable string IDs for every MYSTERY BOX buff in the catalog (docs/buff-catalog.md) — Needle Point shots are
+/// Stable string IDs for every FIGMENTER buff in the catalog (docs/buff-catalog.md) — Needle Point shots are
 /// <see cref="ShotIds"/>. `const string` (see
 /// <see cref="AttackIds"/>): the id IS the key into <see cref="BuffCatalog"/> and the reward/offer tables —
 /// nothing to convert. Reference <c>BuffIds.AtkDamage</c>, never a raw literal. Grouped by the catalog's

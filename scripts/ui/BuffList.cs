@@ -5,7 +5,7 @@ namespace MyGame;
 /// <summary>
 /// The HUD's list of what the player is carrying this run, pinned top-right and growing leftward to fit its widest
 /// line: Needle Point shots (name, rank, value, in the rank's colour), active Dekken perks (name, time left) and
-/// mystery-box buffs (name over description). PLACEHOLDER look (text) until the buff icons exist.
+/// Figmenter buffs (name and rarity in the rarity's colour, over the description). PLACEHOLDER look (text) until the buff icons exist.
 /// </summary>
 public partial class BuffList : VBoxContainer
 {
@@ -46,7 +46,8 @@ public partial class BuffList : VBoxContainer
                 continue;
             any = true;
             var name = UiStyle.HudLabel(UiStyle.HudHeading);
-            name.Text = b.Name != "" ? b.Name : b.Id;
+            name.AddThemeColorOverride("font_color", FigmenterRules.RarityColor(b.Rarity));
+            name.Text = $"{(b.Name != "" ? b.Name : b.Id)} · {b.Rarity.ToString().ToUpper()}";
             AddChild(name);
 
             var desc = UiStyle.HudLabel(UiStyle.HudMuted);

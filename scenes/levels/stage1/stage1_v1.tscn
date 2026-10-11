@@ -6,7 +6,7 @@
 [ext_resource type="Texture2D" uid="uid://cglqfybbu8ntd" path="res://assets/terrain/stage1/tree1.png" id="5_1t4uw"]
 [ext_resource type="Texture2D" uid="uid://dy2m3uxpunctw" path="res://assets/terrain/stage1/skeleton_chillin.png" id="5_hsxop"]
 [ext_resource type="Texture2D" uid="uid://d1b13lllamaur" path="res://assets/terrain/stage1/big_tree.png" id="7_8tbje"]
-[ext_resource type="PackedScene" path="res://scenes/things/mystery_box.tscn" id="8_box"]
+[ext_resource type="PackedScene" path="res://scenes/things/figmenter.tscn" id="8_figmenter"]
 [ext_resource type="PackedScene" path="res://scenes/things/needle_point.tscn" id="9_needle"]
 [ext_resource type="PackedScene" path="res://scenes/things/dekken.tscn" id="10_dekken"]
 
@@ -58,9 +58,9 @@ texture = ExtResource("7_8tbje")
 
 [node name="Stalls" type="Node2D" parent="." unique_id=950329766]
 
-[node name="MysteryBox" parent="Stalls" unique_id=157659758 instance=ExtResource("8_box")]
+[node name="Figmenter" parent="Stalls" unique_id=157659758 instance=ExtResource("8_figmenter")]
 z_index = -25
-position = Vector2(-80, 0)
+position = Vector2(2767, -160)
 
 [node name="NeedlePoint" parent="Stalls" unique_id=839418073 instance=ExtResource("9_needle")]
 z_index = -25
@@ -107,27 +107,3 @@ position = Vector2(816, -356)
 
 [node name="PlatformRight" type="Marker2D" parent="EnemySpawns" unique_id=262411355]
 position = Vector2(1872, -292)
-
-[node name="BoxSpots" type="Node2D" parent="." unique_id=893790440]
-
-[node name="Easy" type="Node2D" parent="BoxSpots" unique_id=1473635347]
-
-[node name="Start" type="Marker2D" parent="BoxSpots/Easy" unique_id=136388405]
-position = Vector2(-80, 0)
-
-[node name="FloorMid" type="Marker2D" parent="BoxSpots/Easy" unique_id=392887063]
-position = Vector2(660, 0)
-
-[node name="FloorRight" type="Marker2D" parent="BoxSpots/Easy" unique_id=1315766451]
-position = Vector2(1350, 0)
-
-[node name="FloorFar" type="Marker2D" parent="BoxSpots/Easy" unique_id=1860443352]
-position = Vector2(1700, 0)
-
-[node name="Hard" type="Node2D" parent="BoxSpots" unique_id=1272059113]
-
-[node name="HighMid" type="Marker2D" parent="BoxSpots/Hard" unique_id=1050057967]
-position = Vector2(688, -832)
-
-[node name="HighLeft" type="Marker2D" parent="BoxSpots/Hard" unique_id=1904458866]
-position = Vector2(256, -896)
