@@ -43,7 +43,22 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
   tested:** a real run of five rounds (the check calls the round-clear hook directly); a wine that is a
   special-swap (6 %, did not come up); the HUD slot's look at full window size; the owner has not played it.
 
-### The stall is renamed and drawn, and it stays where it is put### The stall is renamed and drawn, and it stays where it is put
+### The wine slot is a bottle
+
+*(Added after the first commit of this entry.)*
+
+- **What:** the HUD's wine slot was a text box; it is now Khalid's one wine bottle — the owner's drawing, simplified
+  to 6 colours, shown EMPTY while he carries no wine and FULL (the Figmenter's exact oranges) while he does, with the
+  wine's name and rarity beside it. `scripts/ui/WineSlot.cs` rewritten; new `assets/things/wine_bottle.png` (two
+  64×64 frames). No rule changed: he could already carry exactly one wine.
+- **Why / how:** the owner's design — one bottle he fills at the Figmenter and drinks when he likes. The bottle is
+  drawn at half size with the same filtering as the currency icons beside it.
+- **Could affect:** only the HUD's top-left corner.
+- **Tested:** build 0 warnings; `WineCheck` 16 of 16 in a windowed run, with a screenshot of the corner showing the
+  empty bottle and then the full one with its label. **Not tested:** how it reads at full window size (the test
+  window was about 630 px wide); the owner has not seen it in play.
+
+### The stall is renamed and drawn, and it stays where it is put
 
 - **What:** the mystery box is called the **Figmenter** everywhere, and its placeholder (a purple square with a "?")
   is replaced by the owner's drawing — a steel vat with a window and a control box — in stage-1 colours

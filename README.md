@@ -1032,8 +1032,8 @@ length. Like Needle Point and Dekken it **stays where the layout places it**.
    "n ROUNDS". Pressing E meanwhile just repeats that.
 3. **Ready** — the wine's **name and what it does** hang over the machine. A ready wine waits as long as you like
    (it does not age in the machine).
-4. **Collect** — **E** moves it into your **wine slot** (one bottle; shown in the HUD under the vials). With the slot
-   taken you get "DRINK YOUR WINE FIRST". The machine is empty again and can brew the next one right away.
+4. **Collect** — **E** fills your **wine bottle** — Khalid has exactly one; it is in the HUD under the vials, drawn
+   EMPTY or FULL. With the bottle full you get "DRINK YOUR WINE FIRST". The machine is empty again and can brew the next one right away.
 5. **Drink — or carry** — **F** (pad: D-pad up; `wine_drink`, registered in code by `WineControls`) drinks the bottle
    at any moment. A wine leaves the machine **Common** and climbs one rarity every `AgeRounds` (**2**) rounds you
    carry it: Common → Rare → Hot → Sensational → Epic (8 rounds for the lot). The buff comes out **that much
@@ -2176,6 +2176,12 @@ panels, neon `Frame` borders/headings, a bright `Accent` for titles, hover and s
 the **Sixtyfour** retro font (`assets/fonts/`), and square pixel-style boxes (no rounded corners).
 
 **The palette is player-recolourable** (colour scheme screen → UI → Frame / Highlight; default =
+Under them: the `VialRow` (the two Dekken carry slots, text for now) and the **`WineSlot`** — Khalid's one wine
+bottle (`assets/things/wine_bottle.png`, two 64×64 frames from `index32_art/art/things/WineBottle.aseprite`: empty,
+full of fig wine in the Figmenter's own oranges). It shows the empty bottle while he carries nothing; filled at the
+Figmenter it shows the full one with the wine's name and rarity beside it in the rarity's colour, and pops when it is
+filled and each time the wine climbs a rarity (`HUD.SetWine`, pushed by `WineControls`).
+
 "Arcane Void" violet + electric blue). Only `Frame` and `Accent` are picked; `UiStyle.Derive` builds
 every other role from the frame's **hue** while keeping each role's default **brightness** (panels stay
 near-black, text stays pale) and scaling saturation by the pick's (a grey pick → a neutral UI). So:
