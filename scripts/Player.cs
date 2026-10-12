@@ -130,7 +130,7 @@ public partial class Player : Combatant, IStrikeWielder
     private float _jumpVelocity; private int _maxAirJumps; private float _gravity, _fallGravityScale;
     private float _dashSpeed, _dashTime, _dashCooldown, _dashAnimTime, _dashGravityScale;
     private float _slamSpeed, _slamMinClearance; private int _slamHoldFrame;
-    private float _slamImpactDistance, _slamMinDrop, _slamMaxDrop, _slamMaxDamageMult;
+    private float _slamImpactDistance, _slamMinDrop, _slamMaxDrop, _slamMaxDamageMult, _slamCooldown;
     private float _landMinFallSpeed, _landPredictDistance;
 
     [Export] public float AttackRecovery = 0.12f;
@@ -317,6 +317,7 @@ public partial class Player : Combatant, IStrikeWielder
                 _slamMinDrop = m.SlamMinDrop;
                 _slamMaxDrop = m.SlamMaxDrop;
                 _slamMaxDamageMult = m.SlamMaxDamageMult;
+                _slamCooldown = m.SlamCooldown;
                 break;
         }
     }
@@ -942,6 +943,7 @@ public partial class Player : Combatant, IStrikeWielder
         }
         if (!_special.Holding)
             _special.Cooldown = Mathf.Max(_special.Cooldown - delta, 0.0f); // a held special's cooldown starts on release
+        _slam.Cooldown = Mathf.Max(_slam.Cooldown - delta, 0.0f);
         _launch.Update(delta);
         _surge.TryFireFromInput();
         _tint.Tick(delta);

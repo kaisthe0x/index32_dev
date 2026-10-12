@@ -6,6 +6,50 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-12 — `new-shit` — The arena is flat, and the slam has a cooldown
+
+### One level floor: every enemy can always reach the player
+
+- **What:** the stage's layout is now `scenes/levels/stage1/stage1_v2.tscn` — one level floor end to end, no ledges
+  or platforms. The twelve spawn spots sit along it either side of the stalls (none between x 760 and 1500), and the
+  three stalls stand together mid-arena on the floor (Dekken 960, Needle Point 1122, Figmenter 1290). The painted
+  arena with its ledges and platforms is renamed `painted_platforms.tscn`, which takes it out of the layout pool
+  (only `stage1_v*` files are picked); it is otherwise unchanged. `RunManager.StageLayoutPaths` returns the layouts
+  in name order.
+- **Why / how:** once enemies hunted the player (the entry below), the upper platforms were a place they could not
+  follow: they gathered underneath, and most of the stage stood empty. The owner played the flat layout against the
+  painted one on the same build and chose flat — "much more fun and it makes the combat way more interactive". The
+  flat scene was produced by a script that rewrote the `Terrain` tile data of a copy of the painted scene (the floor's
+  mossy top continued where the ledges stood; the big tree lowered to the floor), because the Godot editor was open
+  and the painted scene must not be edited while it is (rule `G3`).
+- **Could affect:** everything that assumed height. Extra Jump and Jump Height (Needle Point) and the wines that key
+  off jumping now matter only for dodging and for the slam, whose damage grows with the height fallen. Dekken no
+  longer needs bought jumps to reach. Nothing in the code depends on platforms; `Pursuit`'s ledge logic is simply
+  never exercised on this layout.
+- **Known and left for the owner:** `painted_platforms.tscn` is an unused file (rule `C1`) — kept because it is the
+  owner's painted level and may become another stage; delete it if not. The docs still describe platforms in places
+  (`docs/painting-levels.md`, the build-gated places idea in `docs/game-loop.md`).
+- **Tested:** build 0 warnings; a scripted headless run of the real arena, 6 of 6 for the layout (no terrain above
+  the floor; twelve spots and three stalls on the floor; the floor is level where the ledges were; six hunters reach
+  the player); the owner played it. A first version put a spawn spot under Needle Point and the enemy spawned inside
+  the stall — the spots were moved clear of the stalls; that fix was confirmed by the owner's play, not by a
+  re-run of the check. After the rename, a clean headless boot of the arena.
+
+### The slam has a cooldown
+
+- **What:** after a slam lands, the next cannot start for `Locomotion.SlamCooldown` (1.5 s). Before, it had none and
+  could be chained without pause.
+- **Changed:** `configs/Locomotion.cs`, `SlamState` (`Cooldown`, checked in `CanStart`, set on impact), `Player`
+  (reads the knob, counts it down beside the special's).
+- **Why:** so that a slam is a moment and not the whole fight, in either layout. (The slam's damage already grows
+  with the height fallen — 1× under 120 px up to 2.5× at 700 px — so jump height already feeds it.)
+- **Could affect:** every slam build; Slam Quake / Wrath / Spring / Immunity fire at most once per 1.5 s.
+- **Tested:** in the same headless run, 3 of 3: a slam starts from the air; landing starts the cooldown and blocks the
+  next; it is ready again once the cooldown has run. **Not built:** anything on the HUD showing the slam is ready,
+  and a refund on kills — both were suggested; left until the owner has felt the plain cooldown.
+
+---
+
 ## 2026-10-11 — `new-shit` — Enemies hunt the player; the first fig wine comes sooner
 
 ### Every round enemy hunts from the moment it spawns

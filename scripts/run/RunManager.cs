@@ -122,7 +122,7 @@ public partial class RunManager : Node2D
 
     // --- arena building -------------------------------------------------------
 
-    /// <summary>Every hand-painted layout variant for the stage (<c>stage1_v*.tscn</c>). Auto-uses whatever exists —
+    /// <summary>Every layout variant for the stage (<c>stage1_v*.tscn</c>), in name order. Auto-uses whatever exists —
     /// add a variant to the folder and it joins the random pool with no code change.</summary>
     private static string[] StageLayoutPaths()
     {
@@ -141,6 +141,7 @@ public partial class RunManager : Node2D
             }
             da.ListDirEnd();
         }
+        list.Sort(string.CompareOrdinal);
         return list.ToArray();
     }
 
@@ -159,7 +160,7 @@ public partial class RunManager : Node2D
         _content = new Node2D();
         AddChild(_content);
 
-        // Load one of the stage's hand-painted layouts at RANDOM (terrain + collision + ground tiles for spawning).
+        // Load one of the stage's layouts at RANDOM (terrain + collision + ground tiles for spawning).
         LevelLayout? layout = null;
         var layoutPaths = StageLayoutPaths();
         if (layoutPaths.Length > 0)

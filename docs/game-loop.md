@@ -19,7 +19,8 @@ reference).
 
 ## The premise in one paragraph
 
-Khalid fights in one arena through **endless, numbered rounds**. Each round has a **hidden kill quota**: enemies
+Khalid fights in one **flat** arena (one level floor, no platforms — the owner's decision of 2026-10-12, so that
+every enemy can always reach him) through **endless, numbered rounds**. Each round has a **hidden kill quota**: enemies
 trickle in (never more than a concurrent cap alive at once) until the quota has spawned, then spawning stops;
 the round **clears** when every one of them is dead — and the next, bigger round starts **at once** (a **ROUND n**
 banner, no break: the player never gets a breather; changed 2026-10-03). As rounds climb, enemies come **faster and in greater numbers**, and increasingly arrive at a
@@ -36,9 +37,9 @@ score chase, **highest round reached** is the record, and **permadeath** ends it
    Each one appears at a **spawn spot** the layout places (`EnemySpawns` markers) — **one enemy per spot**, the free
    one nearest the player that is still at least `SpawnMinDistance` 320 px from him — and **hunts** him from that
    moment (changed 2026-10-11; until then it patrolled its spot and the player went to find it, which played as a
-   walk from one enemy to the next). A hunter walks off a ledge that has ground below; it cannot climb, so when he
-   is on a platform above it, it waits underneath, the crowd spread a little (`HuntWaitSpread` 40 px) — no jumping
-   and no teleporting, by decision: the crowd under a platform is the slam's target. **From round 10**, a growing share of grunts (20%, +10%/round, max 70%) instead spawns **right behind the
+   walk from one enemy to the next). On the flat stage that is all there is to it. (The code also covers levels with height —
+   a hunter walks off a ledge that has ground below and waits under a platform it cannot climb, the crowd spread a
+   little, `HuntWaitSpread` 40 px — but grunts do not jump or teleport, by decision.) **From round 10**, a growing share of grunts (20%, +10%/round, max 70%) instead spawns **right behind the
    player** on his floor (100–240 px), as the pressure ramps up. From the grunt roster; per-kit `spawn_cap`s still apply. The curve **starts slow**
    (round 1: 6 enemies, up to 6 alive at once, one every 1.5 s) and climbs every round (`configs/Rounds.cs`).
 3. **Spawning stops** once `Q(r)` enemies have been spawned.

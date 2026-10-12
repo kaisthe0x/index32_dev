@@ -7,7 +7,8 @@ public partial class Player
     /// <summary>
     /// The slam: from the air he drops straight down at <see cref="Locomotion.SlamSpeed"/>, hidden once the wind-up
     /// frames have played, and on reaching the ground plays the impact — whose damage scales with how far he fell.
-    /// Started from the air with the special button, if there is room to fall.
+    /// Started from the air with the special button, if there is room to fall and the last slam's
+    /// <see cref="Cooldown"/> has run out.
     /// </summary>
     private sealed class SlamState : PlayerState
     {
@@ -16,11 +17,18 @@ public partial class Player
         private bool _impacting;
         private float _startY;
 
+        /// <summary>Seconds until the next slam can start: set to <see cref="Locomotion.SlamCooldown"/> when one lands,
+        /// counted down by the player.</summary>
+        public float Cooldown;
+
         public override StringName Animation => "slam";
 
-        /// <summary>Whether a slam can start here: the character has one, and there is clear air below.</summary>
+        /// <summary>Whether a slam can start here: the character has one, it is off cooldown, and there is clear air
+        /// below.</summary>
         public bool CanStart()
         {
+            if (Cooldown > 0.0f)
+                return false;
             if (Sprite.SpriteFrames == null || !Sprite.SpriteFrames.HasAnimation("slam"))
                 return false;
             if (P._slamMinClearance <= 0.0f)
@@ -70,6 +78,7 @@ public partial class Player
         private void Impact()
         {
             _impacting = true;
+            Cooldown = P._slamCooldown;
             Sprite.Visible = true;
             Sprite.SpeedScale = 1.0f;
             P._slamDownSfx?.Stop();

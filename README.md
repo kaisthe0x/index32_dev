@@ -490,7 +490,7 @@ attack pacing, hit-stop juice) stays as inspector `@export`s.
 | run | `RunSpeed` 160 (**Khalid 230**), `Acceleration` 1200, `Friction` 1400, `RunAnimSpeed` 1.5 |
 | jump / arc / land | `JumpVelocity` -330, `AirJumps` 2, `Gravity` 900, `FallGravityScale` 1.35, `LandMinFallSpeed` 140, `LandPredictDistance` 22 |
 | dash | `DashSpeed` 420, `DashTime` 0.18, `DashAnimTime` 0.30, `DashCooldown` 0.45, `DashGravityScale` 0.35, `Blink` (**Khalid true**) |
-| slam | `SlamSpeed` 1200, `SlamMinClearance` 50, `SlamHoldFrame` 2, `SlamImpactDistance` 30, `SlamMinDrop` 120 / `SlamMaxDrop` 700 / `SlamMaxDamageMult` 2.5 (drop-scaled damage) |
+| slam | `SlamSpeed` 1200, `SlamMinClearance` 50, `SlamHoldFrame` 2, `SlamImpactDistance` 30, `SlamMinDrop` 120 / `SlamMaxDrop` 700 / `SlamMaxDamageMult` 2.5 (drop-scaled damage), `SlamCooldown` 1.5 (seconds after a slam lands before the next can start) |
 | `@export` (inspector) | Health `MaxHealth` 100; Attack `AttackRecovery` 0.12, `ComboResetTime` 0.45 |
 
 **Per-character movement feel.** A movement Action's `move` (Locomotion) lists only the fields a
@@ -1940,7 +1940,11 @@ through projectiles and attacks unharmed.
 the build basics:
 
 - **Terrain** — a hand-painted `TileMapLayer` with per-tile collision, loaded from a random `stage1_v*.tscn`
-  layout (see the run README + `docs/painting-levels.md`). The layout must place the three stall scenes and an
+  layout (see the run README + `docs/painting-levels.md`). **The stage is FLAT** (the owner's decision, 2026-10-12, after playing both): `stage1_v2` is one level floor end to
+  end, so every enemy can always reach the player — the spawn spots sit along it either side of the stalls, which
+  stand together mid-arena. It was generated from the painted arena by removing every tile above the floor. That
+  painted arena (floor, ledges, platforms) is kept beside it as `painted_platforms.tscn`, OUT of the pool (only
+  `stage1_v*` files are picked) — parked for a possible later stage; delete it if that never comes. The layout must place the three stall scenes and an
   `EnemySpawns` node of `Marker2D` spawn spots (`LevelLayout.EnemySpawns`).
 - **Enemies** — each round (`TickRound`) trickles its hidden quota in, one **kit** at a time picked at random from
   `EnemySpawner.SpawnPool`, under the round's concurrent cap; spawning stops once the quota has spawned and the round

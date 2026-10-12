@@ -5,8 +5,9 @@ enemies stand on. Tilesets and how to add them: [`assets/terrain/README.md`](../
 
 ## What a level is
 
-`scenes/levels/stage1/stage1_v1.tscn` (more variants: `stage1_v2.tscn`, … — any `stage1_v*.tscn` in the folder joins
-the random pool automatically). Each is a **`LevelLayout`** scene (`scripts/run/LevelLayout.cs`) with:
+`scenes/levels/stage1/stage1_v2.tscn` — the FLAT stage in use since 2026-10-12: one level floor (any `stage1_v*.tscn`
+in the folder joins the random pool automatically; the earlier painted arena with ledges and platforms is parked
+beside it as `painted_platforms.tscn`, out of the pool). Each is a **`LevelLayout`** scene (`scripts/run/LevelLayout.cs`) with:
 - a **`Terrain` TileMapLayer** — its **Tile Set must be `assets/terrain/stage1/terrain_tileset.tres`** (the shared,
   generated one). The ground and platforms only.
 - a **`Decor` TileMapLayer** (same Tile Set) — decoration sheets (tileset3: rocks, plants) with **no collision**, drawn
@@ -17,7 +18,7 @@ the random pool automatically). Each is a **`LevelLayout`** scene (`scripts/run/
 - a **`PlayerSpawn`** `Marker2D` (where Khalid drops in), and optional launch-orb spots in the **`orb`** group,
 - an **`EnemySpawns`** node whose `Marker2D` children are the enemy spawn spots (required — no markers, no enemies),
 - the **stalls** — drag `scenes/things/needle_point.tscn`, `dekken.tscn` and `figmenter.tscn` from the FileSystem dock
-  into the layout (stage1_v1 keeps them under a `Stalls` node). Each scene's origin is its base: put it **on the floor's
+  into the layout (the stage keeps them under a `Stalls` node). Each scene's origin is its base: put it **on the floor's
   top edge** (grid snap helps). You see them in the editor exactly as in the game, and Needle Point's collision (`Dais`
   ramps + flat top, the one-way `Roof`) and every stall's `Interact` area are real nodes you can reshape by dragging
   their points. All three are required (a missing one logs an error).
@@ -28,8 +29,8 @@ the random pool automatically). Each is a **`LevelLayout`** scene (`scripts/run/
 **spread them across the whole arena**: each spot holds ONE enemy at a time (so the spot count caps how many can be
 out before round 10, when some start spawning near the player), new enemies take the free spot farthest from the
 occupied ones, never one within 320 px of the player — and the player has to go find them. Keep them clear of the stalls (not inside Needle Point's dais) and off lone tiles. Add,
-move or delete markers freely — the spawner reads whatever is there. (stage1_v1 has 12: five on the main floor,
-three on the right-hand ledges, four on platforms.)
+move or delete markers freely — the spawner reads whatever is there. (The flat stage has 12 along the floor, six on each side of
+the stalls.)
 
 ## Paint
 
