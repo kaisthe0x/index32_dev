@@ -64,7 +64,7 @@ position = Vector2(1290, 0)
 
 [node name="NeedlePoint" parent="Stalls" unique_id=839418073 instance=ExtResource("9_needle")]
 z_index = -25
-position = Vector2(1027, 2)
+position = Vector2(1027, 1)
 
 [node name="Dekken" parent="Stalls" unique_id=156608229 instance=ExtResource("10_dekken")]
 z_index = -25
@@ -103,7 +103,7 @@ position = Vector2(-472, -4)
 position = Vector2(-164, -4)
 
 [node name="PlatformHigh" type="Marker2D" parent="EnemySpawns" unique_id=971445371]
-position = Vector2(606, -4)
+position = Vector2(760, -4)
 
 [node name="PlatformRight" type="Marker2D" parent="EnemySpawns" unique_id=262411355]
 position = Vector2(1996, -4)
