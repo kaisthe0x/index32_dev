@@ -5,8 +5,8 @@ namespace MyGame;
 
 /// <summary>
 /// Puts enemies into the arena and keeps track of the living ones. It knows WHO can spawn (<see cref="SpawnPool"/>,
-/// under each kit's per-type cap) and WHERE (a free spawn spot of the layout, spread over the map — or near the player
-/// in later rounds), builds the enemy from its <see cref="EnemyKit"/>, and reports what happens to it through
+/// under each kit's per-type cap) and WHERE (the free spawn spot of the layout nearest the player — or right behind
+/// him in later rounds), builds the enemy from its <see cref="EnemyKit"/>, and reports what happens to it through
 /// <see cref="Spawned"/>, <see cref="Died"/> and <see cref="Damaged"/>. WHEN to spawn — the round's quota, interval
 /// and concurrent cap — is <see cref="RunManager"/>'s business; the stand-still and edge spawns are
 /// <see cref="PressureSpawns"/>'. Built by RunManager for each arena.
@@ -80,8 +80,7 @@ public sealed class EnemySpawner
         return n;
     }
 
-    /// <summary>Spawn ONE enemy from a kit: at a free spawn spot (<see cref="PickSpawnSpot"/>), where it patrols until it
-    /// notices the player — or, from <see cref="Rounds.NearSpawnFromRound"/>, for <see cref="NearShare"/> of the grunts
+    /// <summary>Spawn ONE enemy from a kit: at a free spawn spot (<see cref="PickSpawnSpot"/>) — or, from <see cref="Rounds.NearSpawnFromRound"/>, for <see cref="NearShare"/> of the grunts
     /// (and whenever every spot is held), near the player (<see cref="NearPlayerSpot"/>). False if there's nowhere to put
     /// it yet.</summary>
     public bool SpawnFromPool(EnemyKit kit, int round)
@@ -124,32 +123,23 @@ public sealed class EnemySpawner
         Died?.Invoke(enemy);
     }
 
-    /// <summary>A FREE EnemySpawns spot (no living enemy holds it), spreading the enemies over the map: the one farthest
-    /// from the spots already held (a random one if none are), among those at least <see cref="Rounds.SpawnMinDistance"/>
-    /// from the player — or, if every free spot is closer than that, the free one farthest from him. Null if every spot
-    /// is held (or the layout has none).</summary>
+    /// <summary>A FREE EnemySpawns spot (no living enemy holds it): the one NEAREST the player among those at least
+    /// <see cref="Rounds.SpawnMinDistance"/> from him, so the enemy reaches him soon without appearing on top of him —
+    /// or, if every free spot is closer than that, the free one farthest from him. Null if every spot is held (or the
+    /// layout has none).</summary>
     private Vector2? PickSpawnSpot()
     {
         var spots = _layout?.EnemySpawns();
         if (spots == null)
             return null;
-        var held = new List<Vector2>(_spotOf.Values);
-        var free = spots.FindAll(s => !held.Contains(s));
+        var free = spots.FindAll(s => !_spotOf.ContainsValue(s));
         if (free.Count == 0)
             return null;
         Vector2 player = _player.GlobalPosition;
         var fair = free.FindAll(s => s.DistanceTo(player) >= Rounds.SpawnMinDistance);
-        if (fair.Count == 0)
-            return MaxBy(free, s => s.DistanceTo(player));
-        if (held.Count == 0)
-            return fair[(int)(GD.Randi() % (uint)fair.Count)];
-        return MaxBy(fair, s =>
-        {
-            float nearest = float.MaxValue;
-            foreach (Vector2 h in held)
-                nearest = Mathf.Min(nearest, s.DistanceTo(h));
-            return nearest;
-        });
+        return fair.Count == 0
+            ? MaxBy(free, s => s.DistanceTo(player))
+            : MaxBy(fair, s => -s.DistanceTo(player));
     }
 
     private static Vector2 MaxBy(List<Vector2> points, System.Func<Vector2, float> score)

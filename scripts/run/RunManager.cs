@@ -276,14 +276,14 @@ public partial class RunManager : Node2D
     }
 
     /// <summary>STRAGGLERS: once the round has fully spawned and only <see cref="Rounds.StragglerCount"/> or fewer quota
-    /// enemies are left, they all hunt the player — so a round never stalls on one he can't find.</summary>
+    /// enemies are left, they hunt faster — so the end of a round doesn't drag.</summary>
     private void UpdateStragglers()
     {
         if (_spawned < _quota || _quota - _killed > Rounds.StragglerCount)
             return;
         foreach (Enemy e in _spawner.Living)
             if (IsInstanceValid(e) && !e.Optional)
-                e.Hunt(Rounds.StragglerSpeedMult);
+                e.Hunt(Rounds.StragglerSpeedMult, Rounds.HuntWaitSpread);
     }
 
     /// <summary>Dekken's Fast Travel: put the player right beside the Figmenter.</summary>
@@ -295,11 +295,13 @@ public partial class RunManager : Node2D
         _player.Velocity = Vector2.Zero;
     }
 
-    /// <summary>A quota enemy entered the arena: it counts toward the round and the concurrent cap.</summary>
+    /// <summary>A quota enemy entered the arena: it counts toward the round and the concurrent cap, and hunts the
+    /// player from this moment.</summary>
     private void OnEnemySpawned(Enemy enemy)
     {
         if (enemy.Optional)
             return;
+        enemy.Hunt(Rounds.HuntSpeedMult, Rounds.HuntWaitSpread);
         _spawned += 1;
         _alive += 1;
         UpdateStragglers();

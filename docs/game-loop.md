@@ -33,12 +33,14 @@ score chase, **highest round reached** is the record, and **permadeath** ends it
 1. **Quota** `Q(r)` — how many enemies round `r` sends. Hidden from the player (like CoD). Starting shape:
    `Q(r) = a + b·r + c·r²` (roughly quadratic, like CoD's count curve).
 2. **Trickle** — spawn one at a time on an interval, up to the concurrent cap `C(r)` (grows slowly with `r`).
-   Each one appears at a **spawn spot** the layout places (`EnemySpawns` markers) — **one enemy per spot**, spread
-   over the map (the free spot farthest from the held ones, at least `SpawnMinDistance` 320 px from the player) — and
-   **patrols** there until it notices him (320 px); the player has to go **find** them, helped by the off-screen
-   arrows. **From round 10**, a growing share of grunts (20%, +10%/round, max 70%) instead spawns **right behind the
+   Each one appears at a **spawn spot** the layout places (`EnemySpawns` markers) — **one enemy per spot**, the free
+   one nearest the player that is still at least `SpawnMinDistance` 320 px from him — and **hunts** him from that
+   moment (changed 2026-10-11; until then it patrolled its spot and the player went to find it, which played as a
+   walk from one enemy to the next). A hunter walks off a ledge that has ground below; it cannot climb, so when he
+   is on a platform above it, it waits underneath, the crowd spread a little (`HuntWaitSpread` 40 px) — no jumping
+   and no teleporting, by decision: the crowd under a platform is the slam's target. **From round 10**, a growing share of grunts (20%, +10%/round, max 70%) instead spawns **right behind the
    player** on his floor (100–240 px), as the pressure ramps up. From the grunt roster; per-kit `spawn_cap`s still apply. The curve **starts slow**
-   (round 1: 6 enemies, 3 alive at once, one every 1.5 s) and climbs every round (`configs/Rounds.cs`).
+   (round 1: 6 enemies, up to 6 alive at once, one every 1.5 s) and climbs every round (`configs/Rounds.cs`).
 3. **Spawning stops** once `Q(r)` enemies have been spawned.
 4. **Clear** — the round ends when all `Q(r)` are dead (kills == quota **and** none left alive).
 5. **Next round, immediately** — the **ROUND n+1** banner and round `n+1` begins. **No break, no countdown**
@@ -49,8 +51,7 @@ score chase, **highest round reached** is the record, and **permadeath** ends it
 **not** in the quota and don't block a clear.
 
 **Stragglers** (CoD's "last zombie"): once the whole quota has spawned and only `StragglerCount` (3) or fewer
-remain, they **hunt** the player wherever he is (no patrol, no give-up leash, **1.6× faster** — `StragglerSpeedMult`) — so a round never stalls on one he
-can't find.
+remain, they hunt **1.6× faster** (`StragglerSpeedMult`) — so the end of a round doesn't drag.
 
 **Stand-still pressure (kamikazes):** from round `KamikazeFromRound` (5), a player who stays within `StillRadius`
 (50 px) of one spot for `StillTime` (2 s) gets a **kamikaze** (Ein) `KamikazeDistance` (220 px) to one side and up
@@ -130,7 +131,7 @@ round clears when both are dead. **For now: grunts only.** Kroj stays out of the
 
 | | **Lira** (common) | **Fada Figs** (rare) |
 |---|---|---|
-| Drops | **every kill**, in today's fig amounts (Chip 1 · Mid 2 · Strong 3) | a **per-enemy chance** per kill: **10 %** default, **Kebus 25 %** (the hardest grunt); tougher ranks / Wardens tuned later. A hit drops **1** fig |
+| Drops | **every kill**, in today's fig amounts (Chip 1 · Mid 2 · Strong 3) | a **per-enemy chance** per kill: **15 %** default (10 % until 2026-10-11), **Kebus 25 %** (the hardest grunt); tougher ranks / Wardens tuned later. A hit drops **1** fig |
 | Pickup | flies to Khalid like Ruh (the magnet pickup); its own pickup sfx *(placeholder until the real sound lands)*; art `index32_art/art/things/lira.png` | as today |
 | Spent on | **Needle Point** shots + **Dekken** perks | the **Figmenter** (+ future altars) |
 | HUD | a counter (replaces the fig milestone ring) | a counter |
@@ -203,19 +204,20 @@ run that keeps getting harder).
 
 *(Redesigned by the owner 2026-10-11; built the same day. It replaced the spin → offer "mystery box".)*
 
-- **It makes wine.** **8 figs** start a brew (at the 10 % fig rate the first brew starts around rounds 4–5). The
-  brew takes **5 rounds**; the tank visibly fills a step each round.
+- **It makes wine.** **4 figs** start a brew (at the 15 % fig rate the first brew starts around round 3). The
+  brew takes **2 rounds**; the tank visibly fills a step each round. (8 figs, 10 % and 5 rounds until 2026-10-11:
+  the first mechanic arrived around round 9–10, after most runs' build should already exist.)
 - **The wine holds one build-defining buff**, **permanent** for the run once drunk — never one you already hold. The
   bottle is **labelled**: you know what it is when it is ready. Very rarely it is a **special-swap** instead.
 - **Drink it or carry it.** You collect the wine into your **one wine slot** and can drink it at any moment. Carried,
   it **ages**: +1 rarity every **2 rounds** (Common → Rare → Hot → Sensational → Epic), and the buff comes out that
-  much stronger (each buff has five values). So the choice is power now, or more power later — at least 5 rounds after
+  much stronger (each buff has five values). So the choice is power now, or more power later — at least 2 rounds after
   paying either way, and with only one slot the next ready wine waits in the machine until you drink.
 - **Real time** — nothing pauses.
 - **Planned, not built:** a between-runs upgrade system (XP spent in the main menu) that shortens the brew.
 - **It stays put.** The Figmenter stands where the layout places it, like the other two stalls. (It relocated on a
   "teddy bear" roll until 2026-10-11; the owner removed that.)
-- **Anti-overpower:** fig scarcity and the 5-round brew pace it (first wine ~round 9–10); Figmenter buffs are **mechanics, not
+- **Anti-overpower:** fig scarcity and the 2-round brew pace it (first wine ~round 5); Figmenter buffs are **mechanics, not
   multipliers**; no duplicates. In reserve if it's still too strong: the cost rises per brew, or some Figmenter buffs
   carry a drawback (RoR lunar-style).
 
@@ -358,7 +360,7 @@ The existing `Buff : Passive` + `Trigger` + `ModifyTuning` foundation fits. Ever
 - **E3. Dekken** *(built 2026-09-28)* — 5 rotating perks, per-perk durations, whole-run perks leaving the pool.
 - **E4. Figmenter rework** *(built 2026-10-04)* — real-time spin → offer → take/decline; the mechanics pool
   (never a duplicate), the rare special-swap; Fast Travel goes to it. **Replaced 2026-10-11 by FIG WINE** (§ Figmenter):
-  a 5-round brew, a carried bottle that ages through five rarities, the buff as strong as the wine. (The teddy bear — refund + relocation between
+  a brew of a few rounds (5 at first, 2 since 2026-10-11), a carried bottle that ages through five rarities, the buff as strong as the wine. (The teddy bear — refund + relocation between
   easy/hard spots — was built with it and removed 2026-10-11: the Figmenter stays put.) `Figmenter` + `FigmenterLedger` +
   `configs/FigmenterRules.cs`; tiers (`Tier`, `Family`) and the paused 3-card `RewardUI` are gone.
 - **E5. Layout + HUD** — *partly built 2026-09-30:* the stalls are scenes placed in the layout (`scenes/things/`,

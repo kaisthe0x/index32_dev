@@ -13,8 +13,8 @@ implements is [`docs/game-loop.md`](../../docs/game-loop.md) — **endless CoD-Z
 
 | File | What it is |
 |---|---|
-| `RunManager.cs` (`RunManager`) | The brain + the arena root. Owns the ORDER of things and the **round loop**: the quota, the concurrent cap and the spawn interval per round, the clear on the last kill and the next round at once, the stragglers' hunt. Pays **Lira** on every kill (+ a per-kit chance of one **Fada Fig**) and Ruh orbs on hits, wires the stalls to the run's ledgers, and restarts the run on death. The parts below are its own classes. |
-| `EnemySpawner.cs` (`EnemySpawner`) | **Who spawns and where.** The roster (`SpawnPool`), each kit's per-type cap, the free-spawn-spot choice that spreads enemies over the map, near-player spawns from a later round, building an enemy from its kit, and the list of the living. Reports `Spawned` / `Died` / `Damaged`. Rebuilt per arena. |
+| `RunManager.cs` (`RunManager`) | The brain + the arena root. Owns the ORDER of things and the **round loop**: the quota, the concurrent cap and the spawn interval per round, the clear on the last kill and the next round at once, making each round enemy a hunter as it spawns, the stragglers' faster pace. Pays **Lira** on every kill (+ a per-kit chance of one **Fada Fig**) and Ruh orbs on hits, wires the stalls to the run's ledgers, and restarts the run on death. The parts below are its own classes. |
+| `EnemySpawner.cs` (`EnemySpawner`) | **Who spawns and where.** The roster (`SpawnPool`), each kit's per-type cap, the free-spawn-spot choice (the one nearest the player), near-player spawns from a later round, building an enemy from its kit, and the list of the living. Reports `Spawned` / `Died` / `Damaged`. Rebuilt per arena. |
 | `PressureSpawns.cs` (`PressureSpawns`) | **The two anti-camping spawns**, outside the quota: stand still → kamikazes (Ein); hug an end of the arena → a Ventilator on the inland side. Each has its own clock. Rebuilt per arena. |
 | `BirdFlock.cs` (`BirdFlock`) | **The birds perched around the arena** (scenery): keeps up to `Birds.Count` of them, each placed on a random tile top the camera can't see, replaced a while after it flies off. The bird itself is `scripts/creatures/Bird.cs`; tuning in `configs/Birds.cs`; see the main README § Birds. Rebuilt per arena. |
 | `ArenaGround.cs` (`ArenaGround`) | **Where things can stand**: a tile on the floor under a point, whether a spot is clear of solid props, headroom, inside-a-wall — physics probes plus the layout's walkable tiles. |
@@ -31,7 +31,7 @@ implements is [`docs/game-loop.md`](../../docs/game-loop.md) — **endless CoD-Z
 | `Stall.cs` (`Stall`, in `scripts/things/`) | The shared stand-at-it-and-press-**E** base for the stall SCENES (`scenes/things/`): reads the scene's `Visual`, `Interact` (Area2D — where to stand) and `Prompt` (Marker2D) nodes; owns the prompt and the key (`interact`, registered in code). The Figmenter, Needle Point and Dekken extend it. |
 | `Figmenter.cs` (`Figmenter`, in `scripts/things/`) | The Figmenter itself (a `Stall`; a steel vat standing where the layout places it — `scenes/things/figmenter.tscn`; it was the "mystery box" until 2026-10-10): shows the brew — the tank's fill frame, the rounds left, the ready wine's label — and takes the E presses (start a brew, collect). |
 | `FigmenterLedger.cs` (`FigmenterLedger`) | The run's Figmenter rules: the brew in the machine (paid, filling a step per cleared round, ready) and the one carried `Wine` (ageing a `WineRarity` step every 2 rounds, drunk for its buff at that strength). Raises `Changed`. Numbers in `configs/FigmenterRules.cs`; what it can give in `configs/BuffCatalog.cs`. |
-| `configs/Rounds.cs` (`Rounds`) | **Round tuning** — quota curve, concurrent cap, spawn interval, spawn-spot distance, stragglers, stand-still kamikazes, when "n LEFT" shows. Pure data. |
+| `configs/Rounds.cs` (`Rounds`) | **Round tuning** — quota curve, concurrent cap, spawn interval, spawn-spot distance, hunting, stragglers, stand-still kamikazes, when "n LEFT" shows. Pure data. |
 
 **Hand-painted stage layouts** are the active approach: `RunManager` loads a random
 `scenes/levels/stage1/stage1_v*.tscn` (a `LevelLayout`, discovered by the `stage1_v` glob in
@@ -56,11 +56,13 @@ are quota enemies** — the sleeper Nasen (`optional`, as are kamikazes and the 
 **Per-type caps:** a kit with a `spawn_cap` (Nasen = 1) can't have more than that many alive at once — `EnemySpawner.PickKit`
 only rolls kits under their cap (`EnemySpawner.LivingOfType` vs `EnemySpawner.EffectiveCap`), and that cap grows +1 every `KitCapGrowthRounds`.
 Each enemy appears at a **spawn spot** — a `Marker2D` under the layout's `EnemySpawns` node (`LevelLayout.EnemySpawns`).
-**One enemy per spot** (`EnemySpawner._spotOf`, freed on death), spread over the map: `EnemySpawner.PickSpawnSpot` takes the free spot farthest
-from the spots already held, among those at least `Rounds.SpawnMinDistance` (320 px) from the player (so nothing lands
+**One enemy per spot** (`EnemySpawner._spotOf`, freed on death): `EnemySpawner.PickSpawnSpot` takes the free spot NEAREST
+the player among those at least `Rounds.SpawnMinDistance` (320 px) from him (so it arrives soon but nothing lands
 on top of him); with every spot held the spawn waits (`EnemySpawner.SpawnFromPool` returns false, `TickRound` retries). `EnemySpawner.SpawnAt` puffs, spawns, wires `died`/`damaged`, tracks it in `EnemySpawner.Living`
-and counts it toward the quota unless the kit is `optional`. The enemy **patrols** around its spot until the player
-comes within its `AggroRange` (320 px), so the player has to go **find** enemies (the off-screen arrows help).
+and counts it toward the quota unless the kit is `optional`. Every quota enemy **hunts** from that moment
+(`RunManager.OnEnemySpawned` → `Enemy.Hunt(Rounds.HuntSpeedMult, Rounds.HuntWaitSpread)`): it comes for the player
+wherever he is, steps off ledges that have ground below, and waits under him — spread out — when he is on a platform
+it can't reach (`scripts/enemies/parts/Pursuit.cs`). Until 2026-10-11 it patrolled its spot and the player went to find it.
 A layout with no markers logs an error and spawns nothing.
 
 **Near-player spawns** (from `Rounds.NearSpawnFromRound`, 10): `EnemySpawner.NearShare(r)` of the grunts — 20% at r10, +10% a round,
@@ -73,8 +75,8 @@ flat runs of `MinSpawnFloorTiles` (3)+, and `ArenaGround.SpotIsClear` drops tile
 From round 10, all spots held also falls back to a near spawn instead of waiting.
 
 **Stragglers:** once the quota has fully spawned and ≤ `Rounds.StragglerCount` (3) remain, `UpdateStragglers` calls
-`Enemy.Hunt(Rounds.StragglerSpeedMult)` on each — they chase the player anywhere, no leash, **1.6× faster** (walk
-animation sped up to match) — so a round never stalls on one he can't find.
+`Enemy.Hunt(Rounds.StragglerSpeedMult, Rounds.HuntWaitSpread)` on each — they hunt **1.6× faster** (walk
+animation sped up to match) — so the end of a round doesn't drag.
 
 **Stand-still kamikazes** (`PressureSpawns.TickStandStill`): from `Rounds.KamikazeFromRound` (5), a player who stays within
 `StillRadius` (50 px) for `StillTime` (2 s) gets an **Ein** (`EnemyKits.Ein` — `optional`, no Lira, no figs; NOT in
@@ -126,7 +128,7 @@ Related, but not in this folder:
 3. **Hitting** an enemy → `damaged` → `GainRuhOnHit()` charges the surge meter (a special's own hits are
    skipped). Specials cost no Ruh (cooldown-gated); a **surge** fires only when you have the Ruh → `_try_surge()` spends its `cost`.
 4. **Killing** an enemy → `died` → `OnEnemyDied` → `SpawnDrops` (deferred — death fires mid physics-flush):
-   `Enemy.LiraDrop` **Lira** coins that fly to the player and bank on arrival, and — at `Enemy.FigChance` (10 %
+   `Enemy.LiraDrop` **Lira** coins that fly to the player and bank on arrival, and — at `Enemy.FigChance` (15 %
    default, Kebus 25 %) — **one Fada Fig** that settles until touched. Nothing drops if the enemy fell off the map. A
    quota enemy also frees a cap slot, counts toward the round, and the last one clears it.
 5. **Buffs come from the stalls:**

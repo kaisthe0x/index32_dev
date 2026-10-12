@@ -16,8 +16,8 @@ namespace MyGame;
 /// </summary>
 public static class FigmenterRules
 {
-    public const int Cost = 8;                  // figs per brew (figs are rare — ~10 % of kills → first brew ~round 4-5)
-    public const int BrewRounds = 5;            // rounds cleared before the wine is ready (paid in round 4 → ready as round 9 starts)
+    public const int Cost = 4;                  // figs per brew (figs are rare — ~15 % of kills → first brew ~round 3; 8 until 2026-10-11)
+    public const int BrewRounds = 2;            // rounds cleared before the wine is ready (paid in round 3 → ready as round 5 starts; 5 until 2026-10-11)
     public const int AgeRounds = 2;             // rounds carried per rarity step: Common → Epic takes 8 rounds in the pocket
     public const float SpecialChance = 0.06f;   // a brew makes a special-swap instead of a buff
 

@@ -17,7 +17,7 @@ public static class EnemyKits
 		// Aimed (the default path): tracks the player and aims at his body, tilt capped to ±45° (never vertical).
 		e.Far = new ShotAttack { Speed = 200.0f, AimCap = 45.0f };
 		e.AttackAlignY = 120.0f;   // wide, so he'll engage you a level up or down
-		e.FigChance = 0.25f; // the hardest grunt — better fig odds than the 10 % default
+		e.FigChance = 0.25f; // the hardest grunt — better fig odds than the 15 % default
 	});
 
 	public static readonly EnemyKit Baghel = new(EnemyIds.Baghel, "Baghel", EnemyTier.Chip, EnemyMovement.Ground, e =>

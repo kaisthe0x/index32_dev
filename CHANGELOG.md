@@ -6,6 +6,56 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-11 — `new-shit` — Enemies hunt the player; the first fig wine comes sooner
+
+### Every round enemy hunts from the moment it spawns
+
+- **What:** a round enemy no longer patrols its spawn spot until the player comes within 320 px. `RunManager` makes
+  it a hunter as it spawns (`Enemy.Hunt`), and it comes for him wherever he is. A hunter steps off a ledge when there
+  is ground below to land on (never into the void); it still cannot climb, so when the player is on a platform above
+  it, it walks to the spot under him and waits there, each hunter up to 40 px to one side so the crowd spreads out.
+  When he is below it, it walks toward him and off the first ledge on the way; standing right over him, it keeps
+  going the way it faces to the end of its floor. Enemies now spawn at the free spot NEAREST the player (still at
+  least 320 px away) instead of the one farthest from the other enemies. Round 1 allows 6 alive at once (was 3);
+  the cap still grows by one a round (10 at round 5, 15 at round 10). The last three still speed up to 1.6×.
+- **New / changed:** new `scripts/enemies/parts/Pursuit.cs` (the hunting state and the two cases above);
+  `EdgeSensor.LandingBelow` (the existing ledge ray cast again 640 px down); `Enemy.Hunt(speedMult, waitSpread)`
+  and the pursuit branch in `Enemy.Act` (the `_hunting` / `_huntSpeedMult` fields moved into `Pursuit`);
+  `RunManager.OnEnemySpawned` calls `Hunt`; `EnemySpawner.PickSpawnSpot`; `configs/Rounds.cs`: `CapBase` 3 → 6, new
+  `HuntSpeedMult` (1.0) and `HuntWaitSpread` (40).
+- **Why / how:** the owner found playing a chore — "I am hunting them instead of them hunting me". Spots were spread
+  over a 3,600 px arena and grunts walk 34–46 px/s, so hunting alone would have left him waiting up to a minute for
+  an enemy to arrive; that is why the spawn-spot choice changed with it. Jumping and teleporting grunts were
+  considered and rejected (jump links or navigation per platform, an animation per enemy, and it removes the crowd
+  under a platform, which is the slam's best target). The hunting logic is its own part so `Enemy.cs` does not grow
+  (rule `S3`).
+- **Could affect:** every fight — more enemies reach the player sooner, from round 1. Enemies leave platforms, so
+  they can end up crowded on the main floor. A player with a ranged attack can hit a waiting crowd from a platform
+  at no risk before the kamikazes start in round 5: NOT addressed here, to be judged in play. Spots near the player
+  stay "held" by enemies that have already walked away from them, so in rounds 8–9 (cap 13–14, 12 spots) a spawn
+  can wait for a kill. The optional enemies (Nasen, the kamikaze, the Ventilator) are unchanged.
+- **Tested:** build with 0 warnings. A scripted headless run of the real arena, 10 of 10: six hunters in round 1; all
+  six closed in on a player standing at his spawn, including the ones spawned on platforms, which came down to his
+  floor; with the player held on the highest platform all six waited under him within the 40 px band, spread over
+  52 px, and none fell into the void; moved to the far floor, all six followed. The saved run-loop check
+  (`handoff_files/RunCheck.cs`) passes 8 of 8. NOT tested: a real played run; how the crowd looks; rounds past 2; a
+  hunter on a floor whose both ends drop only into the void (it would pace there).
+
+### The first fig wine comes around round 5, not round 9–10
+
+- **What:** a brew costs **4 figs** (was 8) and takes **2 cleared rounds** (was 5); an enemy drops a fig **15 %** of
+  the time (was 10 %; Kebus stays 25 %).
+- **Changed:** `configs/FigmenterRules.cs` (`Cost`, `BrewRounds`), `Enemy.FigChance`'s default.
+- **Why:** the owner's second complaint — the buff system was hard to get at. The Figmenter is the only source of
+  build-defining mechanics, and the first one arrived after most of a run.
+- **Could affect:** build pace and power — roughly three wines by round 10 instead of one. Ageing (+1 rarity per 2
+  carried rounds) is unchanged, so a wine now reaches Epic in four times its brew time.
+- **Tested:** the saved wine check (`handoff_files/WineCheck.cs`) run against the new numbers: the flow behaves
+  (refused with "NEED 4", 50 → 46 figs, "2 ROUNDS", ready, collect, age, drink), but 5 of its 16 assertions are
+  written for 8 figs and 5 rounds and report FAIL — the check needs rewriting to read the constants. Not done.
+
+---
+
 ## 2026-10-11 — `new-shit` — The mystery box is now the Figmenter, and it makes fig wine
 
 ### Figs brew fig wine: a 5-round wait, a bottle you carry, a buff as strong as the wine is old

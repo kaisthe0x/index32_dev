@@ -6,7 +6,9 @@ namespace MyGame;
 /// fewer than the concurrent CAP are alive; once the quota has spawned, spawning stops, and the round clears when all
 /// of them are dead — and round r+1 starts right then. There is no break between rounds.
 ///
-/// <para>The curve starts SLOW (round 1: 6 enemies, 3 at a time, one every 1.5 s) and keeps climbing every round.</para>
+/// <para>The curve starts SLOW (round 1: 6 enemies, up to all 6 at once, one every 1.5 s) and keeps climbing every
+/// round. Every round enemy HUNTS the player from the moment it spawns (changed 2026-10-11 — before, it patrolled its
+/// spawn spot until he came to it, and playing was a walk from one enemy to the next).</para>
 /// </summary>
 public static class Rounds
 {
@@ -17,8 +19,8 @@ public static class Rounds
     public const float QuotaQuad = 0.3f;
 
     // Concurrent cap C(r) = CapBase + (r-1) / CapGrowthRounds, never above CapMax — one more alive at once every round:
-    // r1 = 3, r5 = 7, r10 = 12, r20 = 22.
-    public const int CapBase = 3;
+    // r1 = 6, r5 = 10, r10 = 15, r20 = 25. (Base 3 until 2026-10-11: too few to feel hunted.)
+    public const int CapBase = 6;
     public const int CapGrowthRounds = 1;
     public const int CapMax = 32;
 
@@ -34,10 +36,14 @@ public static class Rounds
     public const int ShowLeftAt = 5;          // the HUD reveals "n LEFT" once this many (or fewer) quota enemies remain
 
     // --- where enemies come from ------------------------------------------------------------------------------------
-    // Regular enemies spawn at the layout's EnemySpawns SPOTS and patrol there until they notice the player. One enemy
-    // per spot, spread out: each new one takes the free spot farthest from the spots already held — never one closer
-    // to the player than SpawnMinDistance, so nothing pops in on top of him. All spots held = wait for a free one.
+    // Regular enemies spawn at the layout's EnemySpawns SPOTS and come for the player at once. One enemy per spot: each
+    // new one takes the free spot NEAREST the player that is still at least SpawnMinDistance from him, so it arrives
+    // soon but never pops in on top of him. All spots held = wait for a free one.
     public const float SpawnMinDistance = 320.0f;
+    // HUNTING: a round enemy chases at HuntSpeedMult × its move speed. One that cannot reach him — he is on a platform
+    // above it — waits under him, up to HuntWaitSpread px to either side, so the crowd spreads out.
+    public const float HuntSpeedMult = 1.0f;
+    public const float HuntWaitSpread = 40.0f;
     // NEAR-PLAYER spawns join from NearSpawnFromRound: that share of grunts appears on the player's floor, behind him,
     // NearSpawnMin..NearSpawnMax px away, instead of at a spot (stationary kits like Nasen always use spots). Share =
     // min(NearShareMax, NearShareBase + NearShareStep·(r - NearSpawnFromRound)): r10 = 20%, r12 = 40%, r15+ = 70%.
@@ -48,8 +54,8 @@ public static class Rounds
     public const float NearShareMax = 0.7f;
     public const float NearSpawnMin = 100.0f;
     public const float NearSpawnMax = 240.0f;
-    // STRAGGLERS: once the round has fully spawned and only this many quota enemies are left, they all HUNT the player
-    // (so a round can't stall on an enemy he can't find or reach).
+    // STRAGGLERS: once the round has fully spawned and only this many quota enemies are left, they pick up the pace
+    // (so the end of a round doesn't drag).
     public const int StragglerCount = 3;
     public const float StragglerSpeedMult = 1.6f; // ...and chase this much faster than their normal move speed (walk anim too)
 

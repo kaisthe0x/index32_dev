@@ -143,8 +143,8 @@ you **pick an attack** (locked for the run) from an **inventory-style grid of we
 click an icon to see its name + stats (type/damage/knockback/stun/reach/cooldown/style, from the `Action`'s `Hit`
 data) + description in the details pane, then Confirm. You drop into
 a low, mostly-horizontal arena and fight **endless rounds**: each sends a hidden quota of enemies (a mixed roster,
-appearing at spawn spots around the arena where they patrol until they spot you — you go find them; the last few
-hunt you down — capped so it never floods; from round 10 some also spawn right behind you; from round 5, standing still
+appearing at the spawn spots nearest you and coming for you at once — they hunt you, down off their platforms too,
+and gather under you when you are out of reach above; the last few come faster — capped so it never floods; from round 10 some also spawn right behind you; from round 5, standing still
 for 2 s draws kamikazes), clears when they're all dead, and the next is bigger. You **start each
 run with 3 Ruh charges** — the surge meter, shown in charges (100 each), no decay — and refill it by
 **landing hits** (~5 hits = 1 charge; kills don't count, and a special's own hits don't self-pay).
@@ -182,7 +182,7 @@ tint (`BackgroundTintAlpha`). (The old animated orbiting planet was removed; its
   with its arc and flight time jittered so a multi-coin drop fans out. It's **banked on arrival**
   (`Wallet.CollectLira` → `HUD.SetLira`) with the `lira_collect` cue (**PLACEHOLDER** — the fig pickup sound,
   pitch-varied upward only, 0 … +8 %). Needle Point spends it (`Wallet.SpendLira`).
-- **Fada Figs** — the rare currency: a kill also drops **one** fig at the enemy's `Enemy.FigChance` (**10 %**
+- **Fada Figs** — the rare currency: a kill also drops **one** fig at the enemy's `Enemy.FigChance` (**15 %**
   default; per-kit override — **Kebus 25 %**, the hardest grunt). A fig
   ([`scenes/fada_fig.tscn`](scenes/fada_fig.tscn), [`scripts/collectibles/FadaFig.cs`](scripts/collectibles/FadaFig.cs),
   a `RigidBody2D`) pops out, bounces/tumbles, and settles on the terrain; the player collects it by **physically
@@ -1026,9 +1026,9 @@ length. Like Needle Point and Dekken it **stays where the layout places it**.
 
 **The loop** (`FigmenterLedger` — one per run, owned by `RunManager`; numbers in `configs/FigmenterRules.cs`):
 
-1. **Brew** — at the empty machine, **E** pays `Cost` (8 figs). What the wine will hold is decided right then, so
-   figs are never taken for nothing ("NEED 8" without the figs; "EMPTY" when there is nothing left to make).
-2. **Wait** — it takes `BrewRounds` (**5**) cleared rounds; the tank fills a step per round and the machine shows
+1. **Brew** — at the empty machine, **E** pays `Cost` (4 figs). What the wine will hold is decided right then, so
+   figs are never taken for nothing ("NEED 4" without the figs; "EMPTY" when there is nothing left to make).
+2. **Wait** — it takes `BrewRounds` (**2**) cleared rounds; the tank fills a step per round and the machine shows
    "n ROUNDS". Pressing E meanwhile just repeats that.
 3. **Ready** — the wine's **name and what it does** hang over the machine. A ready wine waits as long as you like
    (it does not age in the machine).
@@ -1516,8 +1516,9 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
   patrolling** instead of freezing to face someone it can't fight. Keep the
   band under the platform spacing.
 - **Edge-aware:** a downward probe `EdgeCheckX` ahead of each foot stops it
-  walking off ledges — it turns around on patrol and won't chase off a platform.
-  So enemies can patrol on platforms safely. The probe spans a **tall vertical range**
+  walking off ledges — it turns around on patrol and, unless it is hunting, won't chase off a platform.
+  So enemies can patrol on platforms safely. A **hunter** (below) does step off a ledge when the same probe, cast
+  again all the way down (`EdgeSensor.LandingBelow`, 640 px), finds ground to land on — never into the void. The probe spans a **tall vertical range**
   (feet −14px up to +28px down, `HitFromInside`) so a **slope** reads as continuous floor, not a
   cliff — it reaches up for a rising floor and down ~a tile for a descending one, so enemies chase
   *down* slopes too; a real drop deeper than ~a tile still stops it. Enemies also run with
@@ -1525,8 +1526,14 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
   floating off descents or crawling up climbs.
 - **`aggro`** (default **on** — enemies are hunters): it *chases* the player up to
   `AggroRange` (320 px, real distance — it patrols its spawn spot until you come that close; get farther and it
-  drops back to patrol; a straggler told to `hunt()` ignores the range and chases 1.6× faster), instead of only
-  fighting whoever wanders into its line. It chases to its **attack reach** — a *far-attack* mob closes
+  drops back to patrol), instead of only
+  fighting whoever wanders into its line. **Every round enemy is a HUNTER** (`Enemy.Hunt`, called by `RunManager`
+  as it spawns): it ignores the range and chases the player wherever he is. What a hunter does about a player on
+  another level is its `Pursuit` part (`scripts/enemies/parts/Pursuit.cs`): player **above** — walk to the spot under
+  him and wait there, each hunter up to `Rounds.HuntWaitSpread` (40 px) to one side so the crowd spreads out;
+  player **below** — walk toward him and off the first ledge with ground under it, and once right over him keep
+  going the way it faces to the end of its floor (turning round at an end that only drops into the void). Only the
+  optional enemies (Nasen, the kamikaze, the Ventilator) still use the range. It chases to its **attack reach** — a *far-attack* mob closes
   only to **firing range** (`Far.Range`) and holds (it won't run its bow into your face), a
   *close-only* mob closes to `MeleeAttack.Range` and swings. It's a per-instance export, so set it **false**
   per-kit for a mob that should just guard a spot.
@@ -1942,16 +1949,16 @@ the build basics:
   that sets the enemy's stats on the typed instance. `EnemySpawner.SpawnEnemy` instantiates and tunes it; the enemy's
   `died` signal frees a cap slot and drops Lira (+ a chance of a Fada Fig) — buffs come from the Figmenter, not kills.
 - **Spawn spots** — `EnemySpawner.PickSpawnSpot` picks a FREE `EnemySpawns` marker (one enemy per spot; `EnemySpawner._spotOf`
-  frees it on death), spreading them over the map: the free spot farthest from the ones already held, among those at
-  least `Rounds.SpawnMinDistance` (320 px) from the player. All spots held = the spawn waits. `EnemySpawner.SpawnAt` puffs, spawns,
-  wires `died`/`damaged` and counts it toward the quota unless the kit is `optional`. The enemy patrols around its
-  spot until the player is within its `AggroRange` (320 px, real distance).
+  frees it on death): the free spot NEAREST the player among those at
+  least `Rounds.SpawnMinDistance` (320 px) from him, so it reaches him soon. All spots held = the spawn waits. `EnemySpawner.SpawnAt` puffs, spawns,
+  wires `died`/`damaged` and counts it toward the quota unless the kit is `optional`. `RunManager.OnEnemySpawned`
+  then makes it a hunter (`Enemy.Hunt(Rounds.HuntSpeedMult, Rounds.HuntWaitSpread)`).
 - **Near-player spawns** — from `Rounds.NearSpawnFromRound` (10), `EnemySpawner.NearShare(r)` of the grunts (20%, +10%/round, max
   70%; never a stationary kit) spawn on the player's floor, behind him, `NearSpawnMin..Max` (100–240 px) away
   (`EnemySpawner.NearPlayerSpot` → `ArenaGround.PickSurface`, using `LevelLayout.SpawnSurfacesNear`'s floor regions and `ArenaGround.SpotIsClear`);
   from then on, all spots held also falls back to a near spawn instead of waiting.
 - **Stragglers** — `UpdateStragglers`: once the quota has fully spawned and ≤ `Rounds.StragglerCount` (3) are left,
-  each calls `Enemy.Hunt(Rounds.StragglerSpeedMult)` and chases the player anywhere (no leash) at **1.6×** its move
+  each calls `Enemy.Hunt(Rounds.StragglerSpeedMult, Rounds.HuntWaitSpread)` and hunts at **1.6×** its move
   speed, its walk animation sped up to match.
 - **Stand-still kamikazes** — `PressureSpawns.TickStandStill`: from `Rounds.KamikazeFromRound` (5), staying within `StillRadius` (50 px)
   for `StillTime` (2 s) spawns an Ein (`EnemyKits.Ein` — `optional`, no Lira, no figs; not in `EnemySpawner.SpawnPool`)
@@ -2169,6 +2176,12 @@ Two `CurrencyCounter`s stacked top-left — **Lira** then **Fada Figs** — each
 popping on a gain (`HUD.SetLira` / `HUD.SetFadaFigs`, pushed by `Player`). Economy, not moment-to-moment
 survival — so it stays in the corner rather than in the gauge.
 
+Under them: the `VialRow` (the two Dekken carry slots, text for now) and the **`WineSlot`** — Khalid's one wine
+bottle (`assets/things/wine_bottle.png`, two 64×64 frames from `index32_art/art/things/WineBottle.aseprite`: empty,
+full of fig wine in the Figmenter's own oranges). It shows the empty bottle while he carries nothing; filled at the
+Figmenter it shows the full one with the wine's name and rarity beside it in the rarity's colour, and pops when it is
+filled and each time the wine climbs a rarity (`HUD.SetWine`, pushed by `WineControls`).
+
 ### UI style (`scripts/ui/UiStyle.cs`)
 
 Every menu and HUD label shares ONE look, defined in `UiStyle`: a dark-neon palette (near-black
@@ -2176,12 +2189,6 @@ panels, neon `Frame` borders/headings, a bright `Accent` for titles, hover and s
 the **Sixtyfour** retro font (`assets/fonts/`), and square pixel-style boxes (no rounded corners).
 
 **The palette is player-recolourable** (colour scheme screen → UI → Frame / Highlight; default =
-Under them: the `VialRow` (the two Dekken carry slots, text for now) and the **`WineSlot`** — Khalid's one wine
-bottle (`assets/things/wine_bottle.png`, two 64×64 frames from `index32_art/art/things/WineBottle.aseprite`: empty,
-full of fig wine in the Figmenter's own oranges). It shows the empty bottle while he carries nothing; filled at the
-Figmenter it shows the full one with the wine's name and rarity beside it in the rarity's colour, and pops when it is
-filled and each time the wine climbs a rarity (`HUD.SetWine`, pushed by `WineControls`).
-
 "Arcane Void" violet + electric blue). Only `Frame` and `Accent` are picked; `UiStyle.Derive` builds
 every other role from the frame's **hue** while keeping each role's default **brightness** (panels stay
 near-black, text stays pale) and scaling saturation by the pick's (a grey pick → a neutral UI). So:
