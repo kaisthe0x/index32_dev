@@ -61,6 +61,41 @@ mix. Ways to improve it:
    milliseconds. This tackles the cause (the same sound stacking), not the summed symptom.
 3. Expose the ceiling, or the limiter itself, in the options menu.
 
+## Animation: smoother motion, maybe the Dead Cells way
+
+Noted 2026-10-11; the owner wants to explore this later. Nothing is built.
+
+**The wish.** Khalid's animations should feel smoother, above all the RUN (it is on screen most of the time), and
+the change from one movement to the next should not pop. Two ideas the owner raised: more frames per animation, and a
+3D base under the pixel art "the way Dead Cells does it".
+
+**How Dead Cells does it** (the lead artist's own write-up — "Art Design Deep Dive: Using a 3D pipeline for 2D
+animation in Dead Cells", Game Developer): a rough 3D model and skeleton; animation built pose-to-pose on KEY frames,
+with easing frames added before or after a key and "never in-between"; each frame rendered tiny with no
+anti-aliasing, together with a normal map for a toon shader; effects layered on top carry the motion. The 3D model
+buys fast retakes (retime or redo an animation in minutes), not smoothness. It needs a skilled modeller and animator.
+
+**What was tried, and what to learn from it.**
+- A blocky 3D Khalid scripted in Blender with a procedural run cycle, rendered at game size and shaded in his
+  palette. REJECTED by the owner: it changed his shading and silhouette, read as slower, and looked lifeless. Evenly
+  blended motion from code is the opposite of the pose-to-pose approach above. Do not repeat this; any future attempt
+  starts from the owner's own frames and keeps them untouched.
+- A look at the run's own frames: its ten frames are six distinct drawings (6 and 9 repeat 2, 8 repeats 4, 10
+  repeats 5), and the strides in the loop are 4, 3 and 2 frames long, so the bounce is uneven. Playing frames 1–8
+  only (two even strides, at 12 fps to keep the pace) was shown to the owner, who saw no major difference. Not applied.
+
+**Where to pick it up.**
+- Every change of animation is a hard cut (`Sprite.Play` of the next one from its first frame). Bridge frames between
+  the pairs that pop most would follow the Dead Cells rule (ease into and out of the keys); the game would need a
+  small "from A to B, play these first" rule.
+- Tools found, none tested: **GhostFrames** (an Aseprite extension that estimates in-between frames from two frames
+  and can insert them as a guide to redraw over); **Smack Studio** (Steam, Early Access: pixel art mapped onto a 3D
+  skeleton you pose, then exported as sprites — the nearest thing to the Dead Cells method without 3D skills; its
+  ideal character height is 50–150 px and Khalid is about 35); a proper low-poly model and animator for the full
+  Dead Cells pipeline.
+- A change of frame count in an attack also means updating the tables keyed to frame numbers (`HIT_FRAMES` in
+  `tools/gen_spriteframes.py`, the particle and sound frame keys). The run has none of those.
+
 ## Built, not wired up yet
 
 Code that exists and works but has no caller today. It is kept on purpose (owner's decision, 2026-10-09) for the
