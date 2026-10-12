@@ -26,7 +26,7 @@ public partial class Sfx : Node
     private const float CompressorReleaseMs = 200.0f;
     // The one loudness every cue is normalized to (peak momentary LUFS — see SfxLoudness). Raise/lower the whole SFX
     // mix against the music here; a single cue that should sit differently goes in a VOLUMES table instead.
-    public const float TargetLoudness = -34.0f;   // -26 until 2026-10-12: a single cue stood well over the music (about -31.5 LUFS as played)
+    public const float TargetLoudness = -34.0f;   // -26 until 2026-10-12: a single cue stood well over the music (about -28.5 LUFS as played, at Music.DefaultVolumeDb -5)
     private const float MaxNormalizeDb = 24.0f;   // clamp on the auto gain, so a near-silent file isn't blown up
     // Output device. "" (default) = follow the SYSTEM DEFAULT, so audio goes wherever the OS routes it — it
     // switches to headphones when you plug them in / make them the default sink. Only set a specific device name

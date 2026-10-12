@@ -1286,7 +1286,7 @@ is pure data in per-area files — **`SfxCharacters`**, **`SfxEnemies`**, **`Sfx
 ([`SfxLoudness`](scripts/audio/SfxLoudness.cs): its **peak momentary loudness** — the BS.1770 K-weighted loudness
 (LUFS) of its loudest 400 ms, or its whole length if shorter — the right yardstick for short one-shots, where
 integrated LUFS over a tail of silence isn't), then plays it with the gain that brings it to
-**`Sfx.TargetLoudness`** (−34 LUFS since 2026-10-12, so that one cue sits a little under the music, which plays at about −31.5 LUFS; it was −26, the library's median; clamped to ±24 dB). So a new
+**`Sfx.TargetLoudness`** (−34 LUFS since 2026-10-12, so that one cue sits a little under the music, which plays at about −28.5 LUFS; it was −26, the library's median; clamped to ±24 dB). So a new
 sound needs **no mastering and no trim**: drop the WAV in `sfx/`, register its key, done — it can be any loudness in
 the DAW (just not clipping). Move the whole SFX mix against the music by changing `TargetLoudness`. The make_* players
 (footsteps loop, slam whoosh, orb hum) start at the same normalized volume; a caller adjusts by *adding* to `VolumeDb`.
