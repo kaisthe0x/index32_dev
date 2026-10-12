@@ -98,6 +98,19 @@ buys fast retakes (retime or redo an animation in minutes), not smoothness. It n
 - A change of frame count in an attack also means updating the tables keyed to frame numbers (`HIT_FRAMES` in
   `tools/gen_spriteframes.py`, the particle and sound frame keys). The run has none of those.
 
+## Animation: Khalid dances when he is left alone
+
+Noted 2026-10-12; the owner's idea, to add eventually. Nothing is built or drawn.
+
+When Khalid has been **out of danger for more than 10 seconds** and the player has **given no input** in that time,
+he starts **dancing** — for example standing on top of the Needle Point platform. Any input, or danger, ends it.
+
+It is just an idle dance — keep it simple (the owner, 2026-10-12). From round 5 standing still draws the kamikazes, so
+in later rounds there will be no chance to dance; that is fine and needs no special case.
+
+When it is built: the dance loops are the owner's to draw, in his own style; in code it is an idle timer and a dance
+state beside the other player states (`scripts/player/states/`), not more logic in `Player.cs` (rule `S3`).
+
 ## Built, not wired up yet
 
 Code that exists and works but has no caller today. It is kept on purpose (owner's decision, 2026-10-09) for the

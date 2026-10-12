@@ -36,6 +36,15 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
   below. Dropping down through a one-way tile there would drop the player into the void: NOT checked.
 - **Tested:** played by the owner. The moved spawn spot was not re-run.
 
+### Docs: two notes for later
+
+- **What:** `docs/future-enhancements-and-fixes.md` gained "Animation: smoother motion, maybe the Dead Cells way"
+  (what was tried on 2026-10-11 and rejected, and where to pick it up — commit `895babb`) and "Animation: Khalid
+  dances when he is left alone" (the owner's idea: after 10 s out of danger with no input he dances; just an idle
+  animation, no special cases). Its sound section now records that the compressor is built and that the three music
+  tracks differ by 2.5 dB.
+- **Could affect:** nothing — notes only.
+
 ### Mazab's bomb and dropped figs land on the brick platforms
 
 - **What:** a lobbed bomb and a dropped Fada Fig now land on one-way (jump-through) tiles as they do on solid
