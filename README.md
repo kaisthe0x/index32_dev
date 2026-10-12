@@ -1286,7 +1286,7 @@ is pure data in per-area files — **`SfxCharacters`**, **`SfxEnemies`**, **`Sfx
 ([`SfxLoudness`](scripts/audio/SfxLoudness.cs): its **peak momentary loudness** — the BS.1770 K-weighted loudness
 (LUFS) of its loudest 400 ms, or its whole length if shorter — the right yardstick for short one-shots, where
 integrated LUFS over a tail of silence isn't), then plays it with the gain that brings it to
-**`Sfx.TargetLoudness`** (−26 LUFS, the library's median, so the overall mix didn't move; clamped to ±24 dB). So a new
+**`Sfx.TargetLoudness`** (−34 LUFS since 2026-10-12, so that one cue sits a little under the music, which plays at about −31.5 LUFS; it was −26, the library's median; clamped to ±24 dB). So a new
 sound needs **no mastering and no trim**: drop the WAV in `sfx/`, register its key, done — it can be any loudness in
 the DAW (just not clipping). Move the whole SFX mix against the music by changing `TargetLoudness`. The make_* players
 (footsteps loop, slam whoosh, orb hum) start at the same normalized volume; a caller adjusts by *adding* to `VolumeDb`.
@@ -1297,8 +1297,9 @@ nothing. A cue that can't be measured (a compressed import, or silence) warns on
 
 **Per-cue mix offset**: each config's **`Volumes`** dict (dB, negative = quieter) is now only for **deliberate** mix
 choices on top of the normalization — a cue that should sit under or over the rest — never to fix a hot/quiet file.
-Today: the looping footsteps (`run`, −15) and the orb hum (`launch_orb`, −16) are beds under the action. (There's
-also a brick-wall limiter on the whole SFX bus for summed peaks.)
+Today: the looping footsteps (`run`, −15) and the orb hum (`launch_orb`, −16) are beds under the action. (The whole SFX bus
+also has a compressor, so a crowd's stacked sounds stay near the level of a few and the music stays clear, and then
+a brick-wall limiter for summed peaks — `Sfx.InstallBusEffects`.)
 
 **Per-cue pitch variation**: each config also has a **`Pitch`** dict — a random range as **(min, max) offsets** from
 normal pitch (`new Vector2(-0.06f, 0.06f)` = ±6 %; `new Vector2(0f, 0.08f)` = same-or-higher, up to +8 %), re-rolled on

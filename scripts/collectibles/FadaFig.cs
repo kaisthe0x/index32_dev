@@ -29,6 +29,7 @@ public partial class FadaFig : RigidBody2D
     public override void _Ready()
     {
         ZIndex = WorldZ.Drops;
+        CollisionMask = Combat.GroundMask; // it settles on one-way platforms too, not only on solid ground
         // Scatter pop: up + a little sideways, with a spin so it tumbles/rolls before settling.
         LinearVelocity = new Vector2(
             (float)GD.RandRange(-PopSide, PopSide),

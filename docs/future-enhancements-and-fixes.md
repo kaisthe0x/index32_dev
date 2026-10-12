@@ -50,13 +50,15 @@ one needs doesn't exist. (Moved here from comments in the code, 2026-10-09.)
 - **Instant Reset (Zahluq)** — built but parked (`BuffCatalog.Parked`): special-box whiffs don't emit `OnMiss`
   (`Hitbox.Deactivate` only emits it for non-special hits), so it would never fire.
 
-## Sound: beyond the limiter
+## Sound: beyond the compressor and limiter
 
-`Sfx.InstallLimiter` puts a hard peak ceiling on the SFX bus so stacked cues can't spike. It is a safety net, not a
-mix. Ways to improve it:
+`Sfx.InstallBusEffects` puts a compressor (-18 dB, 4:1 — built 2026-10-12, so a horde's stacked sounds don't drown the
+music) and then a hard peak ceiling on the SFX bus. Both treat the summed symptom. Ways to improve it:
 
-1. A gentle **compressor** before the limiter (`AudioEffectCompressor`, about -18 dB threshold, about 4:1), so loud
-   moments duck smoothly instead of being clamped.
+1. **Music at one loudness.** The three stage-1 tracks measure -21.6, -23.5 and -24.1 LUFS (integrated), so the music
+   itself moves 2.5 dB between tracks. Render them from the source project at one integrated loudness (the middle
+   one, about -23.5 LUFS, keeps today's level); a per-track gain table in code would break the "drop a file in the
+   folder" rule of `music/README.md`.
 2. A per-cue **concurrency cap**: skip or duck a cue that is already playing N copies, or fired within a few
    milliseconds. This tackles the cause (the same sound stacking), not the summed symptom.
 3. Expose the ceiling, or the limiter itself, in the options menu.

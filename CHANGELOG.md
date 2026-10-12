@@ -6,6 +6,48 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-12 — `new-shit` — Music up, sound effects down, bombs and figs land on brick platforms
+
+### The music is louder, and a horde no longer drowns it
+
+- **What:** the music's level is -5 dB (-12 → -8 → -5, the owner's changes by ear). Every sound effect is 8 dB quieter
+  (`Sfx.TargetLoudness` -26 → -34 LUFS): the owner found single cues too loud against the music, not only crowds.
+  The SFX bus also has a compressor ahead of its limiter: above -26 dB the summed sound effects rise 1 dB for
+  every 4, attack 5 ms, release 200 ms.
+- **Changed:** `scripts/audio/Music.cs` (`DefaultVolumeDb`); `scripts/audio/Sfx.cs` (`InstallLimiter` →
+  `InstallBusEffects`, four compressor constants).
+- **Why / how:** every cue is normalized to one loudness, but sounds SUM — twelve at once are about 11 dB louder
+  than one — so in late rounds the fight covered the music. The owner wanted the music clear WITHOUT turning it up
+  further. A compressor acts on the summed signal, so it needs no per-cue rules and leaves a quiet moment alone.
+  It was already the first item of "Sound: beyond the limiter" in `docs/future-enhancements-and-fixes.md`.
+- **Could affect:** how every busy fight sounds; a single loud hit in a crowd has less punch than before.
+- **Tested:** build 0 warnings; the arena boots with both effects on the bus. **Not tested: by ear.** The four
+  numbers are a starting point; nobody has listened to a late round with them.
+- **Not done:** the three stage-1 tracks differ by 2.5 dB (-21.6 / -23.5 / -24.1 LUFS). Noted in
+  `docs/future-enhancements-and-fixes.md`: render them at one loudness from the source project.
+
+### The stage: a brick bridge over a gap, and the stalls further apart
+
+- **What (the owner's edit of `stage1_v2.tscn`, in the editor):** a 13-tile gap in the floor left of the stalls
+  (x -64 to 352) is bridged with the one-way `tileset2` bricks, level with the floor and with the void underneath;
+  the stalls stand further apart (Dekken 761, Needle Point 1027, Figmenter 1290), because standing at the right
+  one of three close stalls was confusing. The spawn spot that then sat under Dekken (x 760) was moved to x 606.
+- **Could affect:** the bridge is the first one-way ground on the flat stage — that is what exposed the two bugs
+  below. Dropping down through a one-way tile there would drop the player into the void: NOT checked.
+- **Tested:** played by the owner. The moved spawn spot was not re-run.
+
+### Mazab's bomb and dropped figs land on the brick platforms
+
+- **What:** a lobbed bomb and a dropped Fada Fig now land on one-way (jump-through) tiles as they do on solid
+  ground. Both fell through them.
+- **Changed:** `LobProjectile.SurfaceBetween` casts against `Combat.GroundMask` (solid + one-way) instead of solid
+  terrain only; `FadaFig._Ready` sets its collision mask to `Combat.GroundMask` (it had the engine default, solid only).
+- **Why:** the owner bridged a gap in the flat stage with the `tileset2` bricks, which are one-way; the bomb's
+  landing ray ignored that layer. It still only lands while falling, so a rising bomb passes up through a platform.
+- **Tested:** build 0 warnings. **Not tested in the engine** — reported and to be confirmed by the owner's play.
+
+---
+
 ## 2026-10-12 — `new-shit` — The arena is flat, and the slam has a cooldown
 
 ### One level floor: every enemy can always reach the player
