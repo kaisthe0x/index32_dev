@@ -6,6 +6,30 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-14 — `new-shit` — Khalid in flat colours
+
+### Every Khalid animation: one colour per part, no outlines
+
+- **What:** all 28 of Khalid's sprite sheets now use one colour per material — hair `#811A1A`, skin `#0B8B84`,
+  jacket `#4B3328`, trim `#D1C81F`, pants `#2F3D2B`, metal `#60656A` (each ramp's second-lightest shade) — and no
+  outline: every darker shade of a material, its rim included, became that one colour.
+- **Changed:** `sprites/characters/khalid/*_frames.png` (28 sheets, copied from `index32_art` commit `d7719ec`, where
+  the `.aseprite` masters were flattened and re-exported); `README.md` (Palette cleanup).
+- **Why / how:** the owner wants a basic flat look ahead of redrawing every animation; he saw a trial on Bakshen, then
+  on all 28, before it was applied. The masters were flattened by exact colour mapping (every sheet was already on
+  the 36-colour palette), written back through the art repo's own export and import scripts. Same sheet sizes and
+  frame counts, so `resources/characters/khalid.tres` did not change.
+- **Could affect:** how Khalid reads — where a part overlaps itself (an arm over the coat, two legs) the edge is gone,
+  most visible in run, slam and Ground Breaker; the red effects drawn in the hair colour (rope dart, twin reaper,
+  spear, death, spawn, Redere Shield) are solid red shapes now. The palette shader still works (the 6 colours are
+  slots of its 36): the hair flow pulses the whole flat red toward a darker red, and a colour picked in the
+  pre-game picker shows at the shade `PaletteConfig.Derive` puts in slot 1, which can be a little lighter or darker
+  than the pick.
+- **Tested:** each master's export matches the approved trial pixel for pixel (28 of 28); the frames check
+  (`tools/verify_frames.gd`) is clean; build 0 warnings; the arena boots headless with only the old exit-time line.
+  **Not tested:** how it looks in play — a windowed screenshot came out too small to judge; the owner checks it with
+  F5.
+
 ## 2026-10-13 — `new-shit` — Recording mode, and every debug tool in `scripts/debug/`
 
 ### Recording mode (H), and the debug tools in one folder

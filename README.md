@@ -253,6 +253,13 @@ It collapses each sheet onto a hand-authored palette (6 materials x 5 shades +
 a rim, 36 colours) and writes the result back into the `.aseprite` masters, so
 the art repo's git hooks regenerate the GIFs and `frames/*.png` from it.
 
+**Khalid is FLAT since 2026-10-14:** every animation uses ONE colour per material — the
+second-lightest shade of each ramp — and no outline (the owner's look; a redraw of every
+animation is planned). Those 6 colours are still slots of the 36-colour palette, so the
+palette shader and the colour picker below work unchanged; the hair flow now pulses the
+whole flat red toward a darker red, and a picked colour shows on the part at the shade
+`PaletteConfig.Derive` puts in slot 1, which can be a little lighter or darker than the pick.
+
 Nothing in *this* repo needs to run it. The only thing to know downstream is
 that a re-palette changes the sheets under `sprites/`, so re-run
 `gen_spriteframes.py` and re-verify after pulling one.
