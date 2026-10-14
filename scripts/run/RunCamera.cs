@@ -22,7 +22,7 @@ public sealed class RunCamera
     private const float EaseWeight = 0.12f;      // per-tick lerp of the spawn / death drift
     private static readonly Vector2 FollowOffset = new(0, -30);  // play: look a little above his feet
     private static readonly Vector2 EaseOffset = new(0, -18);    // spawn / death: closer on his body
-    private static readonly Vector2 ZoomPlay = new(.5f, .5f);
+    private static readonly Vector2 ZoomPlay = new(1.5f, 1.5f);
     private static readonly Vector2 ZoomDeathLevel = new(3.0f, 3.0f);
     private static readonly Vector2 ZoomSpawnLevel = new(2, 2);
 
