@@ -96,7 +96,7 @@ public partial class Player : Combatant, IStrikeWielder
         }
     }
 
-    // --- run-reward buffs (per-run, reset by BeginRun); shots, perks and box buffs change these. ---
+    // --- run-reward buffs (per-run, reset by BeginRun); shots, perks and Figmenter buffs change these. ---
     private const float BaseRuhCap = 300.0f;
     // Slot health: HP is measured in HALF-BLOCKS. 3 blocks = 6 half-blocks, and EVERY hit costs one half-block
     // regardless of damage (so 6 hits kill). BeginRun fills to BaseMaxHealth.
@@ -130,7 +130,7 @@ public partial class Player : Combatant, IStrikeWielder
     private float _jumpVelocity; private int _maxAirJumps; private float _gravity, _fallGravityScale;
     private float _dashSpeed, _dashTime, _dashCooldown, _dashAnimTime, _dashGravityScale;
     private float _slamSpeed, _slamMinClearance; private int _slamHoldFrame;
-    private float _slamImpactDistance, _slamMinDrop, _slamMaxDrop, _slamMaxDamageMult;
+    private float _slamImpactDistance, _slamMinDrop, _slamMaxDrop, _slamMaxDamageMult, _slamCooldown;
     private float _landMinFallSpeed, _landPredictDistance;
 
     [Export] public float AttackRecovery = 0.12f;
@@ -317,6 +317,7 @@ public partial class Player : Combatant, IStrikeWielder
                 _slamMinDrop = m.SlamMinDrop;
                 _slamMaxDrop = m.SlamMaxDrop;
                 _slamMaxDamageMult = m.SlamMaxDamageMult;
+                _slamCooldown = m.SlamCooldown;
                 break;
         }
     }
@@ -354,7 +355,7 @@ public partial class Player : Combatant, IStrikeWielder
     /// <summary>A character's intrinsic ability, or null. Khalid ships without one. (Add a case when a character gets a C# CharacterAbility.)</summary>
     private static Passive? CharacterAbilityFor(string character) => null;
 
-    /// <summary>Whether a passive with this id is on him (a box buff he already holds).</summary>
+    /// <summary>Whether a passive with this id is on him (a Figmenter buff he already holds).</summary>
     public bool HasPassive(string id)
     {
         foreach (var p in _passives)
@@ -362,6 +363,9 @@ public partial class Player : Combatant, IStrikeWielder
                 return true;
         return false;
     }
+
+    /// <summary>Every passive on him: the character ability, the Needle Point shots, the Dekken perks, the buffs.</summary>
+    public IReadOnlyList<Passive> Passives => _passives;
 
     public void AddPassive(Passive p)
     {
@@ -543,37 +547,6 @@ public partial class Player : Combatant, IStrikeWielder
             return;
         if (_current == _special && _sprite.Frame < _special.StrikeFrame())
             _special.Cooldown = 0.0f;
-    }
-
-    // --- DEBUG: playtest the buff catalog (triggered from RunManager's DEBUG keys; REMOVE before release) -------
-    private int _debugBuffIdx = 0;
-
-    /// <summary>DEBUG: grant the next wired catalog buff, cycling through the whole set.</summary>
-    public void DebugGrantNextBuff()
-    {
-        var ids = new List<string>(BuffCatalog.Factories.Keys);
-        if (ids.Count == 0)
-            return;
-        string id = ids[_debugBuffIdx++ % ids.Count];
-        var buff = BuffCatalog.Make(id);
-        if (buff != null)
-        {
-            AddPassive(buff);
-            GD.Print($"[DEBUG] granted buff: {id}");
-        }
-    }
-
-    /// <summary>DEBUG: clear all granted buffs (keeps the character ability).</summary>
-    public void DebugClearBuffs()
-    {
-        foreach (var p in new List<Passive>(_passives))
-            if (p is Buff)
-            {
-                p.Teardown(this);
-                _passives.Remove(p);
-            }
-        RefreshBuffHud();
-        GD.Print("[DEBUG] cleared granted buffs");
     }
 
     private static readonly Color StunSweepColor = new(1.0f, 0.85f, 0.2f, 0.6f); // the gold tint on a stun-swept enemy
@@ -942,6 +915,7 @@ public partial class Player : Combatant, IStrikeWielder
         }
         if (!_special.Holding)
             _special.Cooldown = Mathf.Max(_special.Cooldown - delta, 0.0f); // a held special's cooldown starts on release
+        _slam.Cooldown = Mathf.Max(_slam.Cooldown - delta, 0.0f);
         _launch.Update(delta);
         _surge.TryFireFromInput();
         _tint.Tick(delta);

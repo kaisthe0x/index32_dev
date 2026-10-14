@@ -36,4 +36,5 @@ public partial class Locomotion : RefCounted
     public float SlamMinDrop = 120.0f;
     public float SlamMaxDrop = 700.0f;
     public float SlamMaxDamageMult = 2.5f;
+    public float SlamCooldown = 1.5f;       // seconds after a slam lands before the next can start (none until 2026-10-12: it could be chained without pause)
 }

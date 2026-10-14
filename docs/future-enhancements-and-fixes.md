@@ -50,16 +50,66 @@ one needs doesn't exist. (Moved here from comments in the code, 2026-10-09.)
 - **Instant Reset (Zahluq)** — built but parked (`BuffCatalog.Parked`): special-box whiffs don't emit `OnMiss`
   (`Hitbox.Deactivate` only emits it for non-special hits), so it would never fire.
 
-## Sound: beyond the limiter
+## Sound: beyond the compressor and limiter
 
-`Sfx.InstallLimiter` puts a hard peak ceiling on the SFX bus so stacked cues can't spike. It is a safety net, not a
-mix. Ways to improve it:
+`Sfx.InstallBusEffects` puts a compressor (-18 dB, 4:1 — built 2026-10-12, so a horde's stacked sounds don't drown the
+music) and then a hard peak ceiling on the SFX bus. Both treat the summed symptom. Ways to improve it:
 
-1. A gentle **compressor** before the limiter (`AudioEffectCompressor`, about -18 dB threshold, about 4:1), so loud
-   moments duck smoothly instead of being clamped.
+1. **Music at one loudness.** The three stage-1 tracks measure -21.6, -23.5 and -24.1 LUFS (integrated), so the music
+   itself moves 2.5 dB between tracks. Render them from the source project at one integrated loudness (the middle
+   one, about -23.5 LUFS, keeps today's level); a per-track gain table in code would break the "drop a file in the
+   folder" rule of `music/README.md`.
 2. A per-cue **concurrency cap**: skip or duck a cue that is already playing N copies, or fired within a few
    milliseconds. This tackles the cause (the same sound stacking), not the summed symptom.
 3. Expose the ceiling, or the limiter itself, in the options menu.
+
+## Animation: smoother motion, maybe the Dead Cells way
+
+Noted 2026-10-11; the owner wants to explore this later. Nothing is built.
+
+**The wish.** Khalid's animations should feel smoother, above all the RUN (it is on screen most of the time), and
+the change from one movement to the next should not pop. Two ideas the owner raised: more frames per animation, and a
+3D base under the pixel art "the way Dead Cells does it".
+
+**How Dead Cells does it** (the lead artist's own write-up — "Art Design Deep Dive: Using a 3D pipeline for 2D
+animation in Dead Cells", Game Developer): a rough 3D model and skeleton; animation built pose-to-pose on KEY frames,
+with easing frames added before or after a key and "never in-between"; each frame rendered tiny with no
+anti-aliasing, together with a normal map for a toon shader; effects layered on top carry the motion. The 3D model
+buys fast retakes (retime or redo an animation in minutes), not smoothness. It needs a skilled modeller and animator.
+
+**What was tried, and what to learn from it.**
+- A blocky 3D Khalid scripted in Blender with a procedural run cycle, rendered at game size and shaded in his
+  palette. REJECTED by the owner: it changed his shading and silhouette, read as slower, and looked lifeless. Evenly
+  blended motion from code is the opposite of the pose-to-pose approach above. Do not repeat this; any future attempt
+  starts from the owner's own frames and keeps them untouched.
+- A look at the run's own frames: its ten frames are six distinct drawings (6 and 9 repeat 2, 8 repeats 4, 10
+  repeats 5), and the strides in the loop are 4, 3 and 2 frames long, so the bounce is uneven. Playing frames 1–8
+  only (two even strides, at 12 fps to keep the pace) was shown to the owner, who saw no major difference. Not applied.
+
+**Where to pick it up.**
+- Every change of animation is a hard cut (`Sprite.Play` of the next one from its first frame). Bridge frames between
+  the pairs that pop most would follow the Dead Cells rule (ease into and out of the keys); the game would need a
+  small "from A to B, play these first" rule.
+- Tools found, none tested: **GhostFrames** (an Aseprite extension that estimates in-between frames from two frames
+  and can insert them as a guide to redraw over); **Smack Studio** (Steam, Early Access: pixel art mapped onto a 3D
+  skeleton you pose, then exported as sprites — the nearest thing to the Dead Cells method without 3D skills; its
+  ideal character height is 50–150 px and Khalid is about 35); a proper low-poly model and animator for the full
+  Dead Cells pipeline.
+- A change of frame count in an attack also means updating the tables keyed to frame numbers (`HIT_FRAMES` in
+  `tools/gen_spriteframes.py`, the particle and sound frame keys). The run has none of those.
+
+## Animation: Khalid dances when he is left alone
+
+Noted 2026-10-12; the owner's idea, to add eventually. Nothing is built or drawn.
+
+When Khalid has been **out of danger for more than 10 seconds** and the player has **given no input** in that time,
+he starts **dancing** — for example standing on top of the Needle Point platform. Any input, or danger, ends it.
+
+It is just an idle dance — keep it simple (the owner, 2026-10-12). From round 5 standing still draws the kamikazes, so
+in later rounds there will be no chance to dance; that is fine and needs no special case.
+
+When it is built: the dance loops are the owner's to draw, in his own style; in code it is an idle timer and a dance
+state beside the other player states (`scripts/player/states/`), not more logic in `Player.cs` (rule `S3`).
 
 ## Built, not wired up yet
 

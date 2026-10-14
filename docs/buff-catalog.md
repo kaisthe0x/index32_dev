@@ -18,13 +18,13 @@ catalog + a new **Seal** category, ready to become code against the buff-system 
 
 The economy in `game-loop.md` § Economy sorts every buff into **one** stall by **kind**: **numbers** on Khalid's
 body → **Needle Point** (shots, N rounds, upgradeable levels) · **utility / tactics** → **Dekken** (perks, per-perk
-duration) · **new mechanics** → **Mystery Box** (permanent, single version). The tier tables further down stay as
+duration) · **new mechanics** → **Figmenter** (permanent; five strengths by the wine's rarity). The tier tables further down stay as
 the source of the numbers: a shot's **levels** take the five `C / R / H / S / E` values (level 0 = C … level 4 = E);
-a box buff uses its **Hot** value as its single version (built 2026-10-04 — `BuffCatalog` factories carry one value; the `Tier` type is gone). "Built" = implemented in `configs/BuffCatalog.cs`
+a Figmenter buff has all five values, one per **wine rarity** (`WineRarity`; since 2026-10-11 — a wine drunk young gives C, one carried to Epic gives E). "Built" = implemented in `configs/BuffCatalog.cs`
 today.
 
 **Needle Point — shots** *(built 2026-09-28, permanent ranks since 2026-09-29 — `configs/NeedlePoint.cs`; the old buffs
-listed under "From" are gone from the box pool and their buff classes deleted)*
+listed under "From" are gone from the Figmenter pool and their buff classes deleted)*
 
 | Shot | From | Built | Note |
 |---|---|---|---|
@@ -34,21 +34,21 @@ listed under "From" are gone from the box pool and their buff classes deleted)*
 | **Reach** | Long Reach | ✓ | +25 … 150 % |
 | **Slam Damage** | Slam Force | ✓ | +20 … 100 % |
 | **Run Speed** | — | ✓ | +10 … 30 % |
-| **Attack Damage** | — | ✓ | +15 … 65 % (the "+20 % damage" idea lives here, not in the box) |
+| **Attack Damage** | — | ✓ | +15 … 65 % (the "+20 % damage" idea lives here, not in the Figmenter) |
 
-**Dekken — perks, sold as vials** *(built 2026-09-28; drink-now-or-keep, 2 carry slots, one of a kind, since 2026-10-04 — `configs/Dekken.cs`; Wider Pull left the box catalog, its buff class deleted)*
+**Dekken — perks, sold as vials** *(built 2026-09-28; drink-now-or-keep, 2 carry slots, one of a kind, since 2026-10-04 — `configs/Dekken.cs`; Wider Pull left the Figmenter catalog, its buff class deleted)*
 
 | Perk | From | Built | Duration |
 |---|---|---|---|
 | **Heal** | — | ✓ | one use (a block) |
-| **Fast Travel** | — | ✓ | one use (teleport beside the box) |
+| **Fast Travel** | — | ✓ | one use (teleport beside the Figmenter) |
 | **Fig Chance** | — | ✓ | whole run (+5 % on every enemy); leaves the pool once bought |
 | **Magnet** | — | ✓ | rounds (loose figs within 400 px fly to you) |
 | **Shield** | — | ✓ | rounds (blocks the first hit each round) |
 | **Prepared** | Prepared | ✓ | rounds (your surge fires free at **round** start — for Wara, it arms) |
 | **Wider Pull** | Wider Pull | ✓ | rounds (Come Closer pulls 2 more enemies; only stocked while Come Closer is equipped) |
 
-**Mystery Box — mechanics**
+**Figmenter — mechanics**
 
 - **Built:** Dash Immunity · Jump Immunity · Slam Immunity · Hit Guard · Follow-through · Slam Quake ·
   Slam Spring · Slam Wrath · Momentum · Bloodrush · Skim · Instant Reset · Overcharge.
@@ -60,10 +60,10 @@ listed under "From" are gone from the box pool and their buff classes deleted)*
 
 **For review (placement calls I made):**
 - **Wider Pull → Dekken:** it's a number, but on a *special*, not Khalid's body — Needle Point is body stats, so it
-  reads as a tactical perk. Alternatively it could stay a box buff.
+  reads as a tactical perk. Alternatively it could stay a Figmenter buff.
 - **Prepared → Dekken:** a round-start surge is preparation. It could equally be a box mechanic.
 - **Slam Damage → Needle Point:** a pure number, but only matters if you slam — keep, or fold into Attack Damage.
-- **All five invuln procs → the box.** They're the strongest defensive mechanics; if the box pool feels
+- **All five invuln procs → the Figmenter.** They're the strongest defensive mechanics; if the Figmenter pool feels
   defense-heavy, one could move.
 
 ---

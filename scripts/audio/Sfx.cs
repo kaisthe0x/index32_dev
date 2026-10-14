@@ -17,10 +17,16 @@ public partial class Sfx : Node
 {
     private static readonly StringName Bus = "SFX";
     private const int Pool = 12;
-    private const float LimiterCeilingDb = -2.0f; // peak ceiling for the summed SFX bus (see InstallLimiter)
+    private const float LimiterCeilingDb = -2.0f; // peak ceiling for the summed SFX bus (see InstallBusEffects)
+    // The SFX bus's compressor (see InstallBusEffects): above the threshold the summed SFX rise only 1 dB for every
+    // CompressorRatio dB, so a horde's stacked sounds stay near the level of a few and the music stays audible.
+    private const float CompressorThresholdDb = -26.0f; // moves with TargetLoudness: about 8 dB above one cue
+    private const float CompressorRatio = 4.0f;
+    private const float CompressorAttackUs = 5000.0f;  // 5 ms: fast enough to catch a burst, slow enough to keep a hit's snap
+    private const float CompressorReleaseMs = 200.0f;
     // The one loudness every cue is normalized to (peak momentary LUFS — see SfxLoudness). Raise/lower the whole SFX
     // mix against the music here; a single cue that should sit differently goes in a VOLUMES table instead.
-    public const float TargetLoudness = -26.0f;   // the SFX library's median — so the overall mix stays put
+    public const float TargetLoudness = -34.0f;   // -26 until 2026-10-12: a single cue stood well over the music (about -28.5 LUFS as played, at Music.DefaultVolumeDb -5)
     private const float MaxNormalizeDb = 24.0f;   // clamp on the auto gain, so a near-silent file isn't blown up
     // Output device. "" (default) = follow the SYSTEM DEFAULT, so audio goes wherever the OS routes it — it
     // switches to headphones when you plug them in / make them the default sink. Only set a specific device name
@@ -58,18 +64,26 @@ public partial class Sfx : Node
             AddChild(p);
             _pos.Add(p);
         }
-        InstallLimiter();
+        InstallBusEffects();
     }
 
-    /// <summary>Brick-wall PEAK CEILING on the SFX bus. Sounds SUM (many overlapping cues in a fight stack their
-    /// waveforms — two identical copies ≈ +6 dB), so busy moments spike far past a single cue's authored level. The
-    /// limiter caps the summed output at <see cref="LimiterCeilingDb"/>: inaudible under light load, only clamping the
-    /// heat-of-battle peaks. Added in CODE (not the .tres bus layout) so it can't be clobbered by an open editor.
-    /// It is a safety net, not a mix: see docs/future-enhancements-and-fixes.md for what would do it properly.</summary>
-    private void InstallLimiter()
+    /// <summary>What keeps a busy fight from drowning the music, on the SFX bus, in this order. Sounds SUM (many
+    /// overlapping cues stack their waveforms — two identical copies ≈ +6 dB), so a horde is far louder than any one
+    /// cue's level. First a COMPRESSOR turns the summed SFX down smoothly once they pass
+    /// <see cref="CompressorThresholdDb"/> — untouched under light load, held back in a crowd. Then a brick-wall
+    /// LIMITER caps whatever peak still gets through at <see cref="LimiterCeilingDb"/>. Both are added in CODE (not
+    /// the .tres bus layout) so an open editor can't clobber them.</summary>
+    private void InstallBusEffects()
     {
         if (AudioServer.GetBusIndex(_bus) == -1)
             return;
+        AudioBus.AddEffect(_bus, new AudioEffectCompressor
+        {
+            Threshold = CompressorThresholdDb,
+            Ratio = CompressorRatio,
+            AttackUs = CompressorAttackUs,
+            ReleaseMs = CompressorReleaseMs,
+        });
         AudioBus.AddEffect(_bus, new AudioEffectHardLimiter { CeilingDb = LimiterCeilingDb });
     }
 

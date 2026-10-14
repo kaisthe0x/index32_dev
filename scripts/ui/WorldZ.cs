@@ -12,10 +12,11 @@ namespace MyGame;
 public static class WorldZ
 {
     public const int Scenery = -30;       // the layout's backdrop props (its "Aesthetic" node: statue, trees, skeleton)
-    public const int Stalls = -25;        // things you use — the mystery box, Needle Point, Dekken, launch orbs: in front of
+    public const int Stalls = -25;        // things you use — the Figmenter, Needle Point, Dekken, launch orbs: in front of
                                           // the scenery, BEHIND the tiles (so rocks, plants and ground sit over their base)
     public const int Decor = -20;         // the layout's Decor tile layer (rocks, plants)
     public const int Terrain = -10;       // the layout's Terrain tile layer (ground, platforms)
+    public const int Wildlife = -2;       // birds perched on the ground: over the tiles, under drops and actors
     public const int Drops = -1;          // pickups resting on the ground (fada figs)
     public const int Actors = 0;          // Khalid and the enemies (the default — nothing sets it)
     public const int SpawnFx = 4;         // an enemy's spawn flash

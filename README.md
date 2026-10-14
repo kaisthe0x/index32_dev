@@ -49,12 +49,15 @@ resources/characters/ GENERATED SpriteFrames -- do not hand-edit
 resources/enemies/    GENERATED enemy SpriteFrames -- do not hand-edit
 scenes/               player, level, hud
 scripts/              player, hud
-scripts/run/          the roguelite run: arena, round loop + spawner, Ruh, the stalls' ledgers (shots / perks / box), attack picker (see scripts/run/README.md)
+scripts/run/          the roguelite run: arena, round loop + spawner, Ruh, the stalls' ledgers (shots / perks / Figmenter), attack picker (see scripts/run/README.md)
 scripts/abilities/    Passive/Buff base (C#) + the buff classes (their Trigger enum: enums/abilities/Trigger.cs)
 scripts/combat/       Hurtbox, hitbox, Combatant base, health bar, floating text, status overlay — all C# now (constants -> configs/Combat.cs)
 scripts/enemies/      Enemy base + projectile
 sprites/characters/   Source pixel-art sheets, one folder per character
 sprites/enemies/      Source enemy sheets, one folder per enemy
+sprites/creatures/    Source sheets of ambient creatures (the bird) -- sliced in code, no generated resource
+scripts/creatures/    Ambient creatures (Bird)
+scripts/debug/        DEBUG tools only -- the developer keys, recording mode, the compile-time print (see scripts/debug/README.md)
 tools/                Generator + verification scripts (not shipped)
 ```
 
@@ -64,7 +67,7 @@ warnings — a warning fails the build (`docs/standards.md`, rule `V1`). Every b
 when, configuration, seconds spent in the C# compile step, and the number of source files. A build with nothing to
 recompile adds nothing. The editor shows build messages only in its **MSBuild** panel, so when the game is started
 from the editor (F5) it prints the latest line itself, first thing in the **Output** panel:
-`Last C# compile: 2026-10-09 17:39:55  Debug  1.33 s  145 files` (`helpers/BuildLog.cs`, a `DEBUG` aid that does
+`Last C# compile: 2026-10-09 17:39:55  Debug  1.33 s  145 files` (`scripts/debug/BuildLog.cs`, a `DEBUG` aid that does
 nothing in an exported game). A full compile of the game is about 1.4 s (2026-10-09).
 
 ## Controls
@@ -80,9 +83,14 @@ nothing in an exported game). A full compile of the game is about 1.4 s (2026-10
 | Ctrl (RT / R2) | `surge` | Fires the equipped **Surge** — a passive ability (**Aegis** = ~5s invincibility; **Jnoon** = ~5s ×2 damage dealt; **Asra** = ~5s ×2 move speed) applied *without* interrupting your attacking/moving — **except Nem**, a committed sleep that locks you in place and restores one health block over 5s (a hit wakes/cancels it; the kamikaze stand-still clock pauses while he sleeps), and **Wara**, which *arms* and waits: the next enemy hit is negated and AoE-stuns everyone near you (2s). **Spends one Ruh charge per use** — Ruh is the only gate, no cooldown. RT on the pad because dash owns LT |
 | Q (RB) | `vial_drink` | Drink the selected carried **Dekken vial** — instant, mid-fight. If it would do nothing right now (Heal at full health) it stays in your pocket. Registered in code by `RunManager` |
 | Tab (LB) | `vial_cycle` | Select the next carried vial (the HUD frames the selected one) |
-| E | `interact` | Use the stall you're standing at — the **mystery box** (spend fada figs), **Needle Point** (shots) or **Dekken** (perks); a shop menu closes with E / Esc. Registered in code by `Stall` |
-| Z / X | `debug_damage` / `debug_heal` | Dev only |
+| E | `interact` | Use the stall you're standing at — the **Figmenter** (start a brew with fada figs, collect the wine), **Needle Point** (shots) or **Dekken** (perks); a shop menu closes with E / Esc. Registered in code by `Stall` |
+| F (D-pad up) | `wine_drink` | Drink the carried **fig wine** — instant, mid-fight. Its buff joins you for the run at the wine's current rarity. Registered in code by `WineControls`. |
+| Z / X | `debug_damage` / `debug_heal` | Dev only — hurt the player / give one block of Ruh |
 | 0 | `debug_respawn` | Dev only — rebuild the current level fresh |
+| B / N | — | Dev only — grant the next catalog buff / clear the granted buffs |
+| H | — | Dev only — **recording mode** on / off: just Khalid and the arena (no HUD, no enemies, the stalls don't open), for capturing footage. Either way the arena is rebuilt |
+
+The dev keys all live in `scripts/debug/` (`DebugTools`) — see `scripts/debug/README.md`.
 
 Bound to **physical** keycodes, so they stay in the same place on AZERTY/Dvorak.
 Rebind under `Project > Project Settings > Input Map`.
@@ -132,16 +140,15 @@ platform. Fully automatic — no aiming, no pumping. (This replaced an earlier c
 
 **Which character you play is chosen in code.** In-game Q/E switching is **gone** — set the
 **`START_CHARACTER`** constant near the top of `scripts/run/RunManager.cs` to any id in
-`CharacterConfig.Ids` (`khalid` — the others are parked in `playground/`). The dev keys (Z/X
-debug damage/heal, `0` rebuild-level) live in that same file.
+`CharacterConfig.Ids` (`khalid` — the others are parked in `playground/`).
 
 **The game is a roguelite run** (premise: [`docs/game-design.md`](docs/game-design.md)). At run start
 you **pick an attack** (locked for the run) from an **inventory-style grid of weapon icons** (`AttackSelect`) —
 click an icon to see its name + stats (type/damage/knockback/stun/reach/cooldown/style, from the `Action`'s `Hit`
 data) + description in the details pane, then Confirm. You drop into
 a low, mostly-horizontal arena and fight **endless rounds**: each sends a hidden quota of enemies (a mixed roster,
-appearing at spawn spots around the arena where they patrol until they spot you — you go find them; the last few
-hunt you down — capped so it never floods; from round 10 some also spawn right behind you; from round 5, standing still
+appearing at the spawn spots nearest you and coming for you at once — they hunt you, down off their platforms too,
+and gather under you when you are out of reach above; the last few come faster — capped so it never floods; from round 10 some also spawn right behind you; from round 5, standing still
 for 2 s draws kamikazes), clears when they're all dead, and the next is bigger. You **start each
 run with 3 Ruh charges** — the surge meter, shown in charges (100 each), no decay — and refill it by
 **landing hits** (~5 hits = 1 charge; kills don't count, and a special's own hits don't self-pay).
@@ -149,16 +156,16 @@ run with 3 Ruh charges** — the surge meter, shown in charges (100 each), no de
 surge** (a passive on its own button): it grants ~5s of invincibility on demand without interrupting
 you, and **each use spends one Ruh charge** — Ruh is the only gate, no cooldown (see below). **HP is separate**: damage hits it only, heals
 *only* from buffs. **Killing an enemy** pays **Lira** (the common currency) and, at a per-enemy chance, a **Fada
-Fig** (the rare one) — see below. **Buffs come from the mystery box** in the arena: stand next to it and press **E**
+Fig** (the rare one) — see below. **Buffs come from the Figmenter** in the arena: stand next to it and press **E**
 to **spend** figs on a gamble — a win opens a **pick-1-of-3 menu** from the POWERFUL pool (above-rare tiers), each
 win making the next rarer. **Lira buys shots at Needle Point** (permanent stat boosts, rank by rank) **and perks at Dekken** (utility —
 a heal, a teleport, a shield …); every stall is open all the time — rounds run back to back with no break
 (§ Needle Point shots / § Dekken perks below, `docs/game-loop.md` § Economy). Moves are independent — they **upgrade by layering
 buffs**, not by turning into a different move (Rope Dart & Redere Frisbee are now standalone swaps, not
 successors). Take 0 HP and the run restarts (a fresh arena; buffs cleared, HP + Ruh refilled). All of this — the
-spawner, the enemy roster, the buff pools, the box, the attack picker — lives in
-[`scripts/run/`](scripts/run/README.md) (`RunManager` is `arena.tscn`'s root; `EnemyKits` is the roster, `MysteryBox`
-+ `BoxLedger` + `BuffCatalog` the fig gamble for permanent buffs). The `.tscn` stays minimal because the editor
+spawner, the enemy roster, the buff pools, the Figmenter, the attack picker — lives in
+[`scripts/run/`](scripts/run/README.md) (`RunManager` is `arena.tscn`'s root; `EnemyKits` is the roster, `Figmenter`
++ `FigmenterLedger` + `BuffCatalog` the fig gamble for permanent buffs). The `.tscn` stays minimal because the editor
 clobbers it, so the level content is built in code from that data. The **look** of the terrain itself is the
 hand-painted `TileMapLayer` in each stage layout (see the run README); the old procedural tileset/plant/tree
 "skin" is **retired**, and `configs/Terrain.cs` now only holds the backdrop config.
@@ -179,12 +186,12 @@ tint (`BackgroundTintAlpha`). (The old animated orbiting planet was removed; its
   with its arc and flight time jittered so a multi-coin drop fans out. It's **banked on arrival**
   (`Wallet.CollectLira` → `HUD.SetLira`) with the `lira_collect` cue (**PLACEHOLDER** — the fig pickup sound,
   pitch-varied upward only, 0 … +8 %). Needle Point spends it (`Wallet.SpendLira`).
-- **Fada Figs** — the rare currency: a kill also drops **one** fig at the enemy's `Enemy.FigChance` (**10 %**
+- **Fada Figs** — the rare currency: a kill also drops **one** fig at the enemy's `Enemy.FigChance` (**15 %**
   default; per-kit override — **Kebus 25 %**, the hardest grunt). A fig
   ([`scenes/fada_fig.tscn`](scenes/fada_fig.tscn), [`scripts/collectibles/FadaFig.cs`](scripts/collectibles/FadaFig.cs),
   a `RigidBody2D`) pops out, bounces/tumbles, and settles on the terrain; the player collects it by **physically
   touching** it (the child `Pickup` Area → `Wallet.CollectFadaFigs`, `fada_fig_collect` placeholder sfx).
-  `FadaFig.Magnetize(target)` is a ready hook for a future perk that pulls loose figs in. The mystery box spends
+  `FadaFig.Magnetize(target)` is a ready hook for a future perk that pulls loose figs in. The Figmenter spends
   them (`Wallet.SpendFadaFigs`).
 
 Both balances show top-left on the HUD. The fig sprite wears a shared **`vfx/shaders/world/pulse_glow.gdshader`**
@@ -487,7 +494,7 @@ attack pacing, hit-stop juice) stays as inspector `@export`s.
 | run | `RunSpeed` 160 (**Khalid 230**), `Acceleration` 1200, `Friction` 1400, `RunAnimSpeed` 1.5 |
 | jump / arc / land | `JumpVelocity` -330, `AirJumps` 2, `Gravity` 900, `FallGravityScale` 1.35, `LandMinFallSpeed` 140, `LandPredictDistance` 22 |
 | dash | `DashSpeed` 420, `DashTime` 0.18, `DashAnimTime` 0.30, `DashCooldown` 0.45, `DashGravityScale` 0.35, `Blink` (**Khalid true**) |
-| slam | `SlamSpeed` 1200, `SlamMinClearance` 50, `SlamHoldFrame` 2, `SlamImpactDistance` 30, `SlamMinDrop` 120 / `SlamMaxDrop` 700 / `SlamMaxDamageMult` 2.5 (drop-scaled damage) |
+| slam | `SlamSpeed` 1200, `SlamMinClearance` 50, `SlamHoldFrame` 2, `SlamImpactDistance` 30, `SlamMinDrop` 120 / `SlamMaxDrop` 700 / `SlamMaxDamageMult` 2.5 (drop-scaled damage), `SlamCooldown` 1.5 (seconds after a slam lands before the next can start) |
 | `@export` (inspector) | Health `MaxHealth` 100; Attack `AttackRecovery` 0.12, `ComboResetTime` 0.45 |
 
 **Per-character movement feel.** A movement Action's `move` (Locomotion) lists only the fields a
@@ -780,9 +787,9 @@ following box; multiple frames would double-hit) and the Strike's `lifetime` spa
 keeping the box live the entire dash — you connect no matter how far from an enemy you start. Recipe for
 any dash move: `lunge` + `hold` + `super_armor` in the tuning, `follow: true` on the emitter.
 
-**Zahluq is a box-only special (not an attack).** It was retired from the attack roster — too strong to pick
+**Zahluq is a Figmenter-only special (not an attack).** It was retired from the attack roster — too strong to pick
 freely — and lives in `ActionsKhalid.Specials` under `SpecialIds.Zahluq`. It is offered **only** by the
-mystery box, at a low `SpecialOfferChance` (`RunManager.RollBoxSpecial`), and choosing it **replaces your
+Figmenter, at a low `SpecialOfferChance` (`RunManager.RollBoxSpecial`), and choosing it **replaces your
 current special** (`OnBuffChosen` equips it via `Player.Equip(LoadoutCategory.Special, …)`) rather than
 adding a passive buff. It keeps its old presentation through `AnimationOverride = "attack_zahluq"` (sprite,
 emitter row, and `zahluq` sfx cue all still key off `attack_zahluq`).
@@ -878,7 +885,7 @@ together because an `extends` chain must be one language (see `docs/csharp-migra
 - a character's **intrinsic ability** — a `CharacterAbility` (which *is* a `Passive`) returned by
   `Player.CharacterAbilityFor(id)`, seeded FIRST in the list. Khalid ships without one.
 - a **granted buff** — a `Passive` subclass, added at runtime via `Player.AddPassive()` when it's granted (today:
-  picked from the mystery box's menu, built by `BuffCatalog.Make`), and cleared on run restart (each passive's `Teardown` runs so it can undo lingering effects). `BeginRun` clears them
+  picked from the Figmenter's menu, built by `BuffCatalog.Make`), and cleared on run restart (each passive's `Teardown` runs so it can undo lingering effects). `BeginRun` clears them
   FIRST (`ClearPassives`), before resetting stats — otherwise each undo lands on already-reset stats and applies
   twice (the old bug: an extra-air-jump buff left the next run at −1 air jumps, a jump-height one at ~0.7× height).
 
@@ -938,12 +945,12 @@ A **`Buff` IS a `Passive`** (so it grants, dispatches, and tears down through th
   one. Gate a `ModifyTuning` override with `AppliesToAction(action)`; behavioural hooks (`OnParry`, …)
   already self-scope to their fire site, so `AppliesTo` there is for offer gating / display.
 
-Box buffs have a **single version** (no tiers) and never repeat — the box only offers what the player doesn't hold
+Figmenter buffs come in **five strengths** (the rarity of the wine that granted them) and never repeat — a wine never holds what the player already has
 (`BuffCatalog.Pool`), so there's no replace-in-place rule.
 
 Two ways a buff acts (either/both): **numbers** — override `ModifyTuning` to change a move's tuning dict
 (folded in last inside `resolve_tuning`); **behaviour** — override an event hook. The buffs themselves are
-the box catalog below.
+the Figmenter catalog below.
 
 #### Needle Point shots (`configs/NeedlePoint.cs`)
 
@@ -977,7 +984,7 @@ rank I's Lira price — **priced by worth**: Jump Height / Run Speed 15, Extra J
 The **perk shop** (`docs/game-loop.md` § Economy): utility and tactics, bought with Lira. Each round it stocks
 `Dekken.StockSize` (5) perks drawn at random from `Dekken.Perks` — each a `PerkDef` (`records/perks/`): name, text, a
 `PerkDuration` (`Rounds` / `OneUse` / `Run`), rounds, Lira price, one tuning `Value`, and optionally the special it
-needs equipped. The pool: **Heal** (a block, one use), **Fast Travel** (beside the mystery box, one use), **Fig
+needs equipped. The pool: **Heal** (a block, one use), **Fast Travel** (beside the Figmenter, one use), **Fig
 Chance** (+5 % fig odds on every kill, whole run), **Magnet** (figs within 400 px fly to you), **Shield** (blocks the
 first hit each round), **Prepared** (your surge fires free as each round starts — Wara arms), **Wider Pull** (Come
 Closer +2 targets; only stocked with Come Closer). All placeholders.
@@ -991,7 +998,7 @@ Closer +2 targets; only stocked with Come Closer). All placeholders.
   (`Blocked` says why a vial can't be DRUNK now: FULL HEALTH / OWNED / ACTIVE; `KeepBlocked` why it can't be KEPT:
   DRINK ONLY / HELD / POCKETS FULL), the carried vials (`Held`, `Selected`, `CycleHeld`, `DrinkHeld` — a vial that
   would do nothing stays in the pocket), timed perks spending a round per clear, whole-run perks leaving the pool.
-  One-use perks just happen (`Player.Heal`, `RunManager.FastTravelToBox`). `RunManager` owns the two keys
+  One-use perks just happen (`Player.Heal`, `RunManager.FastTravelToFigmenter`). `RunManager` owns the two keys
   (`VialControls.EnsureActions`, `VialControls.Drink`) and pushes the carried vials to the HUD (`VialControls.ShowVials` → `HUD.SetVials`: two
   framed slots under the currency counters, the selected one in the accent colour — PLACEHOLDER text until the vial
   icons exist).
@@ -1009,30 +1016,50 @@ Closer +2 targets; only stocked with Come Closer). All placeholders.
   button. Active perks show in the HUD's
   top-right list (rounds left, or RUN).
 
-#### The mystery box (`MysteryBox` · `BoxLedger` · `configs/BoxRules.cs` · `configs/BuffCatalog.cs`)
+#### The Figmenter (`Figmenter` · `FigmenterLedger` · `configs/FigmenterRules.cs` · `configs/BuffCatalog.cs`)
 
-The box sells **permanent, build-defining mechanics** for **figs** — in **real time**, the game never pauses
-(docs/game-loop.md § Economy). Stand at it and press **E**:
+The Figmenter turns **Fada Figs** into **fig wine**, and a wine holds one **permanent, build-defining mechanic**. It
+all happens in real time — the game never pauses (docs/game-loop.md § Economy). It was called the **mystery box**
+until 2026-10-10.
 
-1. **Spin** — `BoxLedger.Spin` charges `BoxRules.Cost` (8 figs) and rolls the result; names flicker over the box for
-   `SpinTime` (2.5 s). No figs → "NEED 8"; nothing left to give → "EMPTY" (no charge).
-2. **Offer** — the result (name + one-line description) hangs over the box for `OfferTime` (8 s, blinking in the last
-   quarter). **E takes it** (`BoxLedger.Take`: a buff → `AddPassive`; a special → `equip`). Leave it and it's gone —
-   that's the **decline**; the figs stay spent.
-3. **Teddy bear** (`TeddyChance`, 1 in 8, only if the layout has another spot) — instead of an offer: the figs are
-   **refunded** and the box **relocates** to another box spot — a **hard** one `HardSpotChance` (40 %) of the time —
-   fading out and in, under a **beam of light** until the player reaches it. Dekken's Fast Travel goes wherever it is.
+**Its look** (`scenes/things/figmenter.tscn`): a mossy steel vat with a window and a control box, standing on the
+ground — `assets/things/figmenter.png`, a 6-frame strip (96×96 each) copied from
+`index32_art/art/stages/stage1/Figmenter.png`: frame 0 is the empty tank, frames 1–5 fill it with wine (a light comes
+on at the last). `Figmenter` shows the frame for how far the brew is (`FigmenterLedger.Fill`), so the strip can be any
+length. Like Needle Point and Dekken it **stays where the layout places it**.
 
-**What it gives:** one buff from `BuffCatalog.Pool(player)` — every implemented, un-parked buff he **doesn't hold yet**
-(so no duplicates; a buff tied to one move, like Overcharge → Bakshen, only while that move is equipped) — or, at
-`SpecialChance` (6 %), a **special-swap** from `BoxRules.Specials` (Zahluq, Bakshen; never the equipped one).
+**The loop** (`FigmenterLedger` — one per run, owned by `RunManager`; numbers in `configs/FigmenterRules.cs`):
 
-**Box spots** are the layout's `BoxSpots/Easy` and `BoxSpots/Hard` markers (`LevelLayout.BoxSpots`); `MysteryBox.Setup`
-puts the box on a random easy one at run start. SFX cues `box_spin` / `box_result` / `box_teddy` / `buff_select` are
-PLACEHOLDERS (`SfxWorld`).
+1. **Brew** — at the empty machine, **E** pays `Cost` (4 figs). What the wine will hold is decided right then, so
+   figs are never taken for nothing ("NEED 4" without the figs; "EMPTY" when there is nothing left to make).
+2. **Wait** — it takes `BrewRounds` (**2**) cleared rounds; the tank fills a step per round and the machine shows
+   "n ROUNDS". Pressing E meanwhile just repeats that.
+3. **Ready** — the wine's **name and what it does** hang over the machine. A ready wine waits as long as you like
+   (it does not age in the machine).
+4. **Collect** — **E** fills your **wine bottle** — Khalid has exactly one; it is in the HUD under the vials, drawn
+   EMPTY or FULL. With the bottle full you get "DRINK YOUR WINE FIRST". The machine is empty again and can brew the next one right away.
+5. **Drink — or carry** — **F** (pad: D-pad up; `wine_drink`, registered in code by `WineControls`) drinks the bottle
+   at any moment. A wine leaves the machine **Common** and climbs one rarity every `AgeRounds` (**2**) rounds you
+   carry it: Common → Rare → Hot → Sensational → Epic (8 rounds for the lot). The buff comes out **that much
+   stronger**.
+
+**What a wine holds:** one buff from `BuffCatalog.Pool(player)` — every implemented, un-parked buff he **doesn't hold
+yet**, minus the one in the bottle he is carrying (so no duplicates; a buff tied to one move, like Overcharge →
+Bakshen, only while that move is equipped) — or, at `SpecialChance` (6 %), a **special-swap** from
+`FigmenterRules.Specials` (Zahluq, Bakshen; never the equipped one). Rarity does nothing to a special — the label says
+which it is, so drink that one straight away.
+
+**Rarity** is the `WineRarity` enum; its colours are `FigmenterRules.RarityColor` (plain, blue, orange, purple, red) and
+appear on the HUD wine slot, the floating name when you drink, and the buff's line in the buff list (`Buff.Rarity`).
+
+**Sounds** (`sfx/things/figmenter/`, cues in `SfxWorld`): `figmenter_brew` (figs drop in, the machine starts),
+`figmenter_ready` (a chime when a brew finishes), `wine_collect` (a cork and glass as the bottle is taken) and
+`wine_drink` (swallows). All four are **PLACEHOLDERS** — synthesized, to be replaced by recordings. **Not built:** the owner
+plans a between-runs upgrade system that would shorten the brew.
 
 **The catalog** (`docs/buff-catalog.md`) is a data registry: `BuffCatalog.Factories` maps a `BuffIds.*` id → a
-`Func<Buff>` that builds the buff with its **one value** (the old five-tier arrays collapsed to their Hot value);
+`Func<WineRarity, Buff>` that builds the buff at one of its **five strengths** (Common … Epic, listed in order in the
+factory — the wine's rarity picks which);
 `Info` holds its name + description. Most entries reuse a **generic buff class** rather than a bespoke one:
 
 - **`LifestealBuff`** — each landed hit has a chance to restore half a block, via `OnHitDealt` (Bloodrush 8 %, Skim 3 %).
@@ -1263,7 +1290,7 @@ is pure data in per-area files — **`SfxCharacters`**, **`SfxEnemies`**, **`Sfx
 ([`SfxLoudness`](scripts/audio/SfxLoudness.cs): its **peak momentary loudness** — the BS.1770 K-weighted loudness
 (LUFS) of its loudest 400 ms, or its whole length if shorter — the right yardstick for short one-shots, where
 integrated LUFS over a tail of silence isn't), then plays it with the gain that brings it to
-**`Sfx.TargetLoudness`** (−26 LUFS, the library's median, so the overall mix didn't move; clamped to ±24 dB). So a new
+**`Sfx.TargetLoudness`** (−34 LUFS since 2026-10-12, so that one cue sits a little under the music, which plays at about −28.5 LUFS; it was −26, the library's median; clamped to ±24 dB). So a new
 sound needs **no mastering and no trim**: drop the WAV in `sfx/`, register its key, done — it can be any loudness in
 the DAW (just not clipping). Move the whole SFX mix against the music by changing `TargetLoudness`. The make_* players
 (footsteps loop, slam whoosh, orb hum) start at the same normalized volume; a caller adjusts by *adding* to `VolumeDb`.
@@ -1274,8 +1301,9 @@ nothing. A cue that can't be measured (a compressed import, or silence) warns on
 
 **Per-cue mix offset**: each config's **`Volumes`** dict (dB, negative = quieter) is now only for **deliberate** mix
 choices on top of the normalization — a cue that should sit under or over the rest — never to fix a hot/quiet file.
-Today: the looping footsteps (`run`, −15) and the orb hum (`launch_orb`, −16) are beds under the action. (There's
-also a brick-wall limiter on the whole SFX bus for summed peaks.)
+Today: the looping footsteps (`run`, −15) and the orb hum (`launch_orb`, −16) are beds under the action. (The whole SFX bus
+also has a compressor, so a crowd's stacked sounds stay near the level of a few and the music stays clear, and then
+a brick-wall limiter for summed peaks — `Sfx.InstallBusEffects`.)
 
 **Per-cue pitch variation**: each config also has a **`Pitch`** dict — a random range as **(min, max) offsets** from
 normal pitch (`new Vector2(-0.06f, 0.06f)` = ±6 %; `new Vector2(0f, 0.08f)` = same-or-higher, up to +8 %), re-rolled on
@@ -1493,8 +1521,9 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
   patrolling** instead of freezing to face someone it can't fight. Keep the
   band under the platform spacing.
 - **Edge-aware:** a downward probe `EdgeCheckX` ahead of each foot stops it
-  walking off ledges — it turns around on patrol and won't chase off a platform.
-  So enemies can patrol on platforms safely. The probe spans a **tall vertical range**
+  walking off ledges — it turns around on patrol and, unless it is hunting, won't chase off a platform.
+  So enemies can patrol on platforms safely. A **hunter** (below) does step off a ledge when the same probe, cast
+  again all the way down (`EdgeSensor.LandingBelow`, 640 px), finds ground to land on — never into the void. The probe spans a **tall vertical range**
   (feet −14px up to +28px down, `HitFromInside`) so a **slope** reads as continuous floor, not a
   cliff — it reaches up for a rising floor and down ~a tile for a descending one, so enemies chase
   *down* slopes too; a real drop deeper than ~a tile still stops it. Enemies also run with
@@ -1502,8 +1531,14 @@ self-contained SCENES (see below), so the scene has nothing fragile to hand-wire
   floating off descents or crawling up climbs.
 - **`aggro`** (default **on** — enemies are hunters): it *chases* the player up to
   `AggroRange` (320 px, real distance — it patrols its spawn spot until you come that close; get farther and it
-  drops back to patrol; a straggler told to `hunt()` ignores the range and chases 1.6× faster), instead of only
-  fighting whoever wanders into its line. It chases to its **attack reach** — a *far-attack* mob closes
+  drops back to patrol), instead of only
+  fighting whoever wanders into its line. **Every round enemy is a HUNTER** (`Enemy.Hunt`, called by `RunManager`
+  as it spawns): it ignores the range and chases the player wherever he is. What a hunter does about a player on
+  another level is its `Pursuit` part (`scripts/enemies/parts/Pursuit.cs`): player **above** — walk to the spot under
+  him and wait there, each hunter up to `Rounds.HuntWaitSpread` (40 px) to one side so the crowd spreads out;
+  player **below** — walk toward him and off the first ledge with ground under it, and once right over him keep
+  going the way it faces to the end of its floor (turning round at an end that only drops into the void). Only the
+  optional enemies (Nasen, the kamikaze, the Ventilator) still use the range. It chases to its **attack reach** — a *far-attack* mob closes
   only to **firing range** (`Far.Range`) and holds (it won't run its bow into your face), a
   *close-only* mob closes to `MeleeAttack.Range` and swings. It's a per-instance export, so set it **false**
   per-kit for a mob that should just guard a spot.
@@ -1910,25 +1945,29 @@ through projectiles and attacks unharmed.
 the build basics:
 
 - **Terrain** — a hand-painted `TileMapLayer` with per-tile collision, loaded from a random `stage1_v*.tscn`
-  layout (see the run README + `docs/painting-levels.md`). The layout must place the three stall scenes and an
+  layout (see the run README + `docs/painting-levels.md`). **The stage is FLAT** (the owner's decision, 2026-10-12, after playing both): `stage1_v2` is one level floor end to
+  end, so every enemy can always reach the player — the spawn spots sit along it either side of the stalls, which
+  stand together mid-arena. It was generated from the painted arena by removing every tile above the floor. That
+  painted arena (floor, ledges, platforms) is kept beside it as `painted_platforms.tscn`, OUT of the pool (only
+  `stage1_v*` files are picked) — parked for a possible later stage; delete it if that never comes. The layout must place the three stall scenes and an
   `EnemySpawns` node of `Marker2D` spawn spots (`LevelLayout.EnemySpawns`).
 - **Enemies** — each round (`TickRound`) trickles its hidden quota in, one **kit** at a time picked at random from
   `EnemySpawner.SpawnPool`, under the round's concurrent cap; spawning stops once the quota has spawned and the round
   clears on the last kill (only non-optional enemies count). A **kit** (`EnemyKits.Kebus`, …) is a typed `EnemyKit` record: id, display name, tier, movement, which scene (the
   generic `enemy.tscn` by default, or a custom one — `sleeper_enemy.tscn`, `diver_enemy.tscn`) and a `Tune` function
   that sets the enemy's stats on the typed instance. `EnemySpawner.SpawnEnemy` instantiates and tunes it; the enemy's
-  `died` signal frees a cap slot and drops Lira (+ a chance of a Fada Fig) — buffs come from the mystery box, not kills.
+  `died` signal frees a cap slot and drops Lira (+ a chance of a Fada Fig) — buffs come from the Figmenter, not kills.
 - **Spawn spots** — `EnemySpawner.PickSpawnSpot` picks a FREE `EnemySpawns` marker (one enemy per spot; `EnemySpawner._spotOf`
-  frees it on death), spreading them over the map: the free spot farthest from the ones already held, among those at
-  least `Rounds.SpawnMinDistance` (320 px) from the player. All spots held = the spawn waits. `EnemySpawner.SpawnAt` puffs, spawns,
-  wires `died`/`damaged` and counts it toward the quota unless the kit is `optional`. The enemy patrols around its
-  spot until the player is within its `AggroRange` (320 px, real distance).
+  frees it on death): the free spot NEAREST the player among those at
+  least `Rounds.SpawnMinDistance` (320 px) from him, so it reaches him soon. All spots held = the spawn waits. `EnemySpawner.SpawnAt` puffs, spawns,
+  wires `died`/`damaged` and counts it toward the quota unless the kit is `optional`. `RunManager.OnEnemySpawned`
+  then makes it a hunter (`Enemy.Hunt(Rounds.HuntSpeedMult, Rounds.HuntWaitSpread)`).
 - **Near-player spawns** — from `Rounds.NearSpawnFromRound` (10), `EnemySpawner.NearShare(r)` of the grunts (20%, +10%/round, max
   70%; never a stationary kit) spawn on the player's floor, behind him, `NearSpawnMin..Max` (100–240 px) away
   (`EnemySpawner.NearPlayerSpot` → `ArenaGround.PickSurface`, using `LevelLayout.SpawnSurfacesNear`'s floor regions and `ArenaGround.SpotIsClear`);
   from then on, all spots held also falls back to a near spawn instead of waiting.
 - **Stragglers** — `UpdateStragglers`: once the quota has fully spawned and ≤ `Rounds.StragglerCount` (3) are left,
-  each calls `Enemy.Hunt(Rounds.StragglerSpeedMult)` and chases the player anywhere (no leash) at **1.6×** its move
+  each calls `Enemy.Hunt(Rounds.StragglerSpeedMult, Rounds.HuntWaitSpread)` and hunts at **1.6×** its move
   speed, its walk animation sped up to match.
 - **Stand-still kamikazes** — `PressureSpawns.TickStandStill`: from `Rounds.KamikazeFromRound` (5), staying within `StillRadius` (50 px)
   for `StillTime` (2 s) spawns an Ein (`EnemyKits.Ein` — `optional`, no Lira, no figs; not in `EnemySpawner.SpawnPool`)
@@ -2067,6 +2106,33 @@ instead of a fixed fps that desyncs the moment speed changes. `RunAnimSpeed`
 
 ---
 
+### Birds — scenery that reacts (`scripts/creatures/Bird.cs`, `scripts/run/BirdFlock.cs`)
+
+A few small birds sit around the arena. They are **scenery**: no damage, no health, no drops, nothing counts them.
+All tuning is in **`configs/Birds.cs`**.
+
+- **One strip, two halves.** The art is a 24-frame, 32×32 strip (`sprites/creatures/bird/bird.png`, copied from
+  `index32_art/art/creatures/bird/bird.png`; 4 shades of blue, baked by the art repo's `bird` repalette profile).
+  Frames 0–3 settle onto the perch; frames 4–23 take off, fly and break apart (frame 23 is empty). `Bird.BuildFrames`
+  cuts the strip into one animation in code (10 fps) — there is no generated `.tres` for it.
+- **What a bird does** (`Bird`, a private `Stage`: Unseen → Settling → Perched → Fleeing):
+  it is placed off screen and does nothing until the camera first shows it (`VisibleOnScreenNotifier2D`); then it
+  plays frames 0 → `Birds.PerchFrame` (3) and **pauses there**. Once perched its scare sensor turns on — an `Area2D`
+  of radius `Birds.ScareRadius` (80 px) that sees `PlayerBody` only (enemies never scare a bird) — and Khalid stepping inside (or
+  already standing there) makes it play the rest of the strip while it flies up and **away from him**
+  (`Birds.FleeVelocity`, 120 px/s across and 95 px/s up, reached over `Birds.FleeRampTime` 0.5 s; the art faces right
+  and is mirrored to fly left). The take-off sound `bird_flee` plays on `Birds.FleeSoundFrame` (4). It frees itself
+  when the strip ends. It is driven by signals and only ticks while flying.
+- **How many and where** (`BirdFlock`, built per arena and ticked by `RunManager` during play): up to `Birds.Count` (4)
+  at once. A new bird goes on a random tile top (`LevelLayout.Tops` — every exposed top, platforms and lone tiles
+  included) that is at least `Birds.OffscreenMargin` (64 px) outside what the camera shows, `Birds.MinSpacing` (96 px)
+  from every other bird, and clear of solid props (`ArenaGround.SpotIsClear`); it stands on the real surface there
+  (`ArenaGround.GroundBelow`, so it sits on a ramp, not above it). A bird that left is replaced after a random
+  `Birds.RespawnMin`–`RespawnMax` (6–14 s).
+- **The sound** (`sfx/creatures/bird/flee.wav`) is a **PLACEHOLDER** — a stand-in flutter, to be replaced by a
+  recording. It plays at the normal level (no mix offset), with a random ±8 % pitch per play.
+- **Not built:** birds dropping items (an idea for later). Nothing in the code anticipates it.
+
 ## HUD
 
 `scenes/hud.tscn` + `scripts/HUD.cs` — health + Ruh in a **gauge** (bottom-centre, or following
@@ -2119,6 +2185,12 @@ Two `CurrencyCounter`s stacked top-left — **Lira** then **Fada Figs** — each
 popping on a gain (`HUD.SetLira` / `HUD.SetFadaFigs`, pushed by `Player`). Economy, not moment-to-moment
 survival — so it stays in the corner rather than in the gauge.
 
+Under them: the `VialRow` (the two Dekken carry slots, text for now) and the **`WineSlot`** — Khalid's one wine
+bottle (`assets/things/wine_bottle.png`, two 64×64 frames from `index32_art/art/things/WineBottle.aseprite`: empty,
+full of fig wine in the Figmenter's own oranges). It shows the empty bottle while he carries nothing; filled at the
+Figmenter it shows the full one with the wine's name and rarity beside it in the rarity's colour, and pops when it is
+filled and each time the wine climbs a rarity (`HUD.SetWine`, pushed by `WineControls`).
+
 ### UI style (`scripts/ui/UiStyle.cs`)
 
 Every menu and HUD label shares ONE look, defined in `UiStyle`: a dark-neon palette (near-black
@@ -2150,7 +2222,7 @@ scales cleanly at any resolution.
 - **`UiStyle.Install()`** (called first thing in the HUD autoload) makes Sixtyfour the global
   **fallback font**, so un-themed text (enemy name tags, world prompts) matches too.
 - **Semantic colours stay semantic:** Needle Point rank colours, damage numbers, and the
-  mystery box's gold glint are left as-is; only UI chrome uses the palette.
+  Figmenter's gold glint are left as-is; only UI chrome uses the palette.
 
 ### Pause menu (`scripts/ui/PauseMenu.cs`)
 
@@ -2166,8 +2238,8 @@ so screens can't silently cover each other: `Background` (-100) → `LowHealth` 
 so it never hides their content.
 
 **World draw order** has its own table, **`WorldZ`** (`scripts/ui/WorldZ.cs`) — the z_index of everything in the arena,
-lowest first: `Scenery` (-30, the layout's statue / trees) → `Stalls` (-25, the box, Needle Point, Dekken, launch orbs
-— behind the tiles) → `Decor` (-20, the rocks + plants tile layer) → `Terrain` (-10) → `Drops` (-1, figs on the ground) → `Actors` (0,
+lowest first: `Scenery` (-30, the layout's statue / trees) → `Stalls` (-25, the Figmenter, Needle Point, Dekken, launch orbs
+— behind the tiles) → `Decor` (-20, the rocks + plants tile layer) → `Terrain` (-10) → `Wildlife` (-2, perched birds) → `Drops` (-1, figs on the ground) → `Actors` (0,
 Khalid + enemies) → `EnemySpawner.SpawnFx` (4) → `FlyingPickups` (5, Lira + Ruh souls) → `Impacts` (50) → the death cinematic
 (400 / 500). `LevelLayout` sets its `Aesthetic` / `Decor` / `Terrain` nodes from it (a `[Tool]`, so the editor shows the
 same order), and each piece of code that places something in the world sets its own. Effects parented to a body keep

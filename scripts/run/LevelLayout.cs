@@ -19,7 +19,7 @@ namespace MyGame;
 [GlobalClass, Tool]
 public partial class LevelLayout : Node2D
 {
-    private const string StallGroup = "stalls"; // the group every stall scene's root is in (scenes/things/)
+    public const string StallGroup = "stalls"; // the group every stall scene's root is in (scenes/things/)
 
     /// <summary>Put the layout's layers — and the stalls placed in it — at their <see cref="WorldZ"/>, at runtime AND in
     /// the editor (this is a [Tool] for that only), so what you paint sits in the same order you'll see in the game,
@@ -52,19 +52,6 @@ public partial class LevelLayout : Node2D
             if (n is T stall)
                 return stall;
         return null;
-    }
-
-    /// <summary>Where the mystery box can stand: the <c>Marker2D</c> children of <b>BoxSpots/Easy</b> (reachable on
-    /// foot — it starts on one of these) or, with <paramref name="hard"/>, of <b>BoxSpots/Hard</b> (needs mobility — a
-    /// teddy bear can send it there). Empty if the layout has none.</summary>
-    public List<Vector2> BoxSpots(bool hard)
-    {
-        var spots = new List<Vector2>();
-        if (GetNodeOrNull<Node>(hard ? "BoxSpots/Hard" : "BoxSpots/Easy") is Node holder)
-            foreach (Node n in holder.GetChildren())
-                if (n is Marker2D m)
-                    spots.Add(m.GlobalPosition);
-        return spots;
     }
 
     /// <summary>The arena's horizontal span in world X — the left edge of the leftmost Terrain tile to the right edge of
@@ -105,6 +92,7 @@ public partial class LevelLayout : Node2D
     // only where their surfaces actually MEET (see Linked) — flat tiles side by side, a ramp and the floors at its two
     // ends — so a block step, or slopes laid as a sawtooth, splits regions. A region is somewhere a grunt can walk.
     private readonly List<(Vector2 Pos, int Region)> _topPositions = new();         // every top: tile-top world pos + region
+    private readonly List<Vector2> _tops = new();                                   // every top's tile-top world pos
     private readonly Dictionary<int, List<Vector2>> _spawnable = new();             // region → its spawn-worthy tops
     private bool _groundBuilt;
 
@@ -121,6 +109,14 @@ public partial class LevelLayout : Node2D
             return here;
         region = NearestRegion(groundPoint, requireSpawnable: true);
         return region >= 0 ? _spawnable[region] : new List<Vector2>();
+    }
+
+    /// <summary>Every exposed tile top in the layout (solid ground and one-way platforms, lone tiles included), as
+    /// world positions on the tile tops — anywhere something small can sit. Empty if there's no painted Terrain.</summary>
+    public IReadOnlyList<Vector2> Tops()
+    {
+        BuildGround();
+        return _tops;
     }
 
     /// <summary>The region of the top nearest <paramref name="point"/> (optionally only regions with spawn-worthy tops);
@@ -173,6 +169,7 @@ public partial class LevelLayout : Node2D
             Vector2 pos = tm.ToGlobal(tm.MapToLocal(cell) - new Vector2(0.0f, halfH)); // tile-top, world space
             int region = regionOf[cell];
             _topPositions.Add((pos, region));
+            _tops.Add(pos);
             if (FloorRun(tops, slopes, cell) < MinSpawnFloorTiles)
                 continue; // too short to walk on
             if (!_spawnable.TryGetValue(region, out var list))

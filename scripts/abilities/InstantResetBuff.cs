@@ -8,7 +8,7 @@ namespace MyGame;
 /// connects with nobody). Offer-gated to Zahluq (<see cref="Buff.AppliesTo"/>), which fires a single hitbox per swing
 /// so one whiff = one reset. Built by <see cref="BuffCatalog"/>.
 ///
-/// PARKED — kept out of the box pool (<see cref="BuffCatalog.Parked"/>): Zahluq is now a *special*, so it resets the
+/// PARKED — kept out of the Figmenter pool (<see cref="BuffCatalog.Parked"/>): Zahluq is now a *special*, so it resets the
 /// SPECIAL cooldown, but special-box whiffs don't emit OnMiss yet (<see cref="Hitbox.Deactivate"/> gates OnMiss to
 /// <c>!FromSpecial</c>), so it would never fire. Unpark it once they do.
 /// </summary>

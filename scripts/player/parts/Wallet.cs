@@ -2,7 +2,7 @@ namespace MyGame;
 
 /// <summary>
 /// What the player has banked this run: <see cref="Lira"/> (the common currency — every kill pays it; the stalls
-/// spend it) and <see cref="FadaFigs"/> (the rare one — the mystery box spends it). Emptied when a run begins.
+/// spend it) and <see cref="FadaFigs"/> (the rare one — the Figmenter spends it). Emptied when a run begins.
 /// The HUD's counters listen to <see cref="Changed"/>.
 /// </summary>
 public sealed class Wallet
@@ -30,7 +30,7 @@ public sealed class Wallet
         return true;
     }
 
-    /// <summary>Bank <paramref name="n"/> Fada Fig(s) (the player touched one; the box refunded a spin).</summary>
+    /// <summary>Bank <paramref name="n"/> Fada Fig(s) (the player touched one).</summary>
     public void CollectFadaFigs(int n = 1)
     {
         FadaFigs += n;

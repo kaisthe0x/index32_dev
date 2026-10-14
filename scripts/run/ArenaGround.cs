@@ -97,7 +97,7 @@ public sealed class ArenaGround
     /// nothing about a stall's dais (or any solid prop) built over them, so a floor tile under one would otherwise
     /// spawn an enemy stuck inside it. Checks a <see cref="SpawnClearance"/> box just above the surface against
     /// <see cref="Combat.Layer.World"/> (one-way platforms don't block).</summary>
-    private bool SpotIsClear(Vector2 surface)
+    public bool SpotIsClear(Vector2 surface)
     {
         var space = _world.GetWorld2D()?.DirectSpaceState;
         if (space == null)
@@ -113,7 +113,7 @@ public sealed class ArenaGround
 
     /// <summary>The ground straight below <paramref name="from"/> (within <see cref="GroundProbeDepth"/>) — so a player
     /// mid-jump still counts as on the floor under him. Over a pit (nothing below), <paramref name="from"/> itself.</summary>
-    private Vector2 GroundBelow(Vector2 from)
+    public Vector2 GroundBelow(Vector2 from)
     {
         var space = _world.GetWorld2D()?.DirectSpaceState;
         if (space == null)

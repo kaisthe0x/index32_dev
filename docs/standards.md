@@ -30,7 +30,7 @@ serves one of those four.
 
 - **S3. A new subsystem gets its own class.** Do not add a feature by growing `Player`, `RunManager`, `Enemy` or
   `HUD` — they are already too large (see *Known debt*). The pattern to copy is the stall **ledgers**
-  (`ShotLedger`, `PerkLedger`, `BoxLedger`): a plain class that owns one feature's state and rules, created and
+  (`ShotLedger`, `PerkLedger`, `FigmenterLedger`): a plain class that owns one feature's state and rules, created and
   owned by `RunManager`, with a node (`Stall`, a menu) that only drives presentation. Wiring a new class into a big
   one is fine; putting its logic there is not.
 
@@ -97,7 +97,8 @@ The point is that a mistake is a compile error, not a bug found in play.
 - **C4. Placeholders are labelled.** A stand-in asset or value carries the word `PLACEHOLDER` in a comment at its
   definition, so they can all be found with one search.
 - **C5. Debug and playtest aids are labelled and isolated** — marked `DEBUG` or `PLAYTEST`, in one place, removable
-  by deleting that place. A playtest switch does not ship in a merged change.
+  by deleting that place. That place is `scripts/debug/`; game code only creates its `DebugTools` and asks what it
+  needs (each such line marked `DEBUG`). A playtest switch does not ship in a merged change.
 - **C6. Comments say why, not what.** Every class and every non-obvious member has a doc comment giving its purpose
   and the reason for anything surprising. A comment that restates the code is noise; a stale comment is a defect.
 - **C7. Match the file you are in** — its naming, comment density and idiom — unless this document says otherwise.
@@ -167,7 +168,7 @@ A QA pass does not raise these as findings. They were chosen on purpose.
 - **C#, flat namespace `MyGame`.** The project and assembly keep the names `MyGame` / `mygamedev` deliberately.
 - **`const string` ids, not enums, for content ids** (T2).
 - **Placeholder art, sound and text are acceptable while labelled** (C4). The owner draws the art; code does not wait.
-- **The `DEBUG` keys** (buff grant / clear, damage, heal, respawn) stay during development.
+- **The `DEBUG` keys** (buff grant / clear, damage, heal, respawn, recording mode — `scripts/debug/`) stay during development.
 - **Levels are hand-painted scenes**; enemy spawn spots, box spots and stalls are markers in the layout, not code.
 - **`HUD`, `Sfx` and `Music` are autoloads.**
 - **Design choices** — endless rounds with no breaks, the three stalls, the economy, the numbers — belong to the

@@ -6,6 +6,293 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-13 — `new-shit` — Recording mode, and every debug tool in `scripts/debug/`
+
+### Recording mode (H), and the debug tools in one folder
+
+- **What:** a new DEBUG key, **H**, toggles RECORDING mode — just Khalid and the arena, for capturing footage of the
+  stage: the HUD is hidden, the round does not run (no enemies, no pressure spawns) and the stalls show no prompt and
+  don't open. Each toggle rebuilds the arena, so going in clears the enemies and coming out starts a fresh round 1.
+  At the same time every debug tool moved into a new folder, `scripts/debug/`: the developer keys (`DebugTools` —
+  0 / Z / X / B / N / H), the buff grant / clear (`BuffCycler`, out of `Player`), recording mode (`RecordingMode`) and
+  the compile-time print (`BuildLog`, out of `helpers/`).
+- **Changed:** new `scripts/debug/{DebugTools,BuffCycler,RecordingMode}.cs` + `README.md`; `helpers/BuildLog.cs` →
+  `scripts/debug/BuildLog.cs`; `scripts/run/RunManager.cs` (the key handler is gone — it adds a `DebugTools` and holds
+  the round while `Recording` is on, both lines marked `DEBUG`); `scripts/Player.cs` (`DebugGrantNextBuff` /
+  `DebugClearBuffs` gone, a read-only `Passives` list added); `scripts/run/LevelLayout.cs` (`StallGroup` public, so
+  recording mode finds the stalls without repeating the string); `mygamedev.csproj` (a comment's path);
+  `README.md`, `helpers/README.md`, `docs/standards.md` (rule `C5` and the DEBUG-keys decision name the folder).
+- **Why / how:** the owner wanted the debugging tools kept apart from the game. Rule `C5` already asked for debug aids
+  "in one place, removable by deleting that place", and they were spread over three files. Now the game code knows
+  the folder in two places (`RunManager`'s `_debug` lines, the `HUD`'s `BuildLog` call); deleting the folder and
+  those lines removes it all. `Player.cs` is ~30 lines shorter (known debt: its size).
+- **Could affect:** the dev keys only. The buff clear now goes through `Player.RemovePassive` per buff (the same
+  teardown, the HUD refreshed per buff instead of once). The game itself does not change with recording mode off.
+- **Tested:** build 0 warnings; the arena boots headless clean (only the old exit-time resource line). A throwaway
+  headless scene drove the keys: B twice granted 2 buffs, N cleared them, H hid the HUD, removed the enemies and
+  turned off all three stalls' interact areas, H again brought the HUD and round 1 back — 5 of 5 passed.
+  **Not tested:** 0 / Z / X (moved unchanged); recording in a window.
+- **Not done:** recording mode survives an arena rebuild it did not start — a death (falling through the bridge gap)
+  or the 0 key — and the new arena's stalls open again. Toggle H twice to get it back.
+
+## 2026-10-12 — `new-shit` — Music up, sound effects down, bombs and figs land on brick platforms
+
+### The music is louder, and a horde no longer drowns it
+
+- **What:** the music's level is -5 dB (-12 → -8 → -5, the owner's changes by ear). Every sound effect is 8 dB quieter
+  (`Sfx.TargetLoudness` -26 → -34 LUFS): the owner found single cues too loud against the music, not only crowds.
+  The SFX bus also has a compressor ahead of its limiter: above -26 dB the summed sound effects rise 1 dB for
+  every 4, attack 5 ms, release 200 ms.
+- **Changed:** `scripts/audio/Music.cs` (`DefaultVolumeDb`); `scripts/audio/Sfx.cs` (`InstallLimiter` →
+  `InstallBusEffects`, four compressor constants).
+- **Why / how:** every cue is normalized to one loudness, but sounds SUM — twelve at once are about 11 dB louder
+  than one — so in late rounds the fight covered the music. The owner wanted the music clear WITHOUT turning it up
+  further. A compressor acts on the summed signal, so it needs no per-cue rules and leaves a quiet moment alone.
+  It was already the first item of "Sound: beyond the limiter" in `docs/future-enhancements-and-fixes.md`.
+- **Could affect:** how every busy fight sounds; a single loud hit in a crowd has less punch than before.
+- **Tested:** build 0 warnings; the arena boots with both effects on the bus. **Not tested: by ear.** The four
+  numbers are a starting point; nobody has listened to a late round with them.
+- **Not done:** the three stage-1 tracks differ by 2.5 dB (-21.6 / -23.5 / -24.1 LUFS). Noted in
+  `docs/future-enhancements-and-fixes.md`: render them at one loudness from the source project.
+
+### The stage: a brick bridge over a gap, and the stalls further apart
+
+- **What (the owner's edit of `stage1_v2.tscn`, in the editor):** a 13-tile gap in the floor left of the stalls
+  (x -64 to 352) is bridged with the one-way `tileset2` bricks, level with the floor and with the void underneath;
+  the stalls stand further apart (Dekken 761, Needle Point 1027, Figmenter 1290), because standing at the right
+  one of three close stalls was confusing. The spawn spot that then sat under Dekken (x 760) was moved to x 606.
+- **Could affect:** the bridge is the first one-way ground on the flat stage — that is what exposed the two bugs
+  below. Dropping down through a one-way tile there would drop the player into the void: NOT checked.
+- **Tested:** played by the owner. The moved spawn spot was not re-run.
+
+### Docs: two notes for later
+
+- **What:** `docs/future-enhancements-and-fixes.md` gained "Animation: smoother motion, maybe the Dead Cells way"
+  (what was tried on 2026-10-11 and rejected, and where to pick it up — commit `895babb`) and "Animation: Khalid
+  dances when he is left alone" (the owner's idea: after 10 s out of danger with no input he dances; just an idle
+  animation, no special cases). Its sound section now records that the compressor is built and that the three music
+  tracks differ by 2.5 dB.
+- **Could affect:** nothing — notes only.
+
+### Mazab's bomb and dropped figs land on the brick platforms
+
+- **What:** a lobbed bomb and a dropped Fada Fig now land on one-way (jump-through) tiles as they do on solid
+  ground. Both fell through them.
+- **Changed:** `LobProjectile.SurfaceBetween` casts against `Combat.GroundMask` (solid + one-way) instead of solid
+  terrain only; `FadaFig._Ready` sets its collision mask to `Combat.GroundMask` (it had the engine default, solid only).
+- **Why:** the owner bridged a gap in the flat stage with the `tileset2` bricks, which are one-way; the bomb's
+  landing ray ignored that layer. It still only lands while falling, so a rising bomb passes up through a platform.
+- **Tested:** build 0 warnings. **Not tested in the engine** — reported and to be confirmed by the owner's play.
+
+---
+
+## 2026-10-12 — `new-shit` — The arena is flat, and the slam has a cooldown
+
+### One level floor: every enemy can always reach the player
+
+- **What:** the stage's layout is now `scenes/levels/stage1/stage1_v2.tscn` — one level floor end to end, no ledges
+  or platforms. The twelve spawn spots sit along it either side of the stalls (none between x 760 and 1500), and the
+  three stalls stand together mid-arena on the floor (Dekken 960, Needle Point 1122, Figmenter 1290). The painted
+  arena with its ledges and platforms is renamed `painted_platforms.tscn`, which takes it out of the layout pool
+  (only `stage1_v*` files are picked); it is otherwise unchanged. `RunManager.StageLayoutPaths` returns the layouts
+  in name order.
+- **Why / how:** once enemies hunted the player (the entry below), the upper platforms were a place they could not
+  follow: they gathered underneath, and most of the stage stood empty. The owner played the flat layout against the
+  painted one on the same build and chose flat — "much more fun and it makes the combat way more interactive". The
+  flat scene was produced by a script that rewrote the `Terrain` tile data of a copy of the painted scene (the floor's
+  mossy top continued where the ledges stood; the big tree lowered to the floor), because the Godot editor was open
+  and the painted scene must not be edited while it is (rule `G3`).
+- **Could affect:** everything that assumed height. Extra Jump and Jump Height (Needle Point) and the wines that key
+  off jumping now matter only for dodging and for the slam, whose damage grows with the height fallen. Dekken no
+  longer needs bought jumps to reach. Nothing in the code depends on platforms; `Pursuit`'s ledge logic is simply
+  never exercised on this layout.
+- **Known and left for the owner:** `painted_platforms.tscn` is an unused file (rule `C1`) — kept because it is the
+  owner's painted level and may become another stage; delete it if not. The docs still describe platforms in places
+  (`docs/painting-levels.md`, the build-gated places idea in `docs/game-loop.md`).
+- **Tested:** build 0 warnings; a scripted headless run of the real arena, 6 of 6 for the layout (no terrain above
+  the floor; twelve spots and three stalls on the floor; the floor is level where the ledges were; six hunters reach
+  the player); the owner played it. A first version put a spawn spot under Needle Point and the enemy spawned inside
+  the stall — the spots were moved clear of the stalls; that fix was confirmed by the owner's play, not by a
+  re-run of the check. After the rename, a clean headless boot of the arena.
+
+### The slam has a cooldown
+
+- **What:** after a slam lands, the next cannot start for `Locomotion.SlamCooldown` (1.5 s). Before, it had none and
+  could be chained without pause.
+- **Changed:** `configs/Locomotion.cs`, `SlamState` (`Cooldown`, checked in `CanStart`, set on impact), `Player`
+  (reads the knob, counts it down beside the special's).
+- **Why:** so that a slam is a moment and not the whole fight, in either layout. (The slam's damage already grows
+  with the height fallen — 1× under 120 px up to 2.5× at 700 px — so jump height already feeds it.)
+- **Could affect:** every slam build; Slam Quake / Wrath / Spring / Immunity fire at most once per 1.5 s.
+- **Tested:** in the same headless run, 3 of 3: a slam starts from the air; landing starts the cooldown and blocks the
+  next; it is ready again once the cooldown has run. **Not built:** anything on the HUD showing the slam is ready,
+  and a refund on kills — both were suggested; left until the owner has felt the plain cooldown.
+
+---
+
+## 2026-10-11 — `new-shit` — Enemies hunt the player; the first fig wine comes sooner
+
+### Every round enemy hunts from the moment it spawns
+
+- **What:** a round enemy no longer patrols its spawn spot until the player comes within 320 px. `RunManager` makes
+  it a hunter as it spawns (`Enemy.Hunt`), and it comes for him wherever he is. A hunter steps off a ledge when there
+  is ground below to land on (never into the void); it still cannot climb, so when the player is on a platform above
+  it, it walks to the spot under him and waits there, each hunter up to 40 px to one side so the crowd spreads out.
+  When he is below it, it walks toward him and off the first ledge on the way; standing right over him, it keeps
+  going the way it faces to the end of its floor. Enemies now spawn at the free spot NEAREST the player (still at
+  least 320 px away) instead of the one farthest from the other enemies. Round 1 allows 6 alive at once (was 3);
+  the cap still grows by one a round (10 at round 5, 15 at round 10). The last three still speed up to 1.6×.
+- **New / changed:** new `scripts/enemies/parts/Pursuit.cs` (the hunting state and the two cases above);
+  `EdgeSensor.LandingBelow` (the existing ledge ray cast again 640 px down); `Enemy.Hunt(speedMult, waitSpread)`
+  and the pursuit branch in `Enemy.Act` (the `_hunting` / `_huntSpeedMult` fields moved into `Pursuit`);
+  `RunManager.OnEnemySpawned` calls `Hunt`; `EnemySpawner.PickSpawnSpot`; `configs/Rounds.cs`: `CapBase` 3 → 6, new
+  `HuntSpeedMult` (1.0) and `HuntWaitSpread` (40).
+- **Why / how:** the owner found playing a chore — "I am hunting them instead of them hunting me". Spots were spread
+  over a 3,600 px arena and grunts walk 34–46 px/s, so hunting alone would have left him waiting up to a minute for
+  an enemy to arrive; that is why the spawn-spot choice changed with it. Jumping and teleporting grunts were
+  considered and rejected (jump links or navigation per platform, an animation per enemy, and it removes the crowd
+  under a platform, which is the slam's best target). The hunting logic is its own part so `Enemy.cs` does not grow
+  (rule `S3`).
+- **Could affect:** every fight — more enemies reach the player sooner, from round 1. Enemies leave platforms, so
+  they can end up crowded on the main floor. A player with a ranged attack can hit a waiting crowd from a platform
+  at no risk before the kamikazes start in round 5: NOT addressed here, to be judged in play. Spots near the player
+  stay "held" by enemies that have already walked away from them, so in rounds 8–9 (cap 13–14, 12 spots) a spawn
+  can wait for a kill. The optional enemies (Nasen, the kamikaze, the Ventilator) are unchanged.
+- **Tested:** build with 0 warnings. A scripted headless run of the real arena, 10 of 10: six hunters in round 1; all
+  six closed in on a player standing at his spawn, including the ones spawned on platforms, which came down to his
+  floor; with the player held on the highest platform all six waited under him within the 40 px band, spread over
+  52 px, and none fell into the void; moved to the far floor, all six followed. The saved run-loop check
+  (`handoff_files/RunCheck.cs`) passes 8 of 8. NOT tested: a real played run; how the crowd looks; rounds past 2; a
+  hunter on a floor whose both ends drop only into the void (it would pace there).
+
+### The first fig wine comes around round 5, not round 9–10
+
+- **What:** a brew costs **4 figs** (was 8) and takes **2 cleared rounds** (was 5); an enemy drops a fig **15 %** of
+  the time (was 10 %; Kebus stays 25 %).
+- **Changed:** `configs/FigmenterRules.cs` (`Cost`, `BrewRounds`), `Enemy.FigChance`'s default.
+- **Why:** the owner's second complaint — the buff system was hard to get at. The Figmenter is the only source of
+  build-defining mechanics, and the first one arrived after most of a run.
+- **Could affect:** build pace and power — roughly three wines by round 10 instead of one. Ageing (+1 rarity per 2
+  carried rounds) is unchanged, so a wine now reaches Epic in four times its brew time.
+- **Tested:** the saved wine check (`handoff_files/WineCheck.cs`) run against the new numbers: the flow behaves
+  (refused with "NEED 4", 50 → 46 figs, "2 ROUNDS", ready, collect, age, drink), but 5 of its 16 assertions are
+  written for 8 figs and 5 rounds and report FAIL — the check needs rewriting to read the constants. Not done.
+
+---
+
+## 2026-10-11 — `new-shit` — The mystery box is now the Figmenter, and it makes fig wine
+
+### Figs brew fig wine: a 5-round wait, a bottle you carry, a buff as strong as the wine is old
+
+- **What:** the spin → offer flow is replaced. At the empty Figmenter **E** pays 8 figs and a brew starts; it takes
+  **5 cleared rounds**, the tank filling one frame of the owner's animation per round. The finished wine is labelled
+  with its buff; **E** collects it into the player's **one wine slot** (HUD, under the vials). **F** (D-pad up)
+  drinks it at any moment. A carried wine climbs one rarity every **2 rounds** — Common, Rare, Hot, Sensational, Epic
+  — and the buff is granted at that strength. A ready wine waits in the machine (without ageing) while the slot is
+  taken; the machine can brew again as soon as it is emptied.
+- **New / changed:** `FigmenterLedger` rewritten (brew state, the carried wine, `OnRoundClear`, a `Changed` event);
+  `Figmenter` rewritten to only show the ledger (no per-frame work); new `WineControls` (the key + the HUD push),
+  `WineSlot` (HUD), `Wine` (was `FigmenterRoll`), `WineKind` (was `FigmenterOutcome`), `WineRarity`, `BrewState`;
+  `FigmenterRules`: `BrewRounds`, `AgeRounds`, rarity colours (`SpinTime` / `OfferTime` gone); cues
+  `figmenter_spin` / `figmenter_result` → `figmenter_brew` / `figmenter_ready`. **`BuffCatalog` has five values per
+  buff again** (`Func<WineRarity, Buff>`), restored from the tables that commit `2b1000c` collapsed to their middle
+  value; `Buff.Rarity` records which was granted and the buff list shows it in the rarity's colour.
+  `assets/things/figmenter.png` is now a 6-frame strip with the owner's moss. **Its own sounds:** `figmenter_brew`,
+  `figmenter_ready`, `wine_collect`, `wine_drink` (`sfx/things/figmenter/`) — synthesized PLACEHOLDERS that replace
+  the reused fig-pickup sound; nobody has listened to them yet.
+- **Why / how:** the owner's design — wine takes time and gains value with age. What a wine holds is rolled when the
+  brew is PAID for, so figs are never taken for nothing, and shown when it is ready, so drink-now versus carry is an
+  informed choice (both decided with the owner). The fill frame is picked from the brew's fraction, not its round
+  count, so a later change to the brew time needs no new art. Ageing counts only carried rounds, so holding the
+  bottle is the cost.
+- **Could affect:** the pace of builds — the first Figmenter buff now arrives about 5 rounds later than before
+  (around round 9–10), and buffs drunk young are WEAKER than before (Common is the first of five values; the old
+  single value was the third). The debug buff key grants the middle (Hot) strength, as before. A new key, F.
+- **Tested:** a scripted headless run, 16 of 16: refused without figs; 8 figs start a brew; E while brewing does
+  nothing; frame 3 and "2 ROUNDS" after three rounds; ready, full and labelled after five; a ready wine waits;
+  collected as a Common; a second brew while carrying; Hot after five carried rounds; the second wine differs from
+  the first; no collecting with the slot taken; drinking grants the buff at Hot and empties the slot; an empty slot
+  does nothing; the second wine collects; rarity caps at Epic. The same run windowed, with screenshots of the tank
+  half full, the ready label and the HUD slot. The check is saved as `Repos/handoff_files/WineCheck.cs`. **Not
+  tested:** a real run of five rounds (the check calls the round-clear hook directly); a wine that is a
+  special-swap (6 %, did not come up); the HUD slot's look at full window size; the owner has not played it.
+
+### The wine slot is a bottle
+
+*(Added after the first commit of this entry.)*
+
+- **What:** the HUD's wine slot was a text box; it is now Khalid's one wine bottle — the owner's drawing, simplified
+  to 6 colours, shown EMPTY while he carries no wine and FULL (the Figmenter's exact oranges) while he does, with the
+  wine's name and rarity beside it. `scripts/ui/WineSlot.cs` rewritten; new `assets/things/wine_bottle.png` (two
+  64×64 frames). No rule changed: he could already carry exactly one wine.
+- **Why / how:** the owner's design — one bottle he fills at the Figmenter and drinks when he likes. The bottle is
+  drawn at half size with the same filtering as the currency icons beside it.
+- **Could affect:** only the HUD's top-left corner.
+- **Tested:** build 0 warnings; `WineCheck` 16 of 16 in a windowed run, with a screenshot of the corner showing the
+  empty bottle and then the full one with its label. **Not tested:** how it reads at full window size (the test
+  window was about 630 px wide); the owner has not seen it in play.
+
+### The stall is renamed and drawn, and it stays where it is put
+
+- **What:** the mystery box is called the **Figmenter** everywhere, and its placeholder (a purple square with a "?")
+  is replaced by the owner's drawing — a steel vat with a window and a control box — in stage-1 colours
+  (`assets/things/figmenter.png`, 96×96). It stands on the ground where the layout places it, like Needle Point and
+  Dekken. **The teddy bear is gone:** a spin can no longer refund the figs and send the Figmenter to another spot, so
+  the machine never refunds or moves.
+- **Renamed:** `MysteryBox` → `Figmenter`, `BoxLedger` → `FigmenterLedger`, `BoxRules` → `FigmenterRules`,
+  `BoxRoll` → `FigmenterRoll`, `BoxOutcome` → `FigmenterOutcome`; the folders `enums/box` and `records/box` →
+  `…/figmenter`; `scenes/things/mystery_box.tscn` → `figmenter.tscn`; the layout's `MysteryBox` node → `Figmenter`;
+  the sound cues `box_spin` / `box_result` → `figmenter_*`; `RunManager._box` / `FastTravelToBox`; comments and docs.
+  Older changelog entries keep the old name — they describe what was true then.
+- **Removed with the relocation** (rule `C1`): `FigmenterOutcome.Teddy`, `FigmenterLedger.Refund`,
+  `FigmenterRules.TeddyChance` / `HardSpotChance`, the cue `box_teddy`, `LevelLayout.BoxSpots`, the layout's
+  `BoxSpots` node and its six markers, the Figmenter's `Setup`, beam, fade and `Leaving` phase, and
+  `Stall.PlayerArrived` (its only user was the beam). The Figmenter now gets its ledger like the other stalls
+  (`figmenter.Ledger = …`).
+- **Why / how:** the owner chose the design and the name, wants it to be a machine that makes fig wine, and wants it
+  fixed in place like the other stalls. The NAME, the LOOK and the fixed place were done now; the fig-wine mechanic
+  is a later design step. Files were moved with `git mv` together with their `.uid` files, so the scene's script
+  reference is unchanged. (A hover with rocket fire was built in between and dropped at the owner's request, with
+  its effect scene — nothing of it remains.)
+- **Could affect:** Dekken's Fast Travel still goes to the Figmenter, which is now always at the same place. A layout must place
+  `scenes/things/figmenter.tscn`; it no longer needs spot markers (`stage1_v1.tscn` was updated — it stands at the
+  old `Start` spot). The interact area is 80 px wide (was 64) and the prompt sits at the top of the art. E5 loses
+  its "pointer to the box" item: there is nothing to point at once it cannot move.
+- **Tested:** `dotnet build` 0 warnings; headless arena boot clean; the saved checks pass (`ECheck`: a vial, Nem, a combo; `WineCheck`: above); a WINDOWED screenshot shows the new art standing on the ground beside Khalid, with no
+  children under its art (no emitters). The Godot editor was closed while the scenes were edited. **Not tested:** the
+  owner has not played it.
+
+---
+
+## 2026-10-10 — `new-shit` — Birds: scenery that flies off when something comes close
+
+### Birds perch around the arena and flee from Khalid
+
+- **What:** up to four small birds sit on random tiles. A bird is placed where the camera can't see it; the first
+  time it comes on screen it plays frames 0–3 of its strip and holds; when Khalid comes within 80 px it
+  plays frames 4–23 while flying up and away from them, with a flutter sound on frame 4, and is gone. Another arrives
+  6–14 s later, again off screen. New: `configs/Birds.cs` (all numbers), `scripts/creatures/Bird.cs` (one bird),
+  `scripts/run/BirdFlock.cs` (how many, where), `sprites/creatures/bird/bird.png`, `sfx/creatures/bird/flee.wav`,
+  the cue `bird_flee` in `configs/SfxWorld.cs`, `WorldZ.Wildlife`. Changed: `RunManager` builds and ticks the flock;
+  `LevelLayout.Tops()` (every exposed tile top); `ArenaGround.SpotIsClear` and `GroundBelow` are now public.
+- **Why / how:** the owner wants the arena to feel alive. The bird only reacts to signals (camera visibility, a
+  body entering its sensor, the sprite's frame) and ticks only while flying, so a perched bird costs nothing per
+  frame. The flock is its own class owned by `RunManager`, like `PressureSpawns` (rule `S3`). The strip is cut into
+  frames in code, so nothing hand-written lands in `resources/`. The art was recoloured from a ~1,150-colour
+  purple-to-green gradient to four blues in `index32_art` (repalette profile `bird`).
+- **Could affect:** nothing in combat — the sensor only listens (`CollisionLayer` 0) and birds are not enemies, so
+  rounds, quotas and drops don't see them. `SpotIsClear` / `GroundBelow` kept their behaviour; only their
+  visibility changed. Up to four extra sprites and four idle `Area2D`s per arena.
+- **Tested:** `dotnet build` 0 warnings; headless arena boot clean; a WINDOWED scripted run (throwaway, deleted):
+  4 birds placed off screen, the watched one played frames 0→3 on first being seen and held, took off when Khalid
+  was put 50 px away, flew away from him over frames 4–23 (2.1 s) and freed itself, and the flock was back to 4
+  after 10.7 s. Screenshots checked by eye. The owner then replaced the sound file, set its mix
+  offset from −8 dB to 0 (so the row was removed — unlisted is 0) and approved the result. The owner then asked that ONLY Khalid scare
+  birds: the sensor's mask dropped `EnemyBody`. **Not tested:** that an enemy walking past a perched bird leaves it
+  there (it follows from the mask; not observed in a run).
+
+---
+
 ## 2026-10-09 — `new-shit` — `Player` redesign: one class per state
 
 The second half of the redesign the owner approved. `Player.cs` was 2,213 lines: one class holding fourteen states'

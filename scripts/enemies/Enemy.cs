@@ -37,7 +37,7 @@ public partial class Enemy : Combatant
 
 	[ExportGroup("Drops")]
 	[Export] public int LiraDrop { get; set; } = 1;          // Lira coins on death (RunManager defaults it by tier)
-	[Export] public float FigChance { get; set; } = 0.1f;    // chance a kill also drops ONE fada_fig (per-kit override)
+	[Export] public float FigChance { get; set; } = 0.15f;   // chance a kill also drops ONE fada_fig (per-kit override)
 
 	[ExportGroup("Patrol")]
 	[Export] public float MoveSpeed { get; set; } = 40.0f;
@@ -104,8 +104,6 @@ public partial class Enemy : Combatant
 	private bool _idleBack;
 	protected bool Engaged;
 	private float _alertLeft;
-	private bool _hunting; // a STRAGGLER: chases the player wherever he is (see hunt)
-	private float _huntSpeedMult = 1.0f; // a straggler's chase-speed multiplier (its walk animation speeds up to match)
 	private float _hitstopLeft, _hitstopDur;
 	protected bool Impacted;
 
@@ -114,6 +112,7 @@ public partial class Enemy : Combatant
 	protected FloatingHealthBar Bar = null!;
 	private StatusDisplay _statusDisplay = null!;
 	private EdgeSensor _edges = null!;
+	private Pursuit _pursuit = null!;
 	protected AttackSounds Sounds = null!;
 	protected float HeadY;
 
@@ -133,6 +132,7 @@ public partial class Enemy : Combatant
 		BuildContactHitbox();
 		BuildHealthBar();
 		_edges = new EdgeSensor(this, EdgeCheckX);
+		_pursuit = new Pursuit(_edges);
 		_statusDisplay = new StatusDisplay(this, Sprite, Bar, HeadY);
 
 		HasDeath = Sprite.SpriteFrames.HasAnimation("death");
@@ -376,7 +376,18 @@ public partial class Enemy : Combatant
 				}
 			}
 			int dir = Mathf.Sign(toPlayer);
-			bool pursue = _hunting || _alertLeft > 0.0f
+			if (_pursuit.Active && !aligned)
+			{
+				// A hunter and a target on another level: get under him, or find the way down (see Pursuit).
+				Engaged = true;
+				int step = _pursuit.StepToward(GlobalPosition, player.GlobalPosition, Facing);
+				Velocity = new Vector2(step * MoveSpeed * _pursuit.SpeedMult, Velocity.Y);
+				Face(step != 0 ? step : dir);
+				SetState(step != 0 ? EState.Patrol : EState.Idle);
+				return;
+			}
+			_pursuit.OnLevel();
+			bool pursue = _pursuit.Active || _alertLeft > 0.0f
 				|| (Aggro && GlobalPosition.DistanceTo(player.GlobalPosition) <= AggroRange);
 			bool hold = aligned && dist <= (Far?.Range ?? EngageRange);
 			bool closeIn = pursue || (hold && close != null && far == null);
@@ -384,9 +395,9 @@ public partial class Enemy : Combatant
 			if (pursue || hold)
 			{
 				Engaged = true;
-				if (closeIn && dist > reach && _edges.FloorAhead(dir))
+				if (closeIn && dist > reach && (_pursuit.Active ? _pursuit.CanStep(dir) : _edges.FloorAhead(dir)))
 				{
-					Velocity = new Vector2(dir * MoveSpeed * _huntSpeedMult, Velocity.Y);
+					Velocity = new Vector2(dir * MoveSpeed * _pursuit.SpeedMult, Velocity.Y);
 					Face(dir);
 					SetState(EState.Patrol);
 				}
@@ -797,15 +808,15 @@ public partial class Enemy : Combatant
 
 	public void ApplyHit(Hit hit) => Hurt?.TakeHit(hit);
 
-	/// <summary>Make this enemy a STRAGGLER: from now on it chases the player wherever he is, ignoring
-	/// <see cref="AggroRange"/>, at <paramref name="speedMult"/> × its move speed (RunManager calls it on a round's last
-	/// few, so the round can't stall on one he can't find).</summary>
-	public void Hunt(float speedMult)
+	/// <summary>Make this enemy a HUNTER: from now on it chases the player wherever he is, ignoring
+	/// <see cref="AggroRange"/>, at <paramref name="speedMult"/> × its move speed, and waits within
+	/// <paramref name="waitSpread"/> px of the spot under him when he is out of reach above (see <see cref="Pursuit"/>).
+	/// RunManager calls it on every round enemy as it spawns, and again with a faster pace on a round's last few.</summary>
+	public void Hunt(float speedMult, float waitSpread)
 	{
-		_hunting = true;
-		_huntSpeedMult = speedMult;
+		_pursuit.Begin(speedMult, waitSpread);
 		if (State == EState.Patrol)
-			PlayWalk(); // already walking — pick up the faster pace now
+			PlayWalk(); // already walking — pick up the new pace now
 	}
 
 	protected void Face(int dir)
@@ -836,9 +847,9 @@ public partial class Enemy : Combatant
 		}
 	}
 
-	/// <summary>The walk (or idle, if it has none) — sped up by <see cref="_huntSpeedMult"/> for a straggler so its feet
+	/// <summary>The walk (or idle, if it has none) — sped up by a hunter's <see cref="Pursuit.SpeedMult"/> so its feet
 	/// keep pace with its chase.</summary>
-	private void PlayWalk() => Sprite.Play(HasWalk ? "walk" : "idle", _huntSpeedMult);
+	private void PlayWalk() => Sprite.Play(HasWalk ? "walk" : "idle", _pursuit.SpeedMult);
 
 	protected void Play(StringName anim)
 	{

@@ -20,7 +20,7 @@ namespace MyGame;
 public sealed class PerkLedger
 {
     private readonly Player _player;
-    private readonly System.Action _fastTravel;              // teleport the player to the mystery box
+    private readonly System.Action _fastTravel;              // teleport the player to the Figmenter
     private readonly System.Action<PerkLedger> _heldChanged; // the carried vials / the selection changed (the HUD redraws)
     private readonly List<string> _stock = new();
     private readonly List<string> _held = new();             // carried vials, in the order they were kept

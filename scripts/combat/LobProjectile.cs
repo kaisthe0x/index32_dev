@@ -103,13 +103,15 @@ public partial class LobProjectile : Node2D
         _vel = new Vector2(to.X / ArcTime, to.Y / ArcTime - 0.5f * Gravity * ArcTime);
     }
 
-    /// <summary>First L_WORLD surface crossed by the segment, or Vector2.Inf. Ray ignores one-way; caller gates on descending.</summary>
+    /// <summary>First surface a body can stand on (solid terrain or a one-way platform) crossed by the segment, or
+    /// Vector2.Inf. The ray itself does not know a platform is one-way; the caller only asks while descending, so a
+    /// rising bomb still passes up through one.</summary>
     private Vector2 SurfaceBetween(Vector2 from, Vector2 to)
     {
         if (to == from)
             to = from + new Vector2(0.0f, 0.5f);
         var space = GetWorld2D().DirectSpaceState;
-        var q = PhysicsRayQueryParameters2D.Create(from, to, (uint)Combat.Layer.World);
+        var q = PhysicsRayQueryParameters2D.Create(from, to, Combat.GroundMask);
         q.HitFromInside = true; // catch a ledge we start the step already inside
         var r = space.IntersectRay(q);
         return r.Count > 0 ? r["position"].AsVector2() : Vector2.Inf;

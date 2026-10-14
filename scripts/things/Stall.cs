@@ -3,7 +3,7 @@ using Godot;
 namespace MyGame;
 
 /// <summary>
-/// Something in the arena Khalid stands at and presses <b>E</b> (the <c>interact</c> action) to use — the mystery box,
+/// Something in the arena Khalid stands at and presses <b>E</b> (the <c>interact</c> action) to use — the Figmenter,
 /// Needle Point, Dekken. Each is a SCENE (<c>scenes/things/</c>) you place in a layout, built from these children:
 /// <list type="bullet">
 /// <item><c>Visual</c> (Node2D) — its look, bottom-centre on the scene's origin (the ground where it stands).</item>
@@ -53,7 +53,6 @@ public abstract partial class Stall : Node2D
                 return;
             _inRange = p;
             _prompt.Visible = true;
-            PlayerArrived();
         };
         range.BodyExited += body =>
         {
@@ -66,9 +65,6 @@ public abstract partial class Stall : Node2D
 
     /// <summary>The player pressed E in range.</summary>
     protected abstract void Interact(Player p);
-
-    /// <summary>The player just stepped into range (the prompt is up).</summary>
-    protected virtual void PlayerArrived() { }
 
     /// <summary>Register the <c>interact</c> action (physical E) if the project doesn't already define it — so stalls
     /// work without a project.godot edit. Physical keycode = layout-independent, matching the other actions.</summary>

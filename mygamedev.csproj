@@ -16,7 +16,7 @@
        build_times.log (git-ignored: timings are per machine): when, configuration, seconds, source files.
        Runs for every build, from the command line or the Godot editor; a build with nothing to recompile adds no
        line (the compiler did not run, so the assembly in obj/ is older than the stamp). The game prints the
-       last line when it starts from the editor (helpers/BuildLog.cs), because the editor shows build messages
+       last line when it starts from the editor (scripts/debug/BuildLog.cs), because the editor shows build messages
        only in its MSBuild panel. -->
   <Target Name="StampCompileStart" BeforeTargets="CoreCompile">
     <PropertyGroup>
