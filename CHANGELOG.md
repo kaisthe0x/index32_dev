@@ -6,6 +6,35 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-13 — `new-shit` — Recording mode, and every debug tool in `scripts/debug/`
+
+### Recording mode (H), and the debug tools in one folder
+
+- **What:** a new DEBUG key, **H**, toggles RECORDING mode — just Khalid and the arena, for capturing footage of the
+  stage: the HUD is hidden, the round does not run (no enemies, no pressure spawns) and the stalls show no prompt and
+  don't open. Each toggle rebuilds the arena, so going in clears the enemies and coming out starts a fresh round 1.
+  At the same time every debug tool moved into a new folder, `scripts/debug/`: the developer keys (`DebugTools` —
+  0 / Z / X / B / N / H), the buff grant / clear (`BuffCycler`, out of `Player`), recording mode (`RecordingMode`) and
+  the compile-time print (`BuildLog`, out of `helpers/`).
+- **Changed:** new `scripts/debug/{DebugTools,BuffCycler,RecordingMode}.cs` + `README.md`; `helpers/BuildLog.cs` →
+  `scripts/debug/BuildLog.cs`; `scripts/run/RunManager.cs` (the key handler is gone — it adds a `DebugTools` and holds
+  the round while `Recording` is on, both lines marked `DEBUG`); `scripts/Player.cs` (`DebugGrantNextBuff` /
+  `DebugClearBuffs` gone, a read-only `Passives` list added); `scripts/run/LevelLayout.cs` (`StallGroup` public, so
+  recording mode finds the stalls without repeating the string); `mygamedev.csproj` (a comment's path);
+  `README.md`, `helpers/README.md`, `docs/standards.md` (rule `C5` and the DEBUG-keys decision name the folder).
+- **Why / how:** the owner wanted the debugging tools kept apart from the game. Rule `C5` already asked for debug aids
+  "in one place, removable by deleting that place", and they were spread over three files. Now the game code knows
+  the folder in two places (`RunManager`'s `_debug` lines, the `HUD`'s `BuildLog` call); deleting the folder and
+  those lines removes it all. `Player.cs` is ~30 lines shorter (known debt: its size).
+- **Could affect:** the dev keys only. The buff clear now goes through `Player.RemovePassive` per buff (the same
+  teardown, the HUD refreshed per buff instead of once). The game itself does not change with recording mode off.
+- **Tested:** build 0 warnings; the arena boots headless clean (only the old exit-time resource line). A throwaway
+  headless scene drove the keys: B twice granted 2 buffs, N cleared them, H hid the HUD, removed the enemies and
+  turned off all three stalls' interact areas, H again brought the HUD and round 1 back — 5 of 5 passed.
+  **Not tested:** 0 / Z / X (moved unchanged); recording in a window.
+- **Not done:** recording mode survives an arena rebuild it did not start — a death (falling through the bridge gap)
+  or the 0 key — and the new arena's stalls open again. Toggle H twice to get it back.
+
 ## 2026-10-12 — `new-shit` — Music up, sound effects down, bombs and figs land on brick platforms
 
 ### The music is louder, and a horde no longer drowns it

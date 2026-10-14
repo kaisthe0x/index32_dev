@@ -364,6 +364,9 @@ public partial class Player : Combatant, IStrikeWielder
         return false;
     }
 
+    /// <summary>Every passive on him: the character ability, the Needle Point shots, the Dekken perks, the buffs.</summary>
+    public IReadOnlyList<Passive> Passives => _passives;
+
     public void AddPassive(Passive p)
     {
         _passives.Add(p);
@@ -544,37 +547,6 @@ public partial class Player : Combatant, IStrikeWielder
             return;
         if (_current == _special && _sprite.Frame < _special.StrikeFrame())
             _special.Cooldown = 0.0f;
-    }
-
-    // --- DEBUG: playtest the buff catalog (triggered from RunManager's DEBUG keys; REMOVE before release) -------
-    private int _debugBuffIdx = 0;
-
-    /// <summary>DEBUG: grant the next wired catalog buff, cycling through the whole set.</summary>
-    public void DebugGrantNextBuff()
-    {
-        var ids = new List<string>(BuffCatalog.Factories.Keys);
-        if (ids.Count == 0)
-            return;
-        string id = ids[_debugBuffIdx++ % ids.Count];
-        var buff = BuffCatalog.Make(id, WineRarity.Hot); // the middle strength
-        if (buff != null)
-        {
-            AddPassive(buff);
-            GD.Print($"[DEBUG] granted buff: {id}");
-        }
-    }
-
-    /// <summary>DEBUG: clear all granted buffs (keeps the character ability).</summary>
-    public void DebugClearBuffs()
-    {
-        foreach (var p in new List<Passive>(_passives))
-            if (p is Buff)
-            {
-                p.Teardown(this);
-                _passives.Remove(p);
-            }
-        RefreshBuffHud();
-        GD.Print("[DEBUG] cleared granted buffs");
     }
 
     private static readonly Color StunSweepColor = new(1.0f, 0.85f, 0.2f, 0.6f); // the gold tint on a stun-swept enemy

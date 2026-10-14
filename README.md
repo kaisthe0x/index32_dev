@@ -57,6 +57,7 @@ sprites/characters/   Source pixel-art sheets, one folder per character
 sprites/enemies/      Source enemy sheets, one folder per enemy
 sprites/creatures/    Source sheets of ambient creatures (the bird) -- sliced in code, no generated resource
 scripts/creatures/    Ambient creatures (Bird)
+scripts/debug/        DEBUG tools only -- the developer keys, recording mode, the compile-time print (see scripts/debug/README.md)
 tools/                Generator + verification scripts (not shipped)
 ```
 
@@ -66,7 +67,7 @@ warnings — a warning fails the build (`docs/standards.md`, rule `V1`). Every b
 when, configuration, seconds spent in the C# compile step, and the number of source files. A build with nothing to
 recompile adds nothing. The editor shows build messages only in its **MSBuild** panel, so when the game is started
 from the editor (F5) it prints the latest line itself, first thing in the **Output** panel:
-`Last C# compile: 2026-10-09 17:39:55  Debug  1.33 s  145 files` (`helpers/BuildLog.cs`, a `DEBUG` aid that does
+`Last C# compile: 2026-10-09 17:39:55  Debug  1.33 s  145 files` (`scripts/debug/BuildLog.cs`, a `DEBUG` aid that does
 nothing in an exported game). A full compile of the game is about 1.4 s (2026-10-09).
 
 ## Controls
@@ -84,8 +85,12 @@ nothing in an exported game). A full compile of the game is about 1.4 s (2026-10
 | Tab (LB) | `vial_cycle` | Select the next carried vial (the HUD frames the selected one) |
 | E | `interact` | Use the stall you're standing at — the **Figmenter** (start a brew with fada figs, collect the wine), **Needle Point** (shots) or **Dekken** (perks); a shop menu closes with E / Esc. Registered in code by `Stall` |
 | F (D-pad up) | `wine_drink` | Drink the carried **fig wine** — instant, mid-fight. Its buff joins you for the run at the wine's current rarity. Registered in code by `WineControls`. |
-| Z / X | `debug_damage` / `debug_heal` | Dev only |
+| Z / X | `debug_damage` / `debug_heal` | Dev only — hurt the player / give one block of Ruh |
 | 0 | `debug_respawn` | Dev only — rebuild the current level fresh |
+| B / N | — | Dev only — grant the next catalog buff / clear the granted buffs |
+| H | — | Dev only — **recording mode** on / off: just Khalid and the arena (no HUD, no enemies, the stalls don't open), for capturing footage. Either way the arena is rebuilt |
+
+The dev keys all live in `scripts/debug/` (`DebugTools`) — see `scripts/debug/README.md`.
 
 Bound to **physical** keycodes, so they stay in the same place on AZERTY/Dvorak.
 Rebind under `Project > Project Settings > Input Map`.
@@ -135,8 +140,7 @@ platform. Fully automatic — no aiming, no pumping. (This replaced an earlier c
 
 **Which character you play is chosen in code.** In-game Q/E switching is **gone** — set the
 **`START_CHARACTER`** constant near the top of `scripts/run/RunManager.cs` to any id in
-`CharacterConfig.Ids` (`khalid` — the others are parked in `playground/`). The dev keys (Z/X
-debug damage/heal, `0` rebuild-level) live in that same file.
+`CharacterConfig.Ids` (`khalid` — the others are parked in `playground/`).
 
 **The game is a roguelite run** (premise: [`docs/game-design.md`](docs/game-design.md)). At run start
 you **pick an attack** (locked for the run) from an **inventory-style grid of weapon icons** (`AttackSelect`) —

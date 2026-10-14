@@ -34,6 +34,7 @@ public partial class RunManager : Node2D
     private DeathSequence _death = null!;
     private VialControls _vials = null!;
     private WineControls _wine = null!;
+    private DebugTools _debug = null!;
     private Music _music = null!;
     private Sfx _sfx = null!;
     private PackedScene _ruhOrb = null!, _liraScene = null!, _fadaFigScene = null!;
@@ -72,6 +73,8 @@ public partial class RunManager : Node2D
         AddChild(_vials);
         _wine = new WineControls(_player, _sfx);
         AddChild(_wine);
+        _debug = new DebugTools(_player, BuildArena); // DEBUG: the developer keys (scripts/debug/)
+        AddChild(_debug);
 
         Engine.TimeScale = 1.0;
         Input.MouseMode = Input.MouseModeEnum.Hidden; // hide the cursor during play; menus re-show it while open
@@ -114,8 +117,11 @@ public partial class RunManager : Node2D
             _spawning = false;
             _camera.ZoomToPlay();
         }
-        TickRound(delta);
-        _pressure.Tick(delta, _round);
+        if (!_debug.Recording) // DEBUG: recording mode holds the round (scripts/debug/)
+        {
+            TickRound(delta);
+            _pressure.Tick(delta, _round);
+        }
         _birds.Tick(delta);
         _camera.Follow(_player, delta);
     }
@@ -410,23 +416,5 @@ public partial class RunManager : Node2D
             GlowHdrThreshold = 1.0f,
         };
         AddChild(new WorldEnvironment { Environment = env });
-    }
-
-    /// <summary>DEBUG keys: rebuild the arena, hurt / refill the player, grant / clear catalog buffs.</summary>
-    public override void _UnhandledInput(InputEvent @event)
-    {
-        if (@event.IsActionPressed("debug_respawn"))
-        {
-            BuildArena();
-            return;
-        }
-        if (@event.IsActionPressed("debug_damage"))
-            _player.TakeDamage(12.0f);
-        else if (@event.IsActionPressed("debug_heal"))
-            _player.Ruh += Player.RuhPerBlock;
-        else if (@event is InputEventKey k && k.Pressed && !k.Echo && k.Keycode == Key.B)
-            _player.DebugGrantNextBuff();   // DEBUG: cycle-grant catalog buffs
-        else if (@event is InputEventKey k2 && k2.Pressed && !k2.Echo && k2.Keycode == Key.N)
-            _player.DebugClearBuffs();
     }
 }

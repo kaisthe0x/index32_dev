@@ -19,7 +19,7 @@ namespace MyGame;
 [GlobalClass, Tool]
 public partial class LevelLayout : Node2D
 {
-    private const string StallGroup = "stalls"; // the group every stall scene's root is in (scenes/things/)
+    public const string StallGroup = "stalls"; // the group every stall scene's root is in (scenes/things/)
 
     /// <summary>Put the layout's layers — and the stalls placed in it — at their <see cref="WorldZ"/>, at runtime AND in
     /// the editor (this is a [Tool] for that only), so what you paint sits in the same order you'll see in the game,
