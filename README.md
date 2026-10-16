@@ -1386,7 +1386,12 @@ idle-reference rules apply.
 
 The sheets are **repaletted** (collapsed from hundreds/thousands of AI-shading colours to ~5–15)
 by the `grunt` profile in the art repo's repalette tool, each enemy carrying its own **body hue**
-(`GRUNT_ENEMIES` there — Nasen blue, Mazab crimson, …). In-engine they wear a **shared accent-glow**
+(`GRUNT_ENEMIES` there — Nasen blue, Mazab crimson, …).
+**Since 2026-10-15 they are FLAT, like Khalid:** no outline, and one colour per part (Kebus, Ein, Ventilator, Kroj)
+or two tones per part for the enemies drawn in one colour family (Baghel, Mazab, Matat, Tarri, Breski, Nasen) — the
+looks are data in the art repo's `tools/repalette/flat_looks.py`. Watch the glow below: a flat base colour that is
+bright and saturated enough (Mazab's, Matat's and Breski's bodies, Tarri's yellow, Ventilator's red, Kebus's skin)
+now covers most of the body, so more of it blooms than when it was one shade among darker ones. In-engine they wear a **shared accent-glow**
 material — `resources/enemy_glow.tres` → `vfx/shaders/enemy_glow.gdshader`, applied to every enemy
 sprite in `scripts/enemies/Enemy.cs` (`GLOW_MATERIAL`). It gates on saturation + brightness so **only the bright accent**
 (eyes / orb / iris) blooms while the dark body stays flat — a fraction of Khalid's glow, so they read as

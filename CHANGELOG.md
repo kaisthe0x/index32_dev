@@ -6,6 +6,29 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-16 — `new-shit` — The enemies and Kroj in flat colours
+
+### Every enemy flat, no outlines, to match Khalid
+
+- **What:** all 36 enemy sheets and Kroj's 5 now have no outline. Kebus, Ein, Ventilator and Kroj use one colour per
+  part (Khalid's look); Baghel, Mazab, Matat, Tarri, Breski and Nasen use two tones per part — a base and a darker
+  tone kept inside the silhouette — because each is drawn in one colour family and one colour turned them into solid
+  silhouettes. Baghel and Breski take a lighter pair than the rest.
+- **Changed:** `sprites/enemies/*/*_frames.png` (36), `sprites/wardens/kroj/*_frames.png` (5), from `index32_art`
+  `124b736`; `README.md` (Enemy sprites).
+- **Why / how:** the owner wanted the enemies to match the flat Khalid; he saw trials of one colour per part for all
+  ten, and two tones for the six that went solid, before choosing. Built properly this time: the art repo's new
+  `tools/repalette/flatten_to_aseprite.py` applies each subject's look, which is data in
+  `tools/repalette/flat_looks.py` (which colours each part takes over, and the colour or base + dark pair they become).
+  It reproduces the flat Khalid exactly when run on him. Same sheet sizes and frame counts, so the enemy SpriteFrames
+  in `resources/` did not change.
+- **Could affect:** how every enemy reads. **Known, not fixed yet:** the enemy glow (`vfx/shaders/enemy_glow.gdshader`)
+  blooms any colour bright and saturated enough, and several flat base colours now cover most of a body — Mazab's,
+  Matat's and Breski's bodies, Tarri's yellow, Ventilator's red, Kebus's skin. In play Mazab reads as glowing red
+  linework instead of a flat body. Next: tune the shader's thresholds (agreed with the owner).
+- **Tested:** each sheet matches the approved dry run; build 0 warnings; the frames check is clean; the arena boots
+  headless with only the old exit-time line; 1280×720 renders of the arena show the enemies in place.
+
 ## 2026-10-15 — `new-shit` — Khalid's flat art cleaned up; the floor's decoration row removed
 
 ### Khalid: the owner's cleanup of every animation
