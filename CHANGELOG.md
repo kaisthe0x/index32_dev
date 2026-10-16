@@ -6,6 +6,30 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-15 — `new-shit` — Khalid's flat art cleaned up; the floor's decoration row removed
+
+### Khalid: the owner's cleanup of every animation
+
+- **What:** the owner cleaned stray pixels out of all 28 flat Khalid animations and reworked Swing (still unused in
+  the game). 13–456 visible pixels changed per sheet.
+- **Changed:** `sprites/characters/khalid/*_frames.png` (28 sheets, from `index32_art` `9ec0fb2` (Bakshen) and
+  `e485714` (the rest)).
+- **Why / how:** the flatten left stray pixels where shades had sat beside each other; the owner fixed them by hand in
+  the `.aseprite` masters. Same sheet sizes and frame counts, so `resources/characters/khalid.tres` did not change.
+- **Could affect:** Khalid's look only.
+- **Tested:** the frames check is clean, build 0 warnings, the arena boots headless with only the old exit-time line.
+  Every sheet is in the 6 flat colours except two stray spots left in the art: Dash frame 3 has 8 pixels of
+  `#821C1C` (one step off the hair `#811A1A`) around x 79–82, y 55, and Fall frame 3 one semi-transparent `#4C5550`
+  pixel at x 64, y 75. Both still draw (the palette shader takes the nearest colour); they are the owner's to fix.
+
+### The stage: the decoration row along the floor removed
+
+- **What:** the owner removed the row of 98 tileset3 tiles (rocks and plants) along the top of the floor, x -800 to
+  2848, in `scenes/levels/stage1/stage1_v2.tscn`.
+- **Could affect:** looks only — tileset3 is decoration with no collision (`DECOR_SHEETS` in
+  `tools/gen_terrain_tileset.gd`), so movement, spawning and the stalls are unchanged.
+- **Tested:** the arena boots headless. Not looked at in a window by me.
+
 ## 2026-10-14 — `new-shit` — Khalid in flat colours
 
 ### Every Khalid animation: one colour per part, no outlines
