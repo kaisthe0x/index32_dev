@@ -7,7 +7,7 @@ namespace MyGame;
 /// at the enemy's <c>Enemy.FigChance</c> (10 % default, per-kit override). It pops out of the corpse with a little
 /// bounce + tumble (RigidBody physics) and settles on the ground; the player collects it by physically touching it —
 /// the child <c>Pickup</c> Area detects the player's body. There's no magnet by default — only while the player holds the
-/// Dekken Magnet perk (<c>Player.FigMagnetRange</c> &gt; 0) does a fig in range fly to him (<see cref="Magnetize"/>).
+/// lottery's Fig Frenzy (<c>Player.FigMagnetRange</c> &gt; 0) does a fig in range fly to him (<see cref="Magnetize"/>).
 /// </summary>
 public partial class FadaFig : RigidBody2D
 {
@@ -17,7 +17,7 @@ public partial class FadaFig : RigidBody2D
     [Export] public float LifeSeconds { get; set; } = 30.0f;   // despawn if never collected (avoids clutter)
     [Export] public float MagnetSpeed { get; set; } = 540.0f;  // used only once magnetized
 
-    /// <summary>The player whose Magnet perk can pull this fig in (set by RunManager at spawn).</summary>
+    /// <summary>The player whose Fig Frenzy can pull this fig in (set by RunManager at spawn).</summary>
     public Player? Collector;
 
     private Node2D? _magnetTarget;

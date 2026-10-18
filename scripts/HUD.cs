@@ -6,7 +6,7 @@ namespace MyGame;
 /// The player HUD — an autoload, so it exists in every scene; it binds to whatever <see cref="Player"/> enters the tree
 /// and hides when there's none. Built entirely in code. It owns the screen layout and the binding; each part is its own
 /// class: the <see cref="HudGauge"/> (health stars, Ruh orbs, special bar), the <see cref="RoundBanner"/> (ROUND / n LEFT
-/// / BEST, top centre), the Lira + Fada Fig <see cref="CurrencyCounter"/>s, the <see cref="VialRow"/> and the <see cref="WineSlot"/> (top-left), the
+/// / BEST, top centre), the Lira + Fada Fig <see cref="CurrencyCounter"/>s and the <see cref="WineSlot"/> (top-left), the
 /// <see cref="BuffList"/> (top-right), the <see cref="OffscreenMarkers"/> (enemy arrows), the
 /// <see cref="LowHealthVignette"/>, and the Esc <see cref="PauseMenu"/>. The run pushes values in through the
 /// <c>Set…</c> methods here.
@@ -23,7 +23,6 @@ public partial class HUD : CanvasLayer
 	private PauseMenu _pauseMenu = null!;
 	private CurrencyCounter _liraCounter = null!;
 	private CurrencyCounter _figCounter = null!;
-	private VialRow _vialRow = null!;
 	private WineSlot _wineSlot = null!;
 	private RoundBanner _roundBanner = null!;
 	private BuffList _buffList = null!;
@@ -66,8 +65,6 @@ public partial class HUD : CanvasLayer
 		currencies.AddChild(_liraCounter);
 		_figCounter = new CurrencyCounter("res://assets/things/fada_fig.png");
 		currencies.AddChild(_figCounter);
-		_vialRow = new VialRow();
-		currencies.AddChild(_vialRow);
 		_wineSlot = new WineSlot();
 		currencies.AddChild(_wineSlot);
 
@@ -83,10 +80,6 @@ public partial class HUD : CanvasLayer
 	/// <summary>Show round <paramref name="round"/> (0 = before round 1: blank), <paramref name="left"/> quota enemies
 	/// remaining (0 = hidden — RunManager only passes it once few remain), and the <paramref name="best"/> round record.</summary>
 	public void SetRound(int round, int left, int best) => _roundBanner.SetRound(round, left, best);
-
-	/// <summary>Show the carried Dekken vials: a held vial's name per slot, the <paramref name="selected"/> one (what the
-	/// drink key drinks) framed in the accent colour.</summary>
-	public void SetVials(IReadOnlyList<string> names, int selected) => _vialRow.SetVials(names, selected);
 
 	/// <summary>Show the carried fig wine at its rarity (null = the empty wine slot).</summary>
 	public void SetWine(Wine? wine, WineRarity rarity) => _wineSlot.SetWine(wine, rarity);

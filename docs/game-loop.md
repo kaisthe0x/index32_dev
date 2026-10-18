@@ -4,7 +4,7 @@
 [§ Build order](#build-order)).** This is the source of truth for the run structure. Numbers are starting points —
 we tune live in engine (the house rule: verify by *running* Godot, never assume).
 
-Companion docs: **`buff-catalog.md`** (every buff, sorted into Needle Point / Dekken / Figmenter),
+Companion docs: **`buff-catalog.md`** (every buff, sorted into Needle Point / the lottery stall / Figmenter),
 `rewards-design.md` (raw buff wishlist), `art-direction.md` (stage-as-art-unit), `game-design.md` (old-loop
 reference).
 
@@ -111,7 +111,8 @@ at the clear) and the player collects it by touching it, **whenever they choose*
 
 **Surge only (for now).** Ruh fills by landing hits (a special's own hits grant none) and is spent on the Surge
 (Aegis: 5 s invulnerability, 1 charge). The Max Ruh drop is the other way to refill it. *(The rainchecked "healing
-point" is dropped — healing is a Dekken perk, § Economy.)*
+point" is dropped. There is no bought heal at all since 2026-10-16: health comes back from "when X, heal" triggers —
+the lottery's heal items and the Figmenter's lifesteal, capped per round — and the Nem surge, § Economy.)*
 
 ---
 
@@ -134,13 +135,13 @@ round clears when both are dead. **For now: grunts only.** Kroj stays out of the
 |---|---|---|
 | Drops | **every kill**, in today's fig amounts (Chip 1 · Mid 2 · Strong 3) | a **per-enemy chance** per kill: **15 %** default (10 % until 2026-10-11), **Kebus 25 %** (the hardest grunt); tougher ranks / Wardens tuned later. A hit drops **1** fig |
 | Pickup | flies to Khalid like Ruh (the magnet pickup); its own pickup sfx *(placeholder until the real sound lands)*; art `index32_art/art/things/lira.png` | as today |
-| Spent on | **Needle Point** shots + **Dekken** perks | the **Figmenter** (+ future altars) |
+| Spent on | **Needle Point** shots + **lottery** pulls | the **Figmenter** (+ future altars) |
 | HUD | a counter (replaces the fig milestone ring) | a counter |
 
 Neither carries over between runs — carrying currency out would let a player hoard power into the next run.
 
 **The two currencies never compete:** Lira only buys at the stalls, figs only gamble at the Figmenter. The real choice is
-inside Lira: **grow a permanent stat** (Needle Point) or **buy for the round ahead** (Dekken).
+inside Lira: **grow a permanent stat** (Needle Point) or **gamble on a boost right now** (the lottery stall).
 
 ### The three stalls differ in KIND, not just duration
 
@@ -149,10 +150,10 @@ The rule that sorts every buff (`buff-catalog.md`):
 | Stall | Sells | Examples | Feel |
 |---|---|---|---|
 | **Needle Point** | **numbers** on Khalid's body (a "shot") | +dash, +air jump, run speed, jump height, attack damage | "I'm stronger this round" |
-| **Dekken** | **utility / tactics** (a "perk") | heal, fast travel to the Figmenter, fig chance, pickup magnet range, a one-round shield | "I'm prepared this round" |
+| **The lottery stall** | a **random boost, now** (an "item"), lasting a number of kills or uses | Ruh charges, specials off cooldown, fig and Lira bonuses, a few heal triggers | "let's see what I get" |
 | **Figmenter** | **new mechanics** that define the build | Zahluq, invuln after a dash, a vortex on the dash, chain hits | "my run plays differently now" |
 
-A stat boost changes a number Khalid already has; a perk changes *how* something works or adds a capability; the
+A stat boost changes a number Khalid already has; a lottery item is a short random boost you can't choose; the
 box's pull is that **its mechanics can't be bought anywhere else**. (A second dash = Needle Point; a dash that
 leaves a vortex = the Figmenter.) A flat "+20 % damage forever" is a number → it's a Needle Point shot, not a Figmenter buff.
 
@@ -173,33 +174,48 @@ run that keeps getting harder).
   ~140 Lira by the end of round 5, ~560 by round 10. Placeholders.
 - **Figs don't touch Needle Point any more** — buying with Lira *is* the upgrade; figs are the Figmenter's currency.
 - **Pauses the game** (it's a menu).
-- **Watch:** a strong player can max all of Needle Point late in a run — after that, Lira only goes to Dekken. The
+- **Watch:** a strong player can max all of Needle Point late in a run — after that, Lira only goes to the lottery. The
   price curve delays it; if late rounds feel Lira-rich, add sinks.
 
-### Dekken — the perk shop
+### The lottery stall — pay, spin, take what lands
 
-- **Stock:** **5 random perks, rerolled every round**; no duplicate in the five. A perk gated to a special (Wider
-  Pull → Come Closer) is only stocked while that special is equipped.
-- **Duration: per perk** — a number of rounds, **one use** (fast travel), or **the whole run** (fig chance). A perk is
-  **active at once**; a timed perk's rounds COUNT the one it's bought in, so the timed perks are **2 rounds = this one
-  and the next** (bought mid-round, 1 could end seconds later, and Prepared — which fires at a round's start — would
-  never fire). Dekken
-  stays mostly temporary on purpose: permanent power comes from Needle Point + the Figmenter; Dekken is for the round ahead
-  (and keeps Lira useful once Needle Point is maxed). If a perk feels like a chore, lengthen it rather than make it
-  permanent.
-- **Whole-run perks leave the pool** once bought (they're done for the run and shouldn't take a slot).
-- **Rebuying an active timed perk resets its duration.** Perks have no ranks.
-- **Vials — drink now or keep (2026-10-04):** every perk is sold as a vial. **DRINK** it at the machine (effect at
-  once) or **KEEP** it: the player carries up to **2** vials, **never two of the same kind**, and drinks one later
-  with a single key press — **instant**, mid-fight (Q drinks, Tab picks). A timed perk's rounds start when it's
-  drunk. Whole-run perks are drink-only. *Planned:* Dekken's items become upgradeable across runs with experience
-  points; *Built since:* the stall is a vending
-  machine, and its vials wear Khalid's hair colour (they follow a recolour — `vial_recolor.gdshader`).
-- **Pauses the game.**
-- Placeholder perks: **Heal** (a block, 20 Lira) · **Fast Travel** (teleport to the Figmenter, one use, 20 Lira) ·
-  **Fig Chance** (+5 % fig chance on every enemy, whole run, 40 Lira) · **Magnet** (loose figs within 400 px fly to
-  you, 15 Lira) · **Shield** (blocks the first hit each round, 25 Lira) · **Prepared** (surge fires free at round start,
-  25 Lira) · **Wider Pull** (Come Closer +2 targets, 15 Lira).
+*(Replaced Dekken, the perk shop, on 2026-10-16 — the owner's design over five councils that day. "LotteryStall" is a
+working name; candidates the owner was given: Longshot, The Drop, Fluke, Moonshot, Maybeam.)*
+
+- **Pay first, then spin.** **E** pays at once and the orb in the beam spins ~**1 s** and lands on a random item. A
+  pull can't be declined — the tension is the money already spent (Risk of Rain's chests, the CoD box). Declining for
+  free would make the best play "stand in the beam until Heal comes round".
+- **Live, no pause, no menu.** Rounds never stop, so a pull is taken under fire — the only stall where shopping is
+  itself a risk.
+- **Instant, and nothing is carried.** The item takes effect when the orb lands; there are no vials, carry slots, Q or
+  Tab any more (deleted 2026-10-16). "When to pull" is the decision.
+- **Price:** **20** Lira, **+10** for each further pull in a round, **4 pulls** a round at most; both reset when a round
+  starts. The prompt shows the next price and the pulls left.
+- **The wheel only holds what would help right now** — an item gated to a special you don't have, a second Second
+  Wind, or one that would do nothing (Ruh Flask at full Ruh) is left out of that spin.
+- **Items last KILLS or USES, never "this round"** — with no break between rounds, a timed item pulled late would be
+  wasted.
+- **A duplicate lasts longer, never stronger** — two Bounties don't pay ×4 (more Lira → more pulls → more Bounties
+  would run away).
+- **No bought heal.** Health comes back from **heal triggers**, which are at most **1 in 5** of any spin, and ALL
+  triggered healing (these + the Figmenter's lifesteal) shares a cap of **2 blocks a round** — a heal the cap stops
+  shows **CAP**. Second Wind, the emergency one, is not capped.
+
+| Item | Lasts | Weight | Stacking | Heals | Note |
+|---|---|---|---|---|---|
+| **Ruh Flask** | instant | 4 | happens again | | +2 Ruh charges; off the wheel at full Ruh |
+| **Cooldown Flush** | 3 uses | 4 | +3 uses | | your next specials skip their cooldown |
+| **Fig Frenzy** | 25 kills | 4 | +25 kills | | +15 % fig odds; loose figs within 400 px fly to you |
+| **Bounty** | 25 kills | 4 | +25 kills | | ×2 Lira per kill |
+| **Wider Pull** | 25 kills | 4 | +25 kills | | Come Closer pulls 2 more; only with Come Closer (kills, not casts: the pull reads the bonus after the cast) |
+| **Crimson Vortex** | 25 kills | 4 | +25 kills | | every dash leaves a vortex where it started; it spins 1.3 s and hits each enemy in it once (18) |
+| **Leech Draught** | 30 kills | 1 | +30 kills | ✓ | 10 % of landed hits heal half a block |
+| **Tithe** | 8 kills | 1 | +8 kills | ✓ | every 4th kill heals half a block |
+| **Second Wind** | once | 1 | one at a time | ✓ | at your last half-block, heal a block |
+
+All numbers are placeholders (`configs/Lottery.cs`). **Last Call** (heal at round end per kills) was cut: with
+kill-measured items it overlapped Tithe. *Later, not now:* more items (8–10) including rare "jackpot" faces, item
+icons for the orb, pairs of items with a named bonus, stacks that upgrade, the wine biasing the wheel.
 
 ### Figmenter — fig wine, the permanent build
 
@@ -224,18 +240,20 @@ run that keeps getting harder).
 
 ### Placement + interaction
 
-- Each layout places a **`Dekken`** and a **`NeedlePoint`** marker (easy to reach, near spawn) and
-  the **Figmenter**; none of them moves. One **interact** key + an on-screen prompt for all three.
-- HUD: the Lira + fig counters; the active shots/perks as small icons with **rounds remaining**.
+- Each layout places the **lottery stall** and **Needle Point** (easy to reach, near spawn) and the **Figmenter**
+  (scenes in `scenes/things/`); none of them moves. One **interact** key + an on-screen prompt for all three.
+- HUD: the Lira + fig counters; the owned shots and the held lottery items in the top-right list (an item with its
+  kills / uses left).
 - **Round 1** starts at 0 Lira — the first purchase comes after round 1 (intentional).
 
 ### Later ideas — noted, not in this build
 
-- ~~**The Vial**~~ — **built 2026-10-04** as Dekken's drink-now-or-keep vials (two carry slots, § Dekken).
-- **Build-gated places (noted 2026-10-05).** Today one stall already works this way: Dekken sits on a platform you
-  can only reach with enough **air jumps / jump height** from Needle Point. Extend that into a general idea — parts of
+- ~~**The Vial**~~ — built 2026-10-04 as Dekken's drink-now-or-keep vials; **removed 2026-10-16** with Dekken (the
+  lottery's items take effect at once).
+- **Build-gated places (noted 2026-10-05).** Until the flat arena (2026-10-12) one stall worked this way:
+  Dekken sat on a platform you could only reach with enough **air jumps / jump height** from Needle Point. Extend that into a general idea — parts of
   the map, and what's on them, are locked behind what your **build** can do, each by a different stat:
-  - **Mobility — jumps:** high or far platforms (what Dekken is now).
+  - **Mobility — jumps:** high or far platforms (what Dekken's spot was).
   - **Mobility — dashes:** a run of **traps / hazards** you can only cross with enough **dash charges**.
   - **Both:** routes that need buffed jumps **and** dashes together.
   - **Attack power:** something that only opens to enough **damage** (a barrier or door with a health bar, a guard
@@ -256,13 +274,14 @@ run that keeps getting harder).
 
 Things a player unlocks **once, for all future runs** — kept separate from the in-run economy (Lira and figs
 always reset). Added only if the loop needs more variety; **nothing we build now should design these out**
-(shot/perk durations are per-buff data precisely so this can raise them later). How they're earned (runs played,
+(shot / lottery-item durations are per-item data precisely so this can raise them later). How they're earned (runs played,
 best round, or a persistent meta-currency) is undecided.
 
-- **Longer perks / deeper shots:** certain Dekken perks last **more rounds**, or Needle Point shots get a higher max
+- **Longer items / deeper shots:** certain lottery items last **more kills**, or Needle Point shots get a higher max
   rank / a cheaper rank I — permanently.
-- **Dekken upgrades through experience** (owner, 2026-10-04): the more you play, the more experience points you
-  earn, and they upgrade Dekken's vials for all future runs (e.g. more carry slots, stronger or longer vials).
+- **The lottery stall upgrades through experience** (the owner's idea of 2026-10-04 for Dekken's vials): the more you
+  play, the more experience points you earn, spent on the stall for all future runs (what an upgrade does to a random,
+  short-lived item — more pulls, a cheaper first pull, longer items — is undecided).
 - **Sigils** — pre-run run-rule modifiers with tradeoffs (the long-standing idea in the glossary).
 
 ---
@@ -321,14 +340,14 @@ Death ends the run (permadeath). The only goal is to get further than last time.
 The existing `Buff : Passive` + `Trigger` + `ModifyTuning` foundation fits. Every buff, sorted by stall:
 **`buff-catalog.md`** (its Seal category is retired).
 
-- **Sources (§ Economy):** Needle Point shots (numbers, N rounds, levelled), Dekken perks (utility, per-perk
-  duration), Figmenter buffs (mechanics, permanent, five strengths by the wine's rarity). A buff belongs to **one** pool.
+- **Sources (§ Economy):** Needle Point shots (numbers, permanent, levelled), lottery items (random, paid first,
+  lasting kills or uses), Figmenter buffs (mechanics, permanent, five strengths by the wine's rarity). A buff belongs to **one** pool.
 - **Levels replace tiers:** only Needle Point shots scale, by **level** (grey → green → blue → purple → gold → …);
   the catalog's five per-tier values become the level values. Figmenter buffs use one value.
-- **Persistence:** **timed-seconds** (a proc's short in-combat effect) | **N rounds** (shots, timed perks) |
-  **one use** (e.g. Fast Travel) | **the whole run** (Figmenter buffs, whole-run perks).
-- **Stacking:** different buffs stack freely — **no cap on active buff count**. The same shot/perk **resets** its
-  duration; the Figmenter never gives a duplicate. Shot + Figmenter effects on the same stat **add** (e.g. +20 % from a shot
+- **Persistence:** **timed-seconds** (a proc's short in-combat effect) | **N kills / uses** (lottery items) |
+  **instant** (Ruh Flask) | **the whole run** (Needle Point shots, Figmenter buffs).
+- **Stacking:** different buffs stack freely — **no cap on active buff count**. A second copy of a lottery item **adds** its
+  kills / uses (longer, never stronger); the Figmenter never gives a duplicate. Shot + Figmenter effects on the same stat **add** (e.g. +20 % from a shot
   and +10 % from a Figmenter buff = +30 %).
 - **Each buff record carries:** its pool · persistence + duration · the level values (shots) or its single value
   · a trigger.
@@ -359,6 +378,7 @@ The existing `Buff : Passive` + `Trigger` + `ModifyTuning` foundation fits. Ever
 - **E2. Needle Point** *(built 2026-09-28; made permanent 2026-09-29)* — the shot catalog, bought rank by rank with
   Lira at a rising price, permanent for the run (always open since 2026-10-03).
 - **E3. Dekken** *(built 2026-09-28)* — 5 rotating perks, per-perk durations, whole-run perks leaving the pool.
+  **Replaced 2026-10-16 by the LOTTERY STALL** (§ The lottery stall): pay first, a random item at once, no vials.
 - **E4. Figmenter rework** *(built 2026-10-04)* — real-time spin → offer → take/decline; the mechanics pool
   (never a duplicate), the rare special-swap; Fast Travel goes to it. **Replaced 2026-10-11 by FIG WINE** (§ Figmenter):
   a brew of a few rounds (5 at first, 2 since 2026-10-11), a carried bottle that ages through five rarities, the buff as strong as the wine. (The teddy bear — refund + relocation between
@@ -395,13 +415,13 @@ The existing `Buff : Passive` + `Trigger` + `ModifyTuning` foundation fits. Ever
 - **Round drop** — a floating power-up (Max Health, Max Ruh) that lasts the round.
 - **Warden** — the elite of the Warden rounds (every 10th; later). Kroj is the first.
 - **Ruh** — the meter (surge).
-- **Lira** — the common currency (every kill): buys shots and perks. **Fada Figs** — the rare currency (a
+- **Lira** — the common currency (every kill): buys shots and lottery pulls. **Fada Figs** — the rare currency (a
   per-enemy chance): starts a brew at the Figmenter.
 - **Needle Point** — the stat stall; sells **shots** (permanent numbers, bought rank by rank).
-- **Dekken** — the perk shop; **5 rotating perks** (utility, per-perk duration).
+- **The lottery stall** — pay first, the orb spins and lands on a random item that takes effect at once (working name;
+  replaced **Dekken**, the perk shop, 2026-10-16).
 - **Figmenter** — spend figs for a permanent build-defining buff.
 - **Rank** — a shot's level, one per purchase (grey → green → blue → purple → gold).
-- **The Vial** — later idea: carry one Dekken perk to use when you choose.
 - **Redere Shield** — default Special: a frontal damage-block. **Aegis** — default Surge (5 s invuln, 1 charge).
 - **Sigil** — future pre-run run-rule modifier.
 
@@ -413,7 +433,7 @@ The existing `Buff : Passive` + `Trigger` + `ModifyTuning` foundation fits. Ever
 - Rank mix curve (when each rank enters, how fast the mix shifts) and per-rank stat multipliers — live-tuned.
 - Round-drop odds + the minimum distance from the player.
 - Every § Economy placeholder (prices, price growth, durations, max ranks, Figmenter cost,
-  the fig-chance perk's step) — live-tuned.
+  the lottery's prices, pulls, item counts and the heal cap) — live-tuned.
 - Whether enemy rank colours adopt the shot-level ladder (grey/green/blue/purple/gold) for one "strength" colour
   language.
 - How meta-progression unlocks are earned (§ Meta-progression) — undecided, and only if the loop needs it.

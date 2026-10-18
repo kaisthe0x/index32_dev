@@ -44,8 +44,6 @@ public static class SfxCharacters
         ["spear.6"] = "res://sfx/character/attack/spear/spear_6.wav",
         ["spear.9"] = "res://sfx/character/attack/spear/spear_9.wav",
         ["spear.13"] = "res://sfx/character/attack/spear/spear_13.wav",
-        ["bakshen"] = "res://sfx/character/attack/bakshen/bakshen.wav", // one big charged slash (no per-frame hits)
-        ["zahluq"] = "res://sfx/character/attack/zahluq/zahluq.wav", // the dash-attack whoosh (on the burst frame)
         // Rope Dart (upgraded Twin Reaper) — hit frames 6/9/14/16. A missing/omitted cue is just silent.
         ["rope_dart.6"] = "res://sfx/character/attack/rope_dart/rope_dart_6.wav",
         ["rope_dart.9"] = "res://sfx/character/attack/rope_dart/rope_dart_9.wav",
@@ -54,6 +52,8 @@ public static class SfxCharacters
         ["frenemy"] = "res://sfx/character/special/frenemy/frenemy.wav",
         ["ground_breaker.3"] = "res://sfx/character/special/ground_breaker/ground_breaker_3.wav",
         ["ground_breaker"] = "res://sfx/character/special/ground_breaker/ground_breaker.wav",
+        ["bakshen"] = "res://sfx/character/special/bakshen/bakshen.wav", // one big charged slash (no per-frame hits)
+        ["zahluq"] = "res://sfx/character/special/zahluq/zahluq.wav", // the dash-attack whoosh (on the burst frame)
         // SURGES (passive abilities on the `surge` button) — an activation cue played by CODE on trigger, not frame-synced.
         ["surge_aegis"] = "res://sfx/character/surge/aegis/surge_aegis.wav",
         ["surge_jnoon"] = "res://sfx/character/surge/jnoon/surge_jnoon.wav", // PLACEHOLDER (copy of aegis)
@@ -110,8 +110,8 @@ public static class SfxCharacters
             ["attack_ora_ora"] = new() { [2] = "ora_ora.2", [4] = "ora_ora.4" },
             ["attack_cherry_shots"] = new() { [3] = "cherry_shots.3", [7] = "cherry_shots.7" },
             ["attack_spear"] = new() { [6] = "spear.6", [9] = "spear.9", [13] = "spear.13" },
-            ["attack_bakshen"] = new() { [3] = "bakshen" }, // slash sound on the RELEASE frame (3), not the 1s windup (frame 1) — so a stagger mid-windup makes no sound
-            ["attack_zahluq"] = new() { [2] = "zahluq" },
+            ["special_bakshen"] = new() { [3] = "bakshen" }, // slash sound on the RELEASE frame (3), not the 1s windup (frame 1) — so a stagger mid-windup makes no sound
+            ["special_zahluq"] = new() { [2] = "zahluq" },
             ["special_ground_breaker"] = new() { [1] = "ground_breaker", [3] = "ground_breaker.3" },
             ["special_frenemy"] = new() { [3] = "frenemy" },
             ["special_come_closer"] = new() { [3] = "come_closer" },

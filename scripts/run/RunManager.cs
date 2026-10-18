@@ -14,15 +14,15 @@ namespace MyGame;
 /// <see cref="EnemySpawner"/> (who spawns and where, and the living list), <see cref="PressureSpawns"/> (the
 /// stand-still kamikazes and the edge Ventilator), <see cref="ArenaGround"/> (where things can stand),
 /// <see cref="RunCamera"/> (follow and zoom), <see cref="DeathSequence"/> (what plays between dying and the restart),
-/// <see cref="ArenaBackdrop"/> (what is drawn behind the arena), <see cref="VialControls"/> (drinking carried
-/// vials), <see cref="WineControls"/> (drinking the carried fig wine) and <see cref="BirdFlock"/> (the birds perched around the arena). The spawner, the ground, the pressure
-/// spawns and the birds are rebuilt with each arena.</para>
+/// <see cref="ArenaBackdrop"/> (what is drawn behind the arena), <see cref="WineControls"/> (drinking the carried fig
+/// wine) and <see cref="BirdFlock"/> (the birds perched around the arena). The spawner, the ground, the pressure spawns
+/// and the birds are rebuilt with each arena; the stalls get this run's ledgers (<see cref="ShotLedger"/>,
+/// <see cref="LotteryLedger"/>, <see cref="FigmenterLedger"/>).</para>
 /// </summary>
 [GlobalClass]
 public partial class RunManager : Node2D
 {
     private static readonly Vector2 DamageNumberOffset = new(0, -42);
-    private static readonly Vector2 FastTravelOffset = new(-28, -4); // where Fast Travel drops you, beside the Figmenter
     private const float DeathY = 320.0f;   // falling below this world Y kills the player
     private const string StartCharacter = "khalid";
     private const string StageDir = "res://scenes/levels/stage1/";
@@ -32,7 +32,6 @@ public partial class RunManager : Node2D
     private Player _player = null!;
     private RunCamera _camera = null!;
     private DeathSequence _death = null!;
-    private VialControls _vials = null!;
     private WineControls _wine = null!;
     private DebugTools _debug = null!;
     private Music _music = null!;
@@ -52,9 +51,8 @@ public partial class RunManager : Node2D
     private EnemySpawner _spawner = null!;
     private PressureSpawns _pressure = null!;
     private BirdFlock _birds = null!;
-    private PerkLedger _perks = null!;              // this run's Dekken perks (stock, active, owned)
+    private LotteryLedger _lottery = null!;         // this run's lottery stall (pulls, price, held items)
     private FigmenterLedger _brews = null!;         // this run's Figmenter: the brew in it and the carried wine
-    private Figmenter? _figmenter;                       // Fast Travel's destination
     private Vector2 _playerSpawn = Vector2.Zero;
     private bool _spawning = false;                 // the spawn animation is playing (the camera is zoomed in on it)
 
@@ -69,8 +67,6 @@ public partial class RunManager : Node2D
         _camera = new RunCamera(GetNodeOrNull<Camera2D>("Camera2D"));
         _death = new DeathSequence(_player, _camera, _music);
         AddChild(_death);
-        _vials = new VialControls(_player, _sfx);
-        AddChild(_vials);
         _wine = new WineControls(_player, _sfx);
         AddChild(_wine);
         _debug = new DebugTools(_player, BuildArena); // DEBUG: the developer keys (scripts/debug/)
@@ -198,21 +194,20 @@ public partial class RunManager : Node2D
             _content.AddChild(new LaunchOrb { Position = op });
 
         // The stalls are scenes the layout places (LevelLayout.Placed) — all three are required.
-        _figmenter = layout?.Placed<Figmenter>();
+        var figmenter = layout?.Placed<Figmenter>();
         var needlePoint = layout?.Placed<NeedlePointStall>();
-        var dekken = layout?.Placed<DekkenStall>();
-        if (_figmenter == null || needlePoint == null || dekken == null)
-            GD.PushError("RunManager: the layout must place all three stall scenes (scenes/things/: figmenter, needle_point, dekken).");
+        var lottery = layout?.Placed<LotteryStall>();
+        if (figmenter == null || needlePoint == null || lottery == null)
+            GD.PushError("RunManager: the layout must place all three stall scenes (scenes/things/: figmenter, needle_point, lottery_stall).");
         _brews = new FigmenterLedger(_player);
         _wine.Ledger = _brews;
-        if (_figmenter != null)
-            _figmenter.Ledger = _brews;
+        if (figmenter != null)
+            figmenter.Ledger = _brews;
         if (needlePoint != null)
             needlePoint.Ledger = new ShotLedger(_player); // this run's Needle Point ranks
-        _perks = new PerkLedger(_player, FastTravelToFigmenter, _vials.ShowVials);
-        _vials.Ledger = _perks;
-        if (dekken != null)
-            dekken.Ledger = _perks;
+        _lottery = new LotteryLedger(_player);
+        if (lottery != null)
+            lottery.Ledger = _lottery;
         if (layout != null && layout.EnemySpawns().Count == 0)
             GD.PushError("RunManager: the layout has no EnemySpawns markers — no enemies can spawn.");
 
@@ -249,18 +244,17 @@ public partial class RunManager : Node2D
         _quota = Quota(round);
         _spawned = 0;
         _killed = 0;
-        _player.NotifyRoundStart(); // round-scoped perks re-arm (Shield) / fire (Prepared)
+        _player.NotifyRoundStart(); // the round's budget of triggered healing refills
+        _lottery.OnRoundStart();    // the lottery's pulls and price reset
         _spawnAccum = SpawnInterval(round); // first enemy arrives immediately
         PushRoundHud(); // the HUD plays the ROUND n intro for a new round
         _sfx.Play("round_start");
     }
 
-    /// <summary>The last quota enemy of the round died: timed perks spend a round, Dekken restocks, the Figmenter's
-    /// brew fills a step and a carried wine ages, and the next round
-    /// starts at once — the player never gets a break.</summary>
+    /// <summary>The last quota enemy of the round died: the Figmenter's brew fills a step and a carried wine ages, and
+    /// the next round starts at once — the player never gets a break.</summary>
     private void ClearRound()
     {
-        _perks.OnRoundClear();
         _brews.OnRoundClear();
         StartRound(_round + 1);
     }
@@ -293,15 +287,6 @@ public partial class RunManager : Node2D
                 e.Hunt(Rounds.StragglerSpeedMult, Rounds.HuntWaitSpread);
     }
 
-    /// <summary>Dekken's Fast Travel: put the player right beside the Figmenter.</summary>
-    private void FastTravelToFigmenter()
-    {
-        if (_figmenter == null)
-            return;
-        Nodes.PlaceAt(_player, _figmenter.GlobalPosition + FastTravelOffset);
-        _player.Velocity = Vector2.Zero;
-    }
-
     /// <summary>A quota enemy entered the arena: it counts toward the round and the concurrent cap, and hunts the
     /// player from this moment.</summary>
     private void OnEnemySpawned(Enemy enemy)
@@ -320,11 +305,12 @@ public partial class RunManager : Node2D
         // ("Can't change this state while flushing queries"). Capture the values (the enemy frees) + defer the drop.
         // Every kill pays Lira; a per-kit chance also drops ONE fada_fig (the rare currency). None if it fell off-map.
         Vector2 at = enemy.GlobalPosition;
-        int lira = enemy.LiraDrop;
-        // + the Fig Chance perk — but an enemy that never drops figs (a kamikaze) doesn't start to with it.
+        int lira = enemy.LiraDrop * _lottery.LiraMultiplier; // Bounty
+        // + Fig Frenzy's bonus — but an enemy that never drops figs (a kamikaze) doesn't start to with it.
         bool fig = enemy.FigChance > 0.0f && GD.Randf() < enemy.FigChance + _player.FigChanceBonus;
         if (!enemy.FellOff)
             Callable.From(() => SpawnDrops(at, lira, fig)).CallDeferred();
+        _lottery.OnKill(); // held lottery items count kills
         if (enemy.Optional)
             return; // optional enemies (the sleeper, kamikazes, the Ventilator) aren't part of the round
         _alive -= 1;   // free a slot in the concurrency cap
@@ -352,7 +338,7 @@ public partial class RunManager : Node2D
         if (fig)
         {
             var figDrop = _fadaFigScene.Instantiate<FadaFig>();
-            figDrop.Collector = _player; // the Magnet perk pulls it in when he's close
+            figDrop.Collector = _player; // Fig Frenzy pulls it in when he's close
             _content.AddChild(figDrop);
             Nodes.PlaceAt(figDrop, at + new Vector2((float)GD.RandRange(-10, 10), -12));
         }

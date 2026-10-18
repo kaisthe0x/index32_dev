@@ -6,6 +6,138 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-17 — `new-shit` — Dekken replaced by the lottery stall; triggered healing capped; Crimson Vortex; the art repo reorganised
+
+### The lottery stall: pay first, spin, take what lands
+
+- **What:** Dekken (the perk shop with drink-or-keep vials) is gone; the **lottery stall** stands in its place
+  (`LotteryStall` — a working name). E pays at once (20 Lira, +10 per further pull that round, 4 pulls a round; reset
+  when a round starts), the orb in the owner's dome-and-beam machine spins 1 s and lands on a random item that takes
+  effect immediately. Live: no menu, no pause. Nothing is carried — the vials, the Q / Tab keys and the HUD's vial row
+  are deleted. The items (all PLACEHOLDER numbers, `configs/Lottery.cs`): Ruh Flask (+2 charges), Cooldown Flush (next
+  3 specials skip their cooldown), Fig Frenzy (+15 % figs and a fig magnet, 25 kills), Bounty (×2 Lira, 25 kills),
+  Wider Pull (Come Closer +2 targets, 25 kills, only with Come Closer), and the heal items Leech Draught (10 % of
+  landed hits heal half a block, 30 kills), Tithe (every 4th of 8 kills heals), Second Wind (at the last half-block,
+  heal a block, once).
+- **Added:** `configs/Lottery.cs`; `ids/LotteryIds.cs`; `enums/lottery/LotteryMeasure.cs`;
+  `records/lottery/LotteryItemDef.cs`; `scripts/run/LotteryLedger.cs` (the rules: pulls, price, the roll, the held
+  items); `scripts/things/LotteryStall.cs` + `scenes/things/lottery_stall.tscn`; `scripts/abilities/lottery/`
+  (`LotteryEffect` and one class per item); `scripts/player/parts/HealBudget.cs`; `assets/things/lottery_stall.png` (the stage-1 version of the owner's
+  dome-and-beam drawing, `index32_art/art/stages/stage1/lottery_stall.aseprite` — its `Thing` + `Hands` layers in the
+  stage's dusk slate, without the `Items` layer; the base in greys is `art/things/lottery_stall.aseprite`). While the
+  orb spins, the items' names flicker at it — PLACEHOLDER until item icons exist.
+- **Removed:** `configs/Dekken.cs`, `ids/PerkIds.cs`, `enums/perks/`, `records/perks/`, `scripts/abilities/Perk.cs`,
+  `scripts/run/PerkLedger.cs`, `scripts/run/VialControls.cs`, `scripts/things/DekkenStall.cs`,
+  `scripts/ui/DekkenMenu.cs`, `scripts/ui/VialRow.cs`, `vfx/shaders/vial_recolor.gdshader`, `assets/things/dekken.png`,
+  `scenes/things/dekken.tscn`; and what only the perks used — the Shield (`Player.HitShields` and its block in
+  `OnHurt`), Prepared (`Player.SurgeFree`, `SurgeState.FireFree`), Fast Travel (`RunManager.FastTravelToFigmenter`),
+  the `Passive.OnRoundStart` hook and `Trigger.OnRoundStart`, `HUD.SetVials`. In `index32_art`, the old Dekken art is deleted on the
+  owner's word (`art/things/Dekken.aseprite` + `dekken.png`, `art/stages/stage1/Dekken.aseprite` + `.png`); the new
+  drawing lives on as `lottery_stall.aseprite`.
+- **Changed:** `scripts/run/RunManager.cs` (builds the `LotteryLedger`, gives it each kill and the round start, Lira ×
+  `LiraMultiplier`); `scripts/Player.cs` (`HealTriggered` + the `HealBudget`; `NotifyRoundStart` now refills it);
+  `scripts/abilities/LifestealBuff.cs` (heals through `HealTriggered`); `scripts/things/Stall.cs` (`SetPrompt`, wider
+  prompt); `scripts/ui/BuffList.cs` (held items with KILLS / USES / READY left); `scripts/HUD.cs`;
+  `scenes/levels/stage1/stage1_v2.tscn` and `painted_platforms.tscn` (the stall swapped, same spot, x 761); comments in
+  `BuffCatalog`, `SfxWorld`, `FadaFig`, `StallMenu`, `WineSlot`, `WorldZ`, `SurgeState`, `Passive`; docs —
+  `README.md`, `scripts/run/README.md`, `docs/game-loop.md` (§ The lottery stall, with the item table),
+  `docs/buff-catalog.md`, `docs/standards.md` (examples), `docs/painting-levels.md`,
+  `docs/future-enhancements-and-fixes.md`.
+- **Why / how:** the owner hated Dekken's look and wanted a slot-machine stall (Risk of Rain's chests, the CoD box);
+  six councils the same day shaped the rules. Pay-first because declining for free makes "wait for Heal" the only
+  play; kills / uses instead of "this round" because rounds never pause; a duplicate extends instead of multiplying
+  so Bounty can't run away; the wheel only rolls items that would help now (`LotteryEffect.IsUseful`, the special
+  gate, one primed Second Wind), with the heal items' weight scaled to at most a quarter of the rest (≤ 1 in 5 per
+  spin). **No bought heal** (the owner's rule): triggered healing — the lottery's heal items AND the Figmenter's
+  Bloodrush / Skim — now shares a cap of 2 blocks a round (`HealBudget`, refilled at round start and run start); a
+  capped heal shows **CAP** over Khalid; Second Wind is not capped (an emergency heal that could be capped fails when
+  it matters). Built on the existing seams: items are `Passive`s (the `ledgers` pattern, rule `S3`), content is data +
+  a class per item (`D4`). **Deviations from the councils:** Wider Pull lasts kills, not casts (Come Closer reads the
+  bonus when its field spawns, after the cast, so a cast-counted one would end before its last pull); Ruh Flask is
+  left off the wheel at full Ruh instead of spilling into "free specials" (specials don't cost Ruh); Last Call was
+  cut (it overlapped Tithe).
+- **Could affect:** the economy (no heal for sale — health now comes back only from triggers and the Nem surge until
+  the planned wine-drink heal is built); Bloodrush / Skim heal less on a long round (the cap); anything that read the
+  removed members; the HUD top-left (the vial row is gone); a debug arena rebuild (key 0) leaves held lottery items on
+  Khalid without a ledger to count them down — the same as the old perks; a death clears them.
+- **Tested:** build 0 warnings; reimport and headless boot clean (the exit-time line is the stage music stream, as
+  before); a throwaway headless scene through the real arena passed 29 of 29: the prompt, pay-first pricing 20 → 30 →
+  40 → 50, the spin lock, the 4-pull limit and NO PULLS LEFT, the round reset, Bounty ×2 extending to 50 kills and
+  ending, Fig Frenzy on/off, Ruh Flask instant and off the wheel at full Ruh, Wider Pull off without Come Closer, heals
+  at 20 % of 4000 rolls, the 2-block cap and its refill, Tithe every 4th kill, Second Wind one-at-a-time and firing on
+  a hit to the last half-block, Cooldown Flush clearing the cooldown 3 times, the buff list line. A real kill with
+  Bounty paid Matat's 3 Lira as 6. A 1280×720 render showed the stall in the arena with its prompt, the spinning orb
+  and the landed name (the prompt was then moved above the dome); a second render after the owner asked for the
+  stage colours and no `Items` layer showed the recoloured machine and the names flickering in the beam. **Not tested:** by a player — the price, the
+  counts, the heal cap and the 1-in-5 share are all first numbers; Leech Draught only by code (random).
+
+### Crimson Vortex on the lottery wheel; the player-side animation hold removed
+
+- **What:** a ninth item, **Crimson Vortex** (25 kills, weight 4 — about 1 pull in 6): while it lasts every dash
+  drops the crimson vortex (`vfx/character/khalid/dash/crimson_vortex/`), a spinning red field at the dash's start
+  that hits each enemy in it once for 18; when it runs out the dash goes back to the plain one. Added
+  `scripts/abilities/lottery/CrimsonVortexEffect.cs`, `LotteryIds.CrimsonVortex` and its `Lottery.Items` row
+  (`Value` = the damage).
+- **Changed:** a dash effect now carries its own hit tuning — `Player.SetDashEffect(effect, hit)`, with the
+  `DashEffect` / `DashHit` getters so an item can put back what it replaced; `DashState` fires the effect with a
+  copy of that tuning instead of an empty one. The vortex's `Damage = 18.0` is gone from its `.tscn` (rule `D2`: a
+  combat number lives in the data and goes through the tuning seam).
+- **Removed:** `Player.HoldAnimation` with its `_holdLeft` / `_channel` state and the hold-cancel on a hit or death,
+  `IStrikeWielder.HoldAnimation`, `BlastStrike.OnTuningApplied` and the `Strike.OnTuningApplied` hook it was the
+  only user of. The hold froze Khalid's sprite for the vortex's 1.3 s emit on every dash, and a hit cancelled the
+  vortex — wrong for an effect left behind. Without the vortex holding him there was no other caller (the enemy
+  blasts channel through `Enemy`, which isn't an `IStrikeWielder`), so it was dead code (`C1`).
+- **Why:** the owner is recording a demo of the stall and wanted a showy item; the vortex was finished art with no
+  way to reach it.
+- **Could affect:** dashing (every dash now passes `DashHit` to its effect — empty for the default dash, so the
+  same as before); the enemy blasts (untouched: they never used the removed hook); the vortex damage doesn't scale
+  with the Needle Point damage shots (its tuning isn't resolved through the stat multipliers — a first choice).
+- **Tested:** build 0 warnings; reimport and headless boot clean; a throwaway headless scene through the real arena
+  (deleted): the vortex is on the wheel (≈ 17 % of 2000 rolls without Come Closer), applying it swaps the dash
+  effect, a dash drops the vortex, Khalid's sprite keeps playing, an enemy inside it went 60 → 42, and after 25
+  kills the dash is the default one again with empty tuning. A 1280×720 render showed the vortex left behind at the
+  dash start. **Not tested:** by a player — the 18 and the 25 kills are first numbers.
+
+
+### Zahluq and Bakshen named as the specials they are
+
+- **What:** both were attacks once and are Figmenter-only specials now, but every asset still said `attack_`. Renamed
+  in both repos: the sprite sheets (`sprites/characters/khalid/khalid_special_zahluq|bakshen_frames.png`) and their
+  animations in `resources/characters/khalid.tres`, the effect scenes (`vfx/character/khalid/special/zahluq|bakshen/
+  special_*.tscn`), the sounds (`sfx/character/special/zahluq|bakshen/`), Bakshen's icon (`assets/icons/specials/`),
+  the keys in `EmittersCharacters` / `SfxCharacters` (their rows moved into the specials groups) and
+  `tools/gen_spriteframes.py`; in `index32_art` the masters, GIFs and frame sheets
+  (`art/characters/khalid/khalid_special_*`) and the icon (`art/icons/specials/bakshen`).
+- **Removed:** `Action.AnimationOverride` — it existed only to point these two specials at their `attack_`
+  animations; a special's animation is `special_<id>` again with no exception.
+- **Also:** `project.godot` no longer enables the GDScript formatter addon, whose folder was deleted on 2026-08-24
+  (every import warned about it).
+- **Could affect:** anything that loaded these assets by their old paths (all callers found and changed; the moved
+  files kept their uids); the editor's recent-files list.
+- **Tested:** build 0 warnings; reimport clean (the addon warning gone); headless boot clean (the exit-time lines are
+  the stage music, as before); a throwaway headless scene through the real arena (deleted) equipped and cast each:
+  both played their `special_` animation (Zahluq 4 frames, Bakshen 3), spawned their moved effect scene, resolved
+  their sound files and killed the enemy in front.
+
+### index32_art cleaned up and reorganised
+
+- **Deleted:** three Aseprite `.bak` backups (now git-ignored), the orphan `kroj_attack_frames.png` (its master was
+  renamed to `kroj_attack_lunge` in August), `art/things/InfinityEye` and Khalid's unused `air_punch_texture_1`
+  (both on the owner's word), the empty `effect_sheets/` + `textures/` under Khalid.
+- **Moved:** the parked characters (Feyke, Katalyst, Lenbondosen, Wayna) to `art/parked/` — all 212 files kept, the
+  owner wants them for later; the promo art (`SteamAssets`, Khalid's `BigDesigns`) to a top-level `promo/`, outside
+  `art/` so the export hooks never touch it; the status icons to `art/status/`; `export-character-layer.lua` to
+  `tools/`.
+- **Renamed** every folder and file to snake_case, matching the game's ids (`art/enemies/matat/`,
+  `art/wardens/kroj/`, `khalid.png`, `figmenter`, `lottery_stall`, `needle_point`, `man_choking_statue`,
+  `wine_bottle`, `skeleton_chillin`, `tree1`; the misspellings fixed: `planet_with_orbiting_moon`,
+  `hero_pic_square1`). The parked characters keep their names. The repalette profiles (`subjects`), the hooks, the
+  art README (the layout + the naming rule), the repalette README, this README and the workspace skill follow.
+- **Could affect:** only the art repo — the game keeps its own copies of the art. The owner's uncommitted Figmenter
+  edits moved with the file (`art/stages/stage1/figmenter.aseprite`), still uncommitted.
+- **Tested:** both stall profiles dry-run under their new names; the hook export through the moved Lua script
+  matched the committed `matat_idle` sheet pixel for pixel; Khalid's item README regenerates with the new portrait.
+
 ## 2026-10-16 — `new-shit` — The enemies and Kroj in flat colours
 
 ### Every enemy flat, no outlines, to match Khalid

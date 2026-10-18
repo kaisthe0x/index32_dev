@@ -10,13 +10,13 @@
 [ext_resource type="Texture2D" uid="uid://cutgwdvwgxj47" path="res://sprites/characters/khalid/khalid_death_frames.png" id="8_death"]
 [ext_resource type="Texture2D" uid="uid://di7unepxorcn3" path="res://sprites/characters/khalid/khalid_spawn_frames.png" id="9_spawn"]
 [ext_resource type="Texture2D" uid="uid://ck8v6s0w3cqap" path="res://sprites/characters/khalid/khalid_hurt_frames.png" id="10_hurt"]
-[ext_resource type="Texture2D" uid="uid://cey1410tu7yeb" path="res://sprites/characters/khalid/khalid_attack_bakshen_frames.png" id="11_attack_bakshen"]
+[ext_resource type="Texture2D" uid="uid://cey1410tu7yeb" path="res://sprites/characters/khalid/khalid_special_bakshen_frames.png" id="11_special_bakshen"]
 [ext_resource type="Texture2D" uid="uid://cw6u3rgedaxn" path="res://sprites/characters/khalid/khalid_attack_cherry_shots_frames.png" id="12_attack_cherry_shots"]
 [ext_resource type="Texture2D" uid="uid://b3ln7ge7jsfop" path="res://sprites/characters/khalid/khalid_attack_rope_dart_frames.png" id="13_attack_rope_dart"]
 [ext_resource type="Texture2D" uid="uid://cvo6weherngml" path="res://sprites/characters/khalid/khalid_attack_ora_ora_frames.png" id="14_attack_ora_ora"]
 [ext_resource type="Texture2D" uid="uid://dkyvjdmxgwfcr" path="res://sprites/characters/khalid/khalid_attack_spear_frames.png" id="15_attack_spear"]
 [ext_resource type="Texture2D" uid="uid://xpwfw3cthnwy" path="res://sprites/characters/khalid/khalid_attack_twin_reaper_frames.png" id="16_attack_twin_reaper"]
-[ext_resource type="Texture2D" uid="uid://0yvcwkdtnct2" path="res://sprites/characters/khalid/khalid_attack_zahluq_frames.png" id="17_attack_zahluq"]
+[ext_resource type="Texture2D" uid="uid://0yvcwkdtnct2" path="res://sprites/characters/khalid/khalid_special_zahluq_frames.png" id="17_special_zahluq"]
 [ext_resource type="Texture2D" uid="uid://b7klmtwwd1pki" path="res://sprites/characters/khalid/khalid_special_come_closer_frames.png" id="18_special_come_closer"]
 [ext_resource type="Texture2D" uid="uid://cnw1o6571cck5" path="res://sprites/characters/khalid/khalid_special_frenemy_frames.png" id="19_special_frenemy"]
 [ext_resource type="Texture2D" uid="uid://3l40hu0wu0va" path="res://sprites/characters/khalid/khalid_special_ground_breaker_frames.png" id="20_special_ground_breaker"]
@@ -29,16 +29,16 @@
 [ext_resource type="Texture2D" uid="uid://bulx35f5lajpr" path="res://sprites/characters/khalid/khalid_surge_wara_frames.png" id="27_surge_wara"]
 [ext_resource type="Texture2D" uid="uid://ykhcuiju0njo" path="res://sprites/characters/khalid/khalid_swing_frames.png" id="28_swing"]
 
-[sub_resource type="AtlasTexture" id="attack_bakshen_1"]
-atlas = ExtResource("11_attack_bakshen")
+[sub_resource type="AtlasTexture" id="special_bakshen_1"]
+atlas = ExtResource("11_special_bakshen")
 region = Rect2(128, 0, 128, 80)
 
-[sub_resource type="AtlasTexture" id="attack_bakshen_2"]
-atlas = ExtResource("11_attack_bakshen")
+[sub_resource type="AtlasTexture" id="special_bakshen_2"]
+atlas = ExtResource("11_special_bakshen")
 region = Rect2(256, 0, 128, 80)
 
-[sub_resource type="AtlasTexture" id="attack_bakshen_3"]
-atlas = ExtResource("11_attack_bakshen")
+[sub_resource type="AtlasTexture" id="special_bakshen_3"]
+atlas = ExtResource("11_special_bakshen")
 region = Rect2(384, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_cherry_shots_1"]
@@ -249,20 +249,20 @@ region = Rect2(1280, 0, 128, 80)
 atlas = ExtResource("16_attack_twin_reaper")
 region = Rect2(1408, 0, 128, 80)
 
-[sub_resource type="AtlasTexture" id="attack_zahluq_1"]
-atlas = ExtResource("17_attack_zahluq")
+[sub_resource type="AtlasTexture" id="special_zahluq_1"]
+atlas = ExtResource("17_special_zahluq")
 region = Rect2(128, 0, 128, 80)
 
-[sub_resource type="AtlasTexture" id="attack_zahluq_2"]
-atlas = ExtResource("17_attack_zahluq")
+[sub_resource type="AtlasTexture" id="special_zahluq_2"]
+atlas = ExtResource("17_special_zahluq")
 region = Rect2(256, 0, 128, 80)
 
-[sub_resource type="AtlasTexture" id="attack_zahluq_3"]
-atlas = ExtResource("17_attack_zahluq")
+[sub_resource type="AtlasTexture" id="special_zahluq_3"]
+atlas = ExtResource("17_special_zahluq")
 region = Rect2(384, 0, 128, 80)
 
-[sub_resource type="AtlasTexture" id="attack_zahluq_4"]
-atlas = ExtResource("17_attack_zahluq")
+[sub_resource type="AtlasTexture" id="special_zahluq_4"]
+atlas = ExtResource("17_special_zahluq")
 region = Rect2(512, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="dash_1"]
@@ -705,16 +705,16 @@ region = Rect2(1024, 0, 128, 80)
 animations = [{
 "frames": [{
 "duration": 2.0,
-"texture": SubResource("attack_bakshen_1")
+"texture": SubResource("special_bakshen_1")
 }, {
 "duration": 0.25,
-"texture": SubResource("attack_bakshen_2")
+"texture": SubResource("special_bakshen_2")
 }, {
 "duration": 10.0,
-"texture": SubResource("attack_bakshen_3")
+"texture": SubResource("special_bakshen_3")
 }],
 "loop": 0,
-"name": &"attack_bakshen",
+"name": &"special_bakshen",
 "speed": 10.0
 }, {
 "frames": [{
@@ -900,19 +900,19 @@ animations = [{
 }, {
 "frames": [{
 "duration": 0.25,
-"texture": SubResource("attack_zahluq_1")
+"texture": SubResource("special_zahluq_1")
 }, {
 "duration": 1.0,
-"texture": SubResource("attack_zahluq_2")
+"texture": SubResource("special_zahluq_2")
 }, {
 "duration": 0.25,
-"texture": SubResource("attack_zahluq_3")
+"texture": SubResource("special_zahluq_3")
 }, {
 "duration": 2.0,
-"texture": SubResource("attack_zahluq_4")
+"texture": SubResource("special_zahluq_4")
 }],
 "loop": 0,
-"name": &"attack_zahluq",
+"name": &"special_zahluq",
 "speed": 14.0
 }, {
 "frames": [{
@@ -1354,10 +1354,10 @@ metadata/loop_to = {
 "swing": 6
 }
 metadata/hit_frames = {
-"attack_bakshen": [2],
+"special_bakshen": [2],
 "attack_cherry_shots": [2, 6],
 "attack_spear": [5, 8, 12],
-"attack_zahluq": [1],
+"special_zahluq": [1],
 "special_come_closer": [2],
 "special_frenemy": [0, 1, 2],
 "special_ground_breaker": [1, 2, 3, 4, 5],
@@ -1365,13 +1365,13 @@ metadata/hit_frames = {
 "special_redere_shield": [2]
 }
 metadata/sheet_start = {
-"attack_bakshen": 1,
+"special_bakshen": 1,
 "attack_cherry_shots": 1,
 "attack_ora_ora": 1,
 "attack_rope_dart": 1,
 "attack_spear": 1,
 "attack_twin_reaper": 1,
-"attack_zahluq": 1,
+"special_zahluq": 1,
 "dash": 1,
 "death": 1,
 "fall": 1,

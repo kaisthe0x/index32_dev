@@ -26,11 +26,8 @@ public sealed record Action
     public HitData? Hit { get; init; }
     public Locomotion? Move { get; init; }
     public SurgeSpec? Surge { get; init; }
-    /// <summary>Explicit animation name; when null the animation is derived from <see cref="Category"/> + <see cref="Id"/>.</summary>
-    public string? AnimationOverride { get; init; }
-
-    /// <summary>The sprite animation this action plays — <c>attack_&lt;id&gt;</c> / <c>special_&lt;id&gt;</c> / <c>surge_&lt;id&gt;</c>, or the override.</summary>
-    public StringName Animation => AnimationOverride ?? Category switch
+    /// <summary>The sprite animation this action plays — <c>attack_&lt;id&gt;</c> / <c>special_&lt;id&gt;</c> / <c>surge_&lt;id&gt;</c>.</summary>
+    public StringName Animation => Category switch
     {
         ActionCategory.Attack => $"attack_{Id}",
         ActionCategory.Special => $"special_{Id}",

@@ -133,10 +133,10 @@ OVERRIDES: dict[tuple[str, str], dict[str, float | int | bool]] = {
     ("khalid", "slam"): {"fps": 15.0, "hold_last": 1.6},
     # Bakshen: a charged slash. fps 10 so the per-frame math is clean (see FRAME_DURATIONS: the
     # wind-up frame holds 1s); hold_last lets the final slash pose linger while its VFX plays.
-    ("khalid", "attack_bakshen"): {"fps": 10.0, "hold_last": 10.0},
+    ("khalid", "special_bakshen"): {"fps": 10.0, "hold_last": 10.0},
     # Zahluq: a fast burst-forward dash-attack (COOLDOWN). Snappy so the lunge reads as a
     # quick slide; hold_last lets the follow-through pose settle after he stops.
-    ("khalid", "attack_zahluq"): {"fps": 14.0, "hold_last": 2.0},
+    ("khalid", "special_zahluq"): {"fps": 14.0, "hold_last": 2.0},
     # Aegis surge (surge_aegis, formerly special_default): the flex pose sheet. The surge is passive
     # so this anim isn't played today, but keep the sheet + timing under its new name (renamed 1:1).
     ("khalid", "surge_aegis"): {"fps": 8.0, "hold_last": 3.0},
@@ -196,8 +196,8 @@ HIT_FRAMES: dict[tuple[str, str], list[int]] = {
         2,
         3,
     ],  # the short stun blast fires on the forward-thrust frame
-    ("khalid", "attack_bakshen"): [3],  # single charged hit on the last (slash) frame
-    ("khalid", "attack_zahluq"): [2],  # burst frame -- the Strike + lunge fire here
+    ("khalid", "special_bakshen"): [3],  # single charged hit on the last (slash) frame
+    ("khalid", "special_zahluq"): [2],  # burst frame -- the Strike + lunge fire here
     ("khalid", "special_come_closer"): [3],  # beckon on the last frame -> spawn the magnet field
     ("khalid", "special_redere_shield"): [3],  # shield fully up on the last frame (per spec)
     ("khalid", "special_redere_frisbee"): [3],  # release the throw on the last frame
@@ -241,7 +241,7 @@ HIT_FRAMES: dict[tuple[str, str], list[int]] = {
 # is just "the last frame"); a value set here wins over hold_last for that frame.
 FRAME_DURATIONS: dict[tuple[str, str], dict[int, float]] = {
     # e.g. ("some_char", "some_attack"): {2: 1.5}  # linger on those hit frames
-    ("khalid", "attack_bakshen"): {1: 2.0},  # wind-up frame holds 1 full second (10 x 1/10fps)
+    ("khalid", "special_bakshen"): {1: 2.0},  # wind-up frame holds 1 full second (10 x 1/10fps)
     ("khalid", "attack_rope_dart"): {1: 0.5, 2: 0.5},
 }
 

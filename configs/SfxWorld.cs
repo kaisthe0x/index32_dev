@@ -13,7 +13,7 @@ public static class SfxWorld
 	{
 		["fada_fig_collect"] = "res://sfx/character/fada_fig_pickup.wav",  // PLACEHOLDER — player touches a fada_fig (FadaFig.OnBodyEntered)
 		["lira_collect"] = "res://sfx/character/lira_pickup.wav",  // a Lira coin reaches Khalid (Lira.OnArrived)
-		["buff_select"] = "res://sfx/character/fada_fig_pickup.wav",  // PLACEHOLDER — something is bought at a stall, or a vial is drunk
+		["buff_select"] = "res://sfx/character/fada_fig_pickup.wav",  // PLACEHOLDER — something is bought at a stall, or the lottery's orb lands
 		// The Figmenter and its fig wine — all four PLACEHOLDER (synthesized; to be replaced by recordings).
 		["figmenter_brew"] = "res://sfx/things/figmenter/brew.wav",     // PLACEHOLDER — figs drop in and the machine starts (Figmenter)
 		["figmenter_ready"] = "res://sfx/things/figmenter/ready.wav",   // PLACEHOLDER — a brew finishes: a chime at the machine (Figmenter)

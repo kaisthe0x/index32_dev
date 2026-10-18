@@ -14,8 +14,4 @@ public interface IStrikeWielder
 
     /// <summary>Make the wielder shrug off stagger for <paramref name="duration"/> seconds.</summary>
     void SetArmor(float duration);
-
-    /// <summary>Freeze the wielder's animation on its current frame for <paramref name="duration"/> seconds while
-    /// <paramref name="effect"/> channels; the wielder may cancel the effect if it is interrupted.</summary>
-    void HoldAnimation(double duration, BlastStrike effect);
 }

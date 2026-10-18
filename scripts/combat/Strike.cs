@@ -138,11 +138,7 @@ public partial class Strike : Node2D, ITunable, ISidedAttack
         // Injected DoT from a move's tuning (only if the scene didn't already author one in _Ready).
         if (t.Tick is float tick && tick > 0.0f && Box != null && !IsInstanceValid(_tickTimer))
             StartTicking(tick);
-        OnTuningApplied(t);
     }
-
-    /// <summary>Subclass hook run at the end of <see cref="ApplyTuning"/> (BlastStrike holds the caster's pose here).</summary>
-    protected virtual void OnTuningApplied(SegmentData t) { }
 
     /// <summary>Hit `hits` times across the strike's life — a fixed COUNT of pulses (a buff). For a steady interval use <c>tick</c>.</summary>
     private void SetupMultiHit(int hits)

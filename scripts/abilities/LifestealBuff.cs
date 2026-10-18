@@ -5,7 +5,8 @@ namespace MyGame;
 /// <summary>
 /// SLOT-HEALTH lifesteal: each hit the player lands has a CHANCE to restore half a block, via
 /// <see cref="Passive.OnHitDealt"/> — the sustain buff (Bloodrush, Skim, …). A fraction-of-damage heal would trivially
-/// refill the 6-half-block bar, so the value is a PROBABILITY per hit instead.
+/// refill the 6-half-block bar, so the value is a PROBABILITY per hit instead. A triggered heal: it draws on the
+/// round's <see cref="HealBudget"/> with the lottery's heal items.
 /// Built by <see cref="BuffCatalog"/>.
 /// </summary>
 public partial class LifestealBuff : Buff
@@ -22,6 +23,6 @@ public partial class LifestealBuff : Buff
     public override void OnHitDealt(Player player, float amount, Node target)
     {
         if (amount > 0.0f && GD.Randf() < _chance)
-            player.Heal(HealHalfBlock);
+            player.HealTriggered(HealHalfBlock);
     }
 }

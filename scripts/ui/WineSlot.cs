@@ -3,7 +3,7 @@ using Godot;
 namespace MyGame;
 
 /// <summary>
-/// Khalid's one wine bottle in the HUD, under the vials: the EMPTY bottle while he carries no wine, the FULL one while
+/// Khalid's one wine bottle in the HUD, under the currency counters: the EMPTY bottle while he carries no wine, the FULL one while
 /// he does — then with the wine's name and rarity beside it, in the rarity's colour. The bottle pops when it is
 /// filled and each time the wine climbs a rarity.
 /// </summary>

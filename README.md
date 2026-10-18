@@ -49,7 +49,7 @@ resources/characters/ GENERATED SpriteFrames -- do not hand-edit
 resources/enemies/    GENERATED enemy SpriteFrames -- do not hand-edit
 scenes/               player, level, hud
 scripts/              player, hud
-scripts/run/          the roguelite run: arena, round loop + spawner, Ruh, the stalls' ledgers (shots / perks / Figmenter), attack picker (see scripts/run/README.md)
+scripts/run/          the roguelite run: arena, round loop + spawner, Ruh, the stalls' ledgers (shots / lottery / Figmenter), attack picker (see scripts/run/README.md)
 scripts/abilities/    Passive/Buff base (C#) + the buff classes (their Trigger enum: enums/abilities/Trigger.cs)
 scripts/combat/       Hurtbox, hitbox, Combatant base, health bar, floating text, status overlay — all C# now (constants -> configs/Combat.cs)
 scripts/enemies/      Enemy base + projectile
@@ -81,9 +81,7 @@ nothing in an exported game). A full compile of the game is about 1.4 s (2026-10
 | Left mouse | `attack` | The current *attack* — **hold to keep attacking** (a flurry loops; a combo chains its hits, then loops); a press advances a combo one hit. **Ground only** by default — an attack whose Action is tagged `"air"` is the exception and can be used mid-air (`Player._air_attack_ok`). *(No shipped attack is currently tagged `"air"`; the tag now lives on the Zahluq **special**.)* |
 | Right mouse | `special` | On the ground: the current *special* (committed full-animation move) — **no Ruh cost, but every special has its own cooldown** (3–12s; shown by the special bar in the HUD gauge). **In the air: performs the ground slam instead** (characters with a `slam` sheet) |
 | Ctrl (RT / R2) | `surge` | Fires the equipped **Surge** — a passive ability (**Aegis** = ~5s invincibility; **Jnoon** = ~5s ×2 damage dealt; **Asra** = ~5s ×2 move speed) applied *without* interrupting your attacking/moving — **except Nem**, a committed sleep that locks you in place and restores one health block over 5s (a hit wakes/cancels it; the kamikaze stand-still clock pauses while he sleeps), and **Wara**, which *arms* and waits: the next enemy hit is negated and AoE-stuns everyone near you (2s). **Spends one Ruh charge per use** — Ruh is the only gate, no cooldown. RT on the pad because dash owns LT |
-| Q (RB) | `vial_drink` | Drink the selected carried **Dekken vial** — instant, mid-fight. If it would do nothing right now (Heal at full health) it stays in your pocket. Registered in code by `RunManager` |
-| Tab (LB) | `vial_cycle` | Select the next carried vial (the HUD frames the selected one) |
-| E | `interact` | Use the stall you're standing at — the **Figmenter** (start a brew with fada figs, collect the wine), **Needle Point** (shots) or **Dekken** (perks); a shop menu closes with E / Esc. Registered in code by `Stall` |
+| E | `interact` | Use the stall you're standing at — the **Figmenter** (start a brew with fada figs, collect the wine), **Needle Point** (shots) or the **lottery stall** (pay, spin, take what lands — live, no menu); a shop menu closes with E / Esc. Registered in code by `Stall` |
 | F (D-pad up) | `wine_drink` | Drink the carried **fig wine** — instant, mid-fight. Its buff joins you for the run at the wine's current rarity. Registered in code by `WineControls`. |
 | Z / X | `debug_damage` / `debug_heal` | Dev only — hurt the player / give one block of Ruh |
 | 0 | `debug_respawn` | Dev only — rebuild the current level fresh |
@@ -158,9 +156,9 @@ you, and **each use spends one Ruh charge** — Ruh is the only gate, no cooldow
 *only* from buffs. **Killing an enemy** pays **Lira** (the common currency) and, at a per-enemy chance, a **Fada
 Fig** (the rare one) — see below. **Buffs come from the Figmenter** in the arena: stand next to it and press **E**
 to **spend** figs on a gamble — a win opens a **pick-1-of-3 menu** from the POWERFUL pool (above-rare tiers), each
-win making the next rarer. **Lira buys shots at Needle Point** (permanent stat boosts, rank by rank) **and perks at Dekken** (utility —
-a heal, a teleport, a shield …); every stall is open all the time — rounds run back to back with no break
-(§ Needle Point shots / § Dekken perks below, `docs/game-loop.md` § Economy). Moves are independent — they **upgrade by layering
+win making the next rarer. **Lira buys shots at Needle Point** (permanent stat boosts, rank by rank) **and pulls at the lottery stall** (a
+random item that takes effect at once and lasts a number of kills); every stall is open all the time — rounds run
+back to back with no break (§ Needle Point shots / § The lottery stall below, `docs/game-loop.md` § Economy). Moves are independent — they **upgrade by layering
 buffs**, not by turning into a different move (Rope Dart & Redere Frisbee are now standalone swaps, not
 successors). Take 0 HP and the run restarts (a fresh arena; buffs cleared, HP + Ruh refilled). All of this — the
 spawner, the enemy roster, the buff pools, the Figmenter, the attack picker — lives in
@@ -191,7 +189,7 @@ tint (`BackgroundTintAlpha`). (The old animated orbiting planet was removed; its
   ([`scenes/fada_fig.tscn`](scenes/fada_fig.tscn), [`scripts/collectibles/FadaFig.cs`](scripts/collectibles/FadaFig.cs),
   a `RigidBody2D`) pops out, bounces/tumbles, and settles on the terrain; the player collects it by **physically
   touching** it (the child `Pickup` Area → `Wallet.CollectFadaFigs`, `fada_fig_collect` placeholder sfx).
-  `FadaFig.Magnetize(target)` is a ready hook for a future perk that pulls loose figs in. The Figmenter spends
+  While the lottery's **Fig Frenzy** lasts, a fig within `Player.FigMagnetRange` flies to him (`FadaFig.Magnetize`). The Figmenter spends
   them (`Wallet.SpendFadaFigs`).
 
 Both balances show top-left on the HUD. The fig sprite wears a shared **`vfx/shaders/world/pulse_glow.gdshader`**
@@ -404,8 +402,8 @@ with wind-up / in-between frames between the hits:
 | Who | Animation | `HIT_FRAMES` (sheet indices) |
 |---|---|---|
 | khalid | `attack_spear` | `[6, 9, 13]` — thrust, thrust, big spinning finisher (his Elite swap) |
-| khalid | `attack_bakshen` | `[3]` — one charged slash on the last frame (~1s wind-up) |
-| khalid | `attack_zahluq` | `[2]` — the burst frame; the Strike + `lunge` slide fire here (dash move — now the Zahluq **special**, still keyed to this `attack_zahluq` anim via `AnimationOverride`) |
+| khalid | `special_bakshen` | `[3]` — one charged slash on the last frame (~1s wind-up) |
+| khalid | `special_zahluq` | `[2]` — the burst frame; the Strike + `lunge` slide fire here (a dash move) |
 | khalid | `attack_cherry_shots` | `[3, 7]` — two laser Projectiles: small bolt, then a bigger one |
 | khalid | `special_ground_breaker` | `[6]` — the overhead ground crack |
 | khalid | `special_stay` | `[3]` — a short stun blast (little dmg, 5s stun) |
@@ -798,8 +796,8 @@ any dash move: `lunge` + `hold` + `super_armor` in the tuning, `follow: true` on
 freely — and lives in `ActionsKhalid.Specials` under `SpecialIds.Zahluq`. It is offered **only** by the
 Figmenter, at a low `SpecialOfferChance` (`RunManager.RollBoxSpecial`), and choosing it **replaces your
 current special** (`OnBuffChosen` equips it via `Player.Equip(LoadoutCategory.Special, …)`) rather than
-adding a passive buff. It keeps its old presentation through `AnimationOverride = "attack_zahluq"` (sprite,
-emitter row, and `zahluq` sfx cue all still key off `attack_zahluq`).
+adding a passive buff. Like Bakshen (the other ex-attack), its assets are named as a special: `special_zahluq`
+(sprite, emitter row, sound) — renamed from `attack_zahluq` on 2026-10-17.
 
 **Air moves (opt-in).** Moves are grounded-only *except* those whose Action carries an `"air"` tag — the
 air allow-list (`Player._air_attack_ok`). Zahluq is tagged `"air"`, so as a special it can be cast mid-air:
@@ -978,7 +976,7 @@ rank I's Lira price — **priced by worth**: Jump Height / Run Speed 15, Extra J
 - **Dash charges:** Khalid holds `1 + DashBonus` dashes; each spends one, and a spent one refills after the dash
   cooldown, one at a time — so with one charge it plays exactly like the old single cooldown.
 - **The stall** is `scenes/things/needle_point.tscn` (script `NeedlePointStall`, a `Stall`), placed in the layout: a
-  tall booth (`assets/things/needle_point.png`, master `index32_art/art/stages/stage1/NeedlePoint.aseprite`) with a
+  tall booth (`assets/things/needle_point.png`, master `index32_art/art/stages/stage1/needle_point.aseprite`) with a
   stepped dais. Its collision is scene nodes you can reshape in the editor — `Dais` (two invisible ~37° ramps following
   the stairs, since a body can't climb separate steps, and the flat top) and `Roof` (a jump-through platform: one-way,
   on the Platform layer — the script sets both layers from `Combat`; drop through with S / Down); its `Interact` area
@@ -986,42 +984,49 @@ rank I's Lira price — **priced by worth**: Jump Height / Run Speed 15, Extra J
   (name + rank in the rank's colour, what you have → what the next rank gives, BUY / MAXED) and pauses the game. Owned
   shots show in the HUD's top-right list with their rank and value.
 
-#### Dekken perks (`configs/Dekken.cs`)
+#### The lottery stall (`configs/Lottery.cs`)
 
-The **perk shop** (`docs/game-loop.md` § Economy): utility and tactics, bought with Lira. Each round it stocks
-`Dekken.StockSize` (5) perks drawn at random from `Dekken.Perks` — each a `PerkDef` (`records/perks/`): name, text, a
-`PerkDuration` (`Rounds` / `OneUse` / `Run`), rounds, Lira price, one tuning `Value`, and optionally the special it
-needs equipped. The pool: **Heal** (a block, one use), **Fast Travel** (beside the Figmenter, one use), **Fig
-Chance** (+5 % fig odds on every kill, whole run), **Magnet** (figs within 400 px fly to you), **Shield** (blocks the
-first hit each round), **Prepared** (your surge fires free as each round starts — Wara arms), **Wider Pull** (Come
-Closer +2 targets; only stocked with Come Closer). All placeholders.
+The **gamble stall** that replaced Dekken on 2026-10-16 (`docs/game-loop.md` § The lottery stall; the name is a
+working one). Press **E** to **pay first** — `Lottery.BasePrice` (20) Lira, +`PriceStep` (10) for each further pull
+that round, at most `PullsPerRound` (4) pulls; the price resets when a round starts — and the orb in the beam spins
+`SpinTime` (1 s) and lands on a random item that **takes effect at once**. No menu, no pause: a pull is taken live,
+while enemies hunt. Nothing is carried and a pull can't be declined.
 
-- **Always open** (`DekkenStall`, a `Stall`). Perks are sold as **VIALS**, bought one of two ways: **DRINK** — it
-  takes effect at once — or **KEEP** — it goes in a carry slot (`Dekken.CarrySlots` = 2, **never two of a kind**) and
-  is drunk later with **Q**, instantly (**Tab** picks which). A whole-run perk (Fig Chance) is drink-only. A timed
-  perk's 2 rounds are the one it's **drunk** in and the next.
-- **The rules** live in `PerkLedger` (`scripts/run/`, one per run, ticked at `ClearRound`): the stock (rerolled every
-  round — never a whole-run perk you own, never one gated to a special you don't have), `BuyDrink` / `BuyKeep`
-  (`Blocked` says why a vial can't be DRUNK now: FULL HEALTH / OWNED / ACTIVE; `KeepBlocked` why it can't be KEPT:
-  DRINK ONLY / HELD / POCKETS FULL), the carried vials (`Held`, `Selected`, `CycleHeld`, `DrinkHeld` — a vial that
-  would do nothing stays in the pocket), timed perks spending a round per clear, whole-run perks leaving the pool.
-  One-use perks just happen (`Player.Heal`, `RunManager.FastTravelToFigmenter`). `RunManager` owns the two keys
-  (`VialControls.EnsureActions`, `VialControls.Drink`) and pushes the carried vials to the HUD (`VialControls.ShowVials` → `HUD.SetVials`: two
-  framed slots under the currency counters, the selected one in the accent colour — PLACEHOLDER text until the vial
-  icons exist).
-- **The effect** of a lasting perk is a `Perk` (`scripts/abilities/`), a `Passive`: Setup/Teardown set and undo a
-  Player field (`FigChanceBonus` — added in `RunManager.OnEnemyDied`; `FigMagnetRange` — read by each `FadaFig`,
-  whose `Collector` RunManager sets; `HitShields` — spent in `Player.OnHurt`; `MagnetTargetBonus`), and the new
-  `Passive.OnRoundStart` hook (dispatched by `RunManager.StartRound` → `Player.NotifyRoundStart`) re-arms the Shield
-  and fires Prepared (`Player.SurgeFree`, no Ruh).
-- **The vials wear Khalid's hair colour.** `DekkenStall.TintVials` puts `vfx/shaders/vial_recolor.gdshader` on the
-  machine's art with `tint` = `PaletteConfig.HairColor()` at full brightness — the default red, or the hair colour
-  picked for the run. The shader repaints ONLY the vials: they're the art's one red ramp, so a pixel counts when red
-  dominates (g and b under `key` × r, measured in linear light — the amber glow lines sit well clear), scaled by the
-  painted pixel's brightness so the shading survives. Any stage's Dekken art works as long as its vials stay that red.
-- **The menu** is `DekkenMenu`, on the same `StallMenu` frame as Needle Point's — each row has a DRINK and a KEEP
-  button. Active perks show in the HUD's
-  top-right list (rounds left, or RUN).
+- **The wheel** is `Lottery.Items` — each a `LotteryItemDef` (`records/lottery/`): name, text (its `{0}` filled from
+  `Value` — `LotteryItemDef.Text`), a `LotteryMeasure` (`Instant` / `Kills` / `Uses` / `Primed`), a count, a weight,
+  whether it heals, one tuning `Value`, and optionally the special it needs. The items: **Ruh Flask** (+2 Ruh charges,
+  instant), **Cooldown Flush** (the next 3 specials skip their cooldown), **Fig Frenzy** (+15 % fig odds and figs fly
+  to you, 25 kills), **Bounty** (×2 Lira per kill, 25 kills), **Wider Pull** (Come Closer +2 targets, 25 kills; only
+  with Come Closer), **Crimson Vortex** (every dash leaves a spinning vortex that hits each enemy caught in it, 25 kills),
+  and the heal items **Leech Draught** (10 % of landed hits heal half a block, 30 kills), **Tithe**
+  (every 4th of the next 8 kills heals half a block), **Second Wind** (at your last half-block, heal a block; once).
+  All placeholders.
+- **The rules** live in `LotteryLedger` (`scripts/run/`, one per arena, owned by `RunManager`): `TryPull` pays and
+  rolls (`PullBlocked`: NO PULLS LEFT / NOT ENOUGH LIRA), `Apply` makes the landed item happen. The roll leaves out
+  what wouldn't help now — an item gated to a special you don't have, a second primed Second Wind, and anything whose
+  `LotteryEffect.IsUseful` is false (Ruh Flask at full Ruh) — and scales the heal items' weight down so they stay at
+  most `HealShare` (a quarter) of the rest: a heal is at most 1 in 5 on any spin. `RunManager.OnEnemyDied` tells the
+  ledger every kill (`OnKill`) and multiplies each kill's Lira by `LiraMultiplier` (Bounty); `StartRound` resets the
+  pulls (`OnRoundStart`).
+- **The effects** are `LotteryEffect` passives (`scripts/abilities/lottery/`, one class per item, built through
+  `Lottery.Factories`). An instant one happens in `Setup` and is never held; the rest are held on Khalid while they
+  last: kill-measured ones are counted down by the ledger, use-measured ones spend themselves in their hook
+  (`OnSpecialCast`, `OnHurt`) and the ledger removes them after it. **A duplicate makes an item last longer, never
+  stronger** (`Extend`) — two Bounties don't pay ×4. Held items show in the HUD's top-right list with what is left
+  (KILLS / USES / READY).
+- **Triggered healing is capped.** Every "when X, heal" source — Leech Draught, Tithe, and the Figmenter's lifesteal
+  buffs (Bloodrush, Skim) — heals through `Player.HealTriggered`, which draws on the round's `HealBudget`
+  (`scripts/player/parts/`): `Lottery.HealCapPerRound` (4 half-blocks = 2 blocks) a round, refilled at
+  `Player.NotifyRoundStart`. A heal the cap stops shows **CAP** over Khalid. Second Wind is the exception — an
+  emergency heal that could be capped would fail exactly when it matters.
+- **The stall** is `LotteryStall` (`scripts/things/`, a `Stall`; scene `scenes/things/lottery_stall.tscn`). Its
+  prompt shows the next price and the pulls left (`Stall.SetPrompt`); E pays, the items' names flicker at the orb
+  (the scene's `Visual/Orb` marker — a tween, slowing to the landing) and the landed item's name pops there with the
+  `buff_select` cue — names and cue PLACEHOLDER until each item has an icon. The art is the owner's dome-and-beam
+  machine, kept like the other stalls: the base in greys at `index32_art/art/things/lottery_stall.aseprite`, the
+  stage-1 version (the Figmenter's dusk slate, baked by the `lottery_stall` repalette profile) at
+  `art/stages/stage1/lottery_stall.aseprite`; the game's `assets/things/lottery_stall.png` is that stage-1 version's
+  `Thing` + `Hands` layers — the drawing's `Items` layer (what the orb holds) is not used.
 
 #### The Figmenter (`Figmenter` · `FigmenterLedger` · `configs/FigmenterRules.cs` · `configs/BuffCatalog.cs`)
 
@@ -1031,9 +1036,9 @@ until 2026-10-10.
 
 **Its look** (`scenes/things/figmenter.tscn`): a mossy steel vat with a window and a control box, standing on the
 ground — `assets/things/figmenter.png`, a 6-frame strip (96×96 each) copied from
-`index32_art/art/stages/stage1/Figmenter.png`: frame 0 is the empty tank, frames 1–5 fill it with wine (a light comes
+`index32_art/art/stages/stage1/figmenter.png`: frame 0 is the empty tank, frames 1–5 fill it with wine (a light comes
 on at the last). `Figmenter` shows the frame for how far the brew is (`FigmenterLedger.Fill`), so the strip can be any
-length. Like Needle Point and Dekken it **stays where the layout places it**.
+length. Like Needle Point and the lottery stall it **stays where the layout places it**.
 
 **The loop** (`FigmenterLedger` — one per run, owned by `RunManager`; numbers in `configs/FigmenterRules.cs`):
 
@@ -1043,7 +1048,7 @@ length. Like Needle Point and Dekken it **stays where the layout places it**.
    "n ROUNDS". Pressing E meanwhile just repeats that.
 3. **Ready** — the wine's **name and what it does** hang over the machine. A ready wine waits as long as you like
    (it does not age in the machine).
-4. **Collect** — **E** fills your **wine bottle** — Khalid has exactly one; it is in the HUD under the vials, drawn
+4. **Collect** — **E** fills your **wine bottle** — Khalid has exactly one; it is in the HUD under the currency counters, drawn
    EMPTY or FULL. With the bottle full you get "DRINK YOUR WINE FIRST". The machine is empty again and can brew the next one right away.
 5. **Drink — or carry** — **F** (pad: D-pad up; `wine_drink`, registered in code by `WineControls`) drinks the bottle
    at any moment. A wine leaves the machine **Common** and climbs one rarity every `AgeRounds` (**2**) rounds you
@@ -2197,8 +2202,8 @@ Two `CurrencyCounter`s stacked top-left — **Lira** then **Fada Figs** — each
 popping on a gain (`HUD.SetLira` / `HUD.SetFadaFigs`, pushed by `Player`). Economy, not moment-to-moment
 survival — so it stays in the corner rather than in the gauge.
 
-Under them: the `VialRow` (the two Dekken carry slots, text for now) and the **`WineSlot`** — Khalid's one wine
-bottle (`assets/things/wine_bottle.png`, two 64×64 frames from `index32_art/art/things/WineBottle.aseprite`: empty,
+Under them: the **`WineSlot`** — Khalid's one wine
+bottle (`assets/things/wine_bottle.png`, two 64×64 frames from `index32_art/art/things/wine_bottle.aseprite`: empty,
 full of fig wine in the Figmenter's own oranges). It shows the empty bottle while he carries nothing; filled at the
 Figmenter it shows the full one with the wine's name and rarity beside it in the rarity's colour, and pops when it is
 filled and each time the wine climbs a rarity (`HUD.SetWine`, pushed by `WineControls`).
@@ -2250,7 +2255,7 @@ so screens can't silently cover each other: `Background` (-100) → `LowHealth` 
 so it never hides their content.
 
 **World draw order** has its own table, **`WorldZ`** (`scripts/ui/WorldZ.cs`) — the z_index of everything in the arena,
-lowest first: `Scenery` (-30, the layout's statue / trees) → `Stalls` (-25, the Figmenter, Needle Point, Dekken, launch orbs
+lowest first: `Scenery` (-30, the layout's statue / trees) → `Stalls` (-25, the Figmenter, Needle Point, the lottery stall, launch orbs
 — behind the tiles) → `Decor` (-20, the rocks + plants tile layer) → `Terrain` (-10) → `Wildlife` (-2, perched birds) → `Drops` (-1, figs on the ground) → `Actors` (0,
 Khalid + enemies) → `EnemySpawner.SpawnFx` (4) → `FlyingPickups` (5, Lira + Ruh souls) → `Impacts` (50) → the death cinematic
 (400 / 500). `LevelLayout` sets its `Aesthetic` / `Decor` / `Terrain` nodes from it (a `[Tool]`, so the editor shows the

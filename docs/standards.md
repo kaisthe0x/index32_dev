@@ -30,7 +30,7 @@ serves one of those four.
 
 - **S3. A new subsystem gets its own class.** Do not add a feature by growing `Player`, `RunManager`, `Enemy` or
   `HUD` — they are already too large (see *Known debt*). The pattern to copy is the stall **ledgers**
-  (`ShotLedger`, `PerkLedger`, `FigmenterLedger`): a plain class that owns one feature's state and rules, created and
+  (`ShotLedger`, `LotteryLedger`, `FigmenterLedger`): a plain class that owns one feature's state and rules, created and
   owned by `RunManager`, with a node (`Stall`, a menu) that only drives presentation. Wiring a new class into a big
   one is fine; putting its logic there is not.
 
@@ -69,8 +69,8 @@ The point is that a mistake is a compile error, not a bug found in play.
   through the tuning seam — never baked into a `.tscn`, never repeated in a script.
 - **D3. Tuning is findable.** A designer question ("how fast do kamikazes come?") must lead to one constant with a
   comment that states the resulting values (see `configs/Rounds.cs`).
-- **D4. Content is added by adding data**, not by adding a branch. A new enemy is a kit + table rows; a new perk is a
-  `PerkDef`. If adding content needs a new `if (id == …)` in shared code, the design is missing a seam — fix that.
+- **D4. Content is added by adding data**, not by adding a branch. A new enemy is a kit + table rows; a new lottery item is a
+  `LotteryItemDef` row and its effect class. If adding content needs a new `if (id == …)` in shared code, the design is missing a seam — fix that.
 
 ## O — Object design
 

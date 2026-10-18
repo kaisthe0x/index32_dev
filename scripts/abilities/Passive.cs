@@ -76,8 +76,4 @@ public partial class Passive : RefCounted
     /// <summary>A player attack hitbox deactivated having struck NOBODY — a WHIFF (doc: "On Miss"). Fires per
     /// attack hitbox; single-box attacks (e.g. Zahluq) get exactly one per swing.</summary>
     public virtual void OnMiss(Player player) { }
-
-    /// <summary>A round begins (dispatched by RunManager through <see cref="Player.NotifyRoundStart"/>) — round-scoped
-    /// effects re-arm here (Dekken's Shield, Prepared).</summary>
-    public virtual void OnRoundStart(Player player) { }
 }

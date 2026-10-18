@@ -8,7 +8,7 @@
 [ext_resource type="Texture2D" uid="uid://d1b13lllamaur" path="res://assets/terrain/stage1/big_tree.png" id="7_8tbje"]
 [ext_resource type="PackedScene" path="res://scenes/things/figmenter.tscn" id="8_figmenter"]
 [ext_resource type="PackedScene" path="res://scenes/things/needle_point.tscn" id="9_needle"]
-[ext_resource type="PackedScene" path="res://scenes/things/dekken.tscn" id="10_dekken"]
+[ext_resource type="PackedScene" path="res://scenes/things/lottery_stall.tscn" id="10_lottery"]
 
 [node name="LevelLayout" type="Node2D" unique_id=1745682419]
 position = Vector2(571, 518)
@@ -66,9 +66,9 @@ position = Vector2(1290, 0)
 z_index = -25
 position = Vector2(1027, 1)
 
-[node name="Dekken" parent="Stalls" unique_id=156608229 instance=ExtResource("10_dekken")]
+[node name="LotteryStall" parent="Stalls" unique_id=156608229 instance=ExtResource("10_lottery")]
 z_index = -25
-position = Vector2(761, 3)
+position = Vector2(761, 0)
 
 [node name="EnemySpawns" type="Node2D" parent="." unique_id=992789100]
 

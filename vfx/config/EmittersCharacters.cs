@@ -38,11 +38,6 @@ public static class EmittersCharacters
 			["blink_in"] = new[] { new EmitterDef(S("res://vfx/character/khalid/other/blink_in.tscn"), new Vector2(0, -18)) },
 			// Ora ora: fist burst on the two punch frames (sheet 2 & 4). Per-punch SOUNDS in SfxCharacters.Frames.
 			["attack_ora_ora"] = new[] { new EmitterDef(S("res://vfx/character/khalid/attack/ora_ora/attack_ora_ora.tscn"), new Vector2(23, -22)) { Frames = new[] { 2, 4 } } },
-			// Bakshen: one charged slash — the Strike (hitbox + red burst) fires on the last frame.
-			["attack_bakshen"] = new[] { new EmitterDef(S("res://vfx/character/khalid/attack/bakshen/attack_bakshen.tscn"), new Vector2(15, -18)) { Frames = new[] { 3 } } },
-			// Zahluq: burst-forward dash-attack. follow:true -> the ONE Strike + hitbox ride the player through the
-			// whole slide (single frame, else overlapping hitboxes double-hit). Strike lifetime covers the dash.
-			["attack_zahluq"] = new[] { new EmitterDef(S("res://vfx/character/khalid/attack/zahluq/attack_zahluq.tscn"), new Vector2(0, 0)) { Frames = new[] { 0, 1, 2, 3 }, Follow = true } },
 			// Twin Reaper: 5-hit spinning flurry — each hit its OWN scene, named _<sheetframe> (fires on that frame).
 			["attack_twin_reaper"] = new[]
 			{
@@ -73,6 +68,11 @@ public static class EmittersCharacters
 				new EmitterDef(S("res://vfx/character/khalid/attack/spear/attack_spear_9.tscn"), new Vector2(22, -18)) { Frames = new[] { 9 } },
 				new EmitterDef(S("res://vfx/character/khalid/attack/spear/attack_spear_13.tscn"), new Vector2(10, -18)) { Frames = new[] { 13 } },
 			},
+			// Bakshen (special, ex-attack): one charged slash — the Strike (hitbox + red burst) fires on the last frame.
+			["special_bakshen"] = new[] { new EmitterDef(S("res://vfx/character/khalid/special/bakshen/special_bakshen.tscn"), new Vector2(15, -18)) { Frames = new[] { 3 } } },
+			// Zahluq (special, ex-attack): burst-forward dash-strike. follow:true -> the ONE Strike + hitbox ride the player through the
+			// whole slide (single frame, else overlapping hitboxes double-hit). Strike lifetime covers the dash.
+			["special_zahluq"] = new[] { new EmitterDef(S("res://vfx/character/khalid/special/zahluq/special_zahluq.tscn"), new Vector2(0, 0)) { Frames = new[] { 0, 1, 2, 3 }, Follow = true } },
 			["special_ground_breaker"] = new[] { new EmitterDef(S("res://vfx/character/khalid/special/ground_breaker/special_ground_breaker.tscn"), new Vector2(0, 0)) { Frames = new[] { 6 }, ConformToGround = true } },
 			["special_frenemy"] = new[] { new EmitterDef(S("res://vfx/character/khalid/special/frenemy/special_frenemy.tscn"), new Vector2(40, -20)) { Frames = new[] { 3 } } },
 			// Come Closer: the magnet FIELD spawns in front on the beckon frame. Particles are placeholder.
