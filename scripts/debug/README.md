@@ -10,9 +10,10 @@ those lines.
 
 | File | Class | What it does |
 |---|---|---|
-| `DebugTools.cs` | `DebugTools` | The developer keys, one input handler: **0** rebuild the arena, **Z** hurt the player, **X** one block of Ruh, **B** / **N** buffs, **H** recording mode. |
+| `DebugTools.cs` | `DebugTools` | The developer keys, one input handler: **0** rebuild the arena, **Z** hurt the player, **X** one block of Ruh, **B** / **N** buffs, **H** recording mode, **M** the camping meteor. |
 | `BuffCycler.cs` | `BuffCycler` | **B** grants the next `BuffCatalog` buff (middle strength, cycling through the set); **N** removes every buff he holds (shots and the character ability stay). |
 | `RecordingMode.cs` | `RecordingMode` | **H**: just Khalid and the arena, for capturing footage — the HUD is hidden, the round does not run, the stalls show no prompt and don't open. Each toggle rebuilds the arena. |
+| `MeteorStrike.cs` | `MeteorStrike` | **M**: the camping meteor, for a devlog (not part of the game — a council ruled it out). Stay within 50 px for 5 s and a meteor falls where you stand: a ground warning, a burning rock trailing fire and smoke, then a flash, shockwave, debris, dust, scorch and camera shake; it hits like an enemy attack. Everything is in this one file; remove it by deleting the file and the M lines in `DebugTools`. |
 | `BuildLog.cs` | `BuildLog` | Prints the last C# compile time when the game starts from the editor (does nothing in an exported game). |
 
 **Adding a tool:** a new class here, driven from `DebugTools`. If the game has to react to it, give `DebugTools` a

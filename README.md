@@ -87,6 +87,7 @@ nothing in an exported game). A full compile of the game is about 1.4 s (2026-10
 | 0 | `debug_respawn` | Dev only — rebuild the current level fresh |
 | B / N | — | Dev only — grant the next catalog buff / clear the granted buffs |
 | H | — | Dev only — **recording mode** on / off: just Khalid and the arena (no HUD, no enemies, the stalls don't open), for capturing footage. Either way the arena is rebuilt |
+| M | — | Dev only — the **camping meteor** on / off (a devlog gag, not part of the game): stay within 50 px for 5 s and a meteor falls where you stand, hitting like an enemy attack (`scripts/debug/MeteorStrike.cs`) |
 
 The dev keys all live in `scripts/debug/` (`DebugTools`) — see `scripts/debug/README.md`.
 
@@ -471,7 +472,7 @@ each with its own data, an `Enter()` and a `Tick()`:
 
 | State class | What it is |
 |---|---|
-| `FreeState` | Free movement — idle / run / jump / fall (and the tail of a flinch). Every action starts here. |
+| `FreeState` | Free movement — idle / run / jump / fall (and the tail of a flinch), and the **dance**. Every action starts here. |
 | `DashState` | The dash (Khalid's is a blink) and its recovery; a buffered attack comes out of it. |
 | `AttackState` | The equipped attack: a combo played segment by segment, or a flurry looped while held. |
 | `SpecialState` | The special being cast; its cooldown; held specials; the shield's parry window. |
@@ -486,6 +487,15 @@ The state classes are nested in `Player` (it is a `partial` class), so they work
 movement. A flinch / stagger (`_stunLeft`) takes control away from whatever state he is in. Self-contained pieces
 are plain classes in `scripts/player/parts/`: `Wallet` (Lira and Fada Figs — `player.Wallet`) and `BodyTint` (the
 body shader and the hair's Ruh flare).
+
+**The dance.** Left alone — standing idle on the ground for `FreeState.DanceAfter` (8 s) with no button, key or stick
+pushed (`CalmStickDeadzone` 0.5) and no damage taken — Khalid dances (`FreeMode.Dance`, the `dance_1` animation,
+`sprites/characters/khalid/khalid_dance_1_frames.png` from `index32_art/art/characters/khalid/khalid_dance_1.aseprite`).
+It starts on the idle pose (frame 0, kept by `keep_first`), plays frames 0–2 once as a lead-in, then loops 3 to the
+last frame (`loop_from` 3, honoured by `Player.OnAnimationLooped`); the frame timings are the master's own
+(`FRAME_DURATIONS` in `tools/gen_spriteframes.py`). Any input or a hit ends it (`Player._Input` / `TakeDamage` →
+`ResetCalm`), and the next 8 s of calm starts it again. It is not a safe state: the round goes on, and standing
+still still draws kamikazes from round 5. A character without a `dance_1` animation just stays idle.
 
 **Movement stats live in typed config, not the inspector.** Every movement/physics knob is a
 `Locomotion` (`configs/Locomotion.cs`, the shared baseline) attached to a **movement Action**

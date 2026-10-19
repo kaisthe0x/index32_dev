@@ -167,6 +167,10 @@ OVERRIDES: dict[tuple[str, str], dict[str, float | int | bool]] = {
     # variable, physics-driven duration.
     # loop_from/loop_to are SHEET-relative (they count the idle-ref F0).
     ("khalid", "swing"): {"fps": 9.0, "loop": True, "loop_from": 2, "loop_to": 7},
+    # The dance (FreeState, after 8 s of calm): it starts on the idle-reference pose (keep_first --
+    # the same pose as idle, so it eases straight out of standing), plays frames 0-2 once as a
+    # lead-in, then loops 3 to the end.
+    ("khalid", "dance_1"): {"fps": 10.0, "loop": True, "keep_first": True, "loop_from": 3},
     # Hurt flinch: slower than the 12fps default + a lingering recoil so the 3-frame
     # reaction reads (the Player holds HURT at least this long, not cut short by a brief stagger).
     ("khalid", "hurt"): {"fps": 10.0, "hold_last": 1.6},
@@ -243,6 +247,21 @@ FRAME_DURATIONS: dict[tuple[str, str], dict[int, float]] = {
     # e.g. ("some_char", "some_attack"): {2: 1.5}  # linger on those hit frames
     ("khalid", "special_bakshen"): {1: 2.0},  # wind-up frame holds 1 full second (10 x 1/10fps)
     ("khalid", "attack_rope_dart"): {1: 0.5, 2: 0.5},
+    # The dance keeps the master's own frame timings (at 10 fps, 1.0 = 0.1 s): its 0.15 s frames
+    # are 1.5, its 0.2 s frames 2.0.
+    ("khalid", "dance_1"): {
+        0: 1.5,
+        1: 1.5,
+        3: 1.5,
+        5: 1.5,
+        6: 1.5,
+        7: 1.5,
+        8: 1.5,
+        9: 1.5,
+        10: 2.0,
+        11: 1.5,
+        13: 2.0,
+    },
 }
 
 # Snappy swings: in a CHARACTER attack/special that has explicit HIT_FRAMES, the frames BETWEEN

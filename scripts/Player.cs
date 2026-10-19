@@ -105,6 +105,7 @@ public partial class Player : Combatant, IStrikeWielder
     private const float HitCost = 1.0f;                      // one hit = half a block
     private const float HealthWarnHalf = 0.5f;               // "health_half" cue at 1.5 blocks left
     private const float HealthWarnLow = 0.34f;               // "health_low" cue at ~1 block left
+    private const float CalmStickDeadzone = 0.5f;            // a stick pushed past this counts as input (ends a dance)
 
     public float DamageMult = 1.0f;
     public float RunMult = 1.0f;
@@ -455,6 +456,7 @@ public partial class Player : Combatant, IStrikeWielder
 
     public void TakeDamage(float amount)
     {
+        ResetCalm();
         // Slot health: every hit costs a flat HALF-BLOCK, regardless of `amount` (so damage-reduction is inert now).
         // `amount` is kept for callers but no longer scales the HP loss, and there's no damage number to show.
         float before = Health;
@@ -890,6 +892,18 @@ public partial class Player : Combatant, IStrikeWielder
     // =====================================================================================================
     // Physics
     // =====================================================================================================
+    /// <summary>Any button, key or real stick push ends the calm (and a dance): he only dances when left alone.</summary>
+    public override void _Input(InputEvent @event)
+    {
+        bool pressed = @event is InputEventKey { Pressed: true } or InputEventMouseButton { Pressed: true }
+            or InputEventJoypadButton { Pressed: true }
+            || @event is InputEventJoypadMotion motion && Mathf.Abs(motion.AxisValue) > CalmStickDeadzone;
+        if (pressed)
+            ResetCalm();
+    }
+
+    private void ResetCalm() => _free.Calm = 0.0f;
+
     public override void _PhysicsProcess(double deltaD)
     {
         if (Engine.IsEditorHint())

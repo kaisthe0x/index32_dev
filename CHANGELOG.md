@@ -6,6 +6,54 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-18 — `new-shit` — Khalid dances when left alone; a debug camping meteor for the devlog; the stage-1 lady
+
+### Khalid dances after 8 s of calm
+
+- **What:** standing idle on the ground for 8 s with no input and no damage, Khalid dances: the owner's new
+  14-frame `dance_1` (`sprites/characters/khalid/khalid_dance_1_frames.png`, from
+  `index32_art/art/characters/khalid/khalid_dance_1.aseprite`). It starts on the idle pose, plays frames 0–2 once,
+  then loops 3 to the last frame; any button, key, real stick push or a hit stops it, and 8 more calm seconds start it
+  again.
+- **How:** a `Dance` free mode in `FreeState` with a `Calm` timer that counts only while he stands idle on the
+  ground (`DanceAfter` 8 s); `Player._Input` (any press, or a stick past `CalmStickDeadzone` 0.5) and `TakeDamage`
+  reset it through `ResetCalm`. The loop is the generator's existing `loop_from` (3) with `keep_first` (frame 0
+  plays), and `FRAME_DURATIONS` copies the master's own frame timings (0.1–0.2 s) — `tools/gen_spriteframes.py`;
+  `resources/characters/khalid.tres` regenerated.
+- **Could affect:** idle (the dance only replaces it after 8 s of calm); `khalid.tres` is rewritten in the
+  generator's layout — loaded in Godot and compared animation by animation against the committed one, every existing
+  animation, region, margin, duration and metadata is identical; the only change is `dance_1`.
+- **Tested:** build 0 warnings; reimport and headless boot clean; a throwaway headless scene through the real arena
+  in recording mode (deleted) passed 5/5: the dance starts at 8.00 s, plays 0,1,2 then 3..13 back to 3, a key press
+  stops it, it starts again after another 8 s, a hit stops it. A 1280×720 render of every frame showed it on the
+  ground and lined up with idle.
+
+### DEBUG: the camping meteor (M), for a devlog
+
+- **What:** with M on, staying within 50 px (`Rounds.StillRadius`) for 5 s drops a meteor where Khalid stands, and
+  another every 5 s he stays. A ground glow and a tightening shadow warn for 1.1 s; a burning rock falls at an angle
+  trailing fire, smoke and sparks; the impact is a soft white flash, a flattened shockwave along the ground, an
+  upward fireball, square rock debris under gravity, dust rolling out both ways, embers, a scorch mark that fades
+  over 5 s, a camera shake and a blast (Ein's kamikaze sound). It hits like an enemy attack — a hostile `Hitbox` for
+  one instant (the usual half-block, knocked back from the crater).
+- **Why debug only:** a council ruled a camping meteor out of the game (2026-10-13); the owner wanted it for a
+  devlog, easy to delete. Everything is in `scripts/debug/MeteorStrike.cs`, built in code (no scene, no asset);
+  `DebugTools` adds it and binds M. Removing it = that file and the M lines in `DebugTools`.
+- **Tested:** a throwaway headless scene (deleted) in recording mode: one meteor cost one half-block and knocked
+  him 69 px; renders of the warning, fall, impact and scorch (the flash, dust and fireball were reworked after the
+  first render — a hard disc, dust spilling under the floor and a fireball half underground).
+
+### index32_art: the stage-1 lady and Khalid's dance flattened
+
+- **What:** `art/stages/stage1/lady.aseprite` (the owner's new stage decor: a woman lying on a ledge holding up a
+  cup, 5 frames) repaletted and flattened to one colour per part — new profile `tools/repalette/profiles/lady.py`
+  (five parts by hue, ramps measured from the owner's own colours) and a flat look in `flat_looks.py` (her ramps'
+  second-lightest shades, shared with Khalid's through `_second_lightest`); her content layer renamed `Layer 3` →
+  `Thing` so the tools see it; `lady.png` exported (not in the game yet). `khalid_dance_1.aseprite` frames 2–9 were
+  flattened through Khalid's profile and look; the owner then redrew the dance to 14 frames, all flat. (index32_art `281140a`.)
+- **Tested:** each master's export matched its dry run pixel for pixel; the lady's `Background` / `Platform` layers
+  and every frame duration unchanged.
+
 ## 2026-10-17 — `new-shit` — Dekken replaced by the lottery stall; triggered healing capped; Crimson Vortex; the art repo reorganised
 
 ### The lottery stall: pay first, spin, take what lands

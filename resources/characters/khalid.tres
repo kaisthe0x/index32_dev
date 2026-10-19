@@ -10,79 +10,68 @@
 [ext_resource type="Texture2D" uid="uid://cutgwdvwgxj47" path="res://sprites/characters/khalid/khalid_death_frames.png" id="8_death"]
 [ext_resource type="Texture2D" uid="uid://di7unepxorcn3" path="res://sprites/characters/khalid/khalid_spawn_frames.png" id="9_spawn"]
 [ext_resource type="Texture2D" uid="uid://ck8v6s0w3cqap" path="res://sprites/characters/khalid/khalid_hurt_frames.png" id="10_hurt"]
-[ext_resource type="Texture2D" uid="uid://cey1410tu7yeb" path="res://sprites/characters/khalid/khalid_special_bakshen_frames.png" id="11_special_bakshen"]
-[ext_resource type="Texture2D" uid="uid://cw6u3rgedaxn" path="res://sprites/characters/khalid/khalid_attack_cherry_shots_frames.png" id="12_attack_cherry_shots"]
+[ext_resource type="Texture2D" uid="uid://cw6u3rgedaxn" path="res://sprites/characters/khalid/khalid_attack_cherry_shots_frames.png" id="11_attack_cherry_shots"]
+[ext_resource type="Texture2D" uid="uid://cvo6weherngml" path="res://sprites/characters/khalid/khalid_attack_ora_ora_frames.png" id="12_attack_ora_ora"]
 [ext_resource type="Texture2D" uid="uid://b3ln7ge7jsfop" path="res://sprites/characters/khalid/khalid_attack_rope_dart_frames.png" id="13_attack_rope_dart"]
-[ext_resource type="Texture2D" uid="uid://cvo6weherngml" path="res://sprites/characters/khalid/khalid_attack_ora_ora_frames.png" id="14_attack_ora_ora"]
-[ext_resource type="Texture2D" uid="uid://dkyvjdmxgwfcr" path="res://sprites/characters/khalid/khalid_attack_spear_frames.png" id="15_attack_spear"]
-[ext_resource type="Texture2D" uid="uid://xpwfw3cthnwy" path="res://sprites/characters/khalid/khalid_attack_twin_reaper_frames.png" id="16_attack_twin_reaper"]
-[ext_resource type="Texture2D" uid="uid://0yvcwkdtnct2" path="res://sprites/characters/khalid/khalid_special_zahluq_frames.png" id="17_special_zahluq"]
-[ext_resource type="Texture2D" uid="uid://b7klmtwwd1pki" path="res://sprites/characters/khalid/khalid_special_come_closer_frames.png" id="18_special_come_closer"]
-[ext_resource type="Texture2D" uid="uid://cnw1o6571cck5" path="res://sprites/characters/khalid/khalid_special_frenemy_frames.png" id="19_special_frenemy"]
-[ext_resource type="Texture2D" uid="uid://3l40hu0wu0va" path="res://sprites/characters/khalid/khalid_special_ground_breaker_frames.png" id="20_special_ground_breaker"]
-[ext_resource type="Texture2D" uid="uid://cbxpdo67tickj" path="res://sprites/characters/khalid/khalid_special_redere_frisbee_frames.png" id="21_special_redere_frisbee"]
-[ext_resource type="Texture2D" uid="uid://cfqrx78j45pde" path="res://sprites/characters/khalid/khalid_special_redere_shield_frames.png" id="22_special_redere_shield"]
-[ext_resource type="Texture2D" uid="uid://chnfx3pscryuc" path="res://sprites/characters/khalid/khalid_surge_aegis_frames.png" id="23_surge_aegis"]
-[ext_resource type="Texture2D" uid="uid://dp31wboput87x" path="res://sprites/characters/khalid/khalid_surge_asra_frames.png" id="24_surge_asra"]
-[ext_resource type="Texture2D" uid="uid://jte6pq8lwx55" path="res://sprites/characters/khalid/khalid_surge_jnoon_frames.png" id="25_surge_jnoon"]
-[ext_resource type="Texture2D" uid="uid://clj48g6qdp8ds" path="res://sprites/characters/khalid/khalid_surge_nem_frames.png" id="26_surge_nem"]
-[ext_resource type="Texture2D" uid="uid://bulx35f5lajpr" path="res://sprites/characters/khalid/khalid_surge_wara_frames.png" id="27_surge_wara"]
-[ext_resource type="Texture2D" uid="uid://ykhcuiju0njo" path="res://sprites/characters/khalid/khalid_swing_frames.png" id="28_swing"]
-
-[sub_resource type="AtlasTexture" id="special_bakshen_1"]
-atlas = ExtResource("11_special_bakshen")
-region = Rect2(128, 0, 128, 80)
-
-[sub_resource type="AtlasTexture" id="special_bakshen_2"]
-atlas = ExtResource("11_special_bakshen")
-region = Rect2(256, 0, 128, 80)
-
-[sub_resource type="AtlasTexture" id="special_bakshen_3"]
-atlas = ExtResource("11_special_bakshen")
-region = Rect2(384, 0, 128, 80)
+[ext_resource type="Texture2D" uid="uid://dkyvjdmxgwfcr" path="res://sprites/characters/khalid/khalid_attack_spear_frames.png" id="14_attack_spear"]
+[ext_resource type="Texture2D" uid="uid://xpwfw3cthnwy" path="res://sprites/characters/khalid/khalid_attack_twin_reaper_frames.png" id="15_attack_twin_reaper"]
+[ext_resource type="Texture2D" uid="uid://cey1410tu7yeb" path="res://sprites/characters/khalid/khalid_special_bakshen_frames.png" id="16_special_bakshen"]
+[ext_resource type="Texture2D" uid="uid://b7klmtwwd1pki" path="res://sprites/characters/khalid/khalid_special_come_closer_frames.png" id="17_special_come_closer"]
+[ext_resource type="Texture2D" uid="uid://cnw1o6571cck5" path="res://sprites/characters/khalid/khalid_special_frenemy_frames.png" id="18_special_frenemy"]
+[ext_resource type="Texture2D" uid="uid://3l40hu0wu0va" path="res://sprites/characters/khalid/khalid_special_ground_breaker_frames.png" id="19_special_ground_breaker"]
+[ext_resource type="Texture2D" uid="uid://cbxpdo67tickj" path="res://sprites/characters/khalid/khalid_special_redere_frisbee_frames.png" id="20_special_redere_frisbee"]
+[ext_resource type="Texture2D" uid="uid://cfqrx78j45pde" path="res://sprites/characters/khalid/khalid_special_redere_shield_frames.png" id="21_special_redere_shield"]
+[ext_resource type="Texture2D" uid="uid://0yvcwkdtnct2" path="res://sprites/characters/khalid/khalid_special_zahluq_frames.png" id="22_special_zahluq"]
+[ext_resource type="Texture2D" uid="uid://pgrxx1lwrdnm" path="res://sprites/characters/khalid/khalid_dance_1_frames.png" id="23_dance_1"]
+[ext_resource type="Texture2D" uid="uid://chnfx3pscryuc" path="res://sprites/characters/khalid/khalid_surge_aegis_frames.png" id="24_surge_aegis"]
+[ext_resource type="Texture2D" uid="uid://dp31wboput87x" path="res://sprites/characters/khalid/khalid_surge_asra_frames.png" id="25_surge_asra"]
+[ext_resource type="Texture2D" uid="uid://jte6pq8lwx55" path="res://sprites/characters/khalid/khalid_surge_jnoon_frames.png" id="26_surge_jnoon"]
+[ext_resource type="Texture2D" uid="uid://clj48g6qdp8ds" path="res://sprites/characters/khalid/khalid_surge_nem_frames.png" id="27_surge_nem"]
+[ext_resource type="Texture2D" uid="uid://bulx35f5lajpr" path="res://sprites/characters/khalid/khalid_surge_wara_frames.png" id="28_surge_wara"]
+[ext_resource type="Texture2D" uid="uid://ykhcuiju0njo" path="res://sprites/characters/khalid/khalid_swing_frames.png" id="29_swing"]
 
 [sub_resource type="AtlasTexture" id="attack_cherry_shots_1"]
-atlas = ExtResource("12_attack_cherry_shots")
+atlas = ExtResource("11_attack_cherry_shots")
 region = Rect2(128, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_cherry_shots_2"]
-atlas = ExtResource("12_attack_cherry_shots")
+atlas = ExtResource("11_attack_cherry_shots")
 region = Rect2(256, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_cherry_shots_3"]
-atlas = ExtResource("12_attack_cherry_shots")
+atlas = ExtResource("11_attack_cherry_shots")
 region = Rect2(384, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_cherry_shots_4"]
-atlas = ExtResource("12_attack_cherry_shots")
+atlas = ExtResource("11_attack_cherry_shots")
 region = Rect2(512, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_cherry_shots_5"]
-atlas = ExtResource("12_attack_cherry_shots")
+atlas = ExtResource("11_attack_cherry_shots")
 region = Rect2(640, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_cherry_shots_6"]
-atlas = ExtResource("12_attack_cherry_shots")
+atlas = ExtResource("11_attack_cherry_shots")
 region = Rect2(768, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_cherry_shots_7"]
-atlas = ExtResource("12_attack_cherry_shots")
+atlas = ExtResource("11_attack_cherry_shots")
 region = Rect2(896, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_ora_ora_1"]
-atlas = ExtResource("14_attack_ora_ora")
+atlas = ExtResource("12_attack_ora_ora")
 region = Rect2(128, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_ora_ora_2"]
-atlas = ExtResource("14_attack_ora_ora")
+atlas = ExtResource("12_attack_ora_ora")
 region = Rect2(256, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_ora_ora_3"]
-atlas = ExtResource("14_attack_ora_ora")
+atlas = ExtResource("12_attack_ora_ora")
 region = Rect2(384, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_ora_ora_4"]
-atlas = ExtResource("14_attack_ora_ora")
+atlas = ExtResource("12_attack_ora_ora")
 region = Rect2(512, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_rope_dart_1"]
@@ -154,116 +143,156 @@ atlas = ExtResource("13_attack_rope_dart")
 region = Rect2(2176, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_spear_1"]
-atlas = ExtResource("15_attack_spear")
+atlas = ExtResource("14_attack_spear")
 region = Rect2(128, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_spear_2"]
-atlas = ExtResource("15_attack_spear")
+atlas = ExtResource("14_attack_spear")
 region = Rect2(256, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_spear_3"]
-atlas = ExtResource("15_attack_spear")
+atlas = ExtResource("14_attack_spear")
 region = Rect2(384, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_spear_4"]
-atlas = ExtResource("15_attack_spear")
+atlas = ExtResource("14_attack_spear")
 region = Rect2(512, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_spear_5"]
-atlas = ExtResource("15_attack_spear")
+atlas = ExtResource("14_attack_spear")
 region = Rect2(640, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_spear_6"]
-atlas = ExtResource("15_attack_spear")
+atlas = ExtResource("14_attack_spear")
 region = Rect2(768, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_spear_7"]
-atlas = ExtResource("15_attack_spear")
+atlas = ExtResource("14_attack_spear")
 region = Rect2(896, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_spear_8"]
-atlas = ExtResource("15_attack_spear")
+atlas = ExtResource("14_attack_spear")
 region = Rect2(1024, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_spear_9"]
-atlas = ExtResource("15_attack_spear")
+atlas = ExtResource("14_attack_spear")
 region = Rect2(1152, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_spear_10"]
-atlas = ExtResource("15_attack_spear")
+atlas = ExtResource("14_attack_spear")
 region = Rect2(1280, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_spear_11"]
-atlas = ExtResource("15_attack_spear")
+atlas = ExtResource("14_attack_spear")
 region = Rect2(1408, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_spear_12"]
-atlas = ExtResource("15_attack_spear")
+atlas = ExtResource("14_attack_spear")
 region = Rect2(1536, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_spear_13"]
-atlas = ExtResource("15_attack_spear")
+atlas = ExtResource("14_attack_spear")
 region = Rect2(1664, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_twin_reaper_1"]
-atlas = ExtResource("16_attack_twin_reaper")
+atlas = ExtResource("15_attack_twin_reaper")
 region = Rect2(128, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_twin_reaper_2"]
-atlas = ExtResource("16_attack_twin_reaper")
+atlas = ExtResource("15_attack_twin_reaper")
 region = Rect2(256, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_twin_reaper_3"]
-atlas = ExtResource("16_attack_twin_reaper")
+atlas = ExtResource("15_attack_twin_reaper")
 region = Rect2(384, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_twin_reaper_4"]
-atlas = ExtResource("16_attack_twin_reaper")
+atlas = ExtResource("15_attack_twin_reaper")
 region = Rect2(512, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_twin_reaper_5"]
-atlas = ExtResource("16_attack_twin_reaper")
+atlas = ExtResource("15_attack_twin_reaper")
 region = Rect2(640, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_twin_reaper_6"]
-atlas = ExtResource("16_attack_twin_reaper")
+atlas = ExtResource("15_attack_twin_reaper")
 region = Rect2(768, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_twin_reaper_7"]
-atlas = ExtResource("16_attack_twin_reaper")
+atlas = ExtResource("15_attack_twin_reaper")
 region = Rect2(896, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_twin_reaper_8"]
-atlas = ExtResource("16_attack_twin_reaper")
+atlas = ExtResource("15_attack_twin_reaper")
 region = Rect2(1024, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_twin_reaper_9"]
-atlas = ExtResource("16_attack_twin_reaper")
+atlas = ExtResource("15_attack_twin_reaper")
 region = Rect2(1152, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_twin_reaper_10"]
-atlas = ExtResource("16_attack_twin_reaper")
+atlas = ExtResource("15_attack_twin_reaper")
 region = Rect2(1280, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="attack_twin_reaper_11"]
-atlas = ExtResource("16_attack_twin_reaper")
+atlas = ExtResource("15_attack_twin_reaper")
 region = Rect2(1408, 0, 128, 80)
 
-[sub_resource type="AtlasTexture" id="special_zahluq_1"]
-atlas = ExtResource("17_special_zahluq")
+[sub_resource type="AtlasTexture" id="dance_1_0"]
+atlas = ExtResource("23_dance_1")
+region = Rect2(0, 0, 128, 80)
+
+[sub_resource type="AtlasTexture" id="dance_1_1"]
+atlas = ExtResource("23_dance_1")
 region = Rect2(128, 0, 128, 80)
 
-[sub_resource type="AtlasTexture" id="special_zahluq_2"]
-atlas = ExtResource("17_special_zahluq")
+[sub_resource type="AtlasTexture" id="dance_1_2"]
+atlas = ExtResource("23_dance_1")
 region = Rect2(256, 0, 128, 80)
 
-[sub_resource type="AtlasTexture" id="special_zahluq_3"]
-atlas = ExtResource("17_special_zahluq")
+[sub_resource type="AtlasTexture" id="dance_1_3"]
+atlas = ExtResource("23_dance_1")
 region = Rect2(384, 0, 128, 80)
 
-[sub_resource type="AtlasTexture" id="special_zahluq_4"]
-atlas = ExtResource("17_special_zahluq")
+[sub_resource type="AtlasTexture" id="dance_1_4"]
+atlas = ExtResource("23_dance_1")
 region = Rect2(512, 0, 128, 80)
+
+[sub_resource type="AtlasTexture" id="dance_1_5"]
+atlas = ExtResource("23_dance_1")
+region = Rect2(640, 0, 128, 80)
+
+[sub_resource type="AtlasTexture" id="dance_1_6"]
+atlas = ExtResource("23_dance_1")
+region = Rect2(768, 0, 128, 80)
+
+[sub_resource type="AtlasTexture" id="dance_1_7"]
+atlas = ExtResource("23_dance_1")
+region = Rect2(896, 0, 128, 80)
+
+[sub_resource type="AtlasTexture" id="dance_1_8"]
+atlas = ExtResource("23_dance_1")
+region = Rect2(1024, 0, 128, 80)
+
+[sub_resource type="AtlasTexture" id="dance_1_9"]
+atlas = ExtResource("23_dance_1")
+region = Rect2(1152, 0, 128, 80)
+
+[sub_resource type="AtlasTexture" id="dance_1_10"]
+atlas = ExtResource("23_dance_1")
+region = Rect2(1280, 0, 128, 80)
+
+[sub_resource type="AtlasTexture" id="dance_1_11"]
+atlas = ExtResource("23_dance_1")
+region = Rect2(1408, 0, 128, 80)
+
+[sub_resource type="AtlasTexture" id="dance_1_12"]
+atlas = ExtResource("23_dance_1")
+region = Rect2(1536, 0, 128, 80)
+
+[sub_resource type="AtlasTexture" id="dance_1_13"]
+atlas = ExtResource("23_dance_1")
+region = Rect2(1664, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="dash_1"]
 atlas = ExtResource("7_dash")
@@ -517,206 +546,220 @@ region = Rect2(1024, 0, 128, 80)
 atlas = ExtResource("9_spawn")
 region = Rect2(1152, 0, 128, 80)
 
+[sub_resource type="AtlasTexture" id="special_bakshen_1"]
+atlas = ExtResource("16_special_bakshen")
+region = Rect2(128, 0, 128, 80)
+
+[sub_resource type="AtlasTexture" id="special_bakshen_2"]
+atlas = ExtResource("16_special_bakshen")
+region = Rect2(256, 0, 128, 80)
+
+[sub_resource type="AtlasTexture" id="special_bakshen_3"]
+atlas = ExtResource("16_special_bakshen")
+region = Rect2(384, 0, 128, 80)
+
 [sub_resource type="AtlasTexture" id="special_come_closer_1"]
-atlas = ExtResource("18_special_come_closer")
+atlas = ExtResource("17_special_come_closer")
 region = Rect2(128, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="special_come_closer_2"]
-atlas = ExtResource("18_special_come_closer")
+atlas = ExtResource("17_special_come_closer")
 region = Rect2(256, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="special_come_closer_3"]
-atlas = ExtResource("18_special_come_closer")
+atlas = ExtResource("17_special_come_closer")
 region = Rect2(384, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="special_frenemy_1"]
-atlas = ExtResource("19_special_frenemy")
+atlas = ExtResource("18_special_frenemy")
 region = Rect2(128, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="special_frenemy_2"]
-atlas = ExtResource("19_special_frenemy")
+atlas = ExtResource("18_special_frenemy")
 region = Rect2(256, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="special_frenemy_3"]
-atlas = ExtResource("19_special_frenemy")
+atlas = ExtResource("18_special_frenemy")
 region = Rect2(384, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="special_frenemy_4"]
-atlas = ExtResource("19_special_frenemy")
+atlas = ExtResource("18_special_frenemy")
 region = Rect2(512, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="special_ground_breaker_1"]
-atlas = ExtResource("20_special_ground_breaker")
+atlas = ExtResource("19_special_ground_breaker")
 region = Rect2(128, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="special_ground_breaker_2"]
-atlas = ExtResource("20_special_ground_breaker")
+atlas = ExtResource("19_special_ground_breaker")
 region = Rect2(256, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="special_ground_breaker_3"]
-atlas = ExtResource("20_special_ground_breaker")
+atlas = ExtResource("19_special_ground_breaker")
 region = Rect2(384, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="special_ground_breaker_4"]
-atlas = ExtResource("20_special_ground_breaker")
+atlas = ExtResource("19_special_ground_breaker")
 region = Rect2(512, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="special_ground_breaker_5"]
-atlas = ExtResource("20_special_ground_breaker")
+atlas = ExtResource("19_special_ground_breaker")
 region = Rect2(640, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="special_ground_breaker_6"]
-atlas = ExtResource("20_special_ground_breaker")
+atlas = ExtResource("19_special_ground_breaker")
 region = Rect2(768, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="special_ground_breaker_7"]
-atlas = ExtResource("20_special_ground_breaker")
+atlas = ExtResource("19_special_ground_breaker")
 region = Rect2(896, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="special_redere_frisbee_1"]
-atlas = ExtResource("21_special_redere_frisbee")
+atlas = ExtResource("20_special_redere_frisbee")
 region = Rect2(128, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="special_redere_frisbee_2"]
-atlas = ExtResource("21_special_redere_frisbee")
+atlas = ExtResource("20_special_redere_frisbee")
 region = Rect2(256, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="special_redere_frisbee_3"]
-atlas = ExtResource("21_special_redere_frisbee")
+atlas = ExtResource("20_special_redere_frisbee")
 region = Rect2(384, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="special_redere_shield_1"]
-atlas = ExtResource("22_special_redere_shield")
+atlas = ExtResource("21_special_redere_shield")
 region = Rect2(128, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="special_redere_shield_2"]
-atlas = ExtResource("22_special_redere_shield")
+atlas = ExtResource("21_special_redere_shield")
 region = Rect2(256, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="special_redere_shield_3"]
-atlas = ExtResource("22_special_redere_shield")
+atlas = ExtResource("21_special_redere_shield")
 region = Rect2(384, 0, 128, 80)
 
+[sub_resource type="AtlasTexture" id="special_zahluq_1"]
+atlas = ExtResource("22_special_zahluq")
+region = Rect2(128, 0, 128, 80)
+
+[sub_resource type="AtlasTexture" id="special_zahluq_2"]
+atlas = ExtResource("22_special_zahluq")
+region = Rect2(256, 0, 128, 80)
+
+[sub_resource type="AtlasTexture" id="special_zahluq_3"]
+atlas = ExtResource("22_special_zahluq")
+region = Rect2(384, 0, 128, 80)
+
+[sub_resource type="AtlasTexture" id="special_zahluq_4"]
+atlas = ExtResource("22_special_zahluq")
+region = Rect2(512, 0, 128, 80)
+
 [sub_resource type="AtlasTexture" id="surge_aegis_1"]
-atlas = ExtResource("23_surge_aegis")
+atlas = ExtResource("24_surge_aegis")
 region = Rect2(128, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="surge_aegis_2"]
-atlas = ExtResource("23_surge_aegis")
+atlas = ExtResource("24_surge_aegis")
 region = Rect2(256, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="surge_asra_1"]
-atlas = ExtResource("24_surge_asra")
+atlas = ExtResource("25_surge_asra")
 region = Rect2(128, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="surge_asra_2"]
-atlas = ExtResource("24_surge_asra")
+atlas = ExtResource("25_surge_asra")
 region = Rect2(256, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="surge_asra_3"]
-atlas = ExtResource("24_surge_asra")
+atlas = ExtResource("25_surge_asra")
 region = Rect2(384, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="surge_jnoon_1"]
-atlas = ExtResource("25_surge_jnoon")
+atlas = ExtResource("26_surge_jnoon")
 region = Rect2(128, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="surge_jnoon_2"]
-atlas = ExtResource("25_surge_jnoon")
+atlas = ExtResource("26_surge_jnoon")
 region = Rect2(256, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="surge_jnoon_3"]
-atlas = ExtResource("25_surge_jnoon")
+atlas = ExtResource("26_surge_jnoon")
 region = Rect2(384, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="surge_nem_0"]
-atlas = ExtResource("26_surge_nem")
+atlas = ExtResource("27_surge_nem")
 region = Rect2(0, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="surge_nem_1"]
-atlas = ExtResource("26_surge_nem")
+atlas = ExtResource("27_surge_nem")
 region = Rect2(128, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="surge_nem_2"]
-atlas = ExtResource("26_surge_nem")
+atlas = ExtResource("27_surge_nem")
 region = Rect2(256, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="surge_nem_3"]
-atlas = ExtResource("26_surge_nem")
+atlas = ExtResource("27_surge_nem")
 region = Rect2(384, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="surge_nem_4"]
-atlas = ExtResource("26_surge_nem")
+atlas = ExtResource("27_surge_nem")
 region = Rect2(512, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="surge_wara_1"]
-atlas = ExtResource("27_surge_wara")
+atlas = ExtResource("28_surge_wara")
 region = Rect2(128, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="surge_wara_2"]
-atlas = ExtResource("27_surge_wara")
+atlas = ExtResource("28_surge_wara")
 region = Rect2(256, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="surge_wara_3"]
-atlas = ExtResource("27_surge_wara")
+atlas = ExtResource("28_surge_wara")
 region = Rect2(384, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="surge_wara_4"]
-atlas = ExtResource("27_surge_wara")
+atlas = ExtResource("28_surge_wara")
 region = Rect2(512, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="surge_wara_5"]
-atlas = ExtResource("27_surge_wara")
+atlas = ExtResource("28_surge_wara")
 region = Rect2(640, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="swing_1"]
-atlas = ExtResource("28_swing")
+atlas = ExtResource("29_swing")
 region = Rect2(128, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="swing_2"]
-atlas = ExtResource("28_swing")
+atlas = ExtResource("29_swing")
 region = Rect2(256, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="swing_3"]
-atlas = ExtResource("28_swing")
+atlas = ExtResource("29_swing")
 region = Rect2(384, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="swing_4"]
-atlas = ExtResource("28_swing")
+atlas = ExtResource("29_swing")
 region = Rect2(512, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="swing_5"]
-atlas = ExtResource("28_swing")
+atlas = ExtResource("29_swing")
 region = Rect2(640, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="swing_6"]
-atlas = ExtResource("28_swing")
+atlas = ExtResource("29_swing")
 region = Rect2(768, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="swing_7"]
-atlas = ExtResource("28_swing")
+atlas = ExtResource("29_swing")
 region = Rect2(896, 0, 128, 80)
 
 [sub_resource type="AtlasTexture" id="swing_8"]
-atlas = ExtResource("28_swing")
+atlas = ExtResource("29_swing")
 region = Rect2(1024, 0, 128, 80)
 
 [resource]
 animations = [{
-"frames": [{
-"duration": 2.0,
-"texture": SubResource("special_bakshen_1")
-}, {
-"duration": 0.25,
-"texture": SubResource("special_bakshen_2")
-}, {
-"duration": 10.0,
-"texture": SubResource("special_bakshen_3")
-}],
-"loop": 0,
-"name": &"special_bakshen",
-"speed": 10.0
-}, {
 "frames": [{
 "duration": 0.25,
 "texture": SubResource("attack_cherry_shots_1")
@@ -899,21 +942,51 @@ animations = [{
 "speed": 20.0
 }, {
 "frames": [{
-"duration": 0.25,
-"texture": SubResource("special_zahluq_1")
+"duration": 1.5,
+"texture": SubResource("dance_1_0")
+}, {
+"duration": 1.5,
+"texture": SubResource("dance_1_1")
 }, {
 "duration": 1.0,
-"texture": SubResource("special_zahluq_2")
+"texture": SubResource("dance_1_2")
 }, {
-"duration": 0.25,
-"texture": SubResource("special_zahluq_3")
+"duration": 1.5,
+"texture": SubResource("dance_1_3")
+}, {
+"duration": 1.0,
+"texture": SubResource("dance_1_4")
+}, {
+"duration": 1.5,
+"texture": SubResource("dance_1_5")
+}, {
+"duration": 1.5,
+"texture": SubResource("dance_1_6")
+}, {
+"duration": 1.5,
+"texture": SubResource("dance_1_7")
+}, {
+"duration": 1.5,
+"texture": SubResource("dance_1_8")
+}, {
+"duration": 1.5,
+"texture": SubResource("dance_1_9")
 }, {
 "duration": 2.0,
-"texture": SubResource("special_zahluq_4")
+"texture": SubResource("dance_1_10")
+}, {
+"duration": 1.5,
+"texture": SubResource("dance_1_11")
+}, {
+"duration": 1.0,
+"texture": SubResource("dance_1_12")
+}, {
+"duration": 2.0,
+"texture": SubResource("dance_1_13")
 }],
-"loop": 0,
-"name": &"special_zahluq",
-"speed": 14.0
+"loop": 1,
+"name": &"dance_1",
+"speed": 10.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -1155,6 +1228,20 @@ animations = [{
 "speed": 10.0
 }, {
 "frames": [{
+"duration": 2.0,
+"texture": SubResource("special_bakshen_1")
+}, {
+"duration": 0.25,
+"texture": SubResource("special_bakshen_2")
+}, {
+"duration": 10.0,
+"texture": SubResource("special_bakshen_3")
+}],
+"loop": 0,
+"name": &"special_bakshen",
+"speed": 10.0
+}, {
+"frames": [{
 "duration": 0.25,
 "texture": SubResource("special_come_closer_1")
 }, {
@@ -1238,6 +1325,23 @@ animations = [{
 "loop": 0,
 "name": &"special_redere_shield",
 "speed": 9.0
+}, {
+"frames": [{
+"duration": 0.25,
+"texture": SubResource("special_zahluq_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("special_zahluq_2")
+}, {
+"duration": 0.25,
+"texture": SubResource("special_zahluq_3")
+}, {
+"duration": 2.0,
+"texture": SubResource("special_zahluq_4")
+}],
+"loop": 0,
+"name": &"special_zahluq",
+"speed": 14.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -1348,30 +1452,30 @@ animations = [{
 "speed": 9.0
 }]
 metadata/loop_from = {
+"dance_1": 3,
 "swing": 1
 }
 metadata/loop_to = {
 "swing": 6
 }
 metadata/hit_frames = {
-"special_bakshen": [2],
 "attack_cherry_shots": [2, 6],
 "attack_spear": [5, 8, 12],
-"special_zahluq": [1],
+"special_bakshen": [2],
 "special_come_closer": [2],
 "special_frenemy": [0, 1, 2],
 "special_ground_breaker": [1, 2, 3, 4, 5],
 "special_redere_frisbee": [2],
-"special_redere_shield": [2]
+"special_redere_shield": [2],
+"special_zahluq": [1]
 }
 metadata/sheet_start = {
-"special_bakshen": 1,
 "attack_cherry_shots": 1,
 "attack_ora_ora": 1,
 "attack_rope_dart": 1,
 "attack_spear": 1,
 "attack_twin_reaper": 1,
-"special_zahluq": 1,
+"dance_1": 0,
 "dash": 1,
 "death": 1,
 "fall": 1,
@@ -1382,11 +1486,13 @@ metadata/sheet_start = {
 "run": 1,
 "slam": 1,
 "spawn": 1,
+"special_bakshen": 1,
 "special_come_closer": 1,
 "special_frenemy": 1,
 "special_ground_breaker": 1,
 "special_redere_frisbee": 1,
 "special_redere_shield": 1,
+"special_zahluq": 1,
 "surge_aegis": 1,
 "surge_asra": 1,
 "surge_jnoon": 1,
