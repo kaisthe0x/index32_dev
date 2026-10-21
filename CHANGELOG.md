@@ -6,7 +6,29 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
-## 2026-10-19 — `new-shit` — Khalid dances when left alone; experiments/ (the camping meteor, dev-only); the stage-1 lady
+## 2026-10-20 — `new-shit` — Khalid dances when left alone; experiments/ (the camping meteor, dev-only); the stage-1 lady; dirt and grass kicked up when running
+
+### Footfalls: the ground sheds what it is made of
+
+- **What:** running on the grass floor, each push-off sprays soil specks and grass blades up and back from Khalid's
+  heel, in the floor tiles' own colours (soil `363548` / `4a5566` / `5a705e`, moss `6f8a66` / `86a071` / `9db582`);
+  they fly up to about 25 px — clear of the ground line, where same-coloured grass reads against the backdrop — and
+  fall away behind him. The stone and brick bridge (`tileset2`) sheds nothing.
+- **How:** `configs/Footfalls.cs` (data: which tileset sheds which colours, keyed by its image; the push-off frames
+  per character and animation — Khalid's run: sheet frames 2, 6, 9; the burst numbers), `records/vfx/FootfallStyle.cs`,
+  `scripts/player/parts/FootKick.cs` (a pool of three one-shot `CpuParticles2D` bursts per kind, left in the world,
+  drawn behind the sprite; each particle picks exactly one palette colour through a hard-stepped gradient; blades
+  point along their flight). `Player.OnFrameChanged` fires it on a push-off frame while he runs on the floor. The
+  surface is the tile at the floor contact point, looked up in the `TileMapLayer` — not `GetCoordsForBodyRid`, which
+  returns one representative tile of the layer's merged collision chunk (it reported a bridge tile under the grass).
+- **Could affect:** the run's look (a new layer of particles); nothing else reads these.
+- **Tested:** build 0 warnings; reimport and headless boot clean (the exit-time line is the stage music, as before);
+  a throwaway scene through the real arena in recording mode (deleted): running on the grass floor, up to 6 bursts in
+  the air at once; teleported onto the bridge and running its length, 0. A 1280×720 render of the run showed the
+  spray behind him (tuned up once: the first pass was too faint — 1-px specks that stayed under the ground line).
+  **Not verified:** other surfaces (only stage 1 exists); landing or slam dust (not asked for).
+- **Tuned by the owner** after the first build: 13 soil specks and 5 blades per kick, blades living 0.4 s, a 45°
+  spread (the constants in `configs/Footfalls.cs`).
 
 ### Khalid dances after 8 s of calm
 

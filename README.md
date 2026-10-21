@@ -1126,6 +1126,15 @@ live in **`vfx/`**, documented in **[vfx/README.md](vfx/README.md)**. In short:
   indexing `vfx/character/<char>/` + `vfx/shared/`, so a scene resolves wherever it's
   filed. Adding one = a scene under `vfx/character/<id>/…` + a line in
   `EmittersCharacters`, no code.
+- **Footfalls (dirt and grass off the ground):** on each push-off frame of the run (`Footfalls.KickFrames` —
+  Khalid's sprint drives off the back foot on sheet frames 2, 6 and 9), `FootKick` (`scripts/player/parts/`, a child
+  of the player, drawn behind him) sprays soil specks and grass blades up and back from the heel. What comes up
+  depends on the ground: the tile at the floor contact is looked up by its tileset image in `Footfalls.ByTileset`
+  (`configs/Footfalls.cs`) — stage 1's grass floor (`tileset1`) sheds its own earth and moss colours (each particle
+  takes exactly one of them); the stone and brick bridge (`tileset2`) has no row, so it sheds nothing. A new
+  surface = one row. The tile is found from the contact POINT, not the collision body: a `TileMapLayer` merges its
+  tiles' collision into chunks, so a body's "tile" is only one representative of its chunk. The particles stay in
+  the world (they don't follow him); the spray's counts, speeds and lifetimes are the constants in the same config.
 - **Drawn slashes:** a directional crescent that must mirror with facing is a
   **`Strike`** (`scripts/combat/Strike.cs`) — a `Sprite2D`/`AnimatedSprite2D` + a
   `Hitbox` that grows/fades and self-frees, and covers melee slashes, blasts, and ground

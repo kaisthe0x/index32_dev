@@ -202,6 +202,7 @@ public partial class Player : Combatant, IStrikeWielder
     private readonly BodyTint _tint;
 
     private ParticleDirector _particles = null!;
+    private FootKick _footKick = null!;
     private Hurtbox _hurtbox = null!;
     private StatusOverlay _status = null!;
     private AnimatedSprite2D _sprite = null!;
@@ -226,6 +227,10 @@ public partial class Player : Combatant, IStrikeWielder
         AddChild(_particles);
         _particles.Setup(_sprite);
         _particles.SetCharacter(Character);
+
+        _footKick = new FootKick();
+        AddChild(_footKick);
+        MoveChild(_footKick, 0); // first child, so the spray draws behind his sprite
 
         BuildCombat();
         _sprite.FrameChanged += OnFrameChanged;
@@ -788,6 +793,19 @@ public partial class Player : Combatant, IStrikeWielder
         int loopTo = AnimMeta.LoopTo(_sprite.SpriteFrames, _sprite.Animation);
         if (loopTo >= 0 && _sprite.Frame > loopTo)
             _sprite.SetFrameAndProgress(Mathf.Max(AnimMeta.LoopFrom(_sprite.SpriteFrames, _sprite.Animation), 0), 0.0f);
+        if (_current == _free && _free.Mode == FreeMode.Run && IsOnFloor() && IsKickFrame())
+            _footKick.Kick(this, _facing);
+    }
+
+    /// <summary>The run's current frame is one where a foot pushes off the ground (<see cref="Footfalls.KickFrames"/>,
+    /// sheet-relative like the other frame tables).</summary>
+    private bool IsKickFrame()
+    {
+        if (!Footfalls.KickFrames.TryGetValue(Character, out var byAnim) ||
+            !byAnim.TryGetValue(_sprite.Animation, out var frames))
+            return false;
+        int sheet = _sprite.Frame + AnimMeta.SheetStart(_sprite.SpriteFrames, _sprite.Animation);
+        return System.Array.IndexOf(frames, sheet) >= 0;
     }
 
     public bool IsDead() => _dead;
