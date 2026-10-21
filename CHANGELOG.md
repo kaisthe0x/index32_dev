@@ -6,7 +6,7 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
-## 2026-10-18 — `new-shit` — Khalid dances when left alone; a debug camping meteor for the devlog; the stage-1 lady
+## 2026-10-19 — `new-shit` — Khalid dances when left alone; experiments/ (the camping meteor, dev-only); the stage-1 lady
 
 ### Khalid dances after 8 s of calm
 
@@ -53,6 +53,41 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
   flattened through Khalid's profile and look; the owner then redrew the dance to 14 frames, all flat. (index32_art `281140a`.)
 - **Tested:** each master's export matched its dry run pixel for pixel; the lady's `Background` / `Platform` layers
   and every frame duration unchanged.
+
+### The lottery stall moved (the owner's edit)
+
+- **What:** in `scenes/levels/stage1/stage1_v2.tscn` the lottery stall stands at x 138 instead of 761 — the owner
+  moved it in the editor (2026-10-19). Nothing else in the scene changed (a one-line diff).
+- **Could affect:** where players find the stall in the flat arena; the stalls' spacing (Needle Point 1027,
+  Figmenter 1290 unchanged).
+- **Tested:** headless boot of the arena clean.
+
+### experiments/: dev-only ideas, never in the final game (the meteor moves there)
+
+- **What:** a home for gameplay ideas kept to try out and film. `experiments/<name>/` is compiled only when named in
+  `EnabledExperiments` in `mygamedev.csproj` (empty by default) and never in a release export (`ExportRelease`),
+  whatever that list says. A compiled-in experiment implements `IExperiment` (`records/experiments/`), is found by
+  `Experiments.AttachAll` (`scripts/run/`, called once by `RunManager`) and gets an `ExperimentHost` — the player and
+  the arena root, nothing more. The camping meteor moved from `scripts/debug/MeteorStrike.cs` to
+  `experiments/meteor/` and is off; while compiled in it is simply on (the M key is gone). New: rule `C8` and the
+  all-on QA build in `V6` (`docs/standards.md`), `experiments/README.md`, `docs/game-loop.md` § Parked ideas (the
+  meteor, the tag-out stash, the painted arena — why each is out and what would bring it back).
+- **Why / how:** the owner wanted ideas like the meteor kept and switchable, on the condition that they are "purely
+  for our dev and debug process" and never land in the final build. A council (2026-10-19) cut the first proposal to
+  this: no Python tool, no `.gdignore` toggling, no round-event hooks, no moving the other parked material. Off =
+  not compiled: an MSBuild `Compile Remove` of `experiments/**` and a target that re-includes the named folders
+  (skipped for `ExportRelease`). Discovery is by reflection on purpose — a list in game code would stop compiling
+  the moment an experiment is switched off. No scene may reference an experiment (Godot would fail at runtime on a
+  compiled-out class).
+- **Could affect:** the build (one more target; the default compiles exactly what it did before, minus the meteor);
+  `RunManager` startup (one reflection pass over the assembly's types, once).
+- **Tested:** build 0 warnings off, with `meteor`, with `all`; the compile counts 198/199/199 files and a release
+  build with `all` at 198; the compiled assemblies searched — the meteor class is absent from the default and the
+  release build, present with `meteor`. A throwaway headless scene through the real arena (recording mode, standing
+  still 7 s; deleted): off — no experiment, no meteor, health 6 → 6; on — the meteor attached itself, fell and cost a
+  half-block (6 → 5). Reimport and headless boot clean with it off. **Not verified:** an actual release export (no
+  export preset exists yet); `scripts/debug/` still ships in every build — the same release gate should strip it
+  when the first export preset is made.
 
 ## 2026-10-17 — `new-shit` — Dekken replaced by the lottery stall; triggered healing capped; Crimson Vortex; the art repo reorganised
 

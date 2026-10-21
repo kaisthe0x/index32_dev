@@ -3,39 +3,37 @@ using Godot;
 namespace MyGame;
 
 /// <summary>
-/// DEBUG: the CAMPING METEOR, for a devlog — with it on (M), a player who stays within <see cref="Rounds.StillRadius"/>
-/// for <see cref="CampTime"/> gets a meteor dropped where he stands, and another every <see cref="CampTime"/> he
-/// stays. Not part of the game (a council ruled a camping meteor out, 2026-10-13): it lives only in this file and is
-/// switched on by <see cref="DebugTools"/>. Delete this file and the M line in <c>DebugTools</c> to remove it.
+/// EXPERIMENT (rule C8 — dev-only, never in a release build): the CAMPING METEOR. A player who stays within
+/// <see cref="Rounds.StillRadius"/> for <see cref="CampTime"/> gets a meteor dropped where he stands, and another every
+/// <see cref="CampTime"/> he stays. A council ruled a camping meteor out of the game (2026-10-13 — standing still
+/// already draws kamikazes from round 5); the owner keeps it to try out and film. On while it is compiled in
+/// (<c>EnabledExperiments</c> in mygamedev.csproj).
 ///
-/// <para>The strike, all built in code: the ground glows and a shadow grows under him (<see cref="WarnTime"/>, time to
-/// move), then a burning rock comes down at an angle trailing fire, smoke and sparks, and the impact is a white flash,
-/// a shockwave ring, a fireball, debris thrown up under gravity, a dust cloud rolling along the ground, embers, a
-/// scorch mark that fades, a camera shake and a blast. It hits like an enemy attack: a hostile <see cref="Hitbox"/>
-/// for one instant at the impact (the usual half-block, knocked back away from the crater).</para>
+/// <para>The strike, all built in code: the ground glows and a shadow grows under him (<see cref="Meteor"/>'s warning —
+/// time to move), then a burning rock comes down at an angle trailing fire, smoke and sparks, and the impact is a white
+/// flash, a shockwave along the ground, a fireball, debris thrown up under gravity, dust rolling out both ways, embers, a
+/// scorch mark that fades, a camera shake and a blast. It hits like an enemy attack: a hostile <see cref="Hitbox"/> for
+/// one instant at the impact (the usual half-block, knocked back away from the crater).</para>
 /// </summary>
-public partial class MeteorStrike : Node
+public partial class MeteorStrike : Node, IExperiment
 {
     private const float CampTime = 5.0f;
 
-    private readonly Player _player;
+    private Player _player = null!;
+    private Node _arena = null!;
     private Vector2 _anchor;
     private float _still;
 
-    public MeteorStrike(Player player) => _player = player;
-
-    public bool On { get; private set; }
-
-    public void Toggle()
+    public void Attach(ExperimentHost host)
     {
-        On = !On;
-        _still = 0.0f;
-        GD.Print($"[DEBUG] camping meteor: {(On ? "ON" : "off")}");
+        _player = host.Player;
+        _arena = host.Arena;
+        _arena.AddChild(this);
     }
 
     public override void _Process(double delta)
     {
-        if (!On || !IsInstanceValid(_player) || _player.IsDead())
+        if (!IsInstanceValid(_player) || _player.IsDead())
             return;
         Vector2 at = _player.GlobalPosition;
         if (at.DistanceTo(_anchor) > Rounds.StillRadius)
@@ -49,7 +47,7 @@ public partial class MeteorStrike : Node
             return;
         _still = 0.0f;
         var meteor = new Meteor();
-        _player.GetParent().AddChild(meteor);
+        _arena.AddChild(meteor);
         Nodes.PlaceAt(meteor, at);
     }
 

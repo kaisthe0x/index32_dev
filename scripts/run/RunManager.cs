@@ -71,6 +71,7 @@ public partial class RunManager : Node2D
         AddChild(_wine);
         _debug = new DebugTools(_player, BuildArena); // DEBUG: the developer keys (scripts/debug/)
         AddChild(_debug);
+        Experiments.AttachAll(new ExperimentHost(_player, this)); // EXPERIMENTS: whichever dev-only ideas are compiled in
 
         Engine.TimeScale = 1.0;
         Input.MouseMode = Input.MouseModeEnum.Hidden; // hide the cursor during play; menus re-show it while open

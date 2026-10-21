@@ -362,6 +362,19 @@ The existing `Buff : Passive` + `Trigger` + `ModifyTuning` foundation fits. Ever
 
 ---
 
+## Parked ideas
+
+Ideas cut from the game or set aside, kept so they aren't lost: where each lives, why it is out, and what would bring
+it back. An idea that comes back is rebuilt as real game code (`docs/standards.md`, rule C8).
+
+| Idea | Where it lives | Why it is out | What would bring it back |
+|---|---|---|---|
+| **Camping meteor** — stand still 5 s and a meteor falls where you stand (it hits like an attack) | `experiments/meteor/` — an EXPERIMENT, compiled only when switched on in `mygamedev.csproj`, never in a release build | A council ruled it out (2026-10-13): standing still already draws kamikazes from round 5, lingering at the ends a Ventilator. The owner kept it (2026-10-19) to try out and film | A playtest showing camping still pays despite the kamikazes — or as a run modifier the player chooses (see the Sigils note above) |
+| **Tag-out** — a round enemy stuck 3 s under a player it can't reach swaps for a Mazab or a Kebus | A git stash in `index32_dev` (`tagout non-projectile enemies for projectile ones`) | Built during the roof-camping question; not merged | The Needle Point roof playtest: if standing on the roof still beats the round |
+| **Painted platform arena** | `scenes/levels/stage1/painted_platforms.tscn` (the owner's — don't delete unasked) | The owner chose the flat arena (2026-10-12) | A layout with platforms coming back into the design |
+
+---
+
 ## Build order
 
 1. **Rounds** — the quota/cap/stop/clear state machine in `RunManager` (no breather since 2026-10-03), the ROUND banner, HUD `ROUND n` + `n LEFT`, record = highest round.

@@ -58,6 +58,7 @@ sprites/enemies/      Source enemy sheets, one folder per enemy
 sprites/creatures/    Source sheets of ambient creatures (the bird) -- sliced in code, no generated resource
 scripts/creatures/    Ambient creatures (Bird)
 scripts/debug/        DEBUG tools only -- the developer keys, recording mode, the compile-time print (see scripts/debug/README.md)
+experiments/          EXPERIMENTS -- dev-only gameplay ideas, compiled only when switched on, never in a release (see experiments/README.md)
 tools/                Generator + verification scripts (not shipped)
 ```
 
@@ -87,9 +88,16 @@ nothing in an exported game). A full compile of the game is about 1.4 s (2026-10
 | 0 | `debug_respawn` | Dev only — rebuild the current level fresh |
 | B / N | — | Dev only — grant the next catalog buff / clear the granted buffs |
 | H | — | Dev only — **recording mode** on / off: just Khalid and the arena (no HUD, no enemies, the stalls don't open), for capturing footage. Either way the arena is rebuilt |
-| M | — | Dev only — the **camping meteor** on / off (a devlog gag, not part of the game): stay within 50 px for 5 s and a meteor falls where you stand, hitting like an enemy attack (`scripts/debug/MeteorStrike.cs`) |
 
 The dev keys all live in `scripts/debug/` (`DebugTools`) — see `scripts/debug/README.md`.
+
+**Experiments** (`experiments/`, rule C8 in `docs/standards.md`) are gameplay ideas kept to try out and film, never
+part of the final game. Each is a folder (`experiments/meteor/` — the camping meteor) that is compiled only when named
+in `EnabledExperiments` in `mygamedev.csproj` (empty by default, so the build has none), and a release export
+(`ExportRelease`) compiles none whatever the list says. A compiled-in one is simply on: `Experiments.AttachAll`
+(called once by `RunManager`) finds every `IExperiment` in the build and hands it an `ExperimentHost` (the player and
+the arena root). How to switch one on and add a new one: `experiments/README.md`. The parked ideas, and why each is
+out: `docs/game-loop.md` § Parked ideas.
 
 Bound to **physical** keycodes, so they stay in the same place on AZERTY/Dvorak.
 Rebind under `Project > Project Settings > Input Map`.

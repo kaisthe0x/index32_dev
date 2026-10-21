@@ -13,7 +13,6 @@ namespace MyGame;
 /// <item><b>X</b> (<c>debug_heal</c>) — give the player one block of Ruh.</item>
 /// <item><b>B</b> / <b>N</b> — grant the next catalog buff / clear the granted buffs (<see cref="BuffCycler"/>).</item>
 /// <item><b>H</b> — recording mode on / off (<see cref="RecordingMode"/>).</item>
-/// <item><b>M</b> — the camping meteor on / off (<see cref="MeteorStrike"/>, a devlog gag).</item>
 /// </list>
 /// </summary>
 public partial class DebugTools : Node
@@ -24,7 +23,6 @@ public partial class DebugTools : Node
     private readonly System.Action _rebuildArena;
     private readonly BuffCycler _buffs;
     private readonly RecordingMode _recording;
-    private readonly MeteorStrike _meteor;
 
     /// <param name="rebuildArena">Rebuilds the arena fresh (<c>RunManager.BuildArena</c>).</param>
     public DebugTools(Player player, System.Action rebuildArena)
@@ -33,8 +31,6 @@ public partial class DebugTools : Node
         _rebuildArena = rebuildArena;
         _buffs = new BuffCycler(player);
         _recording = new RecordingMode(rebuildArena);
-        _meteor = new MeteorStrike(player);
-        AddChild(_meteor);
     }
 
     /// <summary>Recording mode is on: the run must not tick its rounds or pressure spawns.</summary>
@@ -60,9 +56,6 @@ public partial class DebugTools : Node
                     break;
                 case Key.H:
                     _recording.Toggle(this);
-                    break;
-                case Key.M:
-                    _meteor.Toggle();
                     break;
             }
         }

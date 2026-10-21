@@ -68,7 +68,7 @@ position = Vector2(1027, 1)
 
 [node name="LotteryStall" parent="Stalls" unique_id=156608229 instance=ExtResource("10_lottery")]
 z_index = -25
-position = Vector2(761, 0)
+position = Vector2(138, 0)
 
 [node name="EnemySpawns" type="Node2D" parent="." unique_id=992789100]
 
