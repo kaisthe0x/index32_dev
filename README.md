@@ -265,8 +265,8 @@ material is the second-lightest shade of its ramp (slot 1), with no outline (the
 animation is planned). On top of it each master has an `Export_Shading` layer (the art repo exports it merged with
 `Export_Character`): the lightest shade (slot 0) along top/left edges, slot 2 along bottom/right edges and under
 another part, the flat colour where a part is thin. All three are slots of the 36-colour palette, so the palette
-shader and the colour picker below work unchanged; a picked colour shows on the part's flat areas at the shade
-`PaletteConfig.Derive` puts in slot 1, which can be a little lighter or darker than the pick.
+shader and the colour picker below work unchanged; a picked colour is exactly the part's flat colour (slot 1 —
+`PaletteConfig.Derive` puts it there), with the shading shades offset from it.
 
 Nothing in *this* repo needs to run it. The only thing to know downstream is
 that a re-palette changes the sheets under `sprites/`, so re-run
@@ -1220,18 +1220,30 @@ per-material **HDR glow** (`glow[6]`) and the living-hair **flow** (dark accents
 through the bright shades on a moving wave). Same effects, now on an exact + complete
 recolour. All six parts recolour — **including pants** (no hue-key gap anymore).
 
-`PaletteConfig.Derive()` is **anchor-by-value**: the picked colour lands verbatim on the
-shade whose lightness is nearest it, and the rest of the ramp shifts by the same delta —
-so the colour you pick is the colour that covers most of the part (fixing "I picked bright
-but it showed deeper"), the light→dark shading survives, and a dark pick doesn't collapse
-the part to black (the nearest-shade anchor keeps the shift small).
+`PaletteConfig.Derive()` puts the pick **exactly on the flat shade** (`PaletteConfig.FlatShade`, slot 1 — the colour
+the sheets are drawn in, so it covers most of the part) and keeps every other shade at its default value offset from
+it, clamped to 0..1. The colour you pick is the colour you see, pure black included (black: the shadow shade clamps to
+black too, the lit edges are a faint grey). Until 2026-10-22 it anchored the pick on whichever of the six shades was
+nearest in value — right while the sheets used all of them, but since the flatten it meant a black pick landed on the
+rim shade and the flat shade only came down to a dark grey (hair ~31% value, skin ~47%).
+
+**A picked colour glows as much as the default** (`PaletteConfig.GlowFor`, since 2026-10-22). Bloom only catches
+what the glow push lifts past the 1.0 HDR threshold, so a fixed push made a colour whose brightest channel sits lower
+(an orange or blue hair at the same lightness as the default red) glow visibly less. Each glowing material's push
+(hair, trim, metal) is now scaled so its flat shade (slot 1, the colour the sheets are drawn in) peaks exactly as high
+as the default palette's: lower-peaking picks are lifted, higher-peaking ones (a bright magenta metal) brought down.
+The lift is capped at `GlowMatchMax` (2×) so a dark pick stays dark (the match holds for hair of any hue and
+saturation down to about 37% value; below that the glow tapers off, and pure black stays black), and a push never goes
+below 0 (a pick bright enough to out-peak the default unpushed keeps its own colour). The preview
+re-applies it live with every pick (`PaletteConfig.ApplyBody`, which sets `dst` and `glow` together).
 
 **Where to tweak:**
 - **Glow / vibrance / flow** — the `Vibrancy`/`FLOW_*` consts + the per-material `MaterialGlow`
-  defaults in `PaletteConfig.cs` (fed to the shader by `PaletteConfig.MakeMaterial()`). The flow
+  defaults in `PaletteConfig.cs` (matched to the picks by `GlowFor`, capped by `GlowMatchMax`, fed to the shader by
+  `PaletteConfig.ApplyBody()`). The flow
   maths itself is in `sprite_palette.gdshader`.
-- **"Colour chosen == colour shown" (accuracy)** — `PaletteConfig.Derive()`. It anchors the
-  pick to its natural shade; adjust how the ramp shifts there if you want a different feel.
+- **"Colour chosen == colour shown" (accuracy)** — `PaletteConfig.Derive()`. The pick lands on `FlatShade`; adjust
+  how the other shades offset from it there if you want a different feel.
 - **Gauntlets vs boots** — still one `metal` material; split it into two materials (add a
   seventh to `Materials`/`DefaultShades`, re-swatch the sprite) to pick them independently. TODO.
 

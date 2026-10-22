@@ -6,7 +6,38 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
-## 2026-10-22 — `new-shit` — Khalid, the enemies and Kroj get a light shading pass
+## 2026-10-22 — `new-shit` — Khalid, the enemies and Kroj get a light shading pass; picked colours glow like the default and black is really black
+
+### Colour picker: a pick is the colour shown (pure black included), and it glows like the default
+
+- **What:** two fixes to Khalid's body recolour (`configs/PaletteConfig.cs`). (1) Picking black (or any dark colour)
+  for hair, skin, jacket or pants gave at best a dark grey; the picked colour is now exactly the part's flat colour,
+  so black is black (its lit edges a faint grey). (2) Hair of another colour glowed less than the default red — the
+  owner's orange scheme most visibly; each glowing material (hair, trim, metal) now gets a glow push matched to its
+  pick, so it peaks as high as the default does.
+- **Why / how:** (1) `Derive` anchored the pick on whichever of the six shades was nearest in value — right before the
+  2026-10-14 flatten, but now the sheets show slot 1 almost everywhere, and a black pick landed on the rim shade, so
+  slot 1 only came down to ~31% value (hair) / ~47% (skin). It now anchors on the new `FlatShade` (slot 1); the other
+  shades keep their value offsets, clamped to 0..1. (2) Bloom only catches what the push lifts past the 1.0 HDR
+  threshold, and the push was a fixed multiplier, so a pick whose brightest channel peaks lower (orange: ~1.07 vs red
+  ~1.17 at rest, under the threshold for most of the hair flow) glowed less. `GlowFor` scales each push so the pick's
+  flat shade peaks (linear, after vibrancy — both scale with the push) exactly like the default's, capped at
+  `GlowMatchMax` = 2× so a dark pick stays dark, floored at no push. `ApplyBody` sets `dst` and `glow` together for
+  both the run (`MakeMaterial`) and the colour-picker screen's live updates (`GlowFloats` and the screen's
+  `ApplyBodyDst` are gone).
+- **Could affect:** every saved scheme — a pick whose value was nearer another shade now shows at its own value
+  (closer to what was picked), and a pick that peaked higher than the default glows a little less (the owner's
+  magenta metal). The default palette is unchanged (matched push = the old push). Skin, jacket and pants have no glow,
+  so only (1) touches them.
+- **Tested:** build 0 warnings; headless arena boot (only the known exit-time line). A throwaway headless scene
+  (deleted) ran the real `BuildTargets`/`GlowFor` over 48 708 picks (36 hues × 11 saturations × 41 values, for hair,
+  trim and metal): the flat shade equals the pick in every case; every pick either matches the default peak within
+  0.1 %, is capped (dark picks — for hair, below ~37% value at any hue), or is floored (already brighter than the
+  default with no push); none fall outside those. Black for hair/skin/jacket/pants derives to `000000` flat. Windowed
+  renders under the arena's bloom settings (throwaway scenes, deleted): the orange scheme's hair halo grows and the
+  default red is pixel-identical; black hair and an all-black outfit render black. The colour-picker screen with the
+  orange scheme: hair brighter, magenta metal darker, as expected. **Not verified:** a full run with a scheme started
+  from the picker's Start button (the same `MakeMaterial` path the renders used).
 
 ### Enemies and Kroj: the same subtle shading
 
