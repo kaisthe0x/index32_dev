@@ -6,7 +6,20 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
-## 2026-10-22 — `new-shit` — Khalid, the enemies and Kroj get a light shading pass; picked colours glow like the default and black is really black
+## 2026-10-22 — `new-shit` — Khalid, the enemies, Kroj and Needle Point get a light shading pass; picked colours glow like the default and black is really black
+
+### Needle Point shaded
+
+- **What:** the Needle Point booth (`assets/things/needle_point.png`) is shaded: the steel frame and cream rails get
+  lit top/left and shadowed bottom/right edges, the syringe reads as lit glass (a bright streak down its left, a
+  darker falloff on its right), upward-facing moss catches a little light and the overgrowth darkens toward the ground.
+- **How:** in the art repo (`index32_art` 2782dac) the master gained a `Shading` layer on top holding only the changed
+  pixels (the owner's Thing and moss layers untouched); the hand export of the flattened image was copied here. The
+  shades are the art's own colours shifted in OKLab lightness; the moss pass reads the moss layer only, so the
+  green-painted machine parts aren't dotted. README § Needle Point mentions the layer.
+- **Could affect:** only the booth's look — no shader or code reads its colours.
+- **Tested:** the export equals the preview the owner picked (variant B) pixel for pixel; `--import` and a headless
+  arena boot clean. **Not verified:** a windowed look at it in the arena.
 
 ### Colour picker: a pick is the colour shown (pure black included), and it glows like the default
 

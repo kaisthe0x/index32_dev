@@ -995,8 +995,8 @@ rank I's Lira price — **priced by worth**: Jump Height / Run Speed 15, Extra J
 - **Dash charges:** Khalid holds `1 + DashBonus` dashes; each spends one, and a spent one refills after the dash
   cooldown, one at a time — so with one charge it plays exactly like the old single cooldown.
 - **The stall** is `scenes/things/needle_point.tscn` (script `NeedlePointStall`, a `Stall`), placed in the layout: a
-  tall booth (`assets/things/needle_point.png`, master `index32_art/art/stages/stage1/needle_point.aseprite`) with a
-  stepped dais. Its collision is scene nodes you can reshape in the editor — `Dais` (two invisible ~37° ramps following
+  tall booth (`assets/things/needle_point.png`, master `index32_art/art/stages/stage1/needle_point.aseprite` — its `Shading` layer, since 2026-10-22, lights the
+  frame's edges, turns the syringe into lit glass and darkens the moss toward the ground) with a stepped dais. Its collision is scene nodes you can reshape in the editor — `Dais` (two invisible ~37° ramps following
   the stairs, since a body can't climb separate steps, and the flat top) and `Roof` (a jump-through platform: one-way,
   on the Platform layer — the script sets both layers from `Combat`; drop through with S / Down); its `Interact` area
   sits on the dais top, so the E prompt only shows up there; its `NeedlePointMenu` (on the shared `StallMenu` frame) lists every shot
