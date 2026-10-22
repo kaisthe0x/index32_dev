@@ -6,7 +6,18 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
-## 2026-10-22 — `new-shit` — Khalid, the enemies, Kroj and Needle Point get a light shading pass; Khalid's fall cleaned up; picked colours glow like the default and black is really black
+## 2026-10-22 — `new-shit` — Khalid, the enemies, Kroj and Needle Point get a light shading pass; Khalid's fall and idle cleaned up; picked colours glow like the default and black is really black
+
+### Khalid's fall and idle: the owner's pixel cleanups
+
+- **What:** the owner cleaned up a few pixels in the fall and idle animations
+  (`sprites/characters/khalid/khalid_fall_frames.png`, `khalid_idle_frames.png`): 5 drawing pixels across fall frames
+  0, 2 and 3 and 1 in idle frame 1, plus hand touch-ups on the shading layer (2–7 px per frame).
+- **How:** drawn by the owner in the masters (`index32_art` b45ad08); exported unchanged and copied here. The shading
+  layer was deliberately NOT regenerated, so his touch-ups stay (a few shading pixels beside his fall-frame edits no
+  longer follow the automatic edge rule — his call).
+- **Could affect:** only those two animations' look.
+- **Tested:** `--import`, `verify_frames.gd` (0 failures), headless arena boot (only the known exit-time line).
 
 ### Khalid's fall: the chest no longer jumps side to side
 
