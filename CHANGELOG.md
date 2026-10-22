@@ -6,6 +6,31 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-22 — `new-shit` — Khalid's animations get a light shading pass
+
+### Khalid: subtle shading on every animation
+
+- **What:** all 29 of Khalid's sheets (`sprites/characters/khalid/*_frames.png`) are shaded instead of one colour per
+  part: each part's top and left edges take its ramp's lightest shade (slot 0), its bottom and right edges and
+  anything sitting under another part take the next darker shade (slot 2), and parts too thin to shade stay flat
+  (slot 1). The owner picked this "subtle" strength from a flat / subtle / stronger comparison.
+- **How:** in the art repo (`index32_art` 974f827) every Khalid master gained an `Export_Shading` layer above
+  `Export_Character`, holding only the shaded pixels — so the owner can repaint, hide or delete it frame by frame
+  without touching the drawing; the hooks export it merged with the character. Only fully opaque pixels in a part's
+  flat colour were touched; semi-transparent fade pixels (dash, death, spawn) are unchanged. The sheets were copied
+  here unchanged. README § the palette ("Khalid is FLAT…") describes the layer.
+- **Could affect:** the colour picker and the palette shader (`sprite_palette.gdshader`) — all three shades are slots
+  of the existing 36-colour `PaletteConfig.DefaultShades`, so they recolour like the flat colour did; the hair flow
+  and glow work per shade as before. The rope dart's red arcs are drawn in hair red, so they are shaded as hair too.
+  No code or frame layout changed.
+- **Tested:** every new sheet compared with the previous one: same alpha everywhere, changes only on opaque palette
+  pixels (about 45% of Khalid's pixels). `--import`, `verify_frames.gd` (0 failures, uniform 128×80 canvas),
+  `dotnet build` 0 warnings, a headless arena boot (the one exit-time "resources still in use" line is there without
+  this change too), and a windowed render of the colour-picker screen with a saved scheme: the shading survives the
+  recolour. **Not verified:** a full playthrough look at every move in motion.
+
+---
+
 ## 2026-10-20 — `new-shit` — Khalid dances when left alone; experiments/ (the camping meteor, dev-only); the stage-1 lady; dirt and grass kicked up when running
 
 ### Footfalls: the ground sheds what it is made of
