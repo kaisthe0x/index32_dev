@@ -6,7 +6,26 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
-## 2026-10-22 — `new-shit` — Khalid's animations get a light shading pass
+## 2026-10-22 — `new-shit` — Khalid, the enemies and Kroj get a light shading pass
+
+### Enemies and Kroj: the same subtle shading
+
+- **What:** all 41 enemy and warden sheets (`sprites/enemies/*/*_frames.png`, `sprites/wardens/kroj/*_frames.png`)
+  are shaded like Khalid's: every flat colour is lighter along top/left edges and darker along bottom/right edges and
+  under another part; thin parts stay flat. A two-tone part's base/dark boundary is not treated as an edge.
+- **How:** in the art repo (`index32_art` c756dfc) every master gained an `Export_Shading` layer above
+  `Export_Character`, holding only the shaded pixels. The enemies have no shade ramps of their own, so each flat
+  colour from `tools/repalette/flat_looks.py` is shifted in OKLab: lightness +0.055 for the lit shade, −0.07 for the
+  shadow, same hue (chroma pulled in only where the colour would leave sRGB) — about Khalid's subtle step. Only fully
+  opaque flat pixels were touched. The sheets were copied here unchanged. README § enemies describes the layer.
+- **Could affect:** the accent glow (`enemy_glow.gdshader` gates on brightness and saturation), so lit edges on the
+  bright warm bodies (Matat, Mazab, Tarri) bloom slightly more. Kebus's skin-coloured attack slash is shaded as skin.
+  Kroj's veined body breaks into small pieces, so its shading reads more as texture than form (owner approved it as
+  is; hiding its layer brings it back to flat). No code or frame layout changed.
+- **Tested:** every new sheet compared with the previous one plus the approved preview overlay: identical, alpha
+  unchanged. `--import`, `verify_frames.gd` (0 failures), a headless arena boot (only the known exit-time line).
+  The owner reviewed flat-vs-shaded stills and videos of every enemy. **Not verified:** an in-engine render with an
+  enemy on screen (the attack-choice menu covered the one attempted).
 
 ### Khalid: subtle shading on every animation
 
