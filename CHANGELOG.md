@@ -6,7 +6,21 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
-## 2026-10-22 — `new-shit` — Khalid, the enemies, Kroj and Needle Point get a light shading pass; picked colours glow like the default and black is really black
+## 2026-10-22 — `new-shit` — Khalid, the enemies, Kroj and Needle Point get a light shading pass; Khalid's fall cleaned up; picked colours glow like the default and black is really black
+
+### Khalid's fall: the chest no longer jumps side to side
+
+- **What:** in the fall loop (frames 1–8 of `sprites/characters/khalid/khalid_fall_frames.png`) the teal chest showing
+  through the open jacket stays 4 px wide and stops at the waistband. Before, the left lapel covered it on frames
+  1/3/5 and opened to 7–8 px on 2/4/6/8, so the skin flickered sideways, and on some frames a patch of skin ran into
+  the pants.
+- **How:** in the art repo (`index32_art` 3bc4089) the owner's `Export_Character` frames 1–8 were edited: chest skin past
+  4 px from its steady right edge became jacket, skin at or below the pants' top became pants (1–21 px per frame);
+  frame 0 untouched; `Export_Shading` regenerated for those frames. 4 px matches his other animations (idle ~3, jump
+  2–5, land ~3). A redrawn, procedurally waving coat tail was tried and rejected by the owner, so the coat is his own.
+- **Could affect:** only the fall's look.
+- **Tested:** the export equals the approved preview pixel for pixel; `--import`, `verify_frames.gd` (0 failures).
+  The owner looked at it in game.
 
 ### Needle Point shaded
 
