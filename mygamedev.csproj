@@ -12,6 +12,24 @@
     <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
+  <!-- EXPERIMENTS (docs/standards.md, rule C8): dev-only gameplay ideas, one folder each under experiments/. None
+       is compiled unless named here (';'-separated folder names, or 'all'); a release export (ExportRelease) compiles
+       none whatever this says, so an experiment can never reach the final game. QA builds with
+       -p:EnabledExperiments=all before every push so a switched-off one can't rot. -->
+  <PropertyGroup>
+    <EnabledExperiments></EnabledExperiments>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="experiments/**" />
+  </ItemGroup>
+  <Target Name="IncludeEnabledExperiments" BeforeTargets="BeforeBuild" Condition="'$(Configuration)' != 'ExportRelease' And '$(EnabledExperiments)' != ''">
+    <ItemGroup>
+      <_Experiment Include="$(EnabledExperiments)" Condition="'$(EnabledExperiments)' != 'all'" />
+      <Compile Include="experiments/%(_Experiment.Identity)/**/*.cs" Condition="'@(_Experiment)' != ''" />
+      <Compile Include="experiments/**/*.cs" Condition="'$(EnabledExperiments)' == 'all'" />
+    </ItemGroup>
+  </Target>
+
   <!-- Compile-time log. Times the C# compile step itself (CoreCompile) and appends one line per COMPILE to
        build_times.log (git-ignored: timings are per machine): when, configuration, seconds, source files.
        Runs for every build, from the command line or the Godot editor; a build with nothing to recompile adds no

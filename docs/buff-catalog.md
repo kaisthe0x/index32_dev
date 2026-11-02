@@ -17,8 +17,8 @@ catalog + a new **Seal** category, ready to become code against the buff-system 
 ## The three pools (2026-09-28 — supersedes tiers + source-driven persistence below)
 
 The economy in `game-loop.md` § Economy sorts every buff into **one** stall by **kind**: **numbers** on Khalid's
-body → **Needle Point** (shots, N rounds, upgradeable levels) · **utility / tactics** → **Dekken** (perks, per-perk
-duration) · **new mechanics** → **Figmenter** (permanent; five strengths by the wine's rarity). The tier tables further down stay as
+body → **Needle Point** (shots, N rounds, upgradeable levels) · **round-sized boosts** → **the lottery stall** (random, paid
+first, lasting a number of kills or uses — replaced Dekken's perks on 2026-10-16) · **new mechanics** → **Figmenter** (permanent; five strengths by the wine's rarity). The tier tables further down stay as
 the source of the numbers: a shot's **levels** take the five `C / R / H / S / E` values (level 0 = C … level 4 = E);
 a Figmenter buff has all five values, one per **wine rarity** (`WineRarity`; since 2026-10-11 — a wine drunk young gives C, one carried to Epic gives E). "Built" = implemented in `configs/BuffCatalog.cs`
 today.
@@ -36,17 +36,24 @@ listed under "From" are gone from the Figmenter pool and their buff classes dele
 | **Run Speed** | — | ✓ | +10 … 30 % |
 | **Attack Damage** | — | ✓ | +15 … 65 % (the "+20 % damage" idea lives here, not in the Figmenter) |
 
-**Dekken — perks, sold as vials** *(built 2026-09-28; drink-now-or-keep, 2 carry slots, one of a kind, since 2026-10-04 — `configs/Dekken.cs`; Wider Pull left the Figmenter catalog, its buff class deleted)*
+**The lottery stall — items** *(built 2026-10-16, replacing Dekken's perks — `configs/Lottery.cs`; pay first, the orb
+lands on one, it takes effect at once; a duplicate lasts longer, never stronger)*
 
-| Perk | From | Built | Duration |
+| Item | Heals | Lasts | Note |
 |---|---|---|---|
-| **Heal** | — | ✓ | one use (a block) |
-| **Fast Travel** | — | ✓ | one use (teleport beside the Figmenter) |
-| **Fig Chance** | — | ✓ | whole run (+5 % on every enemy); leaves the pool once bought |
-| **Magnet** | — | ✓ | rounds (loose figs within 400 px fly to you) |
-| **Shield** | — | ✓ | rounds (blocks the first hit each round) |
-| **Prepared** | Prepared | ✓ | rounds (your surge fires free at **round** start — for Wara, it arms) |
-| **Wider Pull** | Wider Pull | ✓ | rounds (Come Closer pulls 2 more enemies; only stocked while Come Closer is equipped) |
+| **Ruh Flask** | | instant | +2 Ruh charges; off the wheel at full Ruh |
+| **Cooldown Flush** | | 3 uses | your next specials skip their cooldown |
+| **Fig Frenzy** | | 25 kills | +15 % fig odds, and loose figs fly to you (was Fig Chance + Magnet) |
+| **Bounty** | | 25 kills | ×2 Lira per kill |
+| **Wider Pull** | | 25 kills | Come Closer pulls 2 more enemies; only with Come Closer |
+| **Crimson Vortex** | | 25 kills | every dash leaves a damaging vortex |
+| **Leech Draught** | ✓ | 30 kills | 10 % of landed hits heal half a block |
+| **Tithe** | ✓ | 8 kills | every 4th kill heals half a block |
+| **Second Wind** | ✓ | once | at your last half-block, heal a block; one at a time |
+
+Heal items are at most 1 in 5 of the wheel. Triggered healing — these and the Figmenter's lifesteal (Bloodrush, Skim) —
+shares a cap of 2 blocks a round (Second Wind excepted). Dekken's Heal, Fast Travel, Shield and Prepared are gone: there
+is no bought heal (the owner's rule, 2026-10-16).
 
 **Figmenter — mechanics**
 
@@ -59,9 +66,8 @@ listed under "From" are gone from the Figmenter pool and their buff classes dele
 - **Special-swap** (e.g. into Zahluq) stays an extreme-rarity box outcome.
 
 **For review (placement calls I made):**
-- **Wider Pull → Dekken:** it's a number, but on a *special*, not Khalid's body — Needle Point is body stats, so it
-  reads as a tactical perk. Alternatively it could stay a Figmenter buff.
-- **Prepared → Dekken:** a round-start surge is preparation. It could equally be a box mechanic.
+- **Wider Pull → the lottery stall:** it's a number, but on a *special*, not Khalid's body — Needle Point is body
+  stats, so it reads as a round-sized boost. Alternatively it could be a Figmenter buff.
 - **Slam Damage → Needle Point:** a pure number, but only matters if you slam — keep, or fold into Attack Damage.
 - **All five invuln procs → the Figmenter.** They're the strongest defensive mechanics; if the Figmenter pool feels
   defense-heavy, one could move.

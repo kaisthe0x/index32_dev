@@ -30,7 +30,7 @@ serves one of those four.
 
 - **S3. A new subsystem gets its own class.** Do not add a feature by growing `Player`, `RunManager`, `Enemy` or
   `HUD` — they are already too large (see *Known debt*). The pattern to copy is the stall **ledgers**
-  (`ShotLedger`, `PerkLedger`, `FigmenterLedger`): a plain class that owns one feature's state and rules, created and
+  (`ShotLedger`, `LotteryLedger`, `FigmenterLedger`): a plain class that owns one feature's state and rules, created and
   owned by `RunManager`, with a node (`Stall`, a menu) that only drives presentation. Wiring a new class into a big
   one is fine; putting its logic there is not.
 
@@ -69,8 +69,8 @@ The point is that a mistake is a compile error, not a bug found in play.
   through the tuning seam — never baked into a `.tscn`, never repeated in a script.
 - **D3. Tuning is findable.** A designer question ("how fast do kamikazes come?") must lead to one constant with a
   comment that states the resulting values (see `configs/Rounds.cs`).
-- **D4. Content is added by adding data**, not by adding a branch. A new enemy is a kit + table rows; a new perk is a
-  `PerkDef`. If adding content needs a new `if (id == …)` in shared code, the design is missing a seam — fix that.
+- **D4. Content is added by adding data**, not by adding a branch. A new enemy is a kit + table rows; a new lottery item is a
+  `LotteryItemDef` row and its effect class. If adding content needs a new `if (id == …)` in shared code, the design is missing a seam — fix that.
 
 ## O — Object design
 
@@ -102,6 +102,15 @@ The point is that a mistake is a compile error, not a bug found in play.
 - **C6. Comments say why, not what.** Every class and every non-obvious member has a doc comment giving its purpose
   and the reason for anything surprising. A comment that restates the code is noise; a stale comment is a defect.
 - **C7. Match the file you are in** — its naming, comment density and idiom — unless this document says otherwise.
+- **C8. Experiments are dev-only and never ship.** A gameplay idea being tried out (to playtest or film) lives in its
+  own folder under `experiments/`, marked `EXPERIMENT`. It is compiled only when its folder is named in
+  `EnabledExperiments` in `mygamedev.csproj` (empty by default) and NEVER in a release export (`ExportRelease`),
+  whatever that list says — the final game cannot contain one. Because a switched-off one is not compiled, the game
+  never names it: it implements `IExperiment`, `Experiments.AttachAll` finds it, and it gets only what
+  `ExperimentHost` offers (the player, the arena root). No scene references it (Godot would fail at runtime on a
+  compiled-out class), and it never edits game files. If an idea earns a place in the game, it is rebuilt as real game
+  code — config, hooks, docs — and its folder deleted. Every parked idea is listed in `docs/game-loop.md` § Parked
+  ideas.
 
 ## P — Performance
 
@@ -157,7 +166,9 @@ The game runs up to a few dozen enemies at once, each with a state machine, plus
   of it.
 - **V6. A QA pass comes before every push.** The whole pending change is read back against this document —
   every changed file in full, every caller and reader of what changed, leftovers the change made unused — and the
-  build and engine checks are run. Breaches are fixed first; anything knowingly left is named in the changelog.
+  build and engine checks are run — including `dotnet build mygamedev.csproj -p:EnabledExperiments=all`, so a
+  switched-off experiment can't silently stop compiling (C8). Breaches are fixed first; anything knowingly left is
+  named in the changelog.
 
 ---
 

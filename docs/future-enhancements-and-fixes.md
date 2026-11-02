@@ -119,8 +119,6 @@ feature named beside it; if that feature is dropped, delete the code with it (ru
 - **Volume and mute controls** — `Sfx` / `Music` `SetVolume`, `GetVolume`, `SetMuted`; `Music.Pause` / `Resume`;
   `AudioBus.SetVolumeDb`, `IsMuted`, `GetEffect`, `SetEffectEnabled`. For: volume sliders and mute toggles in the
   pause menu.
-- **A dash that leaves an effect** — `Player.SetDashEffect` (and through it `Player.HoldAnimation`, reached only by
-  the crimson-vortex dash effect). For: a box buff or perk that turns a dash effect on.
 - **A character's intrinsic ability** — `Player.CharacterAbilityFor` (returns nothing: Khalid has none) and the
   `CharacterAbility` base. For: a second character, or giving Khalid one.
 - **More than one character** — `CharacterConfig.Ids`, `FramesPath`, `PortraitPath`, `AbilityPath`; the non-Khalid

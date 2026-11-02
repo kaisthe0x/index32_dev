@@ -39,7 +39,7 @@ public partial class Player
                 p.OnDash(P);
             if (P._dashEffect != "")
             {
-                P._activeHit = new SegmentData();
+                P._activeHit = P._dashHit.Clone();
                 P.FireEffect(P._dashEffect);
             }
             var frames = Sprite.SpriteFrames;

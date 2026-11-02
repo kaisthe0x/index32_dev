@@ -17,7 +17,7 @@ beside it as `painted_platforms.tscn`, out of the pool). Each is a **`LevelLayou
   tiles and collision fixes would never reach that level.
 - a **`PlayerSpawn`** `Marker2D` (where Khalid drops in), and optional launch-orb spots in the **`orb`** group,
 - an **`EnemySpawns`** node whose `Marker2D` children are the enemy spawn spots (required — no markers, no enemies),
-- the **stalls** — drag `scenes/things/needle_point.tscn`, `dekken.tscn` and `figmenter.tscn` from the FileSystem dock
+- the **stalls** — drag `scenes/things/needle_point.tscn`, `lottery_stall.tscn` and `figmenter.tscn` from the FileSystem dock
   into the layout (the stage keeps them under a `Stalls` node). Each scene's origin is its base: put it **on the floor's
   top edge** (grid snap helps). You see them in the editor exactly as in the game, and Needle Point's collision (`Dais`
   ramps + flat top, the one-way `Roof`) and every stall's `Interact` area are real nodes you can reshape by dragging

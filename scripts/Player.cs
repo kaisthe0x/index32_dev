@@ -96,16 +96,16 @@ public partial class Player : Combatant, IStrikeWielder
         }
     }
 
-    // --- run-reward buffs (per-run, reset by BeginRun); shots, perks and Figmenter buffs change these. ---
+    // --- run-reward buffs (per-run, reset by BeginRun); shots, lottery items and Figmenter buffs change these. ---
     private const float BaseRuhCap = 300.0f;
     // Slot health: HP is measured in HALF-BLOCKS. 3 blocks = 6 half-blocks, and EVERY hit costs one half-block
     // regardless of damage (so 6 hits kill). BeginRun fills to BaseMaxHealth.
     private const int HealthBlocks = 3;
     private const float BaseMaxHealth = HealthBlocks * 2.0f; // 3 blocks × 2 half-blocks = 6
     private const float HitCost = 1.0f;                      // one hit = half a block
-    private const float ShieldGraceTime = 0.4f;              // i-frames after the Shield perk eats a hit
     private const float HealthWarnHalf = 0.5f;               // "health_half" cue at 1.5 blocks left
     private const float HealthWarnLow = 0.34f;               // "health_low" cue at ~1 block left
+    private const float CalmStickDeadzone = 0.5f;            // a stick pushed past this counts as input (ends a dance)
 
     public float DamageMult = 1.0f;
     public float RunMult = 1.0f;
@@ -115,13 +115,13 @@ public partial class Player : Combatant, IStrikeWielder
     public float AttackReachMult = 1.0f;   // Long Arm
     public float SpecialInvulnBonus = 0.0f; // Fortitude: extends any surge window
     public float JumpVelocityBonus = 1.0f;  // Jump Height shot: multiplies applied jump velocity (all jumps)
-    public int MagnetTargetBonus = 0;        // Wider Pull perk: extra Come Closer magnet targets
-    public float FigChanceBonus = 0.0f;      // Fig Chance perk: added to every kill's fada_fig drop chance
-    public float FigMagnetRange = 0.0f;      // Magnet perk: loose FadaFigs within this (px) fly to you (0 = off)
-    public int HitShields = 0;                // Shield perk: hits blocked outright before any damage
+    public int MagnetTargetBonus = 0;        // Wider Pull (lottery): extra Come Closer magnet targets
+    public float FigChanceBonus = 0.0f;      // Fig Frenzy (lottery): added to every kill's fada_fig drop chance
+    public float FigMagnetRange = 0.0f;      // Fig Frenzy (lottery): loose FadaFigs within this (px) fly to you (0 = off)
 
     private const string StartingDashEffect = "dash_default";
     private string _dashEffect = StartingDashEffect;
+    private SegmentData _dashHit = new(); // the tuning the dash effect's hits land with (empty = what its scene authors)
 
     // =====================================================================================================
     // Movement runtime state — SEEDED FROM CONFIG (Locomotion) in ApplyMovement; do not set here.
@@ -185,8 +185,6 @@ public partial class Player : Combatant, IStrikeWielder
     private float _stunLeft = 0.0f;   // a flinch / stagger in progress: no control until it runs out (any state but death / spawn)
     private float _gustLeft = 0.0f; // a gust is carrying him (Combat.GustCarryTime): weak steering, no air brake
     private float _armorLeft = 0.0f;
-    private float _holdLeft = 0.0f;
-    private BlastStrike? _channel;
     private readonly List<Passive> _passives = new();
 
     private float _iframesLeft = 0.0f;  // generic invulnerability window (GrantInvuln) — the immunity buffs
@@ -204,6 +202,7 @@ public partial class Player : Combatant, IStrikeWielder
     private readonly BodyTint _tint;
 
     private ParticleDirector _particles = null!;
+    private FootKick _footKick = null!;
     private Hurtbox _hurtbox = null!;
     private StatusOverlay _status = null!;
     private AnimatedSprite2D _sprite = null!;
@@ -228,6 +227,10 @@ public partial class Player : Combatant, IStrikeWielder
         AddChild(_particles);
         _particles.Setup(_sprite);
         _particles.SetCharacter(Character);
+
+        _footKick = new FootKick();
+        AddChild(_footKick);
+        MoveChild(_footKick, 0); // first child, so the spray draws behind his sprite
 
         BuildCombat();
         _sprite.FrameChanged += OnFrameChanged;
@@ -364,7 +367,7 @@ public partial class Player : Combatant, IStrikeWielder
         return false;
     }
 
-    /// <summary>Every passive on him: the character ability, the Needle Point shots, the Dekken perks, the buffs.</summary>
+    /// <summary>Every passive on him: the character ability, the Needle Point shots, the lottery items, the buffs.</summary>
     public IReadOnlyList<Passive> Passives => _passives;
 
     public void AddPassive(Passive p)
@@ -394,6 +397,12 @@ public partial class Player : Combatant, IStrikeWielder
 
     /// <summary>The Lira and Fada Figs he has banked this run.</summary>
     public Wallet Wallet { get; } = new();
+
+    // This round's budget of TRIGGERED healing (lifesteal, the lottery's heal items) — see HealTriggered.
+    private readonly HealBudget _healBudget = new();
+    private const string CapText = "CAP";
+    private static readonly Vector2 CapTextOffset = new(0, -52);
+    private static readonly Color CapTextColor = new(0.72f, 0.72f, 0.78f);
 
     public void NotifyHitDealt(float amount, Node target)
     {
@@ -452,6 +461,7 @@ public partial class Player : Combatant, IStrikeWielder
 
     public void TakeDamage(float amount)
     {
+        ResetCalm();
         // Slot health: every hit costs a flat HALF-BLOCK, regardless of `amount` (so damage-reduction is inert now).
         // `amount` is kept for callers but no longer scales the HP loss, and there's no damage number to show.
         float before = Health;
@@ -486,6 +496,21 @@ public partial class Player : Combatant, IStrikeWielder
     }
 
     public void Heal(float amount) => Health = Mathf.Min(Health + amount, MaxHealth);
+
+    /// <summary>A "when X, heal" trigger fired (lifesteal, a lottery heal item): heal as much of
+    /// <paramref name="amount"/> as this round's <see cref="HealBudget"/> still allows. When the budget stops a heal
+    /// that would have mattered, "CAP" shows over him — a heal that silently doesn't happen reads as a bug.</summary>
+    public void HealTriggered(float amount)
+    {
+        float missing = MaxHealth - Health;
+        if (missing <= 0.0f)
+            return;
+        float granted = _healBudget.Take(Mathf.Min(amount, missing));
+        if (granted > 0.0f)
+            Heal(granted);
+        else
+            FloatingText.Emit(FloatingTextType.Damage, this, CapTextOffset, CapText, 0.0f, CapTextColor);
+    }
 
     /// <summary>Kill Khalid outright: he fell out of the arena. Ignores i-frames / Aegis (nothing survives the void).
     /// Unlike a normal death there's no death animation — he keeps his fall animation and keeps dropping, out of
@@ -676,14 +701,6 @@ public partial class Player : Combatant, IStrikeWielder
             _surge.TriggerArmed();
             return;
         }
-        if (HitShields > 0)
-        {
-            HitShields -= 1;
-            _sfx.Play("redere_shield_block");
-            Flash(_sprite);
-            GrantInvuln(ShieldGraceTime); // a hit rarely comes alone — don't let the next one land the same instant
-            return;
-        }
         TakeDamage(hit.Amount);
         if (_dead)
             return;
@@ -718,13 +735,6 @@ public partial class Player : Combatant, IStrikeWielder
     {
         if (_current == _launch)
             _launch.Release(lockOut: true);
-        if (_channel != null && IsInstanceValid(_channel) && _channel.InterruptOnHurt)
-        {
-            _channel.Cancel();
-            _holdLeft = 0.0f;
-            _sprite.Play();
-        }
-        _channel = null;
         if (_surge.Channelling)
         {
             _surge.End();
@@ -742,7 +752,6 @@ public partial class Player : Combatant, IStrikeWielder
         BreakOffForHit();
         RefundUncommittedCooldown(); // blown out of a wind-up: read state BEFORE we leave ATTACK/SPECIAL
         _stunLeft = 0.0f;
-        _holdLeft = 0.0f;
         _attack.DropBufferedSpecial();
         Velocity = GustVelocity(hit, _facing);
         _gustLeft = Combat.GustCarryTime;
@@ -754,29 +763,23 @@ public partial class Player : Combatant, IStrikeWielder
 
     public void SetArmor(float duration) => _armorLeft = Mathf.Max(_armorLeft, duration);
 
-    public void SetDashEffect(string effect) => _dashEffect = effect;
+    /// <summary>The effect every dash fires (an emitter key in <c>EmittersCharacters</c>).</summary>
+    public string DashEffect => _dashEffect;
+
+    /// <summary>The tuning <see cref="DashEffect"/>'s hits land with.</summary>
+    public SegmentData DashHit => _dashHit;
+
+    /// <summary>Make every dash fire <paramref name="effect"/>, its hits tuned by <paramref name="hit"/>.</summary>
+    public void SetDashEffect(string effect, SegmentData hit)
+    {
+        _dashEffect = effect;
+        _dashHit = hit;
+    }
 
     private float RunSpeed() => _runSpeedV * _surge.SpeedMult;
 
-    /// <summary>Fire the equipped surge WITHOUT spending Ruh (the Prepared perk, at round start). No-op if one is
-    /// already going.</summary>
-    public void SurgeFree() => _surge.FireFree();
-
-    /// <summary>Tell every passive a round began (RunManager.StartRound) — see <see cref="Passive.OnRoundStart"/>.</summary>
-    public void NotifyRoundStart()
-    {
-        foreach (var p in new List<Passive>(_passives))
-            p.OnRoundStart(this);
-    }
-
-    public void HoldAnimation(double duration, BlastStrike effect)
-    {
-        if (duration <= 0.0 || _sprite == null)
-            return;
-        _holdLeft = Mathf.Max(_holdLeft, (float)duration);
-        _channel = effect;
-        _sprite.Pause();
-    }
+    /// <summary>A round began (RunManager.StartRound): the round's budget of triggered healing is full again.</summary>
+    public void NotifyRoundStart() => _healBudget.Refill();
 
     private void OnFrameChanged()
     {
@@ -790,6 +793,19 @@ public partial class Player : Combatant, IStrikeWielder
         int loopTo = AnimMeta.LoopTo(_sprite.SpriteFrames, _sprite.Animation);
         if (loopTo >= 0 && _sprite.Frame > loopTo)
             _sprite.SetFrameAndProgress(Mathf.Max(AnimMeta.LoopFrom(_sprite.SpriteFrames, _sprite.Animation), 0), 0.0f);
+        if (_current == _free && _free.Mode == FreeMode.Run && IsOnFloor() && IsKickFrame())
+            _footKick.Kick(this, _facing);
+    }
+
+    /// <summary>The run's current frame is one where a foot pushes off the ground (<see cref="Footfalls.KickFrames"/>,
+    /// sheet-relative like the other frame tables).</summary>
+    private bool IsKickFrame()
+    {
+        if (!Footfalls.KickFrames.TryGetValue(Character, out var byAnim) ||
+            !byAnim.TryGetValue(_sprite.Animation, out var frames))
+            return false;
+        int sheet = _sprite.Frame + AnimMeta.SheetStart(_sprite.SpriteFrames, _sprite.Animation);
+        return System.Array.IndexOf(frames, sheet) >= 0;
     }
 
     public bool IsDead() => _dead;
@@ -811,11 +827,7 @@ public partial class Player : Combatant, IStrikeWielder
         _sfx.Play(fell ? "player_fall_death" : "player_death");
         _stunLeft = 0.0f;
         _attack.StopSwing();
-        _holdLeft = 0.0f;
         _surge.End();
-        if (_channel != null && IsInstanceValid(_channel))
-            _channel.Cancel();
-        _channel = null;
         _launch.Release(lockOut: false);
         if (_hurtbox != null)
             // Die() runs inside the hurtbox's hit-signal flush; a direct set is blocked while physics
@@ -875,6 +887,7 @@ public partial class Player : Combatant, IStrikeWielder
         SlamDamageMult = 1.0f;
         AttackReachMult = 1.0f;
         _dashEffect = StartingDashEffect;
+        _dashHit = new SegmentData();
         SpecialInvulnBonus = 0.0f;
         _iframesLeft = 0.0f;
         JumpVelocityBonus = 1.0f;
@@ -882,7 +895,7 @@ public partial class Player : Combatant, IStrikeWielder
         MagnetTargetBonus = 0;
         FigChanceBonus = 0.0f;
         FigMagnetRange = 0.0f;
-        HitShields = 0;
+        _healBudget.Refill();
         RuhCap = BaseRuhCap;
         AirJumpBonus = 0;
         MaxHealth = BaseMaxHealth;
@@ -897,6 +910,18 @@ public partial class Player : Combatant, IStrikeWielder
     // =====================================================================================================
     // Physics
     // =====================================================================================================
+    /// <summary>Any button, key or real stick push ends the calm (and a dance): he only dances when left alone.</summary>
+    public override void _Input(InputEvent @event)
+    {
+        bool pressed = @event is InputEventKey { Pressed: true } or InputEventMouseButton { Pressed: true }
+            or InputEventJoypadButton { Pressed: true }
+            || @event is InputEventJoypadMotion motion && Mathf.Abs(motion.AxisValue) > CalmStickDeadzone;
+        if (pressed)
+            ResetCalm();
+    }
+
+    private void ResetCalm() => _free.Calm = 0.0f;
+
     public override void _PhysicsProcess(double deltaD)
     {
         if (Engine.IsEditorHint())
@@ -921,15 +946,6 @@ public partial class Player : Combatant, IStrikeWielder
         _tint.Tick(delta);
         _armorLeft = Mathf.Max(_armorLeft - delta, 0.0f);
         _iframesLeft = Mathf.Max(_iframesLeft - delta, 0.0f);
-        if (_holdLeft > 0.0f)
-        {
-            _holdLeft = Mathf.Max(_holdLeft - delta, 0.0f);
-            if (_holdLeft <= 0.0f)
-            {
-                _sprite.Play();
-                _channel = null;
-            }
-        }
 
         bool onFloor = IsOnFloor();
         if (!onFloor)

@@ -3,7 +3,8 @@ using Godot;
 namespace MyGame;
 
 /// <summary>
-/// The shared frame of a stall's shop menu (Needle Point, Dekken): a dimmed backdrop, a framed panel with the title,
+/// The shared frame of a stall's shop menu — Needle Point's today; the Figmenter's offering to the deity (a pick of
+/// rewards) is planned as the second: a dimmed backdrop, a framed panel with the title,
 /// the player's Lira / fig balance, a list of rows the subclass fills (<see cref="FillRows"/>), a one-line footer, and
 /// DONE. Pauses the game while up; E / Esc / DONE close it. Rows rebuild after every purchase (<see cref="Refresh"/>) so
 /// prices, balances and states stay current. Subclasses build rows from the helpers here so the menus look alike.

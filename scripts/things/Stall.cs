@@ -4,11 +4,12 @@ namespace MyGame;
 
 /// <summary>
 /// Something in the arena Khalid stands at and presses <b>E</b> (the <c>interact</c> action) to use — the Figmenter,
-/// Needle Point, Dekken. Each is a SCENE (<c>scenes/things/</c>) you place in a layout, built from these children:
+/// Needle Point, the lottery stall. Each is a SCENE (<c>scenes/things/</c>) you place in a layout, built from these children:
 /// <list type="bullet">
 /// <item><c>Visual</c> (Node2D) — its look, bottom-centre on the scene's origin (the ground where it stands).</item>
 /// <item><c>Interact</c> (Area2D + a shape) — where the player has to stand to use it.</item>
-/// <item><c>Prompt</c> (Marker2D) — where the floating "E" prompt sits (its top-centre).</item>
+/// <item><c>Prompt</c> (Marker2D) — where the floating "E" prompt sits (its top-centre; a subclass can say more —
+/// <see cref="SetPrompt"/>).</item>
 /// </list>
 /// This base owns the shared behaviour: the prompt while the player is in range and the key press. A subclass says what
 /// using it does (<see cref="Interact"/>).
@@ -16,7 +17,8 @@ namespace MyGame;
 public abstract partial class Stall : Node2D
 {
     private const string InteractAction = "interact"; // E (registered in _Ready if the project hasn't)
-    private const float PromptWidth = 80.0f;             // the prompt label is centred on the Prompt marker in this width
+    private const string DefaultPrompt = "E";
+    private const float PromptWidth = 160.0f;            // the prompt label is centred on the Prompt marker in this width
 
     private Player? _inRange;   // the player while standing in range (null otherwise)
     private Label _prompt = null!;
@@ -32,7 +34,7 @@ public abstract partial class Stall : Node2D
 
         _prompt = new Label
         {
-            Text = "E",
+            Text = DefaultPrompt,
             Position = GetNode<Marker2D>("Prompt").Position - new Vector2(PromptWidth / 2.0f, 0.0f),
             Size = new Vector2(PromptWidth, 0.0f),
             HorizontalAlignment = HorizontalAlignment.Center,
@@ -65,6 +67,9 @@ public abstract partial class Stall : Node2D
 
     /// <summary>The player pressed E in range.</summary>
     protected abstract void Interact(Player p);
+
+    /// <summary>Say more than "E" in the prompt (a pay-to-use stall shows its price). Call after <c>base._Ready</c>.</summary>
+    protected void SetPrompt(string text) => _prompt.Text = text;
 
     /// <summary>Register the <c>interact</c> action (physical E) if the project doesn't already define it — so stalls
     /// work without a project.godot edit. Physical keycode = layout-independent, matching the other actions.</summary>

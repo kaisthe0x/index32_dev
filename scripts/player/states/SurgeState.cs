@@ -5,11 +5,11 @@ namespace MyGame;
 public partial class Player
 {
     /// <summary>
-    /// SURGES — the powers that spend Ruh. This holds the whole of it: firing one (the surge button, or free via the
-    /// Prepared perk), the effect while it lasts — invulnerability (Aegis), a damage multiplier (Jnoon), a speed
-    /// multiplier (Asra), an armed counter that waits for an enemy's hit (Wara) — its aura, and its end. As a STATE it
-    /// is the cast animation, and for a CHANNELLED surge (Nem) the sleep that follows: he lies down on the animation's
-    /// second-to-last frame for the surge's duration, healing a block, and any hit wakes him.
+    /// SURGES — the powers that spend Ruh. This holds the whole of it: firing one (the surge button), the effect while
+    /// it lasts — invulnerability (Aegis), a damage multiplier (Jnoon), a speed multiplier (Asra), an armed counter
+    /// that waits for an enemy's hit (Wara) — its aura, and its end. As a STATE it is the cast animation, and for a
+    /// CHANNELLED surge (Nem) the sleep that follows: he lies down on the animation's second-to-last frame for the
+    /// surge's duration, healing a block, and any hit wakes him.
     /// </summary>
     private sealed class SurgeState : PlayerState
     {
@@ -60,13 +60,6 @@ public partial class Player
                 return;
             P.Ruh -= spec.Cost;
             Fire(surge, spec);
-        }
-
-        /// <summary>Fire the equipped surge WITHOUT spending Ruh. No-op if one is already going.</summary>
-        public void FireFree()
-        {
-            if (Ready() is var (surge, spec))
-                Fire(surge, spec);
         }
 
         /// <summary>The equipped surge and its spec, if one can fire now (alive, none channelling or armed); else null.</summary>

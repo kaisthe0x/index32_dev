@@ -4,7 +4,7 @@ namespace MyGame;
 
 /// <summary>
 /// The HUD's list of what the player is carrying this run, pinned top-right and growing leftward to fit its widest
-/// line: Needle Point shots (name, rank, value, in the rank's colour), active Dekken perks (name, time left) and
+/// line: Needle Point shots (name, rank, value, in the rank's colour), held lottery items (name, what is left) and
 /// Figmenter buffs (name and rarity in the rarity's colour, over the description). PLACEHOLDER look (text) until the buff icons exist.
 /// </summary>
 public partial class BuffList : VBoxContainer
@@ -36,10 +36,10 @@ public partial class BuffList : VBoxContainer
                 AddChild(ShotLine(s));
                 continue;
             }
-            if (p is Perk perk)
+            if (p is LotteryEffect item)
             {
                 any = true;
-                AddChild(PerkLine(perk));
+                AddChild(LotteryLine(item));
                 continue;
             }
             if (p is not Buff b)
@@ -70,16 +70,21 @@ public partial class BuffList : VBoxContainer
         return name;
     }
 
-    /// <summary>One active Dekken perk in the buff list: its name and how long it has left ("1 ROUND", or "RUN").</summary>
-    private static Control PerkLine(Perk p)
+    /// <summary>One held lottery item in the buff list: its name and what it has left ("12 KILLS", "2 USES", "READY").</summary>
+    private static Control LotteryLine(LotteryEffect e)
     {
         var line = new HBoxContainer { MouseFilter = Control.MouseFilterEnum.Ignore };
         line.AddThemeConstantOverride("separation", 8);
         var name = UiStyle.HudLabel(UiStyle.HudHeading);
-        name.Text = p.Def.Name;
+        name.Text = e.Def.Name;
         line.AddChild(name);
         var left = UiStyle.HudLabel(UiStyle.HudMuted);
-        left.Text = p.Def.Duration == PerkDuration.Run ? "RUN" : p.RoundsLeft == 1 ? "1 ROUND" : $"{p.RoundsLeft} ROUNDS";
+        left.Text = e.Def.Measure switch
+        {
+            LotteryMeasure.Kills => e.Remaining == 1 ? "1 KILL" : $"{e.Remaining} KILLS",
+            LotteryMeasure.Uses => e.Remaining == 1 ? "1 USE" : $"{e.Remaining} USES",
+            _ => "READY",
+        };
         line.AddChild(left);
         return line;
     }

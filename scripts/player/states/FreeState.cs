@@ -5,7 +5,7 @@ namespace MyGame;
 public partial class Player
 {
     /// <summary>What free movement currently looks like — it picks the animation, nothing else.</summary>
-    private enum FreeMode { Idle, Run, Jump, Fall, Hurt }
+    private enum FreeMode { Idle, Run, Jump, Fall, Hurt, Dance }
 
     /// <summary>
     /// Free movement: he is under the player's control with nothing in progress — standing, running, jumping, falling
@@ -16,6 +16,8 @@ public partial class Player
     {
         private const float DropThroughTime = 0.3f;
         private const float DoubleJumpLean = 0.6f;
+        private const float DanceAfter = 8.0f; // seconds of standing idle, untouched and unhurt, before he dances
+        private const string DanceAnim = "dance_1";
 
         public FreeState(Player player) : base(player) { }
 
@@ -26,6 +28,9 @@ public partial class Player
         public int AirJumpsUsed;
         /// <summary>Slam Spring: a one-shot height multiplier for the NEXT ground jump (consumed by it).</summary>
         public float SpringBonus = 1.0f;
+        /// <summary>How long he has stood idle on the ground with no button pressed and no damage taken; at
+        /// <see cref="DanceAfter"/> he starts to dance. Reset by <see cref="Player.ResetCalm"/>.</summary>
+        public float Calm;
 
         public override StringName Animation => Mode switch
         {
@@ -33,6 +38,7 @@ public partial class Player
             FreeMode.Jump => "jump",
             FreeMode.Fall => "fall",
             FreeMode.Hurt => "hurt",
+            FreeMode.Dance => DanceAnim,
             _ => "idle",
         };
 
@@ -122,7 +128,16 @@ public partial class Player
             else if (input != 0.0f && Mathf.Abs(Velocity.X) > 5.0f)
                 P.SetFree(FreeMode.Run);
             else
-                P.SetFree(FreeMode.Idle);
+                StandIdle(delta);
+        }
+
+        /// <summary>Standing still on the ground: idle, or — after <see cref="DanceAfter"/> of calm — the dance (it plays
+        /// its lead-in once, then loops; the loop point is the animation's <c>loop_from</c>). Only if the character has
+        /// a dance.</summary>
+        private void StandIdle(float delta)
+        {
+            Calm += delta;
+            P.SetFree(Calm >= DanceAfter && P.HasAnim(DanceAnim) ? FreeMode.Dance : FreeMode.Idle);
         }
 
         private void SetAirborneMode()

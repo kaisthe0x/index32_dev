@@ -12,7 +12,7 @@ public enum Trigger
     None,
     // --- wired: dispatched by Player at the matching moment (override the Passive hook to react) ---
     Setup, Physics, ModifyTuning, OnHitDealt, OnHurt, OnLand, OnParry, OnSpecialCast, OnSpecialStrike,
-    OnDash, OnGroundJump, OnAirJump, OnSlamTrigger, OnSlamLand, OnMiss, OnAnimEnd, OnRoundStart,
+    OnDash, OnGroundJump, OnAirJump, OnSlamTrigger, OnSlamLand, OnMiss, OnAnimEnd,
     // --- reserved: need new detection before they can fire (see docs/rewards-design.md §"load-bearing") ---
     OnAttackTrigger, OnPerfectDodge, OnSurge, OnRoundWindow,
 }

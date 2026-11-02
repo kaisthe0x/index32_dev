@@ -6,6 +6,427 @@ History before 2026-10-04 is in `git log` and `docs/game-loop.md`.
 
 ---
 
+## 2026-10-22 — `new-shit` — Khalid, the enemies, Kroj and Needle Point get a light shading pass; Khalid's fall and idle cleaned up; picked colours glow like the default and black is really black
+
+### Khalid's fall and idle: the owner's pixel cleanups
+
+- **What:** the owner cleaned up a few pixels in the fall and idle animations
+  (`sprites/characters/khalid/khalid_fall_frames.png`, `khalid_idle_frames.png`): 5 drawing pixels across fall frames
+  0, 2 and 3 and 1 in idle frame 1, plus hand touch-ups on the shading layer (2–7 px per frame).
+- **How:** drawn by the owner in the masters (`index32_art` b45ad08); exported unchanged and copied here. The shading
+  layer was deliberately NOT regenerated, so his touch-ups stay (a few shading pixels beside his fall-frame edits no
+  longer follow the automatic edge rule — his call).
+- **Could affect:** only those two animations' look.
+- **Tested:** `--import`, `verify_frames.gd` (0 failures), headless arena boot (only the known exit-time line).
+
+### Khalid's fall: the chest no longer jumps side to side
+
+- **What:** in the fall loop (frames 1–8 of `sprites/characters/khalid/khalid_fall_frames.png`) the teal chest showing
+  through the open jacket stays 4 px wide and stops at the waistband. Before, the left lapel covered it on frames
+  1/3/5 and opened to 7–8 px on 2/4/6/8, so the skin flickered sideways, and on some frames a patch of skin ran into
+  the pants.
+- **How:** in the art repo (`index32_art` 3bc4089) the owner's `Export_Character` frames 1–8 were edited: chest skin past
+  4 px from its steady right edge became jacket, skin at or below the pants' top became pants (1–21 px per frame);
+  frame 0 untouched; `Export_Shading` regenerated for those frames. 4 px matches his other animations (idle ~3, jump
+  2–5, land ~3). A redrawn, procedurally waving coat tail was tried and rejected by the owner, so the coat is his own.
+- **Could affect:** only the fall's look.
+- **Tested:** the export equals the approved preview pixel for pixel; `--import`, `verify_frames.gd` (0 failures).
+  The owner looked at it in game.
+
+### Needle Point shaded
+
+- **What:** the Needle Point booth (`assets/things/needle_point.png`) is shaded: the steel frame and cream rails get
+  lit top/left and shadowed bottom/right edges, the syringe reads as lit glass (a bright streak down its left, a
+  darker falloff on its right), upward-facing moss catches a little light and the overgrowth darkens toward the ground.
+- **How:** in the art repo (`index32_art` 2782dac) the master gained a `Shading` layer on top holding only the changed
+  pixels (the owner's Thing and moss layers untouched); the hand export of the flattened image was copied here. The
+  shades are the art's own colours shifted in OKLab lightness; the moss pass reads the moss layer only, so the
+  green-painted machine parts aren't dotted. README § Needle Point mentions the layer.
+- **Could affect:** only the booth's look — no shader or code reads its colours.
+- **Tested:** the export equals the preview the owner picked (variant B) pixel for pixel; `--import` and a headless
+  arena boot clean. **Not verified:** a windowed look at it in the arena.
+
+### Colour picker: a pick is the colour shown (pure black included), and it glows like the default
+
+- **What:** two fixes to Khalid's body recolour (`configs/PaletteConfig.cs`). (1) Picking black (or any dark colour)
+  for hair, skin, jacket or pants gave at best a dark grey; the picked colour is now exactly the part's flat colour,
+  so black is black (its lit edges a faint grey). (2) Hair of another colour glowed less than the default red — the
+  owner's orange scheme most visibly; each glowing material (hair, trim, metal) now gets a glow push matched to its
+  pick, so it peaks as high as the default does.
+- **Why / how:** (1) `Derive` anchored the pick on whichever of the six shades was nearest in value — right before the
+  2026-10-14 flatten, but now the sheets show slot 1 almost everywhere, and a black pick landed on the rim shade, so
+  slot 1 only came down to ~31% value (hair) / ~47% (skin). It now anchors on the new `FlatShade` (slot 1); the other
+  shades keep their value offsets, clamped to 0..1. (2) Bloom only catches what the push lifts past the 1.0 HDR
+  threshold, and the push was a fixed multiplier, so a pick whose brightest channel peaks lower (orange: ~1.07 vs red
+  ~1.17 at rest, under the threshold for most of the hair flow) glowed less. `GlowFor` scales each push so the pick's
+  flat shade peaks (linear, after vibrancy — both scale with the push) exactly like the default's, capped at
+  `GlowMatchMax` = 2× so a dark pick stays dark, floored at no push. `ApplyBody` sets `dst` and `glow` together for
+  both the run (`MakeMaterial`) and the colour-picker screen's live updates (`GlowFloats` and the screen's
+  `ApplyBodyDst` are gone).
+- **Could affect:** every saved scheme — a pick whose value was nearer another shade now shows at its own value
+  (closer to what was picked), and a pick that peaked higher than the default glows a little less (the owner's
+  magenta metal). The default palette is unchanged (matched push = the old push). Skin, jacket and pants have no glow,
+  so only (1) touches them.
+- **Tested:** build 0 warnings; headless arena boot (only the known exit-time line). A throwaway headless scene
+  (deleted) ran the real `BuildTargets`/`GlowFor` over 48 708 picks (36 hues × 11 saturations × 41 values, for hair,
+  trim and metal): the flat shade equals the pick in every case; every pick either matches the default peak within
+  0.1 %, is capped (dark picks — for hair, below ~37% value at any hue), or is floored (already brighter than the
+  default with no push); none fall outside those. Black for hair/skin/jacket/pants derives to `000000` flat. Windowed
+  renders under the arena's bloom settings (throwaway scenes, deleted): the orange scheme's hair halo grows and the
+  default red is pixel-identical; black hair and an all-black outfit render black. The colour-picker screen with the
+  orange scheme: hair brighter, magenta metal darker, as expected. **Not verified:** a full run with a scheme started
+  from the picker's Start button (the same `MakeMaterial` path the renders used).
+
+### Enemies and Kroj: the same subtle shading
+
+- **What:** all 41 enemy and warden sheets (`sprites/enemies/*/*_frames.png`, `sprites/wardens/kroj/*_frames.png`)
+  are shaded like Khalid's: every flat colour is lighter along top/left edges and darker along bottom/right edges and
+  under another part; thin parts stay flat. A two-tone part's base/dark boundary is not treated as an edge.
+- **How:** in the art repo (`index32_art` c756dfc) every master gained an `Export_Shading` layer above
+  `Export_Character`, holding only the shaded pixels. The enemies have no shade ramps of their own, so each flat
+  colour from `tools/repalette/flat_looks.py` is shifted in OKLab: lightness +0.055 for the lit shade, −0.07 for the
+  shadow, same hue (chroma pulled in only where the colour would leave sRGB) — about Khalid's subtle step. Only fully
+  opaque flat pixels were touched. The sheets were copied here unchanged. README § enemies describes the layer.
+- **Could affect:** the accent glow (`enemy_glow.gdshader` gates on brightness and saturation), so lit edges on the
+  bright warm bodies (Matat, Mazab, Tarri) bloom slightly more. Kebus's skin-coloured attack slash is shaded as skin.
+  Kroj's veined body breaks into small pieces, so its shading reads more as texture than form (owner approved it as
+  is; hiding its layer brings it back to flat). No code or frame layout changed.
+- **Tested:** every new sheet compared with the previous one plus the approved preview overlay: identical, alpha
+  unchanged. `--import`, `verify_frames.gd` (0 failures), a headless arena boot (only the known exit-time line).
+  The owner reviewed flat-vs-shaded stills and videos of every enemy. **Not verified:** an in-engine render with an
+  enemy on screen (the attack-choice menu covered the one attempted).
+
+### Khalid: subtle shading on every animation
+
+- **What:** all 29 of Khalid's sheets (`sprites/characters/khalid/*_frames.png`) are shaded instead of one colour per
+  part: each part's top and left edges take its ramp's lightest shade (slot 0), its bottom and right edges and
+  anything sitting under another part take the next darker shade (slot 2), and parts too thin to shade stay flat
+  (slot 1). The owner picked this "subtle" strength from a flat / subtle / stronger comparison.
+- **How:** in the art repo (`index32_art` 974f827) every Khalid master gained an `Export_Shading` layer above
+  `Export_Character`, holding only the shaded pixels — so the owner can repaint, hide or delete it frame by frame
+  without touching the drawing; the hooks export it merged with the character. Only fully opaque pixels in a part's
+  flat colour were touched; semi-transparent fade pixels (dash, death, spawn) are unchanged. The sheets were copied
+  here unchanged. README § the palette ("Khalid is FLAT…") describes the layer.
+- **Could affect:** the colour picker and the palette shader (`sprite_palette.gdshader`) — all three shades are slots
+  of the existing 36-colour `PaletteConfig.DefaultShades`, so they recolour like the flat colour did; the hair flow
+  and glow work per shade as before. The rope dart's red arcs are drawn in hair red, so they are shaded as hair too.
+  No code or frame layout changed.
+- **Tested:** every new sheet compared with the previous one: same alpha everywhere, changes only on opaque palette
+  pixels (about 45% of Khalid's pixels). `--import`, `verify_frames.gd` (0 failures, uniform 128×80 canvas),
+  `dotnet build` 0 warnings, a headless arena boot (the one exit-time "resources still in use" line is there without
+  this change too), and a windowed render of the colour-picker screen with a saved scheme: the shading survives the
+  recolour. **Not verified:** a full playthrough look at every move in motion.
+
+---
+
+## 2026-10-20 — `new-shit` — Khalid dances when left alone; experiments/ (the camping meteor, dev-only); the stage-1 lady; dirt and grass kicked up when running
+
+### Footfalls: the ground sheds what it is made of
+
+- **What:** running on the grass floor, each push-off sprays soil specks and grass blades up and back from Khalid's
+  heel, in the floor tiles' own colours (soil `363548` / `4a5566` / `5a705e`, moss `6f8a66` / `86a071` / `9db582`);
+  they fly up to about 25 px — clear of the ground line, where same-coloured grass reads against the backdrop — and
+  fall away behind him. The stone and brick bridge (`tileset2`) sheds nothing.
+- **How:** `configs/Footfalls.cs` (data: which tileset sheds which colours, keyed by its image; the push-off frames
+  per character and animation — Khalid's run: sheet frames 2, 6, 9; the burst numbers), `records/vfx/FootfallStyle.cs`,
+  `scripts/player/parts/FootKick.cs` (a pool of three one-shot `CpuParticles2D` bursts per kind, left in the world,
+  drawn behind the sprite; each particle picks exactly one palette colour through a hard-stepped gradient; blades
+  point along their flight). `Player.OnFrameChanged` fires it on a push-off frame while he runs on the floor. The
+  surface is the tile at the floor contact point, looked up in the `TileMapLayer` — not `GetCoordsForBodyRid`, which
+  returns one representative tile of the layer's merged collision chunk (it reported a bridge tile under the grass).
+- **Could affect:** the run's look (a new layer of particles); nothing else reads these.
+- **Tested:** build 0 warnings; reimport and headless boot clean (the exit-time line is the stage music, as before);
+  a throwaway scene through the real arena in recording mode (deleted): running on the grass floor, up to 6 bursts in
+  the air at once; teleported onto the bridge and running its length, 0. A 1280×720 render of the run showed the
+  spray behind him (tuned up once: the first pass was too faint — 1-px specks that stayed under the ground line).
+  **Not verified:** other surfaces (only stage 1 exists); landing or slam dust (not asked for).
+- **Tuned by the owner** after the first build: 13 soil specks and 5 blades per kick, blades living 0.4 s, a 45°
+  spread (the constants in `configs/Footfalls.cs`).
+
+### Khalid dances after 8 s of calm
+
+- **What:** standing idle on the ground for 8 s with no input and no damage, Khalid dances: the owner's new
+  14-frame `dance_1` (`sprites/characters/khalid/khalid_dance_1_frames.png`, from
+  `index32_art/art/characters/khalid/khalid_dance_1.aseprite`). It starts on the idle pose, plays frames 0–2 once,
+  then loops 3 to the last frame; any button, key, real stick push or a hit stops it, and 8 more calm seconds start it
+  again.
+- **How:** a `Dance` free mode in `FreeState` with a `Calm` timer that counts only while he stands idle on the
+  ground (`DanceAfter` 8 s); `Player._Input` (any press, or a stick past `CalmStickDeadzone` 0.5) and `TakeDamage`
+  reset it through `ResetCalm`. The loop is the generator's existing `loop_from` (3) with `keep_first` (frame 0
+  plays), and `FRAME_DURATIONS` copies the master's own frame timings (0.1–0.2 s) — `tools/gen_spriteframes.py`;
+  `resources/characters/khalid.tres` regenerated.
+- **Could affect:** idle (the dance only replaces it after 8 s of calm); `khalid.tres` is rewritten in the
+  generator's layout — loaded in Godot and compared animation by animation against the committed one, every existing
+  animation, region, margin, duration and metadata is identical; the only change is `dance_1`.
+- **Tested:** build 0 warnings; reimport and headless boot clean; a throwaway headless scene through the real arena
+  in recording mode (deleted) passed 5/5: the dance starts at 8.00 s, plays 0,1,2 then 3..13 back to 3, a key press
+  stops it, it starts again after another 8 s, a hit stops it. A 1280×720 render of every frame showed it on the
+  ground and lined up with idle.
+
+### DEBUG: the camping meteor (M), for a devlog
+
+- **What:** with M on, staying within 50 px (`Rounds.StillRadius`) for 5 s drops a meteor where Khalid stands, and
+  another every 5 s he stays. A ground glow and a tightening shadow warn for 1.1 s; a burning rock falls at an angle
+  trailing fire, smoke and sparks; the impact is a soft white flash, a flattened shockwave along the ground, an
+  upward fireball, square rock debris under gravity, dust rolling out both ways, embers, a scorch mark that fades
+  over 5 s, a camera shake and a blast (Ein's kamikaze sound). It hits like an enemy attack — a hostile `Hitbox` for
+  one instant (the usual half-block, knocked back from the crater).
+- **Why debug only:** a council ruled a camping meteor out of the game (2026-10-13); the owner wanted it for a
+  devlog, easy to delete. Everything is in `scripts/debug/MeteorStrike.cs`, built in code (no scene, no asset);
+  `DebugTools` adds it and binds M. Removing it = that file and the M lines in `DebugTools`.
+- **Tested:** a throwaway headless scene (deleted) in recording mode: one meteor cost one half-block and knocked
+  him 69 px; renders of the warning, fall, impact and scorch (the flash, dust and fireball were reworked after the
+  first render — a hard disc, dust spilling under the floor and a fireball half underground).
+
+### index32_art: the stage-1 lady and Khalid's dance flattened
+
+- **What:** `art/stages/stage1/lady.aseprite` (the owner's new stage decor: a woman lying on a ledge holding up a
+  cup, 5 frames) repaletted and flattened to one colour per part — new profile `tools/repalette/profiles/lady.py`
+  (five parts by hue, ramps measured from the owner's own colours) and a flat look in `flat_looks.py` (her ramps'
+  second-lightest shades, shared with Khalid's through `_second_lightest`); her content layer renamed `Layer 3` →
+  `Thing` so the tools see it; `lady.png` exported (not in the game yet). `khalid_dance_1.aseprite` frames 2–9 were
+  flattened through Khalid's profile and look; the owner then redrew the dance to 14 frames, all flat. (index32_art `281140a`.)
+- **Tested:** each master's export matched its dry run pixel for pixel; the lady's `Background` / `Platform` layers
+  and every frame duration unchanged.
+
+### The lottery stall moved (the owner's edit)
+
+- **What:** in `scenes/levels/stage1/stage1_v2.tscn` the lottery stall stands at x 138 instead of 761 — the owner
+  moved it in the editor (2026-10-19). Nothing else in the scene changed (a one-line diff).
+- **Could affect:** where players find the stall in the flat arena; the stalls' spacing (Needle Point 1027,
+  Figmenter 1290 unchanged).
+- **Tested:** headless boot of the arena clean.
+
+### experiments/: dev-only ideas, never in the final game (the meteor moves there)
+
+- **What:** a home for gameplay ideas kept to try out and film. `experiments/<name>/` is compiled only when named in
+  `EnabledExperiments` in `mygamedev.csproj` (empty by default) and never in a release export (`ExportRelease`),
+  whatever that list says. A compiled-in experiment implements `IExperiment` (`records/experiments/`), is found by
+  `Experiments.AttachAll` (`scripts/run/`, called once by `RunManager`) and gets an `ExperimentHost` — the player and
+  the arena root, nothing more. The camping meteor moved from `scripts/debug/MeteorStrike.cs` to
+  `experiments/meteor/` and is off; while compiled in it is simply on (the M key is gone). New: rule `C8` and the
+  all-on QA build in `V6` (`docs/standards.md`), `experiments/README.md`, `docs/game-loop.md` § Parked ideas (the
+  meteor, the tag-out stash, the painted arena — why each is out and what would bring it back).
+- **Why / how:** the owner wanted ideas like the meteor kept and switchable, on the condition that they are "purely
+  for our dev and debug process" and never land in the final build. A council (2026-10-19) cut the first proposal to
+  this: no Python tool, no `.gdignore` toggling, no round-event hooks, no moving the other parked material. Off =
+  not compiled: an MSBuild `Compile Remove` of `experiments/**` and a target that re-includes the named folders
+  (skipped for `ExportRelease`). Discovery is by reflection on purpose — a list in game code would stop compiling
+  the moment an experiment is switched off. No scene may reference an experiment (Godot would fail at runtime on a
+  compiled-out class).
+- **Could affect:** the build (one more target; the default compiles exactly what it did before, minus the meteor);
+  `RunManager` startup (one reflection pass over the assembly's types, once).
+- **Tested:** build 0 warnings off, with `meteor`, with `all`; the compile counts 198/199/199 files and a release
+  build with `all` at 198; the compiled assemblies searched — the meteor class is absent from the default and the
+  release build, present with `meteor`. A throwaway headless scene through the real arena (recording mode, standing
+  still 7 s; deleted): off — no experiment, no meteor, health 6 → 6; on — the meteor attached itself, fell and cost a
+  half-block (6 → 5). Reimport and headless boot clean with it off. **Not verified:** an actual release export (no
+  export preset exists yet); `scripts/debug/` still ships in every build — the same release gate should strip it
+  when the first export preset is made.
+
+## 2026-10-17 — `new-shit` — Dekken replaced by the lottery stall; triggered healing capped; Crimson Vortex; the art repo reorganised
+
+### The lottery stall: pay first, spin, take what lands
+
+- **What:** Dekken (the perk shop with drink-or-keep vials) is gone; the **lottery stall** stands in its place
+  (`LotteryStall` — a working name). E pays at once (20 Lira, +10 per further pull that round, 4 pulls a round; reset
+  when a round starts), the orb in the owner's dome-and-beam machine spins 1 s and lands on a random item that takes
+  effect immediately. Live: no menu, no pause. Nothing is carried — the vials, the Q / Tab keys and the HUD's vial row
+  are deleted. The items (all PLACEHOLDER numbers, `configs/Lottery.cs`): Ruh Flask (+2 charges), Cooldown Flush (next
+  3 specials skip their cooldown), Fig Frenzy (+15 % figs and a fig magnet, 25 kills), Bounty (×2 Lira, 25 kills),
+  Wider Pull (Come Closer +2 targets, 25 kills, only with Come Closer), and the heal items Leech Draught (10 % of
+  landed hits heal half a block, 30 kills), Tithe (every 4th of 8 kills heals), Second Wind (at the last half-block,
+  heal a block, once).
+- **Added:** `configs/Lottery.cs`; `ids/LotteryIds.cs`; `enums/lottery/LotteryMeasure.cs`;
+  `records/lottery/LotteryItemDef.cs`; `scripts/run/LotteryLedger.cs` (the rules: pulls, price, the roll, the held
+  items); `scripts/things/LotteryStall.cs` + `scenes/things/lottery_stall.tscn`; `scripts/abilities/lottery/`
+  (`LotteryEffect` and one class per item); `scripts/player/parts/HealBudget.cs`; `assets/things/lottery_stall.png` (the stage-1 version of the owner's
+  dome-and-beam drawing, `index32_art/art/stages/stage1/lottery_stall.aseprite` — its `Thing` + `Hands` layers in the
+  stage's dusk slate, without the `Items` layer; the base in greys is `art/things/lottery_stall.aseprite`). While the
+  orb spins, the items' names flicker at it — PLACEHOLDER until item icons exist.
+- **Removed:** `configs/Dekken.cs`, `ids/PerkIds.cs`, `enums/perks/`, `records/perks/`, `scripts/abilities/Perk.cs`,
+  `scripts/run/PerkLedger.cs`, `scripts/run/VialControls.cs`, `scripts/things/DekkenStall.cs`,
+  `scripts/ui/DekkenMenu.cs`, `scripts/ui/VialRow.cs`, `vfx/shaders/vial_recolor.gdshader`, `assets/things/dekken.png`,
+  `scenes/things/dekken.tscn`; and what only the perks used — the Shield (`Player.HitShields` and its block in
+  `OnHurt`), Prepared (`Player.SurgeFree`, `SurgeState.FireFree`), Fast Travel (`RunManager.FastTravelToFigmenter`),
+  the `Passive.OnRoundStart` hook and `Trigger.OnRoundStart`, `HUD.SetVials`. In `index32_art`, the old Dekken art is deleted on the
+  owner's word (`art/things/Dekken.aseprite` + `dekken.png`, `art/stages/stage1/Dekken.aseprite` + `.png`); the new
+  drawing lives on as `lottery_stall.aseprite`.
+- **Changed:** `scripts/run/RunManager.cs` (builds the `LotteryLedger`, gives it each kill and the round start, Lira ×
+  `LiraMultiplier`); `scripts/Player.cs` (`HealTriggered` + the `HealBudget`; `NotifyRoundStart` now refills it);
+  `scripts/abilities/LifestealBuff.cs` (heals through `HealTriggered`); `scripts/things/Stall.cs` (`SetPrompt`, wider
+  prompt); `scripts/ui/BuffList.cs` (held items with KILLS / USES / READY left); `scripts/HUD.cs`;
+  `scenes/levels/stage1/stage1_v2.tscn` and `painted_platforms.tscn` (the stall swapped, same spot, x 761); comments in
+  `BuffCatalog`, `SfxWorld`, `FadaFig`, `StallMenu`, `WineSlot`, `WorldZ`, `SurgeState`, `Passive`; docs —
+  `README.md`, `scripts/run/README.md`, `docs/game-loop.md` (§ The lottery stall, with the item table),
+  `docs/buff-catalog.md`, `docs/standards.md` (examples), `docs/painting-levels.md`,
+  `docs/future-enhancements-and-fixes.md`.
+- **Why / how:** the owner hated Dekken's look and wanted a slot-machine stall (Risk of Rain's chests, the CoD box);
+  six councils the same day shaped the rules. Pay-first because declining for free makes "wait for Heal" the only
+  play; kills / uses instead of "this round" because rounds never pause; a duplicate extends instead of multiplying
+  so Bounty can't run away; the wheel only rolls items that would help now (`LotteryEffect.IsUseful`, the special
+  gate, one primed Second Wind), with the heal items' weight scaled to at most a quarter of the rest (≤ 1 in 5 per
+  spin). **No bought heal** (the owner's rule): triggered healing — the lottery's heal items AND the Figmenter's
+  Bloodrush / Skim — now shares a cap of 2 blocks a round (`HealBudget`, refilled at round start and run start); a
+  capped heal shows **CAP** over Khalid; Second Wind is not capped (an emergency heal that could be capped fails when
+  it matters). Built on the existing seams: items are `Passive`s (the `ledgers` pattern, rule `S3`), content is data +
+  a class per item (`D4`). **Deviations from the councils:** Wider Pull lasts kills, not casts (Come Closer reads the
+  bonus when its field spawns, after the cast, so a cast-counted one would end before its last pull); Ruh Flask is
+  left off the wheel at full Ruh instead of spilling into "free specials" (specials don't cost Ruh); Last Call was
+  cut (it overlapped Tithe).
+- **Could affect:** the economy (no heal for sale — health now comes back only from triggers and the Nem surge until
+  the planned wine-drink heal is built); Bloodrush / Skim heal less on a long round (the cap); anything that read the
+  removed members; the HUD top-left (the vial row is gone); a debug arena rebuild (key 0) leaves held lottery items on
+  Khalid without a ledger to count them down — the same as the old perks; a death clears them.
+- **Tested:** build 0 warnings; reimport and headless boot clean (the exit-time line is the stage music stream, as
+  before); a throwaway headless scene through the real arena passed 29 of 29: the prompt, pay-first pricing 20 → 30 →
+  40 → 50, the spin lock, the 4-pull limit and NO PULLS LEFT, the round reset, Bounty ×2 extending to 50 kills and
+  ending, Fig Frenzy on/off, Ruh Flask instant and off the wheel at full Ruh, Wider Pull off without Come Closer, heals
+  at 20 % of 4000 rolls, the 2-block cap and its refill, Tithe every 4th kill, Second Wind one-at-a-time and firing on
+  a hit to the last half-block, Cooldown Flush clearing the cooldown 3 times, the buff list line. A real kill with
+  Bounty paid Matat's 3 Lira as 6. A 1280×720 render showed the stall in the arena with its prompt, the spinning orb
+  and the landed name (the prompt was then moved above the dome); a second render after the owner asked for the
+  stage colours and no `Items` layer showed the recoloured machine and the names flickering in the beam. **Not tested:** by a player — the price, the
+  counts, the heal cap and the 1-in-5 share are all first numbers; Leech Draught only by code (random).
+
+### Crimson Vortex on the lottery wheel; the player-side animation hold removed
+
+- **What:** a ninth item, **Crimson Vortex** (25 kills, weight 4 — about 1 pull in 6): while it lasts every dash
+  drops the crimson vortex (`vfx/character/khalid/dash/crimson_vortex/`), a spinning red field at the dash's start
+  that hits each enemy in it once for 18; when it runs out the dash goes back to the plain one. Added
+  `scripts/abilities/lottery/CrimsonVortexEffect.cs`, `LotteryIds.CrimsonVortex` and its `Lottery.Items` row
+  (`Value` = the damage).
+- **Changed:** a dash effect now carries its own hit tuning — `Player.SetDashEffect(effect, hit)`, with the
+  `DashEffect` / `DashHit` getters so an item can put back what it replaced; `DashState` fires the effect with a
+  copy of that tuning instead of an empty one. The vortex's `Damage = 18.0` is gone from its `.tscn` (rule `D2`: a
+  combat number lives in the data and goes through the tuning seam).
+- **Removed:** `Player.HoldAnimation` with its `_holdLeft` / `_channel` state and the hold-cancel on a hit or death,
+  `IStrikeWielder.HoldAnimation`, `BlastStrike.OnTuningApplied` and the `Strike.OnTuningApplied` hook it was the
+  only user of. The hold froze Khalid's sprite for the vortex's 1.3 s emit on every dash, and a hit cancelled the
+  vortex — wrong for an effect left behind. Without the vortex holding him there was no other caller (the enemy
+  blasts channel through `Enemy`, which isn't an `IStrikeWielder`), so it was dead code (`C1`).
+- **Why:** the owner is recording a demo of the stall and wanted a showy item; the vortex was finished art with no
+  way to reach it.
+- **Could affect:** dashing (every dash now passes `DashHit` to its effect — empty for the default dash, so the
+  same as before); the enemy blasts (untouched: they never used the removed hook); the vortex damage doesn't scale
+  with the Needle Point damage shots (its tuning isn't resolved through the stat multipliers — a first choice).
+- **Tested:** build 0 warnings; reimport and headless boot clean; a throwaway headless scene through the real arena
+  (deleted): the vortex is on the wheel (≈ 17 % of 2000 rolls without Come Closer), applying it swaps the dash
+  effect, a dash drops the vortex, Khalid's sprite keeps playing, an enemy inside it went 60 → 42, and after 25
+  kills the dash is the default one again with empty tuning. A 1280×720 render showed the vortex left behind at the
+  dash start. **Not tested:** by a player — the 18 and the 25 kills are first numbers.
+
+
+### Zahluq and Bakshen named as the specials they are
+
+- **What:** both were attacks once and are Figmenter-only specials now, but every asset still said `attack_`. Renamed
+  in both repos: the sprite sheets (`sprites/characters/khalid/khalid_special_zahluq|bakshen_frames.png`) and their
+  animations in `resources/characters/khalid.tres`, the effect scenes (`vfx/character/khalid/special/zahluq|bakshen/
+  special_*.tscn`), the sounds (`sfx/character/special/zahluq|bakshen/`), Bakshen's icon (`assets/icons/specials/`),
+  the keys in `EmittersCharacters` / `SfxCharacters` (their rows moved into the specials groups) and
+  `tools/gen_spriteframes.py`; in `index32_art` the masters, GIFs and frame sheets
+  (`art/characters/khalid/khalid_special_*`) and the icon (`art/icons/specials/bakshen`).
+- **Removed:** `Action.AnimationOverride` — it existed only to point these two specials at their `attack_`
+  animations; a special's animation is `special_<id>` again with no exception.
+- **Also:** `project.godot` no longer enables the GDScript formatter addon, whose folder was deleted on 2026-08-24
+  (every import warned about it).
+- **Could affect:** anything that loaded these assets by their old paths (all callers found and changed; the moved
+  files kept their uids); the editor's recent-files list.
+- **Tested:** build 0 warnings; reimport clean (the addon warning gone); headless boot clean (the exit-time lines are
+  the stage music, as before); a throwaway headless scene through the real arena (deleted) equipped and cast each:
+  both played their `special_` animation (Zahluq 4 frames, Bakshen 3), spawned their moved effect scene, resolved
+  their sound files and killed the enemy in front.
+
+### index32_art cleaned up and reorganised
+
+- **Deleted:** three Aseprite `.bak` backups (now git-ignored), the orphan `kroj_attack_frames.png` (its master was
+  renamed to `kroj_attack_lunge` in August), `art/things/InfinityEye` and Khalid's unused `air_punch_texture_1`
+  (both on the owner's word), the empty `effect_sheets/` + `textures/` under Khalid.
+- **Moved:** the parked characters (Feyke, Katalyst, Lenbondosen, Wayna) to `art/parked/` — all 212 files kept, the
+  owner wants them for later; the promo art (`SteamAssets`, Khalid's `BigDesigns`) to a top-level `promo/`, outside
+  `art/` so the export hooks never touch it; the status icons to `art/status/`; `export-character-layer.lua` to
+  `tools/`.
+- **Renamed** every folder and file to snake_case, matching the game's ids (`art/enemies/matat/`,
+  `art/wardens/kroj/`, `khalid.png`, `figmenter`, `lottery_stall`, `needle_point`, `man_choking_statue`,
+  `wine_bottle`, `skeleton_chillin`, `tree1`; the misspellings fixed: `planet_with_orbiting_moon`,
+  `hero_pic_square1`). The parked characters keep their names. The repalette profiles (`subjects`), the hooks, the
+  art README (the layout + the naming rule), the repalette README, this README and the workspace skill follow.
+- **Could affect:** only the art repo — the game keeps its own copies of the art. The owner's uncommitted Figmenter
+  edits moved with the file (`art/stages/stage1/figmenter.aseprite`), still uncommitted.
+- **Tested:** both stall profiles dry-run under their new names; the hook export through the moved Lua script
+  matched the committed `matat_idle` sheet pixel for pixel; Khalid's item README regenerates with the new portrait.
+
+## 2026-10-16 — `new-shit` — The enemies and Kroj in flat colours
+
+### Every enemy flat, no outlines, to match Khalid
+
+- **What:** all 36 enemy sheets and Kroj's 5 now have no outline. Kebus, Ein, Ventilator and Kroj use one colour per
+  part (Khalid's look); Baghel, Mazab, Matat, Tarri, Breski and Nasen use two tones per part — a base and a darker
+  tone kept inside the silhouette — because each is drawn in one colour family and one colour turned them into solid
+  silhouettes. Baghel and Breski take a lighter pair than the rest.
+- **Changed:** `sprites/enemies/*/*_frames.png` (36), `sprites/wardens/kroj/*_frames.png` (5), from `index32_art`
+  `124b736`; `README.md` (Enemy sprites).
+- **Why / how:** the owner wanted the enemies to match the flat Khalid; he saw trials of one colour per part for all
+  ten, and two tones for the six that went solid, before choosing. Built properly this time: the art repo's new
+  `tools/repalette/flatten_to_aseprite.py` applies each subject's look, which is data in
+  `tools/repalette/flat_looks.py` (which colours each part takes over, and the colour or base + dark pair they become).
+  It reproduces the flat Khalid exactly when run on him. Same sheet sizes and frame counts, so the enemy SpriteFrames
+  in `resources/` did not change.
+- **Could affect:** how every enemy reads. **Known, not fixed yet:** the enemy glow (`vfx/shaders/enemy_glow.gdshader`)
+  blooms any colour bright and saturated enough, and several flat base colours now cover most of a body — Mazab's,
+  Matat's and Breski's bodies, Tarri's yellow, Ventilator's red, Kebus's skin. In play Mazab reads as glowing red
+  linework instead of a flat body. Next: tune the shader's thresholds (agreed with the owner).
+- **Tested:** each sheet matches the approved dry run; build 0 warnings; the frames check is clean; the arena boots
+  headless with only the old exit-time line; 1280×720 renders of the arena show the enemies in place.
+
+## 2026-10-15 — `new-shit` — Khalid's flat art cleaned up; the floor's decoration row removed
+
+### Khalid: the owner's cleanup of every animation
+
+- **What:** the owner cleaned stray pixels out of all 28 flat Khalid animations and reworked Swing (still unused in
+  the game). 13–456 visible pixels changed per sheet.
+- **Changed:** `sprites/characters/khalid/*_frames.png` (28 sheets, from `index32_art` `9ec0fb2` (Bakshen) and
+  `e485714` (the rest)).
+- **Why / how:** the flatten left stray pixels where shades had sat beside each other; the owner fixed them by hand in
+  the `.aseprite` masters. Same sheet sizes and frame counts, so `resources/characters/khalid.tres` did not change.
+- **Could affect:** Khalid's look only.
+- **Tested:** the frames check is clean, build 0 warnings, the arena boots headless with only the old exit-time line.
+  Every sheet is in the 6 flat colours except two stray spots left in the art: Dash frame 3 has 8 pixels of
+  `#821C1C` (one step off the hair `#811A1A`) around x 79–82, y 55, and Fall frame 3 one semi-transparent `#4C5550`
+  pixel at x 64, y 75. Both still draw (the palette shader takes the nearest colour); they are the owner's to fix.
+
+### The stage: the decoration row along the floor removed
+
+- **What:** the owner removed the row of 98 tileset3 tiles (rocks and plants) along the top of the floor, x -800 to
+  2848, in `scenes/levels/stage1/stage1_v2.tscn`.
+- **Could affect:** looks only — tileset3 is decoration with no collision (`DECOR_SHEETS` in
+  `tools/gen_terrain_tileset.gd`), so movement, spawning and the stalls are unchanged.
+- **Tested:** the arena boots headless. Not looked at in a window by me.
+
+## 2026-10-14 — `new-shit` — Khalid in flat colours
+
+### Every Khalid animation: one colour per part, no outlines
+
+- **What:** all 28 of Khalid's sprite sheets now use one colour per material — hair `#811A1A`, skin `#0B8B84`,
+  jacket `#4B3328`, trim `#D1C81F`, pants `#2F3D2B`, metal `#60656A` (each ramp's second-lightest shade) — and no
+  outline: every darker shade of a material, its rim included, became that one colour.
+- **Changed:** `sprites/characters/khalid/*_frames.png` (28 sheets, copied from `index32_art` commit `d7719ec`, where
+  the `.aseprite` masters were flattened and re-exported); `README.md` (Palette cleanup).
+- **Why / how:** the owner wants a basic flat look ahead of redrawing every animation; he saw a trial on Bakshen, then
+  on all 28, before it was applied. The masters were flattened by exact colour mapping (every sheet was already on
+  the 36-colour palette), written back through the art repo's own export and import scripts. Same sheet sizes and
+  frame counts, so `resources/characters/khalid.tres` did not change.
+- **Could affect:** how Khalid reads — where a part overlaps itself (an arm over the coat, two legs) the edge is gone,
+  most visible in run, slam and Ground Breaker; the red effects drawn in the hair colour (rope dart, twin reaper,
+  spear, death, spawn, Redere Shield) are solid red shapes now. The palette shader still works (the 6 colours are
+  slots of its 36): the hair flow pulses the whole flat red toward a darker red, and a colour picked in the
+  pre-game picker shows at the shade `PaletteConfig.Derive` puts in slot 1, which can be a little lighter or darker
+  than the pick.
+- **Tested:** each master's export matches the approved trial pixel for pixel (28 of 28); the frames check
+  (`tools/verify_frames.gd`) is clean; build 0 warnings; the arena boots headless with only the old exit-time line.
+  **Not tested:** how it looks in play — a windowed screenshot came out too small to judge; the owner checks it with
+  F5.
+
 ## 2026-10-13 — `new-shit` — Recording mode, and every debug tool in `scripts/debug/`
 
 ### Recording mode (H), and the debug tools in one folder

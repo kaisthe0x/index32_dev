@@ -15,11 +15,17 @@ public static class PaletteConfig
     public static readonly string[] Materials = { "hair", "skin", "jacket", "trim", "pants", "metal" };
     public const int ShadesPer = 6;  // 5 shades + 1 rim, light → dark
 
-    /// <summary>Default per-material HDR glow push (sprite_palette.gdshader `glow`), index-aligned to MATERIALS.</summary>
+    /// <summary>The shade Khalid's sheets are drawn in (flat since 2026-10-14; the 2026-10-22 shading adds only its
+    /// neighbours 0 and 2 along edges), so it covers most of every part: a pick lands on it exactly.</summary>
+    public const int FlatShade = 1;
+
+    /// <summary>Per-material HDR glow push (sprite_palette.gdshader `glow`) on the DEFAULT palette, index-aligned to
+    /// MATERIALS. A picked colour gets its own push from <see cref="GlowFor"/>, so it glows as much as this.</summary>
     public static readonly float[] MaterialGlow = { 3.2f, 0.0f, 0.0f, 0.8f, 0.0f, 0.4f };  // hair, skin, jacket, trim, pants, metal
 
-    /// <summary>The default glow array (marshals to a PackedFloat32Array uniform), ready for SetShaderParameter("glow", …).</summary>
-    public static float[] GlowFloats() => (float[])MaterialGlow.Clone();
+    /// <summary>The most <see cref="GlowFor"/> may multiply a material's brightness by to match the default glow: a
+    /// dark pick (near-black hair) is lifted only this far, so it stays dark instead of turning into a bright glow.</summary>
+    public const float GlowMatchMax = 2.0f;
 
     public const string BodyShader = "res://vfx/shaders/sprite_palette.gdshader";
     public const string PortraitShader = "res://vfx/shaders/portrait_recolor.gdshader";
@@ -53,8 +59,7 @@ public static class PaletteConfig
         bodyPicks ??= _picks;
         var m = new ShaderMaterial { Shader = GD.Load<Shader>(BodyShader) };
         m.SetShaderParameter("src", ToLinearVec3(DefaultFlat()));
-        m.SetShaderParameter("dst", ToLinearVec3(BuildTargets(bodyPicks)));
-        m.SetShaderParameter("glow", GlowFloats());
+        ApplyBody(m, bodyPicks);
         m.SetShaderParameter("vibrancy", Vibrancy);
         m.SetShaderParameter("flow_speed", FlowSpeed);
         m.SetShaderParameter("flow_amount", FlowAmount);
@@ -112,24 +117,14 @@ public static class PaletteConfig
         return outL;
     }
 
-    /// <summary>Recolour one material from a single `base`, ANCHORED BY VALUE: the pick lands on the shade whose
-    /// lightness is nearest, and every other shade shifts by the same delta (light→dark spacing preserved). Adopts
-    /// base's hue+saturation. Returns the 6 shades (5 + rim).</summary>
+    /// <summary>Recolour one material from a single `base`: the pick becomes the <see cref="FlatShade"/> verbatim
+    /// (its hue, saturation and value), and every other shade keeps its value OFFSET from the flat one (light→dark
+    /// spacing preserved, clamped to 0..1). So the colour picked is the colour that covers the part — pure black
+    /// included — and the shading shows wherever there is room above or below it. Returns the 6 shades (5 + rim).</summary>
     public static List<Color> Derive(string material, Color baseCol)
     {
         string[] shades = DefaultShades[material];
-        float anchorV = new Color(shades[0]).V;
-        float bestDiff = 999.0f;
-        foreach (var hex in shades)
-        {
-            float v = new Color(hex).V;
-            if (Mathf.Abs(v - baseCol.V) < bestDiff)
-            {
-                bestDiff = Mathf.Abs(v - baseCol.V);
-                anchorV = v;
-            }
-        }
-        float delta = baseCol.V - anchorV;
+        float delta = baseCol.V - new Color(shades[FlatShade]).V;
         var outL = new List<Color>();
         foreach (var hex in shades)
         {
@@ -137,6 +132,44 @@ public static class PaletteConfig
             outL.Add(Color.FromHsv(baseCol.H, baseCol.S, Mathf.Clamp(d.V + delta, 0.0f, 1.0f), d.A));
         }
         return outL;
+    }
+
+    /// <summary>Recolour a body material from `bodyPicks`: its target palette and the glow that goes with it.</summary>
+    public static void ApplyBody(ShaderMaterial m, IReadOnlyDictionary<string, Color> bodyPicks)
+    {
+        List<Color> targets = BuildTargets(bodyPicks);
+        m.SetShaderParameter("dst", ToLinearVec3(targets));
+        m.SetShaderParameter("glow", GlowFor(targets));
+    }
+
+    /// <summary>The glow array (marshals to a PackedFloat32Array uniform) for a 36-colour target palette. Bloom only
+    /// catches what clears the 1.0 HDR threshold, so a fixed push glows a colour that peaks lower (an orange, a blue)
+    /// far less than the default red. Each glowing material's push is scaled so its <see cref="FlatShade"/> — the
+    /// colour the sheets are drawn in — peaks exactly as high as the default palette's, capped at <see cref="GlowMatchMax"/>
+    /// and never below no push at all.</summary>
+    public static float[] GlowFor(List<Color> targets)
+    {
+        var glow = new float[Materials.Length];
+        for (int m = 0; m < Materials.Length; m++)
+        {
+            if (MaterialGlow[m] <= 0.0f)
+                continue;
+            float want = Peak(new Color(DefaultShades[Materials[m]][FlatShade]));
+            float have = Peak(targets[m * ShadesPer + FlatShade]);
+            float scale = have > 0.0f ? Mathf.Min(want / have, GlowMatchMax) : GlowMatchMax;
+            glow[m] = Mathf.Max((1.0f + MaterialGlow[m]) * scale - 1.0f, 0.0f);
+        }
+        return glow;
+    }
+
+    /// <summary>A colour's brightest channel as sprite_palette.gdshader works on it, before the glow push: linear,
+    /// after the vibrancy saturation push. (Both steps scale with the push, so matching this matches the output.)</summary>
+    private static float Peak(Color c)
+    {
+        Color l = c.SrgbToLinear();
+        float luma = 0.299f * l.R + 0.587f * l.G + 0.114f * l.B;
+        float k = 1.0f + Vibrancy;
+        return Mathf.Max(luma + (l.R - luma) * k, Mathf.Max(luma + (l.G - luma) * k, luma + (l.B - luma) * k));
     }
 
     /// <summary>A full 36-colour target list from a {material → base Color} pick set (missing materials keep default).</summary>

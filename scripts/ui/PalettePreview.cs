@@ -144,7 +144,7 @@ public partial class PalettePreview : Control
     /// <summary>Push the current working picks to every live view.</summary>
     private void RefreshAll()
     {
-        ApplyBodyDst();
+        ApplyBody();
         PaletteConfig.ApplyPortraitHues(_portraitMat, _bodyPicks);
         foreach (var (m, picker) in _bodyPickers)
             picker.Color = BodyPickFor(m);
@@ -167,8 +167,7 @@ public partial class PalettePreview : Control
     private void ApplyUiPicks() =>
         UiStyle.SetColors(_uiPicks[UiStyle.PickFrame], _uiPicks[UiStyle.PickAccent]);
 
-    private void ApplyBodyDst() =>
-        _mat.SetShaderParameter("dst", PaletteConfig.ToLinearVec3(PaletteConfig.BuildTargets(_bodyPicks)));
+    private void ApplyBody() => PaletteConfig.ApplyBody(_mat, _bodyPicks);
 
     // --- UI -----------------------------------------------------------------
 
@@ -330,7 +329,7 @@ public partial class PalettePreview : Control
     private void OnBodyColour(Color colour, string matName)
     {
         _bodyPicks[matName] = colour;
-        ApplyBodyDst();
+        ApplyBody();
         PaletteConfig.ApplyPortraitHues(_portraitMat, _bodyPicks);
         PaletteConfig.SetPicks(_bodyPicks);
     }

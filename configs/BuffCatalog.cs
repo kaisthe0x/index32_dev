@@ -7,7 +7,7 @@ namespace MyGame;
 /// <summary>
 /// The FIGMENTER's buff registry: <c>id → a factory that builds the buff</c>. The single place a Figmenter buff is
 /// instantiated by id (<see cref="FigmenterLedger"/> calls <see cref="Make"/>). Stat boosts aren't here — they are Needle Point
-/// shots (<see cref="NeedlePoint"/>); perks are Dekken's (<see cref="Dekken"/>).
+/// shots (<see cref="NeedlePoint"/>); round-sized boosts are the lottery stall's (<see cref="Lottery"/>).
 /// Only IMPLEMENTED buffs live here; the FULL catalogue is <see cref="BuffIds"/> + docs/buff-catalog.md, and each
 /// lands as its mechanic is built.
 ///

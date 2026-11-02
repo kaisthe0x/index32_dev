@@ -133,10 +133,10 @@ OVERRIDES: dict[tuple[str, str], dict[str, float | int | bool]] = {
     ("khalid", "slam"): {"fps": 15.0, "hold_last": 1.6},
     # Bakshen: a charged slash. fps 10 so the per-frame math is clean (see FRAME_DURATIONS: the
     # wind-up frame holds 1s); hold_last lets the final slash pose linger while its VFX plays.
-    ("khalid", "attack_bakshen"): {"fps": 10.0, "hold_last": 10.0},
+    ("khalid", "special_bakshen"): {"fps": 10.0, "hold_last": 10.0},
     # Zahluq: a fast burst-forward dash-attack (COOLDOWN). Snappy so the lunge reads as a
     # quick slide; hold_last lets the follow-through pose settle after he stops.
-    ("khalid", "attack_zahluq"): {"fps": 14.0, "hold_last": 2.0},
+    ("khalid", "special_zahluq"): {"fps": 14.0, "hold_last": 2.0},
     # Aegis surge (surge_aegis, formerly special_default): the flex pose sheet. The surge is passive
     # so this anim isn't played today, but keep the sheet + timing under its new name (renamed 1:1).
     ("khalid", "surge_aegis"): {"fps": 8.0, "hold_last": 3.0},
@@ -167,6 +167,10 @@ OVERRIDES: dict[tuple[str, str], dict[str, float | int | bool]] = {
     # variable, physics-driven duration.
     # loop_from/loop_to are SHEET-relative (they count the idle-ref F0).
     ("khalid", "swing"): {"fps": 9.0, "loop": True, "loop_from": 2, "loop_to": 7},
+    # The dance (FreeState, after 8 s of calm): it starts on the idle-reference pose (keep_first --
+    # the same pose as idle, so it eases straight out of standing), plays frames 0-2 once as a
+    # lead-in, then loops 3 to the end.
+    ("khalid", "dance_1"): {"fps": 10.0, "loop": True, "keep_first": True, "loop_from": 3},
     # Hurt flinch: slower than the 12fps default + a lingering recoil so the 3-frame
     # reaction reads (the Player holds HURT at least this long, not cut short by a brief stagger).
     ("khalid", "hurt"): {"fps": 10.0, "hold_last": 1.6},
@@ -196,8 +200,8 @@ HIT_FRAMES: dict[tuple[str, str], list[int]] = {
         2,
         3,
     ],  # the short stun blast fires on the forward-thrust frame
-    ("khalid", "attack_bakshen"): [3],  # single charged hit on the last (slash) frame
-    ("khalid", "attack_zahluq"): [2],  # burst frame -- the Strike + lunge fire here
+    ("khalid", "special_bakshen"): [3],  # single charged hit on the last (slash) frame
+    ("khalid", "special_zahluq"): [2],  # burst frame -- the Strike + lunge fire here
     ("khalid", "special_come_closer"): [3],  # beckon on the last frame -> spawn the magnet field
     ("khalid", "special_redere_shield"): [3],  # shield fully up on the last frame (per spec)
     ("khalid", "special_redere_frisbee"): [3],  # release the throw on the last frame
@@ -241,8 +245,23 @@ HIT_FRAMES: dict[tuple[str, str], list[int]] = {
 # is just "the last frame"); a value set here wins over hold_last for that frame.
 FRAME_DURATIONS: dict[tuple[str, str], dict[int, float]] = {
     # e.g. ("some_char", "some_attack"): {2: 1.5}  # linger on those hit frames
-    ("khalid", "attack_bakshen"): {1: 2.0},  # wind-up frame holds 1 full second (10 x 1/10fps)
+    ("khalid", "special_bakshen"): {1: 2.0},  # wind-up frame holds 1 full second (10 x 1/10fps)
     ("khalid", "attack_rope_dart"): {1: 0.5, 2: 0.5},
+    # The dance keeps the master's own frame timings (at 10 fps, 1.0 = 0.1 s): its 0.15 s frames
+    # are 1.5, its 0.2 s frames 2.0.
+    ("khalid", "dance_1"): {
+        0: 1.5,
+        1: 1.5,
+        3: 1.5,
+        5: 1.5,
+        6: 1.5,
+        7: 1.5,
+        8: 1.5,
+        9: 1.5,
+        10: 2.0,
+        11: 1.5,
+        13: 2.0,
+    },
 }
 
 # Snappy swings: in a CHARACTER attack/special that has explicit HIT_FRAMES, the frames BETWEEN
